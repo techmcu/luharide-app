@@ -1,0 +1,76 @@
+### Test LuhaRide Authentication API
+### Use REST Client extension in VS Code or copy to Postman
+
+@baseUrl = http://localhost:3000/api
+
+### 1. Health Check
+GET http://localhost:3000/health
+
+### 2. Send OTP (New User Registration)
+POST {{baseUrl}}/auth/send-otp
+Content-Type: application/json
+
+{
+  "phone": "9876543210",
+  "purpose": "registration"
+}
+
+### 3. Verify OTP and Register (Use OTP from console)
+POST {{baseUrl}}/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phone": "9876543210",
+  "otp": "123456",
+  "name": "Test User",
+  "role": "passenger"
+}
+
+### 4. Get Current User (Use accessToken from step 3)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+
+### 5. Update Profile
+PUT {{baseUrl}}/auth/profile
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "email": "test@example.com"
+}
+
+### 6. Refresh Token
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: application/json
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+}
+
+### 7. Logout
+POST {{baseUrl}}/auth/logout
+Authorization: Bearer YOUR_ACCESS_TOKEN_HERE
+Content-Type: application/json
+
+{
+  "refreshToken": "YOUR_REFRESH_TOKEN_HERE"
+}
+
+### 8. Send OTP for Login (Existing User)
+POST {{baseUrl}}/auth/send-otp
+Content-Type: application/json
+
+{
+  "phone": "9876543210",
+  "purpose": "login"
+}
+
+### 9. Verify OTP and Login
+POST {{baseUrl}}/auth/verify-otp
+Content-Type: application/json
+
+{
+  "phone": "9876543210",
+  "otp": "123456"
+}

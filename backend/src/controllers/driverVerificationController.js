@@ -1,0 +1,234 @@
+const { pool } = require('../config/database');
+const ApiError = require('../utils/ApiError');
+const ApiResponse = require('../utils/ApiResponse');
+const asyncHandler = require('../utils/asyncHandler');
+const logger = require('../config/logger');
+
+/**
+ * Submit driver verification request
+ * POST /api/driver-verification
+ */
+const submitVerification = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const {
+    driving_license_number,
+    driving_license_url,
+    vehicle_registration,
+    vehicle_type,
+    vehicle_model,
+    vehicle_capacity,
+    rc_document_url,
+    permit_document_url,
+    insurance_document_url,
+    aadhaar_document_url
+  } = req.body;
+
+  // Check if already approved
+  const userCheck = await pool.query(
+    'SELECT driver_verification_status FROM users WHERE id = $1',
+    [userId]
+  );
+  if (userCheck.rows[0]?.driver_verification_status === 'approved') {
+    throw ApiError.badRequest('You are already a verified driver');
+  }
+
+  // Upsert verification request
+  const result = await pool.query(
+    `INSERT INTO driver_verification_requests (
+      user_id, driving_license_number, driving_license_url,
+      vehicle_registration, vehicle_type, vehicle_model, vehicle_capacity,
+      rc_document_url, permit_document_url, insurance_document_url, aadhaar_document_url,
+      status
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
+    ON CONFLICT (user_id) DO UPDATE SET
+      driving_license_number = EXCLUDED.driving_license_number,
+      driving_license_url = EXCLUDED.driving_license_url,
+      vehicle_registration = EXCLUDED.vehicle_registration,
+      vehicle_type = EXCLUDED.vehicle_type,
+      vehicle_model = EXCLUDED.vehicle_model,
+      vehicle_capacity = EXCLUDED.vehicle_capacity,
+      rc_document_url = EXCLUDED.rc_document_url,
+      permit_document_url = EXCLUDED.permit_document_url,
+      insurance_document_url = EXCLUDED.insurance_document_url,
+      aadhaar_document_url = EXCLUDED.aadhaar_document_url,
+      status = 'pending',
+      rejection_reason = NULL,
+      reviewed_by = NULL,
+      reviewed_at = NULL,
+      updated_at = CURRENT_TIMESTAMP
+    RETURNING *`,
+    [
+      userId,
+      driving_license_number || null,
+      driving_license_url || null,
+      vehicle_registration || null,
+      vehicle_type || null,
+      vehicle_model || null,
+      vehicle_capacity ? parseInt(vehicle_capacity) : null,
+      rc_document_url || null,
+      permit_document_url || null,
+      insurance_document_url || null,
+      aadhaar_document_url || null
+    ]
+  );
+
+  // Update user status
+  await pool.query(
+    "UPDATE users SET driver_verification_status = 'pending' WHERE id = $1",
+    [userId]
+  );
+
+  const request = result.rows[0];
+  logger.info(`Driver verification submitted: ${userId}`);
+
+  ApiResponse.created(
+    { request },
+    'Verification request submitted. Admin will review shortly.'
+  ).send(res);
+});
+
+/**
+ * Get current user's verification status
+ * GET /api/driver-verification
+ */
+const getMyStatus = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const userResult = await pool.query(
+    'SELECT driver_verification_status FROM users WHERE id = $1',
+    [userId]
+  );
+  const status = userResult.rows[0]?.driver_verification_status || 'none';
+
+  const requestResult = await pool.query(
+    'SELECT * FROM driver_verification_requests WHERE user_id = $1',
+    [userId]
+  );
+  const request = requestResult.rows[0] || null;
+
+  ApiResponse.success(
+    { status, request },
+    'Verification status retrieved'
+  ).send(res);
+});
+
+/**
+ * Get all pending driver requests (Admin only)
+ * GET /api/admin/driver-requests
+ */
+const getPendingRequests = asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    `SELECT dvr.*, u.name, u.email, u.phone
+     FROM driver_verification_requests dvr
+     JOIN users u ON u.id = dvr.user_id
+     WHERE dvr.status = 'pending'
+     ORDER BY dvr.created_at ASC`
+  );
+
+  ApiResponse.success(
+    { requests: result.rows },
+    'Pending requests retrieved'
+  ).send(res);
+});
+
+/**
+ * Approve driver request (Admin only)
+ * POST /api/admin/driver-requests/:id/approve
+ */
+const approveRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const adminId = req.user.id;
+
+  const requestResult = await pool.query(
+    'SELECT * FROM driver_verification_requests WHERE id = $1 AND status = $2',
+    [id, 'pending']
+  );
+
+  if (requestResult.rows.length === 0) {
+    throw ApiError.notFound('Pending request not found');
+  }
+
+  const request = requestResult.rows[0];
+
+  await pool.query(
+    `UPDATE driver_verification_requests 
+     SET status = 'approved', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP 
+     WHERE id = $2`,
+    [adminId, id]
+  );
+
+  await pool.query(
+    `UPDATE users 
+     SET driver_verification_status = 'approved', role = 'driver' 
+     WHERE id = $1`,
+    [request.user_id]
+  );
+
+  // Notify driver: verification approved
+  try {
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, title, body) 
+       VALUES ($1, 'verification_approved', 'Verification Approved', 'Your driver verification has been approved! You can now create rides.')`,
+      [request.user_id]
+    );
+  } catch (err) {
+    logger.warn(
+      `Notifications insert failed. Driver still approved. Error: ${err.message}`
+    );
+  }
+
+  logger.info(`Driver approved: ${request.user_id} by admin ${adminId}`);
+
+  ApiResponse.success(
+    { message: 'Driver approved successfully' },
+    'Driver approved'
+  ).send(res);
+});
+
+/**
+ * Reject driver request (Admin only)
+ * POST /api/admin/driver-requests/:id/reject
+ */
+const rejectRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const adminId = req.user.id;
+
+  const requestResult = await pool.query(
+    'SELECT * FROM driver_verification_requests WHERE id = $1 AND status = $2',
+    [id, 'pending']
+  );
+
+  if (requestResult.rows.length === 0) {
+    throw ApiError.notFound('Pending request not found');
+  }
+
+  const request = requestResult.rows[0];
+
+  await pool.query(
+    `UPDATE driver_verification_requests 
+     SET status = 'rejected', rejection_reason = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP 
+     WHERE id = $3`,
+    [reason || 'Documents rejected', adminId, id]
+  );
+
+  await pool.query(
+    "UPDATE users SET driver_verification_status = 'rejected' WHERE id = $1",
+    [request.user_id]
+  );
+
+  logger.info(`Driver rejected: ${request.user_id} by admin ${adminId}`);
+
+  ApiResponse.success(
+    { message: 'Request rejected' },
+    'Request rejected'
+  ).send(res);
+});
+
+module.exports = {
+  submitVerification,
+  getMyStatus,
+  getPendingRequests,
+  approveRequest,
+  rejectRequest
+};

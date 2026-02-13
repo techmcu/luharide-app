@@ -1,0 +1,376 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/user_model.dart';
+import '../core/constants/api_constants.dart';
+import 'api_service.dart';
+
+class AuthService {
+  final ApiService _apiService;
+  
+  AuthService(this._apiService);
+
+  // Storage keys - minimal, no extra keys
+  static const String _accessTokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  static const String _userDataKey = 'user_data';
+  static const String _userIdKey = 'user_id'; // cached for quick access
+
+  /// Send OTP to phone number
+  Future<Map<String, dynamic>> sendOTP(String phone, {String purpose = 'login'}) async {
+    try {
+      final response = await _apiService.post(
+        ApiConstants.sendOTP,
+        data: {
+          'phone': phone,
+          'purpose': purpose,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data'];
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to send OTP');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to send OTP');
+      }
+      throw Exception('Network error. Please check your connection.');
+    }
+  }
+
+  /// Verify OTP and login/register
+  Future<Map<String, dynamic>> verifyOTP({
+    required String phone,
+    required String otp,
+    String? name,
+    String role = 'passenger',
+  }) async {
+    try {
+      final response = await _apiService.post(
+        ApiConstants.verifyOTP,
+        data: {
+          'phone': phone,
+          'otp': otp,
+          if (name != null) 'name': name,
+          'role': role,
+          'platform': 'mobile',
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        
+        // Save tokens and user data
+        final tokens = AuthTokens.fromJson(data['tokens']);
+        final user = UserModel.fromJson(data['user']);
+        
+        await _saveAuthData(tokens, user);
+        
+        return {
+          'user': user,
+          'tokens': tokens,
+          'isNewUser': data['isNewUser'] ?? false,
+        };
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to verify OTP');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to verify OTP');
+      }
+      throw Exception('Network error. Please check your connection.');
+    }
+  }
+
+  /// Get current user profile
+  Future<UserModel> getCurrentUser() async {
+    try {
+      final response = await _apiService.get(ApiConstants.currentUser);
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return UserModel.fromJson(response.data['data']);
+      } else {
+        throw Exception('Failed to get user profile');
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        // Token expired, try to refresh
+        await refreshToken();
+        return getCurrentUser();
+      }
+      throw Exception('Failed to get user profile');
+    }
+  }
+
+  /// Refresh access token
+  Future<void> refreshToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString(_refreshTokenKey);
+
+      if (refreshToken == null) {
+        throw Exception('No refresh token found');
+      }
+
+      final response = await _apiService.post(
+        ApiConstants.refreshToken,
+        data: {
+          'refreshToken': refreshToken,
+          'platform': 'mobile',
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final tokens = AuthTokens.fromJson(response.data['data']['tokens']);
+        await _saveTokens(tokens);
+      } else {
+        throw Exception('Failed to refresh token');
+      }
+    } catch (e) {
+      // If refresh fails, logout user
+      await logout();
+      rethrow;
+    }
+  }
+
+  /// Logout user
+  Future<void> logout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString(_refreshTokenKey);
+
+      if (refreshToken != null) {
+        await _apiService.post(
+          ApiConstants.logout,
+          data: {'refreshToken': refreshToken},
+        );
+      }
+    } catch (e) {
+      // Ignore logout errors
+    } finally {
+      await _clearAuthData();
+    }
+  }
+
+  /// Update user profile
+  Future<UserModel> updateProfile({
+    String? name,
+    String? email,
+    String? whatsappNumber,
+    String? profileImageUrl,
+  }) async {
+    try {
+      final response = await _apiService.put(
+        ApiConstants.updateProfile,
+        data: {
+          if (name != null) 'name': name,
+          if (email != null) 'email': email,
+          if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
+          if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final user = UserModel.fromJson(response.data['data']);
+        await _saveUserData(user);
+        return user;
+      } else {
+        throw Exception('Failed to update profile');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to update profile');
+      }
+      throw Exception('Network error');
+    }
+  }
+
+  /// Change password for email/password users
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/simple-auth/change-password',
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return true;
+      }
+      throw Exception(response.data['message'] ?? 'Failed to update password');
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to update password');
+      }
+      throw Exception('Network error');
+    }
+  }
+
+  /// Check if user is logged in
+  Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_accessTokenKey);
+  }
+
+  /// Restore token to ApiService (call on app start when cached session exists)
+  Future<void> restoreTokenIfCached() async {
+    final token = await getAccessToken();
+    if (token != null && token.isNotEmpty) {
+      _apiService.setAuthToken(token);
+    }
+  }
+
+  /// Get cached user from local storage (no API call)
+  Future<UserModel?> getSavedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userData = prefs.getString(_userDataKey);
+    if (userData == null || userData.isEmpty) return null;
+    try {
+      final map = jsonDecode(userData) as Map<String, dynamic>;
+      return UserModel.fromJson(map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Get cached user ID (lightweight, single string read)
+  Future<String?> getCachedUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_userIdKey);
+  }
+
+  /// Save auth data (tokens + user)
+  Future<void> _saveAuthData(AuthTokens tokens, UserModel user) async {
+    await _saveTokens(tokens);
+    await _saveUserData(user);
+  }
+
+  /// Save tokens
+  Future<void> _saveTokens(AuthTokens tokens) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accessTokenKey, tokens.accessToken);
+    await prefs.setString(_refreshTokenKey, tokens.refreshToken);
+    
+    // Set token in API service
+    _apiService.setAuthToken(tokens.accessToken);
+  }
+
+  /// Save user data (minimal JSON, ~200-500 bytes)
+  Future<void> _saveUserData(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_userDataKey, jsonEncode(user.toJson()));
+    await prefs.setString(_userIdKey, user.id);
+  }
+
+  /// Clear all auth data
+  Future<void> _clearAuthData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_accessTokenKey);
+    await prefs.remove(_refreshTokenKey);
+    await prefs.remove(_userDataKey);
+    await prefs.remove(_userIdKey);
+    _apiService.clearAuthToken();
+  }
+
+  /// Get access token
+  Future<String?> getAccessToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_accessTokenKey);
+  }
+
+  /// Simple Login - Email + Password
+  Future<Map<String, dynamic>> simpleLogin({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/simple-auth/login',
+        data: {
+          'email': email,
+          'password': password,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        
+        final tokens = AuthTokens.fromJson(data['tokens']);
+        final user = UserModel.fromJson(data['user']);
+        
+        await _saveAuthData(tokens, user);
+        
+        return {
+          'user': user,
+          'tokens': tokens,
+        };
+      } else {
+        throw Exception(response.data['message'] ?? 'Login failed');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Login failed');
+      }
+      throw Exception('Network error. Please check your connection.');
+    }
+  }
+
+  /// Create demo accounts (passenger, driver, admin) - first time setup
+  Future<bool> createDemoAccounts() async {
+    try {
+      final response = await _apiService.post('/simple-auth/create-demo');
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Simple Signup - Email + Password
+  Future<Map<String, dynamic>> simpleSignup({
+    required String email,
+    required String password,
+    required String name,
+    String role = 'passenger',
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/simple-auth/signup',
+        data: {
+          'email': email,
+          'password': password,
+          'name': name,
+          'role': role,
+        },
+      );
+
+      if (response.statusCode == 201 && response.data['success'] == true) {
+        final data = response.data['data'];
+        
+        final tokens = AuthTokens.fromJson(data['tokens']);
+        final user = UserModel.fromJson(data['user']);
+        
+        await _saveAuthData(tokens, user);
+        
+        return {
+          'user': user,
+          'tokens': tokens,
+        };
+      } else {
+        throw Exception(response.data['message'] ?? 'Signup failed');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Signup failed');
+      }
+      throw Exception('Network error. Please check your connection.');
+    }
+  }
+}

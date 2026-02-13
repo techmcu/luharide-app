@@ -1,0 +1,68 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'core/theme/app_theme.dart';
+import 'core/config/env_config.dart';
+import 'core/app_navigator.dart';
+import 'providers/auth_provider.dart';
+import 'services/api_service.dart';
+import 'services/auth_service.dart';
+import 'screens/auth/simple_login_screen.dart';
+import 'screens/auth/simple_signup_screen.dart';
+import 'screens/home/home_screen.dart';
+import 'screens/landing/landing_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize configurations
+  await EnvConfig.init();
+  
+  runApp(const LuhaRideApp());
+}
+
+class LuhaRideApp extends StatelessWidget {
+  const LuhaRideApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Initialize services
+    final apiService = ApiService();
+    final authService = AuthService(apiService);
+
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider(authService),
+        ),
+      ],
+      child: MaterialApp(
+        navigatorKey: navigatorKey,
+        title: 'LuhaRide',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.light,
+        home: Consumer<AuthProvider>(
+          builder: (context, authProvider, _) {
+            // Show loading while checking auth status
+            if (authProvider.status == AuthStatus.initial) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            // Navigate based on auth status
+            if (authProvider.isAuthenticated) {
+              return const HomeScreen();
+            }
+
+            return const LandingScreen();
+          },
+        ),
+      ),
+    );
+  }
+}
+
