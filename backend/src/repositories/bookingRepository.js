@@ -6,7 +6,7 @@ const { pool } = require('../config/database');
 
 async function getBookingWithTripForRating(bookingId) {
   const result = await pool.query(
-    `SELECT b.id, b.passenger_id, b.status, t.driver_id
+    `SELECT b.id, b.passenger_id, b.status, b.confirmed_at, t.driver_id
      FROM bookings b
      JOIN trips t ON b.trip_id = t.id
      WHERE b.id = $1`,

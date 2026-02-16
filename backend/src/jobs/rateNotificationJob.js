@@ -24,8 +24,8 @@ function sendAndDelete(row) {
   const dataJson = JSON.stringify({ booking_id: row.booking_id });
   return pool.query(
     `INSERT INTO notifications (user_id, type, title, body, data)
-     VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was accepted. Rate your driver.', $2::jsonb),
-            ($3, 'rate_ride', 'Rate your passenger', 'You accepted a booking. Rate your passenger.', $2::jsonb)`,
+     VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. You can rate 4 min after confirm.', $2::jsonb),
+            ($3, 'rate_ride', 'Rate your passenger', 'You can rate 4 min after confirm.', $2::jsonb)`,
     [row.passenger_id, dataJson, row.driver_id]
   ).then(() => pool.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]))
     .catch((err) => logger.warn('Rate notification send/delete failed:', err.message));
@@ -34,7 +34,7 @@ function sendAndDelete(row) {
 function start() {
   run();
   setInterval(run, INTERVAL_MS);
-  logger.info('Rate notification job started (every 1 min)');
+  logger.info('Rate notification job started (sends 3 min after confirm, runs every 1 min)');
 }
 
 module.exports = { start, run };

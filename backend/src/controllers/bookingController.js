@@ -92,16 +92,20 @@ const createBooking = asyncHandler(async (req, res) => {
         'UPDATE trips SET available_seats = available_seats - $1 WHERE id = $2',
         [uniqueSeats.length, trip_id]
       );
+      await client.query(
+        'UPDATE bookings SET confirmed_at = NOW() WHERE id = $1',
+        [booking.id]
+      );
     }
 
     await client.query('COMMIT');
 
-    // Schedule rate notifications 1 min after confirm; fallback to immediate if table missing
+    // Schedule rate notifications 3 min after confirm; fallback to immediate if table missing
     if (bookingStatus === 'confirmed') {
       try {
         await pool.query(
           `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-           VALUES ($1, $2, $3, NOW() + INTERVAL '1 minute')`,
+           VALUES ($1, $2, $3, NOW() + INTERVAL '3 minutes')`,
           [booking.id, passengerId, trip.driver_id]
         );
       } catch (err) {
@@ -222,8 +226,8 @@ const respondToBooking = asyncHandler(async (req, res) => {
   }
 
   await pool.query(
-    'UPDATE bookings SET status = $1 WHERE id = $2',
-    ['confirmed', bookingId]
+    `UPDATE bookings SET status = 'confirmed', confirmed_at = NOW() WHERE id = $1`,
+    [bookingId]
   );
   await pool.query(
     'UPDATE trips SET available_seats = available_seats - $1 WHERE id = $2',
@@ -249,11 +253,11 @@ const respondToBooking = asyncHandler(async (req, res) => {
     }
   }
 
-  // Schedule rate notifications 1 min after accept; fallback to immediate if table missing
+  // Schedule rate notifications 3 min after accept; fallback to immediate if table missing
   try {
     await pool.query(
       `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-       VALUES ($1, $2, $3, NOW() + INTERVAL '1 minute')`,
+       VALUES ($1, $2, $3, NOW() + INTERVAL '3 minutes')`,
       [bookingId, booking.passenger_id, booking.driver_id]
     );
   } catch (err) {
@@ -261,8 +265,8 @@ const respondToBooking = asyncHandler(async (req, res) => {
       const dataJson = JSON.stringify({ booking_id: bookingId });
       await pool.query(
         `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was accepted. Rate your driver.', $2::jsonb),
-                ($3, 'rate_ride', 'Rate your passenger', 'You accepted a booking. Rate your passenger.', $2::jsonb)`,
+         VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. You can rate 4 min after confirm.', $2::jsonb),
+                ($3, 'rate_ride', 'Rate your passenger', 'You accepted a booking. You can rate 4 min after confirm.', $2::jsonb)`,
         [booking.passenger_id, dataJson, booking.driver_id]
       ).catch((e) => logger.warn('Fallback rate notifications failed:', e.message));
     } else {
@@ -288,7 +292,8 @@ const getMyBookings = asyncHandler(async (req, res) => {
       b.id, b.trip_id, b.seat_numbers, b.status, b.total_amount, b.created_at,
       t.from_location, t.to_location, t.departure_time, t.fare_per_seat,
       t.vehicle_number, t.available_seats, t.total_seats,
-      u.name as driver_name, u.phone as driver_phone, u.email as driver_email, u.whatsapp_number as driver_whatsapp
+      u.name as driver_name, u.phone as driver_phone, u.email as driver_email, u.whatsapp_number as driver_whatsapp,
+      u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
     FROM bookings b
     JOIN trips t ON b.trip_id = t.id
     LEFT JOIN users u ON t.driver_id = u.id
@@ -313,7 +318,9 @@ const getMyBookings = asyncHandler(async (req, res) => {
       name: row.driver_name,
       phone: row.driver_phone,
       email: row.driver_email,
-      whatsapp_number: row.driver_whatsapp
+      whatsapp_number: row.driver_whatsapp,
+      bio: row.driver_bio || null,
+      luggage_allowance_per_passenger: row.driver_luggage_allowance || null
     } : null // Only show driver details when approved
   }));
 
@@ -323,8 +330,91 @@ const getMyBookings = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
+/** Cancel policy: for testing = 2 minutes before departure. Production can use 2 hours. */
+const CANCEL_BEFORE_DEPARTURE_MINUTES = 2;
+
+/**
+ * Cancel booking (Passenger only)
+ * POST /api/bookings/:id/cancel
+ * Body: { reason?: string }
+ * Pending: always allowed. Confirmed: allowed until 2 min before departure (testing).
+ */
+const cancelBooking = asyncHandler(async (req, res) => {
+  const bookingId = req.params.id;
+  const passengerId = req.user.id;
+  const reason = (req.body && req.body.reason != null) ? String(req.body.reason).trim() : null;
+
+  const bookingResult = await pool.query(
+    `SELECT b.id, b.trip_id, b.passenger_id, b.status, b.seat_numbers,
+            t.driver_id, t.departure_time
+     FROM bookings b
+     JOIN trips t ON b.trip_id = t.id
+     WHERE b.id = $1`,
+    [bookingId]
+  );
+
+  if (bookingResult.rows.length === 0) {
+    throw ApiError.notFound('Booking not found');
+  }
+
+  const booking = bookingResult.rows[0];
+  if (booking.passenger_id !== passengerId) {
+    throw ApiError.forbidden('You can only cancel your own booking');
+  }
+
+  if (booking.status === 'cancelled') {
+    throw ApiError.badRequest('Booking is already cancelled');
+  }
+
+  const departureTime = new Date(booking.departure_time).getTime();
+  const now = Date.now();
+
+  // After ride start: cancel disabled (both sides rule)
+  if (now >= departureTime) {
+    throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
+  }
+
+  // Within 2 min of departure: cancel disabled
+  const cutoffMs = CANCEL_BEFORE_DEPARTURE_MINUTES * 60 * 1000;
+  if (booking.status === 'confirmed' && (departureTime - now) < cutoffMs) {
+    throw ApiError.badRequest(
+      `Cancellation not allowed. Cancel at least ${CANCEL_BEFORE_DEPARTURE_MINUTES} minutes before departure.`
+    );
+  }
+
+  const seatCount = Array.isArray(booking.seat_numbers) ? booking.seat_numbers.length : 0;
+
+  await pool.query(
+    `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = $2 WHERE id = $1`,
+    [bookingId, reason || null]
+  );
+
+  if (booking.status === 'confirmed' && seatCount > 0) {
+    await pool.query(
+      'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+      [seatCount, booking.trip_id]
+    );
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO notifications (user_id, type, title, body)
+       VALUES ($1, 'booking_cancelled', 'Booking cancelled', $2)`,
+      [booking.driver_id, `A passenger cancelled their booking.${reason ? ` Reason: ${reason}` : ''}`]
+    );
+  } catch (e) {
+    logger.warn('Driver cancel notification failed:', e.message);
+  }
+
+  ApiResponse.success(
+    { status: 'cancelled' },
+    'Booking cancelled'
+  ).send(res);
+});
+
 module.exports = {
   createBooking,
   respondToBooking,
-  getMyBookings
+  getMyBookings,
+  cancelBooking
 };

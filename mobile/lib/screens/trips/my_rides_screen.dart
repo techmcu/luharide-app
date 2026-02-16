@@ -252,7 +252,7 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                     ],
                   ),
                   Text(
-                    DateFormat('dd MMM yyyy').format(trip.departureTime),
+                    DateFormat('dd MMM yyyy').format(trip.departureTime.toLocal()),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[600],
@@ -308,7 +308,7 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                       const Icon(Icons.access_time, size: 18, color: Colors.grey),
                       const SizedBox(width: 4),
                       Text(
-                        DateFormat('hh:mm a').format(trip.departureTime),
+                        DateFormat('hh:mm a').format(trip.departureTime.toLocal()),
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey[700],

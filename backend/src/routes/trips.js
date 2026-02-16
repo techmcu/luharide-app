@@ -9,6 +9,11 @@ const {
   getLocationSuggestions,
   getTripBookings,
   getTripBookedSeats,
+  getRecentRoutes,
+  saveRecentRoute,
+  startTrip,
+  completeTrip,
+  cancelTrip,
   deleteTrip
 } = require('../controllers/tripController');
 const { authenticate, authorize } = require('../middleware/auth');
@@ -31,9 +36,15 @@ router.get('/search', searchTrips);
 router.get('/locations', getLocationSuggestions);
 // IMPORTANT: Specific routes MUST be before /:id (else "my-trips" matches as :id)
 router.get('/my-trips', authenticate, authorize('driver'), getMyTrips);
+router.get('/recent-routes', authenticate, getRecentRoutes);
+router.post('/recent-routes', authenticate, saveRecentRoute);
 router.get('/:id/bookings', authenticate, authorize('driver'), getTripBookings);
 router.get('/:id/booked-seats', getTripBookedSeats);
 router.get('/:id', getTripDetails);
+
+router.put('/:id/start', authenticate, authorize('driver'), startTrip);
+router.put('/:id/complete', authenticate, authorize('driver'), completeTrip);
+router.put('/:id/cancel', authenticate, authorize('driver'), cancelTrip);
 
 // Protected routes (Driver only - Individual drivers can create their own trips)
 // Union admins will have separate endpoints to create trips for their drivers

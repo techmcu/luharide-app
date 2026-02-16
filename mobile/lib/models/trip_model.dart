@@ -78,18 +78,22 @@ class TripModel {
     };
   }
 
+  /// Display time in user's local timezone (API sends UTC).
   String get formattedDepartureTime {
-    final hour = departureTime.hour;
-    final minute = departureTime.minute.toString().padLeft(2, '0');
+    final local = departureTime.toLocal();
+    final hour = local.hour;
+    final minute = local.minute.toString().padLeft(2, '0');
     final period = hour >= 12 ? 'PM' : 'AM';
     final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
     return '$displayHour:$minute $period';
   }
 
+  /// Display date in user's local timezone.
   String get formattedDate {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+    final local = departureTime.toLocal();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${departureTime.day} ${months[departureTime.month - 1]}, ${departureTime.year}';
+    return '${local.day} ${months[local.month - 1]}, ${local.year}';
   }
 
   Duration? get estimatedDuration {

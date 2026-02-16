@@ -24,6 +24,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   List<TripModel> _searchResults = [];
   bool _isSearching = false;
   bool _hasSearched = false;
+  List<dynamic> _recentRoutes = [];
 
   @override
   void dispose() {
@@ -35,8 +36,14 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   @override
   void initState() {
     super.initState();
-    // Load today's trips on screen open (optional)
-    // _loadTodayTrips();
+    _loadRecentRoutes();
+  }
+
+  Future<void> _loadRecentRoutes() async {
+    final result = await _tripService.getRecentRoutes();
+    if (mounted && result['success'] == true) {
+      setState(() => _recentRoutes = List<dynamic>.from(result['routes'] ?? []));
+    }
   }
   
   // Optional: Load today's trips automatically
@@ -113,15 +120,19 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       _searchResults = result['trips'] ?? [];
     });
 
-    if (!result['success']) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message']),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (result['success'] == true) {
+      _tripService.saveRecentRoute(
+        from: _fromController.text.trim(),
+        to: _toController.text.trim(),
+      );
+      _loadRecentRoutes();
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Search failed'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -150,6 +161,36 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
             ),
             child: Column(
               children: [
+                // Recent routes (quick fill)
+                if (_recentRoutes.isNotEmpty) ...[
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Recent routes',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: _recentRoutes.map<Widget>((r) {
+                      final from = r['from_location']?.toString() ?? '';
+                      final to = r['to_location']?.toString() ?? '';
+                      return ActionChip(
+                        label: Text('$from → $to', style: const TextStyle(fontSize: 12)),
+                        onPressed: () {
+                          _fromController.text = from;
+                          _toController.text = to;
+                          setState(() {});
+                        },
+                        backgroundColor: Colors.blue[50],
+                        side: BorderSide(color: Colors.blue[200]!),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // From Location
                 Autocomplete<String>(
                   optionsBuilder: (TextEditingValue textEditingValue) {

@@ -1,4 +1,12 @@
-const { Pool } = require('pg');
+const pg = require('pg');
+const { Pool } = pg;
+
+// Timestamp without TZ: treat as UTC when reading so API returns correct time for all clients
+// OID 1114 = timestamp (without time zone)
+pg.types.setTypeParser(1114, (stringValue) => {
+  if (stringValue == null) return null;
+  return new Date(stringValue.replace(' ', 'T') + 'Z');
+});
 
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',

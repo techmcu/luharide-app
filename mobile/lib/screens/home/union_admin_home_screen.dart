@@ -18,6 +18,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   final _adminService = AdminService();
   List<dynamic> _requests = [];
   bool _loading = true;
+  int _totalTrips = 0;
+  int _totalBookings = 0;
+  int _driversVerified = 0;
 
   @override
   void initState() {
@@ -27,11 +30,17 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final statsResult = await _adminService.getUnionDashboardStats();
     final result = await _adminService.getDriverRequests();
     if (mounted) {
       setState(() {
         _loading = false;
         _requests = result['requests'] ?? [];
+        if (statsResult['success'] == true) {
+          _totalTrips = statsResult['total_trips'] ?? 0;
+          _totalBookings = statsResult['total_bookings'] ?? 0;
+          _driversVerified = statsResult['drivers_verified'] ?? 0;
+        }
       });
       if (result['success'] != true && result['message'] != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -108,36 +117,87 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _requests.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Dashboard stats
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
                     children: [
-                      Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No pending driver requests',
-                        style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                      Expanded(
+                        child: _buildStatCard('Trips', _totalTrips, Icons.directions_car, Colors.blue),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Driver verification requests will appear here',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard('Bookings', _totalBookings, Icons.book_online, Colors.green),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildStatCard('Drivers', _driversVerified, Icons.verified_user, Colors.orange),
                       ),
                     ],
                   ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _requests.length,
-                    itemBuilder: (context, i) {
-                      final r = _requests[i] as Map<String, dynamic>;
-                      return _buildRequestCard(r);
-                    },
-                  ),
                 ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _requests.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No pending driver requests',
+                                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Driver verification requests will appear here',
+                                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _load,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _requests.length,
+                            itemBuilder: (context, i) {
+                              final r = _requests[i] as Map<String, dynamic>;
+                              return _buildRequestCard(r);
+                            },
+                          ),
+                        ),
+                ),
+              ],
+            ),
+      );
+  }
+
+  Widget _buildStatCard(String label, int value, IconData icon, MaterialColor color) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        child: Column(
+          children: [
+            Icon(icon, size: 28, color: color),
+            const SizedBox(height: 8),
+            Text(
+              value.toString(),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color[800]),
+            ),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -40,9 +40,11 @@ const createTrip = asyncHandler(async (req, res) => {
   const vehicleNumber = verif.rows[0].vehicle_registration || bodyVehicleNumber || '';
   const vehicleModelId = verif.rows[0].vehicle_model_id || null;
 
-  // Calculate estimated arrival (for now, add 2 hours)
+  // Parse as UTC (mobile sends ISO with Z). Store as literal YYYY-MM-DD HH:mm:ss so DB keeps same numbers in UTC.
   const departureDate = new Date(departure_time);
   const arrivalDate = new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
+  const departureStr = departureDate.toISOString().slice(0, 19).replace('T', ' ');
+  const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
 
   const useRequireApproval = require_approval === false ? false : true;
   let result;
@@ -57,7 +59,7 @@ const createTrip = asyncHandler(async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
-        driverId, from_location, to_location, departure_time, arrivalDate,
+        driverId, from_location, to_location, departureStr, arrivalStr,
         fare_per_seat, totalSeats, totalSeats, totalSeats,
         vehicleNumber, vehicleModelId, JSON.stringify(stops), 'scheduled', useRequireApproval
       ]
@@ -73,7 +75,7 @@ const createTrip = asyncHandler(async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *`,
         [
-          driverId, from_location, to_location, departure_time, arrivalDate,
+          driverId, from_location, to_location, departureStr, arrivalStr,
           fare_per_seat, totalSeats, totalSeats, totalSeats,
           vehicleNumber, JSON.stringify(stops), 'scheduled'
         ]
@@ -116,7 +118,9 @@ const searchTrips = asyncHandler(async (req, res) => {
       u.email as driver_email,
       u.phone as driver_phone,
       u.whatsapp_number as driver_whatsapp,
-      u.driver_verification_status as driver_verified
+      u.driver_verification_status as driver_verified,
+      u.bio as driver_bio,
+      u.luggage_allowance_per_passenger as driver_luggage_allowance
     FROM trips t
     LEFT JOIN users u ON t.driver_id = u.id
     WHERE 
@@ -148,7 +152,9 @@ const searchTrips = asyncHandler(async (req, res) => {
       email: trip.driver_email,
       phone: trip.driver_phone,
       whatsapp_number: trip.driver_whatsapp,
-      isVerified: trip.driver_verified === 'approved'
+      isVerified: trip.driver_verified === 'approved',
+      bio: trip.driver_bio || null,
+      luggage_allowance_per_passenger: trip.driver_luggage_allowance || null
     }
   }));
 
@@ -216,6 +222,60 @@ const getTripBookedSeats = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
+const RECENT_ROUTES_LIMIT = 10;
+const RECENT_ROUTES_MAX_PER_USER = 20;
+
+/**
+ * Get recent routes for quick search (authenticated)
+ * GET /api/trips/recent-routes
+ */
+const getRecentRoutes = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const result = await pool.query(
+    `SELECT id, from_location, to_location, created_at
+     FROM recent_routes
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [userId, RECENT_ROUTES_LIMIT]
+  );
+  ApiResponse.success(
+    { routes: result.rows },
+    'Recent routes'
+  ).send(res);
+});
+
+/**
+ * Save a route as recent (on search) – keeps last N per user
+ * POST /api/trips/recent-routes
+ * Body: { from_location, to_location }
+ */
+const saveRecentRoute = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const from_location = (req.body && req.body.from_location) ? String(req.body.from_location).trim().slice(0, 200) : null;
+  const to_location = (req.body && req.body.to_location) ? String(req.body.to_location).trim().slice(0, 200) : null;
+  if (!from_location || !to_location) {
+    throw ApiError.badRequest('from_location and to_location are required');
+  }
+  await pool.query(
+    `INSERT INTO recent_routes (user_id, from_location, to_location) VALUES ($1, $2, $3)`,
+    [userId, from_location, to_location]
+  );
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS c FROM recent_routes WHERE user_id = $1`,
+    [userId]
+  );
+  if (countResult.rows[0].c > RECENT_ROUTES_MAX_PER_USER) {
+    await pool.query(
+      `DELETE FROM recent_routes WHERE user_id = $1 AND id NOT IN (
+        SELECT id FROM recent_routes WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2
+      )`,
+      [userId, RECENT_ROUTES_MAX_PER_USER]
+    );
+  }
+  ApiResponse.success({ saved: true }, 'Route saved').send(res);
+});
+
 /**
  * Get trip details (includes booked & pending seats for seat selection UI)
  * GET /api/trips/:id
@@ -230,7 +290,9 @@ const getTripDetails = asyncHandler(async (req, res) => {
       u.email as driver_email,
       u.phone as driver_phone,
       u.whatsapp_number as driver_whatsapp,
-      u.driver_verification_status as driver_verified
+      u.driver_verification_status as driver_verified,
+      u.bio as driver_bio,
+      u.luggage_allowance_per_passenger as driver_luggage_allowance
     FROM trips t
     LEFT JOIN users u ON t.driver_id = u.id
     WHERE t.id = $1`,
@@ -293,7 +355,9 @@ const getTripDetails = asyncHandler(async (req, res) => {
           email: trip.driver_email,
           phone: trip.driver_phone,
           whatsapp_number: trip.driver_whatsapp,
-          isVerified: trip.driver_verified === 'approved'
+          isVerified: trip.driver_verified === 'approved',
+          bio: trip.driver_bio || null,
+          luggage_allowance_per_passenger: trip.driver_luggage_allowance || null
         }
       },
       booked_seats: [...bookedSet].sort((a, b) => a - b),
@@ -451,6 +515,171 @@ const getTripBookings = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Start trip (Driver only) - scheduled → in_progress
+ * PUT /api/trips/:id/start
+ */
+const startTrip = asyncHandler(async (req, res) => {
+  const { id: tripId } = req.params;
+  const driverId = req.user.id;
+
+  const tripResult = await pool.query(
+    'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2',
+    [tripId, driverId]
+  );
+
+  if (tripResult.rows.length === 0) {
+    throw ApiError.notFound('Trip not found');
+  }
+
+  const trip = tripResult.rows[0];
+  if (trip.status !== 'scheduled') {
+    throw ApiError.badRequest(`Cannot start trip. Current status: ${trip.status}. Only scheduled trips can be started.`);
+  }
+
+  try {
+    await pool.query(
+      `UPDATE trips SET status = 'in_progress', started_at = COALESCE(started_at, NOW()) WHERE id = $1`,
+      [tripId]
+    );
+  } catch (err) {
+    if (err.code === '42703') {
+      await pool.query("UPDATE trips SET status = 'in_progress' WHERE id = $1", [tripId]);
+    } else {
+      throw err;
+    }
+  }
+
+  ApiResponse.success(
+    { status: 'in_progress' },
+    'Ride started'
+  ).send(res);
+});
+
+/**
+ * Complete trip (Driver only) - in_progress → completed
+ * PUT /api/trips/:id/complete
+ */
+const completeTrip = asyncHandler(async (req, res) => {
+  const { id: tripId } = req.params;
+  const driverId = req.user.id;
+
+  const tripResult = await pool.query(
+    'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2',
+    [tripId, driverId]
+  );
+
+  if (tripResult.rows.length === 0) {
+    throw ApiError.notFound('Trip not found');
+  }
+
+  const trip = tripResult.rows[0];
+  if (trip.status !== 'in_progress') {
+    throw ApiError.badRequest(`Cannot complete trip. Current status: ${trip.status}. Only in-progress trips can be completed.`);
+  }
+
+  await pool.query(
+    "UPDATE trips SET status = 'completed' WHERE id = $1",
+    [tripId]
+  );
+
+  ApiResponse.success(
+    { status: 'completed' },
+    'Ride completed'
+  ).send(res);
+});
+
+/** BlaBlaCar-style: driver cannot cancel trip when confirmed passengers exist and departure is within this many hours */
+const DRIVER_CANCEL_CUTOFF_HOURS = 2;
+
+/**
+ * Cancel trip (Driver only) - BlaBlaCar style
+ * Driver can cancel only if: no confirmed bookings, OR departure is more than DRIVER_CANCEL_CUTOFF_HOURS away.
+ * Within cutoff with confirmed passengers → reject (protects passengers).
+ * PUT /api/trips/:id/cancel
+ */
+const cancelTrip = asyncHandler(async (req, res) => {
+  const { id: tripId } = req.params;
+  const driverId = req.user.id;
+
+  const tripResult = await pool.query(
+    'SELECT id, status, departure_time, driver_id FROM trips WHERE id = $1 AND driver_id = $2',
+    [tripId, driverId]
+  );
+
+  if (tripResult.rows.length === 0) {
+    throw ApiError.notFound('Trip not found');
+  }
+
+  const trip = tripResult.rows[0];
+  if (trip.status === 'cancelled' || trip.status === 'completed') {
+    throw ApiError.badRequest(`Trip is already ${trip.status}. Cannot cancel.`);
+  }
+  // After ride start: driver cancel disabled (both sides rule)
+  if (trip.status === 'in_progress') {
+    throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
+  }
+
+  const departureTimeMs = new Date(trip.departure_time).getTime();
+  const now = Date.now();
+  if (now >= departureTimeMs) {
+    throw ApiError.badRequest('Ride start time has passed. Cancellation not allowed.');
+  }
+
+  const confirmedBookings = await pool.query(
+    `SELECT id, passenger_id, seat_numbers FROM bookings WHERE trip_id = $1 AND status = 'confirmed'`,
+    [tripId]
+  );
+
+  const cutoffMs = DRIVER_CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
+  if (confirmedBookings.rows.length > 0 && (departureTimeMs - now) < cutoffMs) {
+    throw ApiError.badRequest(
+      `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
+      `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure (BlaBlaCar-style).`
+    );
+  }
+
+  await pool.query(
+    `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = 'Driver cancelled the trip' WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
+    [tripId]
+  );
+
+  let seatsToRelease = 0;
+  for (const row of confirmedBookings.rows) {
+    const seats = Array.isArray(row.seat_numbers) ? row.seat_numbers : [];
+    seatsToRelease += seats.length;
+  }
+  if (seatsToRelease > 0) {
+    await pool.query(
+      'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+      [seatsToRelease, tripId]
+    );
+  }
+
+  await pool.query(
+    "UPDATE trips SET status = 'cancelled' WHERE id = $1",
+    [tripId]
+  );
+
+  for (const row of confirmedBookings.rows) {
+    try {
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body) VALUES ($1, 'trip_cancelled', 'Ride cancelled', 'The driver cancelled this ride. You are not charged.')`,
+        [row.passenger_id]
+      );
+    } catch (e) {
+      logger.warn('Passenger cancel notification failed:', e.message);
+    }
+  }
+
+  logger.info(`Trip cancelled: ${tripId} by driver ${driverId}`);
+
+  ApiResponse.success(
+    { status: 'cancelled' },
+    'Trip cancelled. Passengers have been notified.'
+  ).send(res);
+});
+
+/**
  * Delete trip (Driver only) - BlaBlaCar style
  * Only allowed when: NO confirmed or pending bookings
  * DELETE /api/trips/:id
@@ -508,5 +737,10 @@ module.exports = {
   getLocationSuggestions,
   getTripBookings,
   getTripBookedSeats,
+  getRecentRoutes,
+  saveRecentRoute,
+  startTrip,
+  completeTrip,
+  cancelTrip,
   deleteTrip
 };

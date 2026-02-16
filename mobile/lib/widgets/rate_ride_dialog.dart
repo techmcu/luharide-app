@@ -92,6 +92,11 @@ class _RateRideDialogState extends State<RateRideDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'You can rate 4 minutes after your ride is confirmed (one-time rating).',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+            ),
+            const SizedBox(height: 12),
             const Text('Your rating', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Row(

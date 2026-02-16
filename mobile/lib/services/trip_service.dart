@@ -23,7 +23,7 @@ class TripService {
         data: {
           'from_location': fromLocation,
           'to_location': toLocation,
-          'departure_time': departureTime.toIso8601String(),
+          'departure_time': departureTime.toUtc().toIso8601String(),
           'fare_per_seat': farePerSeat,
           'total_seats': totalSeats,
           'vehicle_number': vehicleNumber,
@@ -270,6 +270,87 @@ class TripService {
     }
   }
 
+  /// Cancel booking (Passenger only). Pending: always; Confirmed: until 2 min before departure (testing).
+  Future<Map<String, dynamic>> cancelBooking(String bookingId, {String? reason}) async {
+    try {
+      final response = await _apiService.post(
+        '${ApiConstants.createBooking}/$bookingId/cancel',
+        data: reason != null && reason.trim().isNotEmpty ? {'reason': reason.trim()} : {},
+      );
+      return {
+        'success': true,
+        'message': response.data['message'] ?? 'Booking cancelled',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Could not cancel booking',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Start trip (Driver only) - scheduled → in_progress
+  Future<Map<String, dynamic>> startTrip(String tripId) async {
+    try {
+      final response = await _apiService.put(
+        '${ApiConstants.tripDetails}/$tripId/start',
+      );
+      return {
+        'success': true,
+        'message': response.data['message'] ?? 'Ride started',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Could not start ride',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Complete trip (Driver only) - in_progress → completed
+  Future<Map<String, dynamic>> completeTrip(String tripId) async {
+    try {
+      final response = await _apiService.put(
+        '${ApiConstants.tripDetails}/$tripId/complete',
+      );
+      return {
+        'success': true,
+        'message': response.data['message'] ?? 'Ride completed',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Could not complete ride',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Cancel trip (Driver only) - BlaBlaCar style: not allowed within 2h of departure if confirmed passengers
+  Future<Map<String, dynamic>> cancelTrip(String tripId) async {
+    try {
+      final response = await _apiService.put(
+        '${ApiConstants.tripDetails}/$tripId/cancel',
+      );
+      return {
+        'success': true,
+        'message': response.data['message'] ?? 'Trip cancelled',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Could not cancel trip',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
   /// Delete trip (Driver only) - only when no bookings
   Future<Map<String, dynamic>> deleteTrip(String tripId) async {
     try {
@@ -315,6 +396,29 @@ class TripService {
         'bookings': <dynamic>[],
       };
     }
+  }
+
+  /// Get recent routes for quick search (authenticated)
+  Future<Map<String, dynamic>> getRecentRoutes() async {
+    try {
+      final response = await _apiService.get('${ApiConstants.trips}/recent-routes');
+      final routes = response.data['data']?['routes'] ?? [];
+      return {'success': true, 'routes': routes};
+    } on DioException catch (_) {
+      return {'success': false, 'routes': <dynamic>[]};
+    } catch (_) {
+      return {'success': false, 'routes': <dynamic>[]};
+    }
+  }
+
+  /// Save route as recent (call after search)
+  Future<void> saveRecentRoute({required String from, required String to}) async {
+    try {
+      await _apiService.post(
+        '${ApiConstants.trips}/recent-routes',
+        data: {'from_location': from, 'to_location': to},
+      );
+    } catch (_) {}
   }
 
   /// Get location suggestions

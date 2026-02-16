@@ -37,6 +37,16 @@ async function submitRating(bookingId, userId, { rating, comment }) {
     throw ApiError.badRequest('Can only rate after booking is confirmed');
   }
 
+  // Rating allowed 4 minutes after booking is CONFIRMED (not departure).
+  const confirmedAt = booking.confirmed_at ? new Date(booking.confirmed_at).getTime() : 0;
+  if (!confirmedAt) {
+    throw ApiError.badRequest('Cannot rate: confirm time unknown. Please try again later.');
+  }
+  const fourMinAfterConfirm = confirmedAt + 4 * 60 * 1000;
+  if (Date.now() < fourMinAfterConfirm) {
+    throw ApiError.badRequest('You can rate 4 minutes after your ride is confirmed. Please wait.');
+  }
+
   let fromRole;
   let ratedUserId;
   if (booking.passenger_id === userId) {

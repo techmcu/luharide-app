@@ -46,7 +46,9 @@ const updateProfileSchema = Joi.object({
   name: Joi.string().min(2).max(100).optional(),
   email: schemas.email,
   profile_image_url: Joi.string().max(500).optional().allow('', null),
-  whatsapp_number: Joi.string().max(20).optional().allow('', null)
+  whatsapp_number: Joi.string().max(20).optional().allow('', null),
+  bio: Joi.string().max(500).optional().allow('', null),
+  luggage_allowance_per_passenger: Joi.string().max(100).optional().allow('', null)
 });
 
 // Routes

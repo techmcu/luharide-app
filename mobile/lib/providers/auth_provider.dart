@@ -139,6 +139,8 @@ class AuthProvider with ChangeNotifier {
     String? email,
     String? whatsappNumber,
     String? profileImageUrl,
+    String? bio,
+    String? luggageAllowancePerPassenger,
   }) async {
     try {
       _setLoading(true);
@@ -149,6 +151,8 @@ class AuthProvider with ChangeNotifier {
         email: email,
         whatsappNumber: whatsappNumber,
         profileImageUrl: profileImageUrl,
+        bio: bio,
+        luggageAllowancePerPassenger: luggageAllowancePerPassenger,
       );
       
       _setLoading(false);

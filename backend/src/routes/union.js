@@ -3,7 +3,8 @@ const router = express.Router();
 const Joi = require('joi');
 const {
   createTripForDriver,
-  getUnionTrips
+  getUnionTrips,
+  getDashboardStats
 } = require('../controllers/unionTripController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -21,9 +22,7 @@ const createTripForDriverSchema = Joi.object({
 });
 
 // Union Admin routes
-router.get('/dashboard', authenticate, authorize('union_admin'), (req, res) => {
-  res.json({ message: 'Union dashboard endpoint - To be implemented' });
-});
+router.get('/dashboard', authenticate, authorize('union_admin'), getDashboardStats);
 
 // Create trip for a driver in union
 router.post(

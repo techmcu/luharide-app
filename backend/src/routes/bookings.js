@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
-const { createBooking, respondToBooking, getMyBookings } = require('../controllers/bookingController');
+const { createBooking, respondToBooking, getMyBookings, cancelBooking } = require('../controllers/bookingController');
 const { submitRating } = require('../controllers/reviewController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -24,6 +24,13 @@ router.post(
 );
 
 router.get('/my-bookings', authenticate, authorize('passenger'), getMyBookings);
+
+router.post(
+  '/:id/cancel',
+  authenticate,
+  authorize('passenger'),
+  cancelBooking
+);
 
 router.put(
   '/:id/respond',

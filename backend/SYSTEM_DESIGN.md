@@ -17,7 +17,7 @@
 - **Stateless API**: No server-side session; JWT for auth – ready for horizontal scaling.
 - **DB**: Connection pool (max 20); indexed queries on `ride_ratings(rated_user_id)`, `ride_ratings(booking_id)`, `notifications(user_id)`.
 - **Pagination**: All list APIs support `page` and `limit` to avoid large payloads.
-- **Rate notifications**: Background job (1-min interval) processes `pending_rate_notifications`; can be moved to a queue (e.g. Bull/Redis) later.
+- **Rate notifications**: Background job (runs every 1 min) sends rate reminders **3 minutes after** booking confirm; rating allowed **2 minutes after** driver starts ride. Table `pending_rate_notifications`; can be moved to a queue (e.g. Bull/Redis) later.
 
 ### 4. OOP & single responsibility
 - **ApiError**: Central error class with static factory methods (badRequest, notFound, etc.).

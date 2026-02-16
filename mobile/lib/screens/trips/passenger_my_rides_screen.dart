@@ -77,6 +77,19 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     }
   }
 
+  /// Cancel allowed only until 2 min before departure; after ride start = not allowed (matches backend).
+  bool _canCancelBooking(Map<String, dynamic> b) {
+    if (b['status'] != 'confirmed') return true;
+    final dep = b['departure_time'];
+    if (dep == null) return true;
+    final depTime = DateTime.tryParse(dep.toString());
+    if (depTime == null) return true;
+    final now = DateTime.now();
+    if (!now.isBefore(depTime)) return false;
+    if (depTime.difference(now).inMinutes < 2) return false;
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -226,7 +239,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 const SizedBox(width: 4),
                 Text(
                   b['departure_time'] != null
-                      ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(b['departure_time']))
+                      ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(b['departure_time'] as String).toLocal())
                       : '-',
                   style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
@@ -291,18 +304,53 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                       style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () => _showAskQuestionDialog(context, b),
-                      icon: const Icon(Icons.help_outline, size: 18),
-                      label: const Text('Ask a question'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.blue[700],
-                        side: BorderSide(color: Colors.blue[300]!),
-                      ),
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _showAskQuestionDialog(context, b),
+                          icon: const Icon(Icons.help_outline, size: 18),
+                          label: const Text('Ask a question'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.blue[700],
+                            side: BorderSide(color: Colors.blue[300]!),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: () => _showCancelBookingDialog(b),
+                          icon: const Icon(Icons.cancel_outlined, size: 18),
+                          label: const Text('Cancel booking'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red[700],
+                            side: BorderSide(color: Colors.red[300]!),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+            if (status != 'cancelled' && status != 'pending') ...[
+              const SizedBox(height: 12),
+              if (_canCancelBooking(b))
+                OutlinedButton.icon(
+                  onPressed: () => _showCancelBookingDialog(b),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text('Cancel booking'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red[700],
+                    side: BorderSide(color: Colors.red[300]!),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    'Cancel not allowed (within 2 min of departure or ride started)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
@@ -341,6 +389,92 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
         );
       }
     }
+  }
+
+  void _showCancelBookingDialog(Map<String, dynamic> booking) {
+    final bookingId = booking['id']?.toString();
+    final status = booking['status']?.toString() ?? '';
+    if (bookingId == null || bookingId.isEmpty) return;
+    final reasonController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Cancel booking?',
+              style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            if (status == 'confirmed')
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Cancellation is allowed until 2 minutes before departure (for testing).',
+                  style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                ),
+              ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                labelText: 'Reason (optional)',
+                hintText: 'E.g. plan changed',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Keep booking'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final result = await _tripService.cancelBooking(
+                        bookingId,
+                        reason: reasonController.text.trim().isEmpty ? null : reasonController.text.trim(),
+                      );
+                      if (!mounted) return;
+                      if (result['success'] == true) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(result['message'] ?? 'Booking cancelled'), backgroundColor: Colors.green),
+                        );
+                        _loadBookings();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(result['message'] ?? 'Could not cancel'), backgroundColor: Colors.red),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text('Cancel booking'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showAskQuestionDialog(BuildContext context, Map<String, dynamic> booking) {

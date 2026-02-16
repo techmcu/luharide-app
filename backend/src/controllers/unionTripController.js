@@ -37,9 +37,11 @@ const createTripForDriver = asyncHandler(async (req, res) => {
   // TODO: Add union membership check when union system is implemented
   // For now, union admin can create trips for any driver
 
-  // Calculate estimated arrival
+  // Store as UTC literal (same as driver createTrip) so passenger sees correct time
   const departureDate = new Date(departure_time);
   const arrivalDate = new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
+  const departureStr = departureDate.toISOString().slice(0, 19).replace('T', ' ');
+  const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
 
   // Create trip
   const result = await pool.query(
@@ -62,8 +64,8 @@ const createTripForDriver = asyncHandler(async (req, res) => {
       driver_id,
       from_location,
       to_location,
-      departure_time,
-      arrivalDate,
+      departureStr,
+      arrivalStr,
       fare_per_seat,
       total_seats,
       total_seats,
@@ -118,7 +120,31 @@ const getUnionTrips = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
+/**
+ * Union admin dashboard – simple counts
+ * GET /api/union/dashboard
+ */
+const getDashboardStats = asyncHandler(async (req, res) => {
+  const [tripsRes, bookingsRes, driversRes] = await Promise.all([
+    pool.query('SELECT COUNT(*)::int AS count FROM trips'),
+    pool.query("SELECT COUNT(*)::int AS count FROM bookings WHERE status IN ('confirmed', 'pending')"),
+    pool.query(
+      "SELECT COUNT(DISTINCT user_id)::int AS count FROM driver_verification_requests WHERE status = 'approved'"
+    )
+  ]);
+
+  ApiResponse.success(
+    {
+      total_trips: tripsRes.rows[0].count,
+      total_bookings: bookingsRes.rows[0].count,
+      drivers_verified: driversRes.rows[0].count
+    },
+    'Dashboard stats'
+  ).send(res);
+});
+
 module.exports = {
   createTripForDriver,
-  getUnionTrips
+  getUnionTrips,
+  getDashboardStats
 };

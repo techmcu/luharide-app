@@ -16,10 +16,13 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+  static const int maxBioWords = 20;
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _whatsappController;
+  late TextEditingController _bioController;
+  late TextEditingController _luggageController;
   bool _isLoading = false;
   File? _localImageFile;
   final ImagePicker _picker = ImagePicker();
@@ -31,6 +34,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController = TextEditingController(text: user?.name ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
     _whatsappController = TextEditingController(text: user?.whatsappNumber ?? '');
+    _bioController = TextEditingController(text: user?.bio ?? '');
+    _luggageController = TextEditingController(text: user?.luggageAllowancePerPassenger ?? '');
   }
 
   @override
@@ -38,6 +43,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _whatsappController.dispose();
+    _bioController.dispose();
+    _luggageController.dispose();
     super.dispose();
   }
 
@@ -67,6 +74,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       whatsappNumber: _whatsappController.text.trim().isEmpty ? null : _whatsappController.text.trim(),
       profileImageUrl: profileImageUrl,
+      bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
+      luggageAllowancePerPassenger: _luggageController.text.trim().isEmpty ? null : _luggageController.text.trim(),
     );
     
     if (!mounted) return;
@@ -242,6 +251,37 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 return null;
               },
             ),
+            const SizedBox(height: 20),
+            // Bio (max 20 words)
+            TextFormField(
+              controller: _bioController,
+              decoration: const InputDecoration(
+                labelText: 'Bio (optional)',
+                hintText: 'About you in a few words (max 20 words)',
+                prefixIcon: Icon(Icons.short_text),
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                final words = v.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
+                if (words > maxBioWords) return 'Maximum $maxBioWords words';
+                return null;
+              },
+            ),
+            if (isDriver) ...[
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _luggageController,
+                decoration: const InputDecoration(
+                  labelText: 'Luggage per passenger',
+                  hintText: 'e.g. 1 bag, 2 bags (shown to passengers)',
+                  prefixIcon: Icon(Icons.luggage),
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => null,
+              ),
+            ],
           ],
         ),
       ),

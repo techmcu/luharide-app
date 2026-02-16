@@ -40,6 +40,9 @@ class ApiConstants {
   // Use leading slash so final URL is: {baseUrl}/notifications
   static const String notifications = '/notifications';
 
+  // Union Admin
+  static const String unionDashboard = '/union/dashboard';
+
   // Driver Endpoints
   static const String driverTrips = '/drivers/trips';
   static const String updateLocation = '/drivers/location';

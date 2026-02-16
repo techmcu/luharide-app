@@ -204,7 +204,8 @@ const logoutController = asyncHandler(async (req, res) => {
 const getCurrentUserController = asyncHandler(async (req, res) => {
   const userResult = await pool.query(
     `SELECT id, name, phone, email, role, profile_image_url, is_verified, is_active, 
-            driver_verification_status, whatsapp_number, last_login, created_at, updated_at
+            driver_verification_status, whatsapp_number, last_login, created_at, updated_at,
+            bio, luggage_allowance_per_passenger
      FROM users WHERE id = $1`,
     [req.user.id]
   );
@@ -220,8 +221,10 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
  * Update user profile
  * PUT /api/auth/profile
  */
+const MAX_BIO_WORDS = 20;
+
 const updateProfileController = asyncHandler(async (req, res) => {
-  const { name, email, profile_image_url, whatsapp_number } = req.body;
+  const { name, email, profile_image_url, whatsapp_number, bio, luggage_allowance_per_passenger } = req.body;
   const userId = req.user.id;
 
   // Build update query dynamically
@@ -249,6 +252,23 @@ const updateProfileController = asyncHandler(async (req, res) => {
     values.push(whatsapp_number === '' || whatsapp_number === null ? null : whatsapp_number);
   }
 
+  if (bio !== undefined) {
+    const trimmed = (bio === '' || bio === null) ? null : String(bio).trim();
+    if (trimmed) {
+      const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+      if (wordCount > MAX_BIO_WORDS) {
+        throw ApiError.badRequest(`Bio must be at most ${MAX_BIO_WORDS} words (got ${wordCount})`);
+      }
+    }
+    updates.push(`bio = $${paramCount++}`);
+    values.push(trimmed);
+  }
+
+  if (luggage_allowance_per_passenger !== undefined) {
+    updates.push(`luggage_allowance_per_passenger = $${paramCount++}`);
+    values.push(luggage_allowance_per_passenger === '' || luggage_allowance_per_passenger === null ? null : String(luggage_allowance_per_passenger).trim().slice(0, 100));
+  }
+
   if (updates.length === 0) {
     throw ApiError.badRequest('No fields to update');
   }
@@ -258,7 +278,7 @@ const updateProfileController = asyncHandler(async (req, res) => {
   const result = await pool.query(
     `UPDATE users SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
      WHERE id = $${paramCount}
-     RETURNING id, name, phone, email, role, profile_image_url, whatsapp_number, is_verified, is_active, driver_verification_status`,
+     RETURNING id, name, phone, email, role, profile_image_url, whatsapp_number, is_verified, is_active, driver_verification_status, bio, luggage_allowance_per_passenger`,
     values
   );
 

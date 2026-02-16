@@ -161,6 +161,8 @@ class AuthService {
     String? email,
     String? whatsappNumber,
     String? profileImageUrl,
+    String? bio,
+    String? luggageAllowancePerPassenger,
   }) async {
     try {
       final response = await _apiService.put(
@@ -170,6 +172,8 @@ class AuthService {
           if (email != null) 'email': email,
           if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
           if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
+          if (bio != null) 'bio': bio,
+          if (luggageAllowancePerPassenger != null) 'luggage_allowance_per_passenger': luggageAllowancePerPassenger,
         },
       );
 

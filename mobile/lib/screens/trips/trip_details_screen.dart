@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import '../../core/constants/api_constants.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
@@ -73,6 +77,27 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     }
   }
 
+  void _shareTrip() {
+    final t = _displayTrip;
+    if (t == null) return;
+    final from = t.fromLocation;
+    final to = t.toLocation;
+    final date = DateFormat('dd MMM yyyy, hh:mm a').format(t.departureTime.toLocal());
+    final shareUrl = '${ApiConstants.baseUrl}/trips/${widget.tripId}';
+    final text = 'LuhaRide: $from → $to on $date. Book or view: $shareUrl';
+    Share.share(text, subject: 'LuhaRide trip');
+  }
+
+  void _copyTripLink() {
+    final shareUrl = '${ApiConstants.baseUrl}/trips/${widget.tripId}';
+    Clipboard.setData(ClipboardData(text: shareUrl));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Link copied to clipboard'), duration: Duration(seconds: 2)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,6 +105,21 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         title: const Text('Trip Details'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
+        actions: [
+          if (_displayTrip != null)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.share),
+              tooltip: 'Share trip',
+              onSelected: (v) {
+                if (v == 'share') _shareTrip();
+                else if (v == 'copy') _copyTripLink();
+              },
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(value: 'share', child: Text('Share trip link')),
+                const PopupMenuItem(value: 'copy', child: Text('Copy link')),
+              ],
+            ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

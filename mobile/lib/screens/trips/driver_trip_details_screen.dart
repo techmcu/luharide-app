@@ -153,6 +153,66 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
     }
   }
 
+  Future<void> _startTrip() async {
+    final result = await _tripService.startTrip(widget.tripId);
+    if (!mounted) return;
+    if (result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Ride started'), backgroundColor: Colors.green),
+      );
+      _loadTripDetails();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Could not start'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _completeTrip() async {
+    final result = await _tripService.completeTrip(widget.tripId);
+    if (!mounted) return;
+    if (result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Ride completed'), backgroundColor: Colors.green),
+      );
+      _loadTripDetails();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Could not complete'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _cancelTrip() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel trip?'),
+        content: const Text(
+          'This will cancel the trip and all bookings. Passengers will be notified. '
+          'Not allowed within 2 hours of departure if passengers are confirmed (BlaBlaCar-style).',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Yes, cancel trip')),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+    final result = await _tripService.cancelTrip(widget.tripId);
+    if (!mounted) return;
+    if (result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Trip cancelled'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] ?? 'Could not cancel'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,26 +221,35 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
         actions: [
-          IconButton(
-            icon: Icon(
-              Icons.delete_outline,
-              color: _bookings.isEmpty ? null : Colors.grey[400],
-            ),
-            onPressed: () {
-              if (_bookings.isEmpty) {
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'More',
+            onSelected: (value) {
+              if (value == 'cancel_trip') {
+                _cancelTrip();
+              } else if (value == 'delete' && _bookings.isEmpty) {
                 _showDeleteDialog();
-              } else {
-                final pending = _bookings.where((b) => b.bookingStatus == 'pending').length;
+              } else if (value == 'delete' && _bookings.isNotEmpty) {
                 final confirmed = _bookings.where((b) => b.bookingStatus == 'confirmed').length;
+                final pending = _bookings.where((b) => b.bookingStatus == 'pending').length;
                 final msg = confirmed > 0
-                    ? 'Cannot delete. $confirmed seat(s) are booked. Passengers would be affected.'
-                    : 'Cannot delete. $pending request(s) pending. Accept or reject them first.';
+                    ? 'Cannot delete. $confirmed seat(s) booked. Use "Cancel trip" to cancel ride and bookings.'
+                    : 'Cannot delete. $pending request(s) pending. Accept or reject first.';
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(msg), backgroundColor: Colors.orange),
                 );
               }
             },
-            tooltip: 'Delete ride',
+            itemBuilder: (ctx) {
+              final canCancelTrip = _trip != null &&
+                  _trip!.status == 'scheduled' &&
+                  _trip!.departureTime.isAfter(DateTime.now());
+              return [
+                if (canCancelTrip)
+                  const PopupMenuItem(value: 'cancel_trip', child: Text('Cancel trip (BlaBlaCar-style)')),
+                const PopupMenuItem(value: 'delete', child: Text('Delete ride (no bookings only)')),
+              ];
+            },
           ),
         ],
       ),
@@ -266,6 +335,36 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
               ],
             ),
           ),
+
+          // Start / Complete ride (Driver)
+          if (_trip!.status == 'scheduled' || _trip!.status == 'in_progress')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: _trip!.status == 'scheduled'
+                    ? ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _startTrip,
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Start ride'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _completeTrip,
+                        icon: const Icon(Icons.check_circle),
+                        label: const Text('Complete ride'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green[700],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+              ),
+            ),
 
           // Route Card
           Padding(

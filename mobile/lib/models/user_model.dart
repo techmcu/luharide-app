@@ -12,6 +12,10 @@ class UserModel {
   final DateTime? createdAt;
   /// Driver verification: 'none' | 'pending' | 'approved' | 'rejected'
   final String driverVerificationStatus;
+  /// Short bio, max 20 words (API enforced)
+  final String? bio;
+  /// Driver: e.g. "1 bag", "2 bags" – luggage per passenger
+  final String? luggageAllowancePerPassenger;
 
   UserModel({
     required this.id,
@@ -26,6 +30,8 @@ class UserModel {
     this.lastLogin,
     this.createdAt,
     this.driverVerificationStatus = 'none',
+    this.bio,
+    this.luggageAllowancePerPassenger,
   });
 
   bool get isDriverVerified => driverVerificationStatus == 'approved';
@@ -48,6 +54,8 @@ class UserModel {
           ? DateTime.tryParse((json['created_at'] ?? json['createdAt']).toString())
           : null,
       driverVerificationStatus: json['driver_verification_status'] ?? json['driverVerificationStatus'] ?? 'none',
+      bio: json['bio']?.toString(),
+      luggageAllowancePerPassenger: json['luggage_allowance_per_passenger'] ?? json['luggageAllowancePerPassenger']?.toString(),
     );
   }
 
@@ -65,6 +73,8 @@ class UserModel {
       'lastLogin': lastLogin?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
       'driverVerificationStatus': driverVerificationStatus,
+      'bio': bio,
+      'luggageAllowancePerPassenger': luggageAllowancePerPassenger,
     };
   }
 
@@ -81,6 +91,8 @@ class UserModel {
     DateTime? lastLogin,
     DateTime? createdAt,
     String? driverVerificationStatus,
+    String? bio,
+    String? luggageAllowancePerPassenger,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -95,6 +107,8 @@ class UserModel {
       lastLogin: lastLogin ?? this.lastLogin,
       createdAt: createdAt ?? this.createdAt,
       driverVerificationStatus: driverVerificationStatus ?? this.driverVerificationStatus,
+      bio: bio ?? this.bio,
+      luggageAllowancePerPassenger: luggageAllowancePerPassenger ?? this.luggageAllowancePerPassenger,
     );
   }
 }
