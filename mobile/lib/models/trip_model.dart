@@ -8,6 +8,7 @@ class TripModel {
   final int availableSeats;
   final int totalSeats;
   final String? vehicleNumber;
+  final String? vehicleModelId;
   final List<String> stops;
   final String status;
   final DriverInfo? driver;
@@ -23,6 +24,7 @@ class TripModel {
     required this.availableSeats,
     required this.totalSeats,
     this.vehicleNumber,
+    this.vehicleModelId,
     this.stops = const [],
     required this.status,
     this.driver,
@@ -44,6 +46,7 @@ class TripModel {
       availableSeats: int.tryParse(json['available_seats']?.toString() ?? '0') ?? 0,
       totalSeats: int.tryParse(json['total_seats']?.toString() ?? '0') ?? 0,
       vehicleNumber: json['vehicle_number']?.toString(),
+      vehicleModelId: json['vehicle_model_id']?.toString(),
       stops: json['stops'] != null
           ? (json['stops'] is List
               ? List<String>.from(json['stops'])
@@ -68,6 +71,7 @@ class TripModel {
       'available_seats': availableSeats,
       'total_seats': totalSeats,
       'vehicle_number': vehicleNumber,
+      'vehicle_model_id': vehicleModelId,
       'stops': stops,
       'status': status,
       'driver': driver?.toJson(),
@@ -114,6 +118,7 @@ class DriverInfo {
   final String name;
   final String? email;
   final String? phone;
+  final String? whatsappNumber;
   final bool isVerified;
 
   DriverInfo({
@@ -121,8 +126,15 @@ class DriverInfo {
     required this.name,
     this.email,
     this.phone,
+    this.whatsappNumber,
     this.isVerified = false,
   });
+
+  /// For WhatsApp / contact – prefer WhatsApp number, fallback to phone
+  String? get contactNumber =>
+      (whatsappNumber != null && whatsappNumber!.trim().isNotEmpty)
+          ? whatsappNumber
+          : phone;
 
   factory DriverInfo.fromJson(Map<String, dynamic> json) {
     return DriverInfo(
@@ -130,6 +142,7 @@ class DriverInfo {
       name: json['name']?.toString() ?? 'Unknown Driver',
       email: json['email']?.toString(),
       phone: json['phone']?.toString(),
+      whatsappNumber: json['whatsapp_number']?.toString(),
       isVerified: json['isVerified'] == true,
     );
   }
@@ -140,6 +153,7 @@ class DriverInfo {
       'name': name,
       'email': email,
       'phone': phone,
+      'whatsapp_number': whatsappNumber,
       'isVerified': isVerified,
     };
   }

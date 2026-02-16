@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/notification_model.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/rate_ride_dialog.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -159,6 +160,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             await _notificationService.markAsRead(n.id);
             _refresh();
           }
+          if (n.type == 'rate_ride' && n.bookingId != null && n.bookingId!.isNotEmpty) {
+            final submitted = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => RateRideDialog(
+                bookingId: n.bookingId!,
+                title: n.title,
+              ),
+            );
+            if (submitted == true) _refresh();
+          }
         },
       ),
     );
@@ -180,6 +192,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'booking_status':
         icon = Icons.directions_car;
         color = Colors.blue;
+        break;
+      case 'rate_ride':
+        icon = Icons.star;
+        color = Colors.amber;
         break;
       default:
         icon = Icons.notifications;

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_navigator.dart';
+import '../landing/landing_screen.dart';
 import '../trips/passenger_my_rides_screen.dart';
 import '../trips/my_rides_screen.dart';
 import '../trips/create_trip_screen.dart';
@@ -14,6 +15,7 @@ import 'driver_verification_form_screen.dart';
 import 'change_password_screen.dart';
 import 'help_screen.dart';
 import 'terms_screen.dart';
+import '../../services/review_service.dart';
 
 /// User Profile - BlaBlaCar style, simple & easy
 class ProfileScreen extends StatelessWidget {
@@ -90,25 +92,17 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                // Rating - TODO: Real rating after ride complete. Pending: email 5 min after ride.
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star_outline, color: Colors.grey[600], size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        'No ratings yet',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RatingsScreen(userRole: role),
                       ),
-                    ],
-                  ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: _RatingSummaryChip(userId: user?.id),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -346,23 +340,80 @@ class ProfileScreen extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Do you want to logout?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(dialogCtx),
             child: const Text('Cancel'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(ctx);
-              // Pop all routes to root so Consumer can show WelcomeScreen
-              navigatorKey.currentState?.popUntil((route) => route.isFirst);
+              // Close dialog first
+              Navigator.pop(dialogCtx);
+              
+              // Logout immediately - clear auth state
               await authProvider.logout();
+              
+              // Force navigation to root - clear entire stack
+              if (navigatorKey.currentState != null) {
+                navigatorKey.currentState!.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LandingScreen()),
+                  (route) => false, // Remove all previous routes
+                );
+              }
             },
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RatingSummaryChip extends StatelessWidget {
+  final String? userId;
+
+  const _RatingSummaryChip({this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    if (userId == null || userId!.isEmpty) {
+      return _chip(icon: Icons.star_outline, label: 'No ratings yet');
+    }
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ReviewService().getUserRatingSummary(userId!),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return _chip(icon: Icons.star_outline, label: '…');
+        }
+        final d = snapshot.data!;
+        final total = (d['total_ratings'] as num?)?.toInt() ?? 0;
+        final avg = (d['average_rating'] as num?)?.toDouble();
+        if (total == 0) {
+          return _chip(icon: Icons.star_outline, label: 'No ratings yet');
+        }
+        final avgStr = avg != null ? avg.toStringAsFixed(1) : '0';
+        return _chip(icon: Icons.star, label: '$avgStr ★ ($total reviews)');
+      },
+    );
+  }
+
+  Widget _chip({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.grey[600], size: 18),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
         ],
       ),
     );

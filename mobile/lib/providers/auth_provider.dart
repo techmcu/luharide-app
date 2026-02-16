@@ -123,8 +123,11 @@ class AuthProvider with ChangeNotifier {
       _error = null;
       
       _setLoading(false);
+      notifyListeners(); // Notify UI to rebuild
     } catch (e) {
       _error = e.toString();
+      _user = null;
+      _status = AuthStatus.unauthenticated;
       _setLoading(false);
       notifyListeners();
     }
@@ -221,11 +224,15 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
+      _error = null;
       
       _setLoading(false);
+      notifyListeners(); // Ensure UI rebuilds
       return true;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
+      _user = null;
+      _status = AuthStatus.unauthenticated;
       _setLoading(false);
       notifyListeners();
       return false;
@@ -261,11 +268,15 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
+      _error = null;
       
       _setLoading(false);
+      notifyListeners(); // Ensure UI rebuilds
       return true;
     } catch (e) {
       _error = e.toString().replaceAll('Exception: ', '');
+      _user = null;
+      _status = AuthStatus.unauthenticated;
       _setLoading(false);
       notifyListeners();
       return false;

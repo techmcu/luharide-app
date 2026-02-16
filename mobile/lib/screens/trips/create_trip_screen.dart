@@ -47,18 +47,20 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       if (result['success'] == true && result['status'] == 'approved') {
         final request = result['request'] as Map<String, dynamic>?;
         if (request != null) {
+          // Get capacity from verified vehicle - NOT default 7
           final cap = request['vehicle_capacity'];
-          _verifiedSeats = cap is int ? cap : (int.tryParse(cap?.toString() ?? '') ?? 7);
+          _verifiedSeats = cap is int ? cap : (int.tryParse(cap?.toString() ?? '') ?? null);
+          if (_verifiedSeats == null || _verifiedSeats! < 1) _verifiedSeats = null;
           final reg = request['vehicle_registration']?.toString()?.trim();
           if (reg != null && reg.isNotEmpty) {
             _vehicleNumberController.text = reg;
             _hasVerifiedVehicleNumber = true;
           }
         } else {
-          _verifiedSeats = 7;
+          _verifiedSeats = null; // Must complete verification
         }
       } else {
-        _verifiedSeats = 7;
+        _verifiedSeats = null; // Must complete verification first
       }
     });
   }
@@ -344,6 +346,31 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         fontSize: 15,
                         color: Colors.grey.shade800,
                         fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Complete driver verification first. Go to Profile → Become a Driver and add your vehicle (Brand, Model). Seats will be set from your car.',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.orange.shade900,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],

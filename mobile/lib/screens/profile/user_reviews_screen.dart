@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../services/review_service.dart';
 
-/// Ratings - User can see all ratings they received (from passengers/drivers)
-class RatingsScreen extends StatefulWidget {
-  final String? userRole;
+/// Shows rating summary + paginated reviews for a user (e.g. driver on trip details).
+class UserReviewsScreen extends StatefulWidget {
+  final String userId;
+  final String displayName;
 
-  const RatingsScreen({super.key, this.userRole});
+  const UserReviewsScreen({super.key, required this.userId, required this.displayName});
 
   @override
-  State<RatingsScreen> createState() => _RatingsScreenState();
+  State<UserReviewsScreen> createState() => _UserReviewsScreenState();
 }
 
-class _RatingsScreenState extends State<RatingsScreen> {
+class _UserReviewsScreenState extends State<UserReviewsScreen> {
   final ReviewService _reviewService = ReviewService();
-  final List<Map<String, dynamic>> _ratings = [];
+  final List<Map<String, dynamic>> _reviews = [];
+  int _total = 0;
+  double _avgRating = 0;
+  bool _summaryLoaded = false;
   bool _isLoading = true;
   bool _loadingMore = false;
   int _page = 1;
@@ -23,18 +27,30 @@ class _RatingsScreenState extends State<RatingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadReviews();
+    _loadSummary();
+    _loadPage();
   }
 
-  Future<void> _loadReviews() async {
-    setState(() { _isLoading = true; _page = 1; _hasMore = true; });
-    final result = await _reviewService.getMyReviews(page: 1, limit: _pageSize);
+  Future<void> _loadSummary() async {
+    final result = await _reviewService.getUserRatingSummary(widget.userId);
+    if (mounted) {
+      setState(() {
+        _summaryLoaded = true;
+        _total = (result['total_ratings'] as num?)?.toInt() ?? 0;
+        _avgRating = (result['average_rating'] as num?)?.toDouble() ?? 0.0;
+      });
+    }
+  }
+
+  Future<void> _loadPage() async {
+    setState(() => _isLoading = true);
+    final result = await _reviewService.getReviewsForUser(widget.userId, page: 1, limit: _pageSize);
     if (mounted) {
       setState(() {
         _isLoading = false;
-        _ratings.clear();
+        _reviews.clear();
         if (result['success'] == true && result['reviews'] != null) {
-          _ratings.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
+          _reviews.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
         }
         _hasMore = result['has_more'] == true;
         _page = 1;
@@ -46,12 +62,12 @@ class _RatingsScreenState extends State<RatingsScreen> {
     if (_loadingMore || !_hasMore) return;
     setState(() => _loadingMore = true);
     final nextPage = _page + 1;
-    final result = await _reviewService.getMyReviews(page: nextPage, limit: _pageSize);
+    final result = await _reviewService.getReviewsForUser(widget.userId, page: nextPage, limit: _pageSize);
     if (mounted) {
       setState(() {
         _loadingMore = false;
         if (result['success'] == true && result['reviews'] != null) {
-          _ratings.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
+          _reviews.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
         }
         _hasMore = result['has_more'] == true;
         _page = nextPage;
@@ -61,93 +77,77 @@ class _RatingsScreenState extends State<RatingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDriver = widget.userRole == 'driver';
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Ratings'),
-        backgroundColor: isDriver ? Colors.green : Colors.blue,
+        title: Text('${widget.displayName}\'s ratings'),
+        backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(36),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Ratings you received from drivers & passengers',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white.withOpacity(0.9),
-                ),
-              ),
-            ),
-          ),
-        ),
       ),
-      body: _isLoading
+      body: _isLoading && _reviews.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : _ratings.isEmpty
+          : _reviews.isEmpty && _total == 0
               ? _buildEmptyState()
               : RefreshIndicator(
-                  onRefresh: _loadReviews,
-                  child: ListView.builder(
+                  onRefresh: () async {
+                    await _loadSummary();
+                    await _loadPage();
+                  },
+                  child: ListView(
                     padding: const EdgeInsets.all(16),
-                    itemCount: _ratings.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, i) {
-                      if (i == _ratings.length) {
-                        return Padding(
+                    children: [
+                      if (_summaryLoaded) _buildSummaryChip(),
+                      const SizedBox(height: 16),
+                      ..._reviews.map((r) => _buildRatingCard(r)),
+                      if (_hasMore)
+                        Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           child: Center(
                             child: _loadingMore
                                 ? const SizedBox(height: 32, width: 32, child: CircularProgressIndicator(strokeWidth: 2))
                                 : TextButton.icon(
-                                    onPressed: _hasMore ? _loadMore : null,
+                                    onPressed: _loadMore,
                                     icon: const Icon(Icons.expand_more),
                                     label: const Text('More'),
                                   ),
                           ),
-                        );
-                      }
-                      return _buildRatingCard(_ratings[i]);
-                    },
+                        ),
+                    ],
                   ),
                 ),
     );
   }
 
+  Widget _buildSummaryChip() {
+    final avgStr = _avgRating > 0 ? _avgRating.toStringAsFixed(1) : '0';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.amber[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.star, color: Colors.amber[700], size: 28),
+          const SizedBox(width: 12),
+          Text(
+            _total == 0 ? 'No ratings yet' : '$avgStr ★ ($_total reviews)',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.amber[900]),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.star_outline, size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              'No ratings yet',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                'Here you’ll see ratings others gave you after a ride.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.userRole == 'driver'
-                  ? 'Passengers will rate you after completing rides.'
-                  : 'Complete rides to receive ratings from drivers.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-            ),
-          ],
-        ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.star_outline, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          Text('No ratings yet', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+        ],
       ),
     );
   }

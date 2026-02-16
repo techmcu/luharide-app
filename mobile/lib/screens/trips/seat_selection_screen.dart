@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/trip_model.dart';
+import '../../models/seat_layout.dart';
 import '../../services/trip_service.dart';
 import '../../models/vehicle_catalog.dart';
 
@@ -23,28 +24,58 @@ class SeatSelectionScreen extends StatefulWidget {
 class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   final _tripService = TripService();
   final Set<int> _selectedSeats = {};
-  late List<bool> _seatStatus; // true = booked or pending, false = available
+  late List<bool> _seatStatus; // true = booked or pending or driver, false = available
   bool _isLoadingSeats = true;
   Set<int> _bookedSeats = {};
   Set<int> _pendingSeats = {}; // for UI: show booked vs pending
   int _availableCount = 0;
   String? _loadError;
+  late SeatLayoutConfig _layout;
+  late Set<int> _driverSeatIndices; // 0-based indices where type == 'driver' (same as verification)
+  late List<int> _logicalSeatNumber; // seat index -> API seat number (driver = 1, others = 2..N)
 
   @override
   void initState() {
     super.initState();
+    _initLayout();
     _loadSeatStatus();
+  }
+
+  void _initLayout() {
+    final totalSeats = widget.trip.totalSeats;
+    final vehicleModel = widget.trip.vehicleModelId != null
+        ? VehicleCatalog.findModelById(widget.trip.vehicleModelId!)
+        : null;
+    _layout = vehicleModel?.layout ?? VehicleCatalog.layoutForCapacity(totalSeats);
+    _driverSeatIndices = _layout.seats
+        .asMap()
+        .entries
+        .where((e) => e.value.type == 'driver')
+        .map((e) => e.key)
+        .toSet();
+    // API convention: seat 1 = driver (reserved). Others = 2, 3, ..., N.
+    _logicalSeatNumber = List.filled(totalSeats, 0);
+    var next = 2;
+    for (var i = 0; i < totalSeats; i++) {
+      if (_driverSeatIndices.contains(i)) {
+        _logicalSeatNumber[i] = 1;
+      } else {
+        _logicalSeatNumber[i] = next++;
+      }
+    }
   }
 
   void _applySeatData(Set<int> booked, Set<int> pending) {
     final totalSeats = widget.trip.totalSeats;
-    _bookedSeats = booked;
+    // Backend sends seat 1 as driver; ensure driver is always in booked for UI
+    _bookedSeats = Set<int>.from(booked)
+      ..addAll(_driverSeatIndices.map((i) => _logicalSeatNumber[i]));
     _pendingSeats = pending;
     _seatStatus = List.generate(totalSeats, (index) {
-      final seatNum = index + 1;
-      return booked.contains(seatNum) || pending.contains(seatNum);
+      final logical = _logicalSeatNumber[index];
+      return _bookedSeats.contains(logical) || _pendingSeats.contains(logical);
     });
-    _availableCount = totalSeats - booked.length - pending.length;
+    _availableCount = totalSeats - _bookedSeats.length - _pendingSeats.length;
   }
 
   Future<void> _loadSeatStatus() async {
@@ -74,15 +105,14 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       final booked = Set<int>.from((result['booked'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0));
       final pending = Set<int>.from((result['pending'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0));
       _applySeatData(booked, pending);
-      _availableCount = (result['available_seats'] is num)
-          ? (result['available_seats'] as num).toInt()
-          : (totalSeats - booked.length - pending.length);
+      // _availableCount already set in _applySeatData (includes driver seat as reserved)
     } else if (initBooked.isEmpty && initPending.isEmpty) {
       _loadError = result['message']?.toString();
       final bookedCount = totalSeats - widget.trip.availableSeats;
-      _seatStatus = List.generate(totalSeats, (index) => index < bookedCount);
-      _bookedSeats = {};
+      _bookedSeats = Set.from(_driverSeatIndices.map((i) => _logicalSeatNumber[i]));
       _pendingSeats = {};
+      _seatStatus = List.generate(totalSeats, (index) =>
+        index < bookedCount || _driverSeatIndices.contains(index));
       _availableCount = widget.trip.availableSeats;
     }
 
@@ -90,11 +120,21 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   void _toggleSeat(int seatNumber) {
+    if (_driverSeatIndices.contains(seatNumber)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Driver seat is reserved and cannot be booked'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
     if (_seatStatus[seatNumber]) {
-      final seatNum = seatNumber + 1;
-      final msg = _pendingSeats.contains(seatNum)
-          ? 'Seat $seatNum is pending (requested by another passenger)'
-          : 'Seat $seatNum is already booked';
+      final logicalNum = _logicalSeatNumber[seatNumber];
+      final msg = _pendingSeats.contains(logicalNum)
+          ? 'Seat $logicalNum is pending (requested by another passenger)'
+          : 'Seat $logicalNum is already booked';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
@@ -115,9 +155,12 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   Color _getSeatColor(int seatNumber) {
-    final seatNum = seatNumber + 1;
+    if (_driverSeatIndices.contains(seatNumber)) {
+      return Colors.orange; // Driver seat - same as driver verification
+    }
+    final logicalNum = _logicalSeatNumber[seatNumber];
     if (_seatStatus[seatNumber]) {
-      if (_bookedSeats.contains(seatNum)) {
+      if (_bookedSeats.contains(logicalNum)) {
         return Colors.grey; // Confirmed/Booked
       }
       return Colors.orange[300]!; // Pending - more visible
@@ -129,6 +172,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   IconData _getSeatIcon(int seatNumber) {
+    if (_driverSeatIndices.contains(seatNumber)) {
+      return Icons.local_taxi; // Same icon as driver verification
+    }
     if (_seatStatus[seatNumber]) {
       return Icons.event_seat;
     } else if (_selectedSeats.contains(seatNumber)) {
@@ -139,7 +185,19 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   Future<void> _doBooking(double totalFare) async {
-    final seatNumbers = _selectedSeats.map((s) => s + 1).toList()..sort();
+    // Send logical seat numbers (driver = 1 is never sent)
+    final seatNumbers = _selectedSeats.map((s) => _logicalSeatNumber[s]).toList()..sort();
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      ),
+    );
 
     final result = await _tripService.createBooking(
       tripId: widget.trip.id,
@@ -147,19 +205,29 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     );
 
     if (!mounted) return;
+
+    // Close loading dialog
+    Navigator.pop(context);
+
     if (result['success']) {
-      Navigator.pop(context);
+      // Close seat selection screen and return success flag
+      Navigator.pop(context, true); // true = booking successful
+      
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? 'Booking confirmed!'),
           backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
         ),
       );
     } else {
+      // Show error message, stay on screen
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? 'Booking failed'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -186,7 +254,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Selected Seats: ${_selectedSeats.map((s) => s + 1).join(', ')}'),
+            Text('Selected Seats: ${_selectedSeats.map((s) => _logicalSeatNumber[s]).join(', ')}'),
             const SizedBox(height: 8),
             Text('Number of Seats: ${_selectedSeats.length}'),
             const SizedBox(height: 8),
@@ -220,9 +288,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   @override
   Widget build(BuildContext context) {
     final totalSeats = widget.trip.totalSeats;
-    // Use same top-view layout style as driver verification,
-    // so 10-seater jeep / 9-seater etc. look identical.
-    final layout = VehicleCatalog.layoutForCapacity(totalSeats);
+    // Use EXACT same layout as driver verification (set in initState)
+    final layout = _layout;
     final seatPositions = layout.seats;
     // Map (row,col) -> seatIndex (0-based, used for status & booking)
     final Map<String, int> indexByPos = {};
@@ -343,6 +410,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                   spacing: 16,
                   runSpacing: 8,
                   children: [
+                    _buildLegend(Colors.orange, Icons.local_taxi, 'Driver'),
                     _buildLegend(Colors.blue[100]!, Icons.event_seat_outlined, 'Available'),
                     _buildLegend(Colors.green, Icons.event_seat, 'Selected'),
                     _buildLegend(Colors.grey, Icons.event_seat, 'Booked'),
@@ -521,6 +589,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   Widget _buildSeat(int seatNumber) {
+    final isDriver = _driverSeatIndices.contains(seatNumber);
     final isBooked = _seatStatus[seatNumber];
     final isSelected = _selectedSeats.contains(seatNumber);
     final color = _getSeatColor(seatNumber);
@@ -547,19 +616,21 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               Icon(
                 icon,
                 size: 30,
-                color: isBooked
-                    ? (_bookedSeats.contains(seatNumber + 1) ? Colors.grey[700] : Colors.orange[700])
-                    : isSelected
-                        ? Colors.green[700]
-                        : Colors.blue,
+                color: isDriver
+                    ? Colors.orange[800]
+                    : isBooked
+                        ? (_bookedSeats.contains(_logicalSeatNumber[seatNumber]) ? Colors.grey[700] : Colors.orange[700])
+                        : isSelected
+                            ? Colors.green[700]
+                            : Colors.blue,
               ),
               const SizedBox(height: 4),
               Text(
-                '${seatNumber + 1}',
+                isDriver ? 'D' : '${_logicalSeatNumber[seatNumber]}',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: isBooked ? Colors.grey[600] : Colors.black87,
+                  color: isDriver ? Colors.orange[900] : (isBooked ? Colors.grey[600] : Colors.black87),
                 ),
               ),
             ],

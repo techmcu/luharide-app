@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
+import '../../core/app_navigator.dart';
+import '../landing/landing_screen.dart';
 
 /// Admin Panel - Simple: Driver verification requests only. No search bar.
 class UnionAdminHomeScreen extends StatefulWidget {
@@ -252,16 +254,29 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      barrierDismissible: false,
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Logout'),
         content: const Text('Do you want to logout?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx), 
+            child: const Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
+              // Close dialog first
+              Navigator.pop(dialogCtx);
+              
+              // Logout immediately - clear auth state
               await authProvider.logout();
-              if (context.mounted) {
-                Navigator.of(context).popUntil((route) => route.isFirst);
+              
+              // Force navigation to landing screen - clear entire stack
+              if (navigatorKey.currentState != null) {
+                navigatorKey.currentState!.pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LandingScreen()),
+                  (route) => false, // Remove all previous routes
+                );
               }
             },
             child: const Text('Logout'),

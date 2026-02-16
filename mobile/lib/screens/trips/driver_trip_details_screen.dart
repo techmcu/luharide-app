@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
+import '../../services/review_service.dart';
+import '../../utils/launch_whatsapp.dart';
+import '../profile/user_reviews_screen.dart';
 
 class DriverTripDetailsScreen extends StatefulWidget {
   final String tripId;
@@ -84,6 +87,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
       if (seatNumbers.isNotEmpty) {
         list.add(BookingInfo(
           id: b['id']?.toString() ?? '',
+          passengerId: passenger['id']?.toString() ?? '',
           seatNumbers: seatNumbers,
           passengerName: passenger['name']?.toString() ?? 'Passenger',
           phone: passenger['phone']?.toString() ?? passenger['email']?.toString() ?? '-',
@@ -518,34 +522,62 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                backgroundColor: isPending ? Colors.orange : Colors.green,
-                child: Text(
-                  booking.passengerName[0].toUpperCase(),
-                  style: const TextStyle(color: Colors.white),
+              InkWell(
+                onTap: booking.passengerId.isNotEmpty
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UserReviewsScreen(
+                              userId: booking.passengerId,
+                              displayName: booking.passengerName,
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
+                borderRadius: BorderRadius.circular(24),
+                child: CircleAvatar(
+                  backgroundColor: isPending ? Colors.orange : Colors.green,
+                  child: Text(
+                    booking.passengerName[0].toUpperCase(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      booking.passengerName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                child: InkWell(
+                  onTap: booking.passengerId.isNotEmpty
+                      ? () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => UserReviewsScreen(
+                                userId: booking.passengerId,
+                                displayName: booking.passengerName,
+                              ),
+                            ),
+                          );
+                        }
+                      : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        booking.passengerName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      booking.phone,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
+                      const SizedBox(height: 2),
+                      Text(
+                        'Tap to see ratings & reviews',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               Container(
@@ -565,6 +597,22 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
               ),
             ],
           ),
+          if (booking.passengerId.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _PassengerRatingRow(passengerId: booking.passengerId, passengerName: booking.passengerName),
+          ],
+          if (booking.phone.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => launchWhatsApp(booking.phone),
+              icon: const Icon(Icons.chat, size: 18),
+              label: const Text('Message on WhatsApp'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green[700],
+                side: BorderSide(color: Colors.green[700]!),
+              ),
+            ),
+          ],
           if (isPending) ...[
             const SizedBox(height: 12),
             Row(
@@ -596,6 +644,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
 // Model for booking info
 class BookingInfo {
   final String id;
+  final String passengerId;
   final List<int> seatNumbers;
   final String passengerName;
   final String phone;
@@ -603,9 +652,67 @@ class BookingInfo {
 
   BookingInfo({
     required this.id,
+    required this.passengerId,
     required this.seatNumbers,
     required this.passengerName,
     required this.phone,
     required this.bookingStatus,
   });
+}
+
+class _PassengerRatingRow extends StatelessWidget {
+  final String passengerId;
+  final String passengerName;
+
+  const _PassengerRatingRow({required this.passengerId, required this.passengerName});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ReviewService().getUserRatingSummary(passengerId),
+      builder: (context, snapshot) {
+        final total = (snapshot.data?['total_ratings'] as num?)?.toInt() ?? 0;
+        final avg = (snapshot.data?['average_rating'] as num?)?.toDouble();
+        final avgStr = total > 0 && avg != null ? avg.toStringAsFixed(1) : null;
+        return Row(
+          children: [
+            if (snapshot.connectionState == ConnectionState.waiting)
+              const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+            else if (total > 0 && avgStr != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star, color: Colors.amber[700], size: 16),
+                    const SizedBox(width: 4),
+                    Text('$avgStr ($total)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber[900])),
+                  ],
+                ),
+              )
+            else
+              Text('No ratings yet', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserReviewsScreen(userId: passengerId, displayName: passengerName),
+                  ),
+                );
+              },
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), minimumSize: Size.zero),
+              child: const Text('See reviews', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }

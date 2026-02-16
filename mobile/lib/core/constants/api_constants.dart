@@ -50,7 +50,12 @@ class ApiConstants {
   static const String verifyPayment = '/payments/verify';
   static const String paymentHistory = '/payments/history';
   
-  // Reviews Endpoints
+  // Reviews / Ratings Endpoints
   static const String submitReview = '/reviews';
   static const String driverReviews = '/reviews/driver/{id}';
+  static const String myReviews = '/reviews/my-reviews';
+  static String userRatingSummary(String userId) => '/reviews/summary/$userId';
+  static String userReviews(String userId, {int page = 1, int limit = 20}) =>
+      '/reviews/user/$userId/reviews?page=$page&limit=$limit';
+  static String rateBooking(String bookingId) => '/bookings/$bookingId/rate';
 }

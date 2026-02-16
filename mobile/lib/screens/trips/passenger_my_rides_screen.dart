@@ -262,11 +262,6 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                               b['driver']['name'] ?? 'Driver',
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            if ((b['driver']['whatsapp_number'] ?? b['driver']['phone']) != null)
-                              Text(
-                                b['driver']['whatsapp_number'] ?? b['driver']['phone'],
-                                style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                              ),
                             const SizedBox(height: 4),
                             Text(
                               'Tap to chat on WhatsApp',

@@ -9,10 +9,12 @@ const asyncHandler = require('../utils/asyncHandler');
 const getMyNotifications = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
+  // Use body (001 schema); if your table has message instead, run migration 012 to add body.
   const result = await pool.query(
     `SELECT id, type, title, 
-            COALESCE(message, body) AS message, 
-            is_read, created_at 
+            body AS message, 
+            is_read, created_at,
+            data 
      FROM notifications 
      WHERE user_id = $1 
      ORDER BY created_at DESC 

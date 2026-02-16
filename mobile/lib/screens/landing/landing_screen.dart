@@ -90,8 +90,8 @@ class _LandingScreenState extends State<LandingScreen> {
     }
   }
 
-  void _onTripTap(TripModel trip) {
-    Navigator.push(
+  void _onTripTap(TripModel trip) async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => TripDetailsScreen(
@@ -101,6 +101,11 @@ class _LandingScreenState extends State<LandingScreen> {
         ),
       ),
     );
+
+    // If booking was successful, refresh search results
+    if (result == true && mounted) {
+      _searchTrips();
+    }
   }
 
   @override
@@ -421,30 +426,55 @@ class _LandingScreenState extends State<LandingScreen> {
 
               const SizedBox(height: 48),
 
-                // Footer - powered by
+                // Footer - powered by (Professional paragraph style)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 24),
                   child: Column(
                     children: [
+                      // Decorative line
                       Container(
-                        width: 40,
-                        height: 2,
-                        margin: const EdgeInsets.only(bottom: 12),
+                        width: 60,
+                        height: 1.5,
+                        margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(1),
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.grey[300]!,
+                              Colors.grey[200]!,
+                              Colors.grey[300]!,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      Text(
-                        'Powered by TechMCU',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.grey[400],
-                          letterSpacing: 1.2,
+                      // Powered by text with elegant styling
+                      RichText(
+                        textAlign: TextAlign.center,
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Powered by ',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.grey[400],
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'techmcu',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[400],
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
+                      // Tagline with better design
                       Text(
                         'Safe • Legal • Reliable',
                         style: TextStyle(

@@ -706,8 +706,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  final result = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => TripDetailsScreen(
@@ -716,6 +716,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                       ),
                     ),
                   );
+                  
+                  // If booking was successful, refresh search results
+                  if (result == true && mounted) {
+                    _searchTrips();
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,

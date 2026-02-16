@@ -22,21 +22,23 @@ const createTrip = asyncHandler(async (req, res) => {
 
   const driverId = req.user.id;
 
-  // Use verified vehicle capacity and registration when driver is approved (no manual override)
-  let totalSeats = bodySeats != null ? parseInt(bodySeats) : 7;
-  let vehicleNumber = bodyVehicleNumber || '';
+  // MUST use verified vehicle - no manual override. Driver must complete verification first.
   const verif = await pool.query(
-    `SELECT vehicle_capacity, vehicle_registration
+    `SELECT vehicle_capacity, vehicle_registration, vehicle_model_id
      FROM driver_verification_requests
      WHERE user_id = $1 AND status = 'approved'
      ORDER BY updated_at DESC LIMIT 1`,
     [driverId]
   );
-  if (verif.rows[0]) {
-    const cap = verif.rows[0].vehicle_capacity;
-    if (cap != null && cap > 0) totalSeats = cap;
-    if (verif.rows[0].vehicle_registration) vehicleNumber = verif.rows[0].vehicle_registration;
+
+  if (!verif.rows[0]) {
+    throw ApiError.forbidden('Complete driver verification first. Go to Profile → Become a Driver.');
   }
+
+  const cap = verif.rows[0].vehicle_capacity;
+  const totalSeats = (cap != null && cap > 0) ? cap : 7;
+  const vehicleNumber = verif.rows[0].vehicle_registration || bodyVehicleNumber || '';
+  const vehicleModelId = verif.rows[0].vehicle_model_id || null;
 
   // Calculate estimated arrival (for now, add 2 hours)
   const departureDate = new Date(departure_time);
@@ -50,18 +52,18 @@ const createTrip = asyncHandler(async (req, res) => {
       `INSERT INTO trips (
         driver_id, from_location, to_location, departure_time, arrival_time,
         fare_per_seat, total_seats, total_capacity, available_seats,
-        vehicle_number, stops, status, require_approval
+        vehicle_number, vehicle_model_id, stops, status, require_approval
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         driverId, from_location, to_location, departure_time, arrivalDate,
         fare_per_seat, totalSeats, totalSeats, totalSeats,
-        vehicleNumber, JSON.stringify(stops), 'scheduled', useRequireApproval
+        vehicleNumber, vehicleModelId, JSON.stringify(stops), 'scheduled', useRequireApproval
       ]
     );
   } catch (err) {
-    if (err.code === '42703' || err.message?.includes('require_approval')) {
+    if (err.code === '42703' || err.message?.includes('require_approval') || err.message?.includes('vehicle_model_id')) {
       result = await pool.query(
         `INSERT INTO trips (
           driver_id, from_location, to_location, departure_time, arrival_time,
@@ -113,6 +115,7 @@ const searchTrips = asyncHandler(async (req, res) => {
       u.name as driver_name,
       u.email as driver_email,
       u.phone as driver_phone,
+      u.whatsapp_number as driver_whatsapp,
       u.driver_verification_status as driver_verified
     FROM trips t
     LEFT JOIN users u ON t.driver_id = u.id
@@ -144,6 +147,7 @@ const searchTrips = asyncHandler(async (req, res) => {
       name: trip.driver_name,
       email: trip.driver_email,
       phone: trip.driver_phone,
+      whatsapp_number: trip.driver_whatsapp,
       isVerified: trip.driver_verified === 'approved'
     }
   }));
@@ -195,8 +199,9 @@ const getTripBookedSeats = asyncHandler(async (req, res) => {
   }
 
   const bookedSet = new Set(booked);
+  bookedSet.add(1); // Seat 1 = driver (reserved, not bookable)
   const pendingSet = new Set(pending);
-  const allTakenSet = new Set([...booked, ...pending]);
+  const allTakenSet = new Set([...bookedSet, ...pending]);
   const totalSeats = tripCheck.rows[0].total_seats;
   const availableCount = Math.max(0, totalSeats - allTakenSet.size);
 
@@ -224,6 +229,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
       u.name as driver_name,
       u.email as driver_email,
       u.phone as driver_phone,
+      u.whatsapp_number as driver_whatsapp,
       u.driver_verification_status as driver_verified
     FROM trips t
     LEFT JOIN users u ON t.driver_id = u.id
@@ -261,8 +267,9 @@ const getTripDetails = asyncHandler(async (req, res) => {
   }
 
   const bookedSet = new Set(booked);
+  bookedSet.add(1); // Seat 1 = driver (reserved, not bookable)
   const pendingSet = new Set(pending);
-  const allTakenSet = new Set([...booked, ...pending]);
+  const allTakenSet = new Set([...bookedSet, ...pending]);
   const totalSeats = trip.total_seats;
   const availableSeats = Math.max(0, totalSeats - allTakenSet.size);
 
@@ -285,6 +292,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
           name: trip.driver_name,
           email: trip.driver_email,
           phone: trip.driver_phone,
+          whatsapp_number: trip.driver_whatsapp,
           isVerified: trip.driver_verified === 'approved'
         }
       },

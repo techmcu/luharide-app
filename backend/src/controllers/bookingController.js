@@ -2,6 +2,7 @@ const { pool } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
+const logger = require('../config/logger');
 
 /**
  * Create a booking (Passenger)
@@ -40,6 +41,11 @@ const createBooking = asyncHandler(async (req, res) => {
 
     const validSeats = seat_numbers.filter(s => Number.isInteger(s) && s >= 1 && s <= totalSeats);
     const uniqueSeats = [...new Set(validSeats)];
+
+    if (uniqueSeats.includes(1)) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest('Seat 1 is reserved for the driver and cannot be booked');
+    }
 
     if (uniqueSeats.length !== seat_numbers.length) {
       await client.query('ROLLBACK');
@@ -89,6 +95,29 @@ const createBooking = asyncHandler(async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Schedule rate notifications 1 min after confirm; fallback to immediate if table missing
+    if (bookingStatus === 'confirmed') {
+      try {
+        await pool.query(
+          `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+           VALUES ($1, $2, $3, NOW() + INTERVAL '1 minute')`,
+          [booking.id, passengerId, trip.driver_id]
+        );
+      } catch (err) {
+        if (err.code === '42P01') {
+          const dataJson = JSON.stringify({ booking_id: booking.id });
+          await pool.query(
+            `INSERT INTO notifications (user_id, type, title, body, data)
+             VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. Rate your driver.', $2::jsonb),
+                    ($3, 'rate_ride', 'Rate your passenger', 'A passenger booked your ride. Rate them after the trip.', $2::jsonb)`,
+            [passengerId, dataJson, trip.driver_id]
+          ).catch((e) => logger.warn('Fallback rate notifications failed:', e.message));
+        } else {
+          logger.warn('Pending rate notification insert failed:', err.message);
+        }
+      }
+    }
 
     const message = bookingStatus === 'pending'
       ? 'Booking request sent. Driver will approve shortly.'
@@ -217,6 +246,27 @@ const respondToBooking = asyncHandler(async (req, res) => {
         'UPDATE bookings SET status = $1 WHERE id = $2',
         ['cancelled', row.id]
       );
+    }
+  }
+
+  // Schedule rate notifications 1 min after accept; fallback to immediate if table missing
+  try {
+    await pool.query(
+      `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+       VALUES ($1, $2, $3, NOW() + INTERVAL '1 minute')`,
+      [bookingId, booking.passenger_id, booking.driver_id]
+    );
+  } catch (err) {
+    if (err.code === '42P01') {
+      const dataJson = JSON.stringify({ booking_id: bookingId });
+      await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was accepted. Rate your driver.', $2::jsonb),
+                ($3, 'rate_ride', 'Rate your passenger', 'You accepted a booking. Rate your passenger.', $2::jsonb)`,
+        [booking.passenger_id, dataJson, booking.driver_id]
+      ).catch((e) => logger.warn('Fallback rate notifications failed:', e.message));
+    } else {
+      logger.warn('Pending rate notification insert failed:', err.message);
     }
   }
 

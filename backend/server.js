@@ -21,6 +21,7 @@ const adminRoutes = require('./src/routes/admin');
 const unionRoutes = require('./src/routes/union');
 const paymentRoutes = require('./src/routes/payments');
 const notificationRoutes = require('./src/routes/notifications');
+const reviewRoutes = require('./src/routes/reviews');
 
 // Import middleware
 const { errorConverter, errorHandler } = require('./src/middleware/errorHandler');
@@ -28,6 +29,7 @@ const logger = require('./src/config/logger');
 
 // Import socket handlers
 const socketHandlers = require('./src/socket/socketHandlers');
+const rateNotificationJob = require('./src/jobs/rateNotificationJob');
 
 const app = express();
 const server = http.createServer(app);
@@ -76,6 +78,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/union', unionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -112,6 +115,7 @@ server.listen(PORT, () => {
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 API: http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
+  rateNotificationJob.start();
 });
 
 // Graceful shutdown

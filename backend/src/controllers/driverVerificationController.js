@@ -16,6 +16,7 @@ const submitVerification = asyncHandler(async (req, res) => {
     vehicle_registration,
     vehicle_type,
     vehicle_model,
+    vehicle_model_id,
     vehicle_capacity,
     rc_document_url,
     permit_document_url,
@@ -32,45 +33,89 @@ const submitVerification = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('You are already a verified driver');
   }
 
-  // Upsert verification request
-  const result = await pool.query(
-    `INSERT INTO driver_verification_requests (
-      user_id, driving_license_number, driving_license_url,
-      vehicle_registration, vehicle_type, vehicle_model, vehicle_capacity,
-      rc_document_url, permit_document_url, insurance_document_url, aadhaar_document_url,
-      status
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
-    ON CONFLICT (user_id) DO UPDATE SET
-      driving_license_number = EXCLUDED.driving_license_number,
-      driving_license_url = EXCLUDED.driving_license_url,
-      vehicle_registration = EXCLUDED.vehicle_registration,
-      vehicle_type = EXCLUDED.vehicle_type,
-      vehicle_model = EXCLUDED.vehicle_model,
-      vehicle_capacity = EXCLUDED.vehicle_capacity,
-      rc_document_url = EXCLUDED.rc_document_url,
-      permit_document_url = EXCLUDED.permit_document_url,
-      insurance_document_url = EXCLUDED.insurance_document_url,
-      aadhaar_document_url = EXCLUDED.aadhaar_document_url,
-      status = 'pending',
-      rejection_reason = NULL,
-      reviewed_by = NULL,
-      reviewed_at = NULL,
-      updated_at = CURRENT_TIMESTAMP
-    RETURNING *`,
-    [
-      userId,
-      driving_license_number || null,
-      driving_license_url || null,
-      vehicle_registration || null,
-      vehicle_type || null,
-      vehicle_model || null,
-      vehicle_capacity ? parseInt(vehicle_capacity) : null,
-      rc_document_url || null,
-      permit_document_url || null,
-      insurance_document_url || null,
-      aadhaar_document_url || null
-    ]
-  );
+  // Upsert verification request (vehicle_model_id = catalog ID for exact seat layout)
+  const params = [
+    userId,
+    driving_license_number || null,
+    driving_license_url || null,
+    vehicle_registration || null,
+    vehicle_type || null,
+    vehicle_model || null,
+    vehicle_model_id || null,
+    vehicle_capacity ? parseInt(vehicle_capacity) : null,
+    rc_document_url || null,
+    permit_document_url || null,
+    insurance_document_url || null,
+    aadhaar_document_url || null
+  ];
+
+  let result;
+  try {
+    result = await pool.query(
+      `INSERT INTO driver_verification_requests (
+        user_id, driving_license_number, driving_license_url,
+        vehicle_registration, vehicle_type, vehicle_model, vehicle_model_id, vehicle_capacity,
+        rc_document_url, permit_document_url, insurance_document_url, aadhaar_document_url,
+        status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')
+      ON CONFLICT (user_id) DO UPDATE SET
+        driving_license_number = EXCLUDED.driving_license_number,
+        driving_license_url = EXCLUDED.driving_license_url,
+        vehicle_registration = EXCLUDED.vehicle_registration,
+        vehicle_type = EXCLUDED.vehicle_type,
+        vehicle_model = EXCLUDED.vehicle_model,
+        vehicle_model_id = EXCLUDED.vehicle_model_id,
+        vehicle_capacity = EXCLUDED.vehicle_capacity,
+        rc_document_url = EXCLUDED.rc_document_url,
+        permit_document_url = EXCLUDED.permit_document_url,
+        insurance_document_url = EXCLUDED.insurance_document_url,
+        aadhaar_document_url = EXCLUDED.aadhaar_document_url,
+        status = 'pending',
+        rejection_reason = NULL,
+        reviewed_by = NULL,
+        reviewed_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *`,
+      params
+    );
+  } catch (err) {
+    // If vehicle_model_id column does not exist (migration 008 not run), retry without it
+    if (err.code === '42703' && err.message && err.message.includes('vehicle_model_id')) {
+      logger.warn('driver_verification_requests.vehicle_model_id missing - run migration 008. Inserting without it.');
+      result = await pool.query(
+        `INSERT INTO driver_verification_requests (
+          user_id, driving_license_number, driving_license_url,
+          vehicle_registration, vehicle_type, vehicle_model, vehicle_capacity,
+          rc_document_url, permit_document_url, insurance_document_url, aadhaar_document_url,
+          status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending')
+        ON CONFLICT (user_id) DO UPDATE SET
+          driving_license_number = EXCLUDED.driving_license_number,
+          driving_license_url = EXCLUDED.driving_license_url,
+          vehicle_registration = EXCLUDED.vehicle_registration,
+          vehicle_type = EXCLUDED.vehicle_type,
+          vehicle_model = EXCLUDED.vehicle_model,
+          vehicle_capacity = EXCLUDED.vehicle_capacity,
+          rc_document_url = EXCLUDED.rc_document_url,
+          permit_document_url = EXCLUDED.permit_document_url,
+          insurance_document_url = EXCLUDED.insurance_document_url,
+          aadhaar_document_url = EXCLUDED.aadhaar_document_url,
+          status = 'pending',
+          rejection_reason = NULL,
+          reviewed_by = NULL,
+          reviewed_at = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *`,
+        [
+          params[0], params[1], params[2], params[3], params[4], params[5],
+          params[7], params[8], params[9], params[10], params[11]
+        ]
+      );
+    } else {
+      logger.error('Driver verification submit failed:', err.message, err.code);
+      throw err;
+    }
+  }
 
   // Update user status
   await pool.query(

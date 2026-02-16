@@ -157,18 +157,56 @@ const createDemoAccounts = asyncHandler(async (req, res) => {
 
     if (existing.rows.length === 0) {
       const result = await pool.query(
-        `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone)
-         VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
+        `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone, driver_verification_status)
+         VALUES ($1, $2, $3, $4, TRUE, TRUE, $5, $6)
          RETURNING id, name, email, role`,
-        [account.name, account.email, passwordHash, account.role, account.email]
+        [account.name, account.email, passwordHash, account.role, account.email, account.role === 'driver' ? 'approved' : 'none']
       );
       created.push(result.rows[0]);
+
+      // For demo driver: add driver_verification_requests with Mahindra Bolero 7-seater
+      if (account.role === 'driver') {
+        const driverId = result.rows[0].id;
+        await pool.query(
+          `INSERT INTO driver_verification_requests (
+            user_id, driving_license_number, vehicle_registration, vehicle_type, vehicle_model, vehicle_model_id, vehicle_capacity, status
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved')
+          ON CONFLICT (user_id) DO UPDATE SET
+            vehicle_capacity = EXCLUDED.vehicle_capacity,
+            vehicle_registration = EXCLUDED.vehicle_registration,
+            vehicle_type = EXCLUDED.vehicle_type,
+            vehicle_model = EXCLUDED.vehicle_model,
+            vehicle_model_id = EXCLUDED.vehicle_model_id,
+            status = 'approved',
+            updated_at = CURRENT_TIMESTAMP`,
+          [driverId, 'DL-DEMO-001', 'DEMO-001', 'SUV', 'Mahindra Bolero 7-Seater', 'mahindra_bolero_suv', 7]
+        );
+      }
     } else {
       // For demo accounts, always reset password + role + name to known values
+      const userId = existing.rows[0].id;
       await pool.query(
-        'UPDATE users SET password_hash = $1, role = $2, name = $3, is_verified = TRUE, is_active = TRUE WHERE email = $4',
-        [passwordHash, account.role, account.name, account.email]
+        'UPDATE users SET password_hash = $1, role = $2, name = $3, is_verified = TRUE, is_active = TRUE, driver_verification_status = $5 WHERE email = $4',
+        [passwordHash, account.role, account.name, account.email, account.role === 'driver' ? 'approved' : 'none']
       );
+
+      // For demo driver: ensure driver_verification_requests exists with vehicle
+      if (account.role === 'driver') {
+        await pool.query(
+          `INSERT INTO driver_verification_requests (
+            user_id, driving_license_number, vehicle_registration, vehicle_type, vehicle_model, vehicle_model_id, vehicle_capacity, status
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved')
+          ON CONFLICT (user_id) DO UPDATE SET
+            vehicle_capacity = EXCLUDED.vehicle_capacity,
+            vehicle_registration = EXCLUDED.vehicle_registration,
+            vehicle_type = EXCLUDED.vehicle_type,
+            vehicle_model = EXCLUDED.vehicle_model,
+            vehicle_model_id = EXCLUDED.vehicle_model_id,
+            status = 'approved',
+            updated_at = CURRENT_TIMESTAMP`,
+          [userId, 'DL-DEMO-001', 'DEMO-001', 'SUV', 'Mahindra Bolero 7-Seater', 'mahindra_bolero_suv', 7]
+        );
+      }
     }
   }
 

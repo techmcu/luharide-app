@@ -18,7 +18,7 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   final _vehicleRegController = TextEditingController();
   final _vehicleTypeController = TextEditingController();
   final _vehicleModelController = TextEditingController();
-  final _capacityController = TextEditingController(text: '7');
+  final _capacityController = TextEditingController(); // Set from vehicle model only
   bool _isLoading = false;
   VehicleBrandConfig? _selectedBrand;
   VehicleModelConfig? _selectedModel;
@@ -43,6 +43,7 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
       vehicleRegistration: _vehicleRegController.text.trim(),
       vehicleType: _vehicleTypeController.text.trim(),
       vehicleModel: _vehicleModelController.text.trim(),
+      vehicleModelId: _selectedModel?.id,
       vehicleCapacity: int.tryParse(_capacityController.text) ?? 7,
     );
 
@@ -142,7 +143,7 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                     _selectedModel = null;
                     _vehicleTypeController.text = brand?.name ?? '';
                     _vehicleModelController.clear();
-                    _capacityController.text = '';
+                    _capacityController.clear(); // Must select model for capacity
                   });
                 },
                 validator: (v) => v == null ? 'Select brand' : null,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/app_navigator.dart';
+import '../home/home_screen.dart';
 
 class SimpleSignupScreen extends StatefulWidget {
   const SimpleSignupScreen({super.key});
@@ -44,8 +46,13 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      // Pop back to root - Consumer will show HomeScreen based on role
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      // Force navigate to HomeScreen, clear all previous routes
+      if (navigatorKey.currentState != null) {
+        navigatorKey.currentState!.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false, // Remove all previous routes
+        );
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -3,7 +3,10 @@ import 'package:provider/provider.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
+import '../../services/review_service.dart';
+import '../../utils/launch_whatsapp.dart';
 import '../auth/simple_login_screen.dart';
+import '../profile/user_reviews_screen.dart';
 import 'seat_selection_screen.dart';
 
 class TripDetailsScreen extends StatefulWidget {
@@ -216,7 +219,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Driver Card
+          // Driver Card – tap avatar/name to see ratings; Message via WhatsApp (no number shown)
           if (_displayTrip!.driver != null)
             Card(
               elevation: 2,
@@ -231,46 +234,78 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: Colors.green,
-                          child: Text(
-                            _displayTrip!.driver!.name[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white),
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => UserReviewsScreen(
+                              userId: _displayTrip!.driver!.id,
+                              displayName: _displayTrip!.driver!.name,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.green,
+                            child: Text(
+                              _displayTrip!.driver!.name[0].toUpperCase(),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  _displayTrip!.driver!.name,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      _displayTrip!.driver!.name,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (_displayTrip!.driver!.isVerified) ...[
+                                      const SizedBox(width: 6),
+                                      Icon(Icons.verified, color: Colors.blue[700], size: 20),
+                                    ],
+                                  ],
                                 ),
-                                if (_displayTrip!.driver!.isVerified) ...[
-                                  const SizedBox(width: 6),
-                                  Icon(Icons.verified, color: Colors.blue[700], size: 20),
-                                ],
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Tap to see ratings & reviews',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
                               ],
                             ),
-                            if (_displayTrip!.driver!.phone != null)
-                              Text(
-                                _displayTrip!.driver!.phone!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
+                          ),
+                          Icon(Icons.chevron_right, color: Colors.grey[600]),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 12),
+                    _DriverRatingRow(
+                      driverId: _displayTrip!.driver!.id,
+                      driverName: _displayTrip!.driver!.name,
+                    ),
+                    if (_displayTrip!.driver!.contactNumber != null &&
+                        _displayTrip!.driver!.contactNumber!.trim().isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => launchWhatsApp(_displayTrip!.driver!.contactNumber),
+                        icon: const Icon(Icons.chat, size: 18),
+                        label: const Text('Message on WhatsApp'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.green[700],
+                          side: BorderSide(color: Colors.green[700]!),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -403,8 +438,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     );
   }
 
-  void _navigateToSeatSelection() {
-    Navigator.push(
+  void _navigateToSeatSelection() async {
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => SeatSelectionScreen(
@@ -413,6 +448,74 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           initialPendingSeats: _pendingSeats,
         ),
       ),
+    );
+
+    // If booking was successful
+    if (result == true && mounted) {
+      // Reload trip details to show updated seats
+      await _loadTripDetails();
+      
+      // Also return success to parent screen (search results)
+      // so they can refresh their list too
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      }
+    }
+  }
+}
+
+class _DriverRatingRow extends StatelessWidget {
+  final String driverId;
+  final String driverName;
+
+  const _DriverRatingRow({required this.driverId, required this.driverName});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: ReviewService().getUserRatingSummary(driverId),
+      builder: (context, snapshot) {
+        final total = (snapshot.data?['total_ratings'] as num?)?.toInt() ?? 0;
+        final avg = (snapshot.data?['average_rating'] as num?)?.toDouble();
+        final avgStr = total > 0 && avg != null ? avg.toStringAsFixed(1) : null;
+        return Row(
+          children: [
+            if (snapshot.connectionState == ConnectionState.waiting)
+              const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+            else if (total > 0 && avgStr != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star, color: Colors.amber[700], size: 18),
+                    const SizedBox(width: 6),
+                    Text('$avgStr ($total)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.amber[900])),
+                  ],
+                ),
+              )
+            else
+              Text('No ratings yet', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+            const SizedBox(width: 12),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserReviewsScreen(userId: driverId, displayName: driverName),
+                  ),
+                );
+              },
+              child: const Text('See reviews'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
