@@ -1,0 +1,3 @@
+# Railway: run when Root Directory is set to "backend"
+[deploy]
+startCommand = "node server.js"

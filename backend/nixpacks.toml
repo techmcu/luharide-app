@@ -1,0 +1,9 @@
+# Railway/Nixpacks: build & run from backend folder
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm ci --omit=dev || npm install"]
+
+[start]
+cmd = "node server.js"
