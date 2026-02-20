@@ -41,7 +41,73 @@ class AuthService {
     }
   }
 
-  /// Verify OTP and login/register
+  /// Send OTP to email (for signup / login)
+  Future<Map<String, dynamic>> sendOTPByEmail(String email, {String purpose = 'registration'}) async {
+    try {
+      final response = await _apiService.post(
+        ApiConstants.sendOTP,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'purpose': purpose,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data'] as Map<String, dynamic>;
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to send OTP');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to send OTP');
+      }
+      throw Exception('Network error. Please check your connection.');
+    }
+  }
+
+  /// Verify OTP and login/register (email) – for signup pass name, role, password
+  Future<Map<String, dynamic>> verifyOTPByEmail({
+    required String email,
+    required String otp,
+    String? name,
+    String role = 'passenger',
+    String? password,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        ApiConstants.verifyOTP,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'otp': otp,
+          if (name != null && name.length >= 2) 'name': name,
+          'role': role,
+          if (password != null && password.isNotEmpty) 'password': password,
+          'platform': 'mobile',
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        final tokens = AuthTokens.fromJson(data['tokens']);
+        final user = UserModel.fromJson(data['user']);
+        await _saveAuthData(tokens, user);
+        return {
+          'user': user,
+          'tokens': tokens,
+          'isNewUser': data['isNewUser'] ?? false,
+        };
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to verify OTP');
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to verify OTP');
+      }
+      throw Exception('Network error. Please check your connection.');
+    }
+  }
+
+  /// Verify OTP and login/register (phone)
   Future<Map<String, dynamic>> verifyOTP({
     required String phone,
     required String otp,

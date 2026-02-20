@@ -64,6 +64,8 @@ dist/
 .deploy-token
 deploy_key
 deploy_key.pub
+deploy_key_github.txt
+deploy_key_b64.txt
 
 # Temporary files
 *.tmp

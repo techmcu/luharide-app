@@ -1,113 +1,132 @@
 const { pool } = require('../config/database');
-const { createOTP, verifyOTP, sendOTP } = require('../services/otpService');
+const { createOTP, verifyOTP, sendOTP, createOTPByEmail, verifyOTPByEmail, sendOTPByEmail } = require('../services/otpService');
 const { generateTokenPair, verifyRefreshToken, revokeRefreshToken } = require('../services/tokenService');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const bcrypt = require('bcryptjs');
 
 /**
- * Send OTP to phone number
+ * Send OTP to phone OR email
  * POST /api/auth/send-otp
+ * Body: { phone } OR { email }, optional: { purpose }
  */
 const sendOTPController = asyncHandler(async (req, res) => {
-  const { phone, purpose = 'login' } = req.body;
+  const { phone, email, purpose = 'login' } = req.body;
 
-  // Create OTP
-  const otpData = await createOTP(phone, purpose);
+  if (email) {
+    const emailNorm = email.toLowerCase().trim();
+    let otpData;
+    try {
+      otpData = await createOTPByEmail(emailNorm, purpose);
+    } catch (err) {
+      logger.error('send-otp createOTPByEmail failed:', err.message);
+      if (err.code === '42703' || err.message?.includes('column')) {
+        throw ApiError.internal('Database migration pending. Run: npm run migrate');
+      }
+      throw err;
+    }
+    await sendOTPByEmail(emailNorm, otpData.otp);
+    const responseData = {
+      message: 'OTP sent to your email',
+      email: emailNorm,
+      expiresIn: '10 minutes',
+      ...(process.env.NODE_ENV === 'development' && { otp: otpData.otp })
+    };
+    return ApiResponse.success(responseData, 'OTP sent successfully').send(res);
+  }
 
-  // Send OTP via SMS
-  await sendOTP(phone, otpData.otp);
+  if (phone) {
+    const otpData = await createOTP(phone, purpose);
+    await sendOTP(phone, otpData.otp);
+    const responseData = {
+      message: 'OTP sent successfully',
+      phone,
+      expiresIn: '10 minutes',
+      ...(process.env.NODE_ENV === 'development' && { otp: otpData.otp })
+    };
+    return ApiResponse.success(responseData, 'OTP sent successfully').send(res);
+  }
 
-  // In development, include OTP in response
-  const responseData = {
-    message: 'OTP sent successfully',
-    phone,
-    expiresIn: '10 minutes',
-    ...(process.env.NODE_ENV === 'development' && { otp: otpData.otp })
-  };
-
-  ApiResponse.success(responseData, 'OTP sent successfully').send(res);
+  throw ApiError.badRequest('Provide either phone or email');
 });
 
 /**
- * Verify OTP and login/register
+ * Verify OTP and login/register (phone OR email)
  * POST /api/auth/verify-otp
+ * Body: (phone + otp) OR (email + otp); for new user: name, role
  */
 const verifyOTPController = asyncHandler(async (req, res) => {
-  const { phone, otp, name, role = 'passenger' } = req.body;
+  const { phone, email, otp, name, role = 'passenger', password } = req.body;
 
-  // Verify OTP
-  const otpVerification = await verifyOTP(phone, otp);
+  let identifier; // 'phone' or 'email'
+  let value;      // phone number or email
 
-  if (!otpVerification.verified) {
-    throw ApiError.badRequest('OTP verification failed');
+  if (email && otp) {
+    identifier = 'email';
+    value = email.toLowerCase().trim();
+    const verification = await verifyOTPByEmail(value, otp);
+    if (!verification.verified) throw ApiError.badRequest('OTP verification failed');
+  } else if (phone && otp) {
+    identifier = 'phone';
+    value = phone;
+    const verification = await verifyOTP(phone, otp);
+    if (!verification.verified) throw ApiError.badRequest('OTP verification failed');
+  } else {
+    throw ApiError.badRequest('Provide (phone + otp) or (email + otp)');
   }
 
-  // Check if user exists
+  const byPhone = identifier === 'phone';
   let userResult = await pool.query(
-    'SELECT * FROM users WHERE phone = $1',
-    [phone]
+    byPhone ? 'SELECT * FROM users WHERE phone = $1' : 'SELECT * FROM users WHERE email = $1',
+    [value]
   );
 
   let user;
   let isNewUser = false;
 
   if (userResult.rows.length === 0) {
-    // New user - create account
-    if (!name) {
-      throw ApiError.badRequest('Name is required for registration');
+    if (!name || name.length < 2) {
+      throw ApiError.badRequest('Name is required for registration (min 2 characters)');
     }
-
+    const phonePlaceholder = byPhone ? value : `E${Date.now().toString().slice(-14)}`;
+    const emailVal = byPhone ? null : value;
+    const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, 10) : null;
     const insertResult = await pool.query(
-      `INSERT INTO users (name, phone, role, is_verified, is_active)
-       VALUES ($1, $2, $3, TRUE, TRUE)
-       RETURNING id, name, phone, email, role, is_verified, is_active, created_at`,
-      [name, phone, role]
+      `INSERT INTO users (name, phone, email, role, is_verified, is_active, password_hash)
+       VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
+       RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status, created_at`,
+      [name.trim(), phonePlaceholder, emailVal, role, passwordHash]
     );
-
     user = insertResult.rows[0];
     isNewUser = true;
-    logger.info(`New user registered: ${user.id} - ${phone}`);
+    logger.info(`New user registered: ${user.id} - ${byPhone ? value : value}`);
   } else {
-    // Existing user - login
     user = userResult.rows[0];
-
-    // Update verification status and last login
     await pool.query(
       'UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1',
       [user.id]
     );
-
-    logger.info(`User logged in: ${user.id} - ${phone}`);
+    logger.info(`User logged in: ${user.id} - ${value}`);
   }
 
-  // Check if user is active
   if (!user.is_active) {
     throw ApiError.forbidden('Account is deactivated. Please contact support.');
   }
 
-  // Generate tokens
   const deviceInfo = {
     userAgent: req.headers['user-agent'],
     platform: req.body.platform || 'unknown'
   };
-  
-  const tokens = await generateTokenPair(
-    user.id,
-    user.role,
-    deviceInfo,
-    req.ip
-  );
+  const tokens = await generateTokenPair(user.id, user.role, deviceInfo, req.ip);
 
-  // Log login history
   await pool.query(
     `INSERT INTO login_history (user_id, login_type, device_info, ip_address, user_agent, status)
      VALUES ($1, $2, $3, $4, $5, $6)`,
-    [user.id, 'otp', JSON.stringify(deviceInfo), req.ip, req.headers['user-agent'], 'success']
+    [user.id, 'otp', JSON.stringify(deviceInfo), req.ip, req.headers['user-agent'] || null, 'success']
   );
 
-  // Prepare response
   const responseData = {
     user: {
       id: user.id,

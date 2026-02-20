@@ -81,7 +81,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Verify OTP and login/register
+  /// Verify OTP and login/register (phone)
   Future<bool> verifyOTP({
     required String phone,
     required String otp,
@@ -102,6 +102,54 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _setLoading(false);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Send OTP to email (for signup)
+  Future<bool> sendOTPByEmail(String email, {String purpose = 'registration'}) async {
+    try {
+      _setLoading(true);
+      _error = null;
+      await _authService.sendOTPByEmail(email, purpose: purpose);
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _setLoading(false);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Verify email OTP and sign up / login (name + password required for new user signup)
+  Future<bool> verifyOTPByEmail({
+    required String email,
+    required String otp,
+    required String name,
+    required String password,
+    String role = 'passenger',
+  }) async {
+    try {
+      _setLoading(true);
+      _error = null;
+
+      final result = await _authService.verifyOTPByEmail(
+        email: email,
+        otp: otp,
+        name: name,
+        role: role,
+        password: password,
+      );
+
+      _user = result['user'] as UserModel;
+      _status = AuthStatus.authenticated;
       _setLoading(false);
       return true;
     } catch (e) {

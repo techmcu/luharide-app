@@ -17,29 +17,30 @@ const { authenticate } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
 const { otpLimiter, authLimiter } = require('../middleware/rateLimiter');
 
-// Validation schemas
+// Validation schemas (flat body: phone, email, otp, etc.)
 const sendOTPSchema = Joi.object({
-  body: Joi.object({
-    phone: schemas.phone,
-    purpose: Joi.string().valid('login', 'registration').optional()
-  })
+  phone: Joi.string().pattern(/^[6-9]\d{9}$/).optional().allow('', null),
+  email: Joi.string().email().optional().allow('', null),
+  purpose: Joi.string().valid('login', 'registration').optional()
+}).or('phone', 'email').messages({
+  'object.missing': 'Provide either phone or email'
 });
 
 const verifyOTPSchema = Joi.object({
-  body: Joi.object({
-    phone: schemas.phone,
-    otp: schemas.otp,
-    name: Joi.string().min(2).max(100).optional(),
-    role: schemas.role.optional(),
-    platform: Joi.string().optional()
-  })
+  phone: Joi.string().pattern(/^[6-9]\d{9}$/).optional().allow('', null),
+  email: Joi.string().email().optional().allow('', null),
+  otp: schemas.otp,
+  name: Joi.string().min(2).max(100).optional(),
+  role: Joi.string().valid('passenger', 'driver', 'union_admin').optional(),
+  password: Joi.string().min(6).max(128).optional(), // for email signup: set password on new user
+  platform: Joi.string().optional()
+}).or('phone', 'email').messages({
+  'object.missing': 'Provide either phone or email'
 });
 
 const refreshTokenSchema = Joi.object({
-  body: Joi.object({
-    refreshToken: Joi.string().required(),
-    platform: Joi.string().optional()
-  })
+  refreshToken: Joi.string().required(),
+  platform: Joi.string().optional()
 });
 
 const updateProfileSchema = Joi.object({
