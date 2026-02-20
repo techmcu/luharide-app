@@ -1,7 +1,8 @@
 class EnvConfig {
-  // Production API (Hostinger VPS)
-  static const String apiBaseUrl = 'http://76.13.243.157:3000/api';
-  static const String socketUrl = 'http://76.13.243.157:3000';
+  // Production API (Hostinger VPS). Set _useLocalApi true only when running backend locally for debug.
+  static const bool _useLocalApi = false;
+  static const String apiBaseUrl = _useLocalApi ? 'http://10.0.2.2:3000/api' : 'http://76.13.243.157:3000/api';
+  static const String socketUrl = _useLocalApi ? 'http://10.0.2.2:3000' : 'http://76.13.243.157:3000';
   
   // Google Maps API Key
   static const String googleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';

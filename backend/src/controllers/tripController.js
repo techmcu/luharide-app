@@ -23,13 +23,22 @@ const createTrip = asyncHandler(async (req, res) => {
   const driverId = req.user.id;
 
   // MUST use verified vehicle - no manual override. Driver must complete verification first.
-  const verif = await pool.query(
-    `SELECT vehicle_capacity, vehicle_registration, vehicle_model_id
-     FROM driver_verification_requests
-     WHERE user_id = $1 AND status = 'approved'
-     ORDER BY updated_at DESC LIMIT 1`,
-    [driverId]
-  );
+  let verif;
+  try {
+    verif = await pool.query(
+      `SELECT vehicle_capacity, vehicle_registration
+       FROM driver_verification_requests
+       WHERE user_id = $1 AND status = 'approved'
+       ORDER BY updated_at DESC LIMIT 1`,
+      [driverId]
+    );
+  } catch (dbErr) {
+    if (dbErr.code === '42P01' || dbErr.code === '42703') {
+      logger.error('Create trip: driver_verification_requests missing or schema outdated', { code: dbErr.code, message: dbErr.message });
+      throw ApiError.serviceUnavailable('Driver verification not set up. Please run database migrations (npm run migrate).');
+    }
+    throw dbErr;
+  }
 
   if (!verif.rows[0]) {
     throw ApiError.forbidden('Complete driver verification first. Go to Profile → Become a Driver.');
@@ -38,10 +47,22 @@ const createTrip = asyncHandler(async (req, res) => {
   const cap = verif.rows[0].vehicle_capacity;
   const totalSeats = (cap != null && cap > 0) ? cap : 7;
   const vehicleNumber = verif.rows[0].vehicle_registration || bodyVehicleNumber || '';
-  const vehicleModelId = verif.rows[0].vehicle_model_id || null;
+  let vehicleModelId = null;
+  try {
+    const verif2 = await pool.query(
+      `SELECT vehicle_model_id FROM driver_verification_requests WHERE user_id = $1 AND status = 'approved' ORDER BY updated_at DESC LIMIT 1`,
+      [driverId]
+    );
+    if (verif2.rows[0] && verif2.rows[0].vehicle_model_id) vehicleModelId = verif2.rows[0].vehicle_model_id;
+  } catch (_) {
+    // Column may not exist; ignore
+  }
 
   // Parse as UTC (mobile sends ISO with Z). Store as literal YYYY-MM-DD HH:mm:ss so DB keeps same numbers in UTC.
   const departureDate = new Date(departure_time);
+  if (Number.isNaN(departureDate.getTime())) {
+    throw ApiError.badRequest('Invalid departure_time. Use ISO 8601 format (e.g. with Z for UTC).');
+  }
   const arrivalDate = new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
   const departureStr = departureDate.toISOString().slice(0, 19).replace('T', ' ');
   const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
@@ -65,22 +86,33 @@ const createTrip = asyncHandler(async (req, res) => {
       ]
     );
   } catch (err) {
-    if (err.code === '42703' || err.message?.includes('require_approval') || err.message?.includes('vehicle_model_id')) {
-      result = await pool.query(
-        `INSERT INTO trips (
-          driver_id, from_location, to_location, departure_time, arrival_time,
-          fare_per_seat, total_seats, total_capacity, available_seats,
-          vehicle_number, stops, status
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        RETURNING *`,
-        [
-          driverId, from_location, to_location, departureStr, arrivalStr,
-          fare_per_seat, totalSeats, totalSeats, totalSeats,
-          vehicleNumber, JSON.stringify(stops), 'scheduled'
-        ]
-      );
+    if (err.code === '42703' || (err.message && (err.message.includes('require_approval') || err.message.includes('vehicle_model_id')))) {
+      try {
+        result = await pool.query(
+          `INSERT INTO trips (
+            driver_id, from_location, to_location, departure_time, arrival_time,
+            fare_per_seat, total_seats, total_capacity, available_seats,
+            vehicle_number, stops, status
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          RETURNING *`,
+          [
+            driverId, from_location, to_location, departureStr, arrivalStr,
+            fare_per_seat, totalSeats, totalSeats, totalSeats,
+            vehicleNumber, JSON.stringify(stops), 'scheduled'
+          ]
+        );
+      } catch (err2) {
+        logger.error('Create trip INSERT fallback failed', { code: err2.code, message: err2.message });
+        throw ApiError.serviceUnavailable('Database schema may be outdated. Run migrations (npm run migrate).');
+      }
+    } else if (err.code === '42P01') {
+      logger.error('Create trip: trips table missing', { message: err.message });
+      throw ApiError.serviceUnavailable('Trips table not available. Run database migrations.');
+    } else if (err.code === '23502') {
+      throw ApiError.badRequest('Missing required trip data. Check from_location, to_location, and other fields.');
     } else {
+      logger.error('Create trip INSERT failed', { code: err.code, message: err.message });
       throw err;
     }
   }
@@ -111,28 +143,46 @@ const searchTrips = asyncHandler(async (req, res) => {
   const startOfDay = new Date(searchDate.setHours(0, 0, 0, 0));
   const endOfDay = new Date(searchDate.setHours(23, 59, 59, 999));
 
-  const result = await pool.query(
-    `SELECT 
-      t.*,
-      u.name as driver_name,
-      u.email as driver_email,
-      u.phone as driver_phone,
-      u.whatsapp_number as driver_whatsapp,
-      u.driver_verification_status as driver_verified,
-      u.bio as driver_bio,
-      u.luggage_allowance_per_passenger as driver_luggage_allowance
-    FROM trips t
-    LEFT JOIN users u ON t.driver_id = u.id
-    WHERE 
-      LOWER(t.from_location) LIKE LOWER($1)
-      AND LOWER(t.to_location) LIKE LOWER($2)
-      AND t.departure_time >= $3
-      AND t.departure_time <= $4
-      AND t.status = 'scheduled'
-      AND t.available_seats > 0
-    ORDER BY t.departure_time ASC`,
-    [`%${from}%`, `%${to}%`, startOfDay, endOfDay]
-  );
+  // Use minimal user columns so search works even if optional migrations (whatsapp, bio, luggage) not run
+  let result;
+  try {
+    result = await pool.query(
+      `SELECT 
+        t.*,
+        u.name as driver_name,
+        u.email as driver_email,
+        u.phone as driver_phone,
+        u.whatsapp_number as driver_whatsapp,
+        u.driver_verification_status as driver_verified,
+        u.bio as driver_bio,
+        u.luggage_allowance_per_passenger as driver_luggage_allowance
+      FROM trips t
+      LEFT JOIN users u ON t.driver_id = u.id
+      WHERE 
+        LOWER(t.from_location) LIKE LOWER($1)
+        AND LOWER(t.to_location) LIKE LOWER($2)
+        AND t.departure_time >= $3
+        AND t.departure_time <= $4
+        AND t.status = 'scheduled'
+        AND t.available_seats > 0
+      ORDER BY t.departure_time ASC`,
+      [`%${from}%`, `%${to}%`, startOfDay, endOfDay]
+    );
+  } catch (err) {
+    if (err.code === '42703') {
+      result = await pool.query(
+        `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone
+         FROM trips t LEFT JOIN users u ON t.driver_id = u.id
+         WHERE LOWER(t.from_location) LIKE LOWER($1) AND LOWER(t.to_location) LIKE LOWER($2)
+         AND t.departure_time >= $3 AND t.departure_time <= $4
+         AND t.status = 'scheduled' AND t.available_seats > 0
+         ORDER BY t.departure_time ASC`,
+        [`%${from}%`, `%${to}%`, startOfDay, endOfDay]
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const trips = result.rows.map(trip => ({
     id: trip.id,
@@ -151,10 +201,10 @@ const searchTrips = asyncHandler(async (req, res) => {
       name: trip.driver_name,
       email: trip.driver_email,
       phone: trip.driver_phone,
-      whatsapp_number: trip.driver_whatsapp,
+      whatsapp_number: trip.driver_whatsapp ?? null,
       isVerified: trip.driver_verified === 'approved',
-      bio: trip.driver_bio || null,
-      luggage_allowance_per_passenger: trip.driver_luggage_allowance || null
+      bio: trip.driver_bio ?? null,
+      luggage_allowance_per_passenger: trip.driver_luggage_allowance ?? null
     }
   }));
 
@@ -283,21 +333,34 @@ const saveRecentRoute = asyncHandler(async (req, res) => {
 const getTripDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const result = await pool.query(
-    `SELECT 
-      t.*,
-      u.name as driver_name,
-      u.email as driver_email,
-      u.phone as driver_phone,
-      u.whatsapp_number as driver_whatsapp,
-      u.driver_verification_status as driver_verified,
-      u.bio as driver_bio,
-      u.luggage_allowance_per_passenger as driver_luggage_allowance
-    FROM trips t
-    LEFT JOIN users u ON t.driver_id = u.id
-    WHERE t.id = $1`,
-    [id]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `SELECT 
+        t.*,
+        u.name as driver_name,
+        u.email as driver_email,
+        u.phone as driver_phone,
+        u.whatsapp_number as driver_whatsapp,
+        u.driver_verification_status as driver_verified,
+        u.bio as driver_bio,
+        u.luggage_allowance_per_passenger as driver_luggage_allowance
+      FROM trips t
+      LEFT JOIN users u ON t.driver_id = u.id
+      WHERE t.id = $1`,
+      [id]
+    );
+  } catch (err) {
+    if (err.code === '42703') {
+      result = await pool.query(
+        `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone
+         FROM trips t LEFT JOIN users u ON t.driver_id = u.id WHERE t.id = $1`,
+        [id]
+      );
+    } else {
+      throw err;
+    }
+  }
 
   if (result.rows.length === 0) {
     throw ApiError.notFound('Trip not found');
@@ -354,10 +417,10 @@ const getTripDetails = asyncHandler(async (req, res) => {
           name: trip.driver_name,
           email: trip.driver_email,
           phone: trip.driver_phone,
-          whatsapp_number: trip.driver_whatsapp,
+          whatsapp_number: trip.driver_whatsapp ?? null,
           isVerified: trip.driver_verified === 'approved',
-          bio: trip.driver_bio || null,
-          luggage_allowance_per_passenger: trip.driver_luggage_allowance || null
+          bio: trip.driver_bio ?? null,
+          luggage_allowance_per_passenger: trip.driver_luggage_allowance ?? null
         }
       },
       booked_seats: [...bookedSet].sort((a, b) => a - b),

@@ -17,6 +17,13 @@ const sendOTPController = asyncHandler(async (req, res) => {
 
   if (email) {
     const emailNorm = email.toLowerCase().trim();
+    const isSignup = purpose === 'registration' || purpose === 'signup';
+    if (isSignup) {
+      const existing = await pool.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [emailNorm]);
+      if (existing.rows.length > 0) {
+        throw ApiError.conflict('This email is already registered. Please login.');
+      }
+    }
     let otpData;
     try {
       otpData = await createOTPByEmail(emailNorm, purpose);
@@ -38,6 +45,13 @@ const sendOTPController = asyncHandler(async (req, res) => {
   }
 
   if (phone) {
+    const isSignup = purpose === 'registration' || purpose === 'signup';
+    if (isSignup) {
+      const existing = await pool.query('SELECT id FROM users WHERE phone = $1 LIMIT 1', [phone]);
+      if (existing.rows.length > 0) {
+        throw ApiError.conflict('This number is already registered. Please login.');
+      }
+    }
     const otpData = await createOTP(phone, purpose);
     await sendOTP(phone, otpData.otp);
     const responseData = {
@@ -86,6 +100,9 @@ const verifyOTPController = asyncHandler(async (req, res) => {
   let user;
   let isNewUser = false;
 
+  const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
+  const effectiveRole = (!byPhone && adminEmail && value === adminEmail) ? 'union_admin' : role;
+
   if (userResult.rows.length === 0) {
     if (!name || name.length < 2) {
       throw ApiError.badRequest('Name is required for registration (min 2 characters)');
@@ -97,17 +114,25 @@ const verifyOTPController = asyncHandler(async (req, res) => {
       `INSERT INTO users (name, phone, email, role, is_verified, is_active, password_hash)
        VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
        RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status, created_at`,
-      [name.trim(), phonePlaceholder, emailVal, role, passwordHash]
+      [name.trim(), phonePlaceholder, emailVal, effectiveRole, passwordHash]
     );
     user = insertResult.rows[0];
     isNewUser = true;
-    logger.info(`New user registered: ${user.id} - ${byPhone ? value : value}`);
+    logger.info(`New user registered: ${user.id} - ${value}${effectiveRole === 'union_admin' ? ' (admin)' : ''}`);
   } else {
     user = userResult.rows[0];
-    await pool.query(
-      'UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1',
-      [user.id]
-    );
+    if (!byPhone && adminEmail && value === adminEmail && user.role !== 'union_admin') {
+      await pool.query(
+        "UPDATE users SET role = 'union_admin', is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1",
+        [user.id]
+      );
+      user.role = 'union_admin';
+    } else {
+      await pool.query(
+        'UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1',
+        [user.id]
+      );
+    }
     logger.info(`User logged in: ${user.id} - ${value}`);
   }
 

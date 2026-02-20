@@ -12,11 +12,14 @@ const bcrypt = require('bcryptjs');
  */
 const signup = asyncHandler(async (req, res) => {
   const { email, password, name, role = 'passenger' } = req.body;
+  const emailNorm = (email || '').toLowerCase().trim();
+  const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
+  const effectiveRole = (adminEmail && emailNorm === adminEmail) ? 'union_admin' : role;
 
   // Check if user exists
   const existingUser = await pool.query(
     'SELECT * FROM users WHERE email = $1',
-    [email]
+    [emailNorm]
   );
 
   if (existingUser.rows.length > 0) {
@@ -32,7 +35,7 @@ const signup = asyncHandler(async (req, res) => {
     `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone)
      VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
      RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, created_at`,
-    [name, email, passwordHash, role, phonePlaceholder]
+    [name, emailNorm, passwordHash, effectiveRole, phonePlaceholder]
   );
 
   const user = result.rows[0];
@@ -73,11 +76,13 @@ const signup = asyncHandler(async (req, res) => {
  */
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
+  const emailNorm = (email || '').toLowerCase().trim();
+  const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
 
   // Find user
   const result = await pool.query(
     'SELECT * FROM users WHERE email = $1',
-    [email]
+    [emailNorm]
   );
 
   if (result.rows.length === 0) {
@@ -93,16 +98,21 @@ const login = asyncHandler(async (req, res) => {
 
   // Verify password
   const isValidPassword = await bcrypt.compare(password, user.password_hash);
-  
+
   if (!isValidPassword) {
     throw ApiError.unauthorized('Invalid email or password');
   }
 
-  // Update last login
-  await pool.query(
-    'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
-    [user.id]
-  );
+  // If this email is configured as admin, ensure role is union_admin
+  if (adminEmail && emailNorm === adminEmail && user.role !== 'union_admin') {
+    await pool.query("UPDATE users SET role = 'union_admin', last_login = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
+    user.role = 'union_admin';
+  } else {
+    await pool.query(
+      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+      [user.id]
+    );
+  }
 
   // Generate tokens
   const tokens = await generateTokenPair(
