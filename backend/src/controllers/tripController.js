@@ -143,12 +143,15 @@ const searchTrips = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('from, to, and date are required');
   }
 
-  // Parse date to get start and end of day
-  const searchDate = new Date(date);
-  const startOfDay = new Date(searchDate.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(searchDate.setHours(23, 59, 59, 999));
+  // Date: use UTC day boundaries so search works regardless of server timezone (trips stored in UTC)
+  const dateStr = String(date).trim().slice(0, 10);
+  const startOfDay = new Date(dateStr + 'T00:00:00.000Z');
+  const endOfDay = new Date(dateStr + 'T23:59:59.999Z');
+  if (Number.isNaN(startOfDay.getTime())) {
+    throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD.');
+  }
 
-  // Use minimal user columns so search works even if optional migrations (whatsapp, bio, luggage) not run
+  // available_seats can be NULL on older schema; treat as "has capacity" when null. DB has total_capacity, not total_seats.
   let result;
   try {
     result = await pool.query(
@@ -164,25 +167,27 @@ const searchTrips = asyncHandler(async (req, res) => {
       FROM trips t
       LEFT JOIN users u ON t.driver_id = u.id
       WHERE 
-        LOWER(t.from_location) LIKE LOWER($1)
-        AND LOWER(t.to_location) LIKE LOWER($2)
+        t.from_location IS NOT NULL AND t.to_location IS NOT NULL
+        AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
+        AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
         AND t.departure_time >= $3
         AND t.departure_time <= $4
         AND t.status = 'scheduled'
-        AND t.available_seats > 0
+        AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
       ORDER BY t.departure_time ASC`,
-      [`%${from}%`, `%${to}%`, startOfDay, endOfDay]
+      [`%${String(from).trim()}%`, `%${String(to).trim()}%`, startOfDay, endOfDay]
     );
   } catch (err) {
     if (err.code === '42703') {
       result = await pool.query(
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id
-         WHERE LOWER(t.from_location) LIKE LOWER($1) AND LOWER(t.to_location) LIKE LOWER($2)
+         WHERE t.from_location IS NOT NULL AND t.to_location IS NOT NULL
+         AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
          AND t.departure_time >= $3 AND t.departure_time <= $4
-         AND t.status = 'scheduled' AND t.available_seats > 0
+         AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
          ORDER BY t.departure_time ASC`,
-        [`%${from}%`, `%${to}%`, startOfDay, endOfDay]
+        [`%${String(from).trim()}%`, `%${String(to).trim()}%`, startOfDay, endOfDay]
       );
     } else {
       throw err;
@@ -196,8 +201,8 @@ const searchTrips = asyncHandler(async (req, res) => {
     departure_time: trip.departure_time,
     arrival_time: trip.arrival_time,
     fare_per_seat: trip.fare_per_seat,
-    available_seats: trip.available_seats,
-    total_seats: trip.total_seats,
+    available_seats: trip.available_seats ?? trip.total_capacity ?? 0,
+    total_seats: trip.total_seats ?? trip.total_capacity ?? 0,
     vehicle_number: trip.vehicle_number,
     stops: trip.stops,
     status: trip.status,
@@ -228,7 +233,7 @@ const getTripBookedSeats = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
 
   const tripCheck = await pool.query(
-    'SELECT id, total_seats FROM trips WHERE id = $1 AND status = $2',
+    'SELECT id, total_capacity AS total_seats FROM trips WHERE id = $1 AND status = $2',
     [tripId, 'scheduled']
   );
 
@@ -400,7 +405,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
   bookedSet.add(1); // Seat 1 = driver (reserved, not bookable)
   const pendingSet = new Set(pending);
   const allTakenSet = new Set([...bookedSet, ...pending]);
-  const totalSeats = trip.total_seats;
+  const totalSeats = trip.total_seats ?? trip.total_capacity ?? 0;
   const availableSeats = Math.max(0, totalSeats - allTakenSet.size);
 
   ApiResponse.success(
@@ -413,7 +418,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
         arrival_time: trip.arrival_time,
         fare_per_seat: trip.fare_per_seat,
         available_seats: availableSeats,
-        total_seats: trip.total_seats,
+        total_seats: totalSeats,
         vehicle_number: trip.vehicle_number,
         stops: trip.stops,
         status: trip.status,
