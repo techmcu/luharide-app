@@ -76,10 +76,10 @@ router.post('/refresh-token', validate(refreshTokenSchema), refreshTokenControll
 
 /**
  * @route   POST /api/auth/logout
- * @desc    Logout user
- * @access  Private
+ * @desc    Logout user - revokes refresh token (no auth needed, so expired tokens can still logout)
+ * @access  Public (requires refreshToken in body)
  */
-router.post('/logout', authenticate, logoutController);
+router.post('/logout', logoutController);
 
 /**
  * @route   GET /api/auth/me

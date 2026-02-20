@@ -26,12 +26,13 @@ const signup = asyncHandler(async (req, res) => {
   // Hash password
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Create user
+  // Create user (phone VARCHAR(15) UNIQUE - use placeholder for email-only signup)
+  const phonePlaceholder = `E${Date.now().toString().slice(-14)}`;
   const result = await pool.query(
     `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone)
      VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
      RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, created_at`,
-    [name, email, passwordHash, role, email] // Using email as phone for now
+    [name, email, passwordHash, role, phonePlaceholder]
   );
 
   const user = result.rows[0];
@@ -156,11 +157,12 @@ const createDemoAccounts = asyncHandler(async (req, res) => {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [account.email]);
 
     if (existing.rows.length === 0) {
+      const phonePlaceholder = account.email.slice(0, 15) || `D${Date.now().toString().slice(-14)}`;
       const result = await pool.query(
         `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone, driver_verification_status)
          VALUES ($1, $2, $3, $4, TRUE, TRUE, $5, $6)
          RETURNING id, name, email, role`,
-        [account.name, account.email, passwordHash, account.role, account.email, account.role === 'driver' ? 'approved' : 'none']
+        [account.name, account.email, passwordHash, account.role, phonePlaceholder, account.role === 'driver' ? 'approved' : 'none']
       );
       created.push(result.rows[0]);
 

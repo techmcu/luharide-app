@@ -189,10 +189,15 @@ const logoutController = asyncHandler(async (req, res) => {
   const { refreshToken } = req.body;
 
   if (refreshToken) {
-    await revokeRefreshToken(refreshToken);
+    try {
+      await revokeRefreshToken(refreshToken);
+    } catch (err) {
+      // Token already revoked/expired - still return success
+      logger.debug('Logout: refresh token already invalid or expired');
+    }
   }
 
-  logger.info(`User logged out: ${req.user?.id}`);
+  logger.info(`User logged out${req.user ? `: ${req.user.id}` : ' (token revoked)'}`);
 
   ApiResponse.success(null, 'Logged out successfully').send(res);
 });
@@ -200,21 +205,33 @@ const logoutController = asyncHandler(async (req, res) => {
 /**
  * Get current user profile
  * GET /api/auth/me
+ * Handles DB with or without bio/luggage columns (migration 013)
  */
 const getCurrentUserController = asyncHandler(async (req, res) => {
-  const userResult = await pool.query(
-    `SELECT id, name, phone, email, role, profile_image_url, is_verified, is_active, 
-            driver_verification_status, whatsapp_number, last_login, created_at, updated_at,
-            bio, luggage_allowance_per_passenger
-     FROM users WHERE id = $1`,
-    [req.user.id]
-  );
+  const baseCols = 'id, name, phone, email, role, profile_image_url, is_verified, is_active, driver_verification_status, whatsapp_number, last_login, created_at, updated_at';
+  let userResult;
+  try {
+    userResult = await pool.query(
+      `SELECT ${baseCols}, bio, luggage_allowance_per_passenger FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+  } catch (err) {
+    if (err.code === '42703') {
+      userResult = await pool.query(`SELECT ${baseCols} FROM users WHERE id = $1`, [req.user.id]);
+    } else {
+      throw err;
+    }
+  }
 
   if (userResult.rows.length === 0) {
     throw ApiError.notFound('User not found');
   }
 
-  ApiResponse.success(userResult.rows[0], 'User profile retrieved').send(res);
+  const row = userResult.rows[0];
+  if (row.bio === undefined) row.bio = null;
+  if (row.luggage_allowance_per_passenger === undefined) row.luggage_allowance_per_passenger = null;
+
+  ApiResponse.success(row, 'User profile retrieved').send(res);
 });
 
 /**
