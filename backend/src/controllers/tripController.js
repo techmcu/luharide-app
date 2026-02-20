@@ -143,7 +143,7 @@ const searchTrips = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('from, to, and date are required');
   }
 
-  // Date: use UTC day boundaries so search works regardless of server timezone (trips stored in UTC)
+  // Date: use UTC day boundaries; also match by date string so timezone quirks don't hide trips
   const dateStr = String(date).trim().slice(0, 10);
   const startOfDay = new Date(dateStr + 'T00:00:00.000Z');
   const endOfDay = new Date(dateStr + 'T23:59:59.999Z');
@@ -151,7 +151,10 @@ const searchTrips = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD.');
   }
 
-  // available_seats can be NULL on older schema; treat as "has capacity" when null. DB has total_capacity, not total_seats.
+  const fromPat = `%${String(from).trim()}%`;
+  const toPat = `%${String(to).trim()}%`;
+
+  // available_seats can be NULL; use total_capacity. Match by time range OR by date (stored as UTC string)
   let result;
   try {
     result = await pool.query(
@@ -170,12 +173,12 @@ const searchTrips = asyncHandler(async (req, res) => {
         t.from_location IS NOT NULL AND t.to_location IS NOT NULL
         AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
         AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-        AND t.departure_time >= $3
-        AND t.departure_time <= $4
+        AND ( (t.departure_time >= $3 AND t.departure_time <= $4)
+              OR (t.departure_time::text LIKE $5 || '%') )
         AND t.status = 'scheduled'
         AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
       ORDER BY t.departure_time ASC`,
-      [`%${String(from).trim()}%`, `%${String(to).trim()}%`, startOfDay, endOfDay]
+      [fromPat, toPat, startOfDay, endOfDay, dateStr]
     );
   } catch (err) {
     if (err.code === '42703') {
@@ -184,15 +187,22 @@ const searchTrips = asyncHandler(async (req, res) => {
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id
          WHERE t.from_location IS NOT NULL AND t.to_location IS NOT NULL
          AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-         AND t.departure_time >= $3 AND t.departure_time <= $4
+         AND ( (t.departure_time >= $3 AND t.departure_time <= $4) OR (t.departure_time::text LIKE $5 || '%') )
          AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
          ORDER BY t.departure_time ASC`,
-        [`%${String(from).trim()}%`, `%${String(to).trim()}%`, startOfDay, endOfDay]
+        [fromPat, toPat, startOfDay, endOfDay, dateStr]
       );
     } else {
       throw err;
     }
   }
+
+  logger.info('Search trips', {
+    from: fromPat,
+    to: toPat,
+    date: dateStr,
+    count: result.rows.length
+  });
 
   const trips = result.rows.map(trip => ({
     id: trip.id,

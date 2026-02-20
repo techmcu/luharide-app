@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../core/constants/api_constants.dart';
 import '../models/trip_model.dart';
 import 'api_service.dart';
@@ -38,9 +39,14 @@ class TripService {
         'message': response.data['message'] ?? 'Trip created successfully',
       };
     } on DioException catch (e) {
+      final msg = e.response?.data['message'] ?? 'Failed to create trip';
+      // Log server response to find 400 cause (remove after fix confirmed)
+      if (e.response != null) {
+        debugPrint('Create trip error: status=${e.response!.statusCode} message=$msg');
+      }
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to create trip',
+        'message': msg,
       };
     } catch (e) {
       return {
@@ -72,11 +78,15 @@ class TripService {
       final List<TripModel> trips = tripsJson
           .map((json) => TripModel.fromJson(json))
           .toList();
+      final int count = response.data['data']['count'] ?? trips.length;
+      if (kDebugMode) {
+        debugPrint('Search trips: from=$from to=$to date=$dateStr → ${trips.length} trips');
+      }
 
       return {
         'success': true,
         'trips': trips,
-        'count': response.data['data']['count'] ?? 0,
+        'count': count,
       };
     } on DioException catch (e) {
       return {
