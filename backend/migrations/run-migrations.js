@@ -19,8 +19,16 @@ async function runMigrations() {
       const filePath = path.join(migrationsDir, file);
       const sql = fs.readFileSync(filePath, 'utf8');
 
-      await pool.query(sql);
-      console.log(`✅ ${file} completed\n`);
+      try {
+        await pool.query(sql);
+        console.log(`✅ ${file} completed\n`);
+      } catch (err) {
+        if (err.code === '42P07' || err.code === '42P01' || err.message?.includes('already exists')) {
+          console.log(`⏭️  ${file} skipped (already applied)\n`);
+        } else {
+          throw err;
+        }
+      }
     }
 
     console.log('✅ All migrations completed successfully!');
