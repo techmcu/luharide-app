@@ -22,8 +22,96 @@ Workflow **"vps"** environment use karega - alag dikhega Railway se.
 Token mein workflow scope nahi hai, isliye browser se add karo:
 
 1. https://github.com/techmcu/luharide-app/new/main
-2. File name: `.github/workflows/deploy-vps.yml`
-3. Neeche wala content paste karo (deploy-vps.yml file se copy)
+2. File name likho: `.github/workflows/deploy-vps.yml`
+3. Neeche wala content paste karo:
+
+```yaml
+# LuhaRide - Auto Deploy to VPS
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: vps
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Deployment
+        id: deployment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'vps',
+              auto_merge: false,
+              description: 'Hostinger VPS - 76.13.243.157'
+            });
+            core.setOutput('deployment_id', deployment.data.id);
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          VPS_IP: ${{ secrets.VPS_IP }}
+        run: |
+          ssh -o StrictHostKeyChecking=no root@$VPS_IP "
+            cd /var/www/luharide-backend && \
+            git remote set-url origin https://${GH_PAT}@github.com/techmcu/luharide-app.git && \
+            git fetch origin && \
+            git reset --hard origin/main && \
+            git remote set-url origin https://github.com/techmcu/luharide-app.git && \
+            cd backend && \
+            npm install && \
+            pm2 restart luharide-api
+          "
+
+      - name: Update Deployment Status (Success)
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+              state: 'success',
+              environment_url: 'http://76.13.243.157:3000',
+              description: 'Deployed to VPS successfully'
+            });
+
+      - name: Update Deployment Status (Failure)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+              state: 'failure',
+              description: 'Deploy failed'
+            });
+```
+
 4. **Commit new file** pe click
 
 ---
