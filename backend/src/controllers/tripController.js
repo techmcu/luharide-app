@@ -70,18 +70,19 @@ const createTrip = asyncHandler(async (req, res) => {
   const useRequireApproval = require_approval === false ? false : true;
   let result;
 
+  // DB schema uses total_capacity (and optionally available_seats); no total_seats column
   try {
     result = await pool.query(
       `INSERT INTO trips (
         driver_id, from_location, to_location, departure_time, arrival_time,
-        fare_per_seat, total_seats, total_capacity, available_seats,
+        fare_per_seat, total_capacity, available_seats,
         vehicle_number, vehicle_model_id, stops, status, require_approval
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         driverId, from_location, to_location, departureStr, arrivalStr,
-        fare_per_seat, totalSeats, totalSeats, totalSeats,
+        fare_per_seat, totalSeats, totalSeats,
         vehicleNumber, vehicleModelId, JSON.stringify(stops), 'scheduled', useRequireApproval
       ]
     );
@@ -91,14 +92,14 @@ const createTrip = asyncHandler(async (req, res) => {
         result = await pool.query(
           `INSERT INTO trips (
             driver_id, from_location, to_location, departure_time, arrival_time,
-            fare_per_seat, total_seats, total_capacity, available_seats,
+            fare_per_seat, total_capacity, available_seats,
             vehicle_number, stops, status
           )
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           RETURNING *`,
           [
             driverId, from_location, to_location, departureStr, arrivalStr,
-            fare_per_seat, totalSeats, totalSeats, totalSeats,
+            fare_per_seat, totalSeats, totalSeats,
             vehicleNumber, JSON.stringify(stops), 'scheduled'
           ]
         );
@@ -110,7 +111,11 @@ const createTrip = asyncHandler(async (req, res) => {
       logger.error('Create trip: trips table missing', { message: err.message });
       throw ApiError.serviceUnavailable('Trips table not available. Run database migrations.');
     } else if (err.code === '23502') {
-      throw ApiError.badRequest('Missing required trip data. Check from_location, to_location, and other fields.');
+      const msg = (err.message || '').toString();
+      const hint = msg.includes('vehicle_id') || msg.includes('route_id')
+        ? ' Run database migrations on the server (npm run migrate).'
+        : ' Check from_location, to_location, and other fields.';
+      throw ApiError.badRequest('Missing required trip data.' + hint);
     } else {
       logger.error('Create trip INSERT failed', { code: err.code, message: err.message });
       throw err;
