@@ -19,11 +19,12 @@ Workflow **"vps"** environment use karega - alag dikhega Railway se.
 
 ## Step 2: Workflow File GitHub pe Add karo (browser se)
 
-Token mein workflow scope nahi hai, isliye browser se add karo:
+**Repo page pe (Code tab) se:**
 
-1. https://github.com/techmcu/luharide-app/new/main
-2. File name likho: `.github/workflows/deploy-vps.yml`
-3. Neeche wala content paste karo:
+1. **Add file** (green button) pe click karo
+2. **Create new file** select karo
+3. **Name your file** box mein likho: `.github/workflows/deploy-vps.yml`
+4. Neeche editor mein ye content paste karo:
 
 ```yaml
 # LuhaRide - Auto Deploy to VPS
@@ -112,7 +113,7 @@ jobs:
             });
 ```
 
-4. **Commit new file** pe click
+5. Neeche **Commit new file** (green button) pe click karo
 
 ---
 

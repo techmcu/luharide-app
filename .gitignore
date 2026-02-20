@@ -60,6 +60,11 @@ coverage/
 build/
 dist/
 
+# Secrets - NEVER commit
+.deploy-token
+deploy_key
+deploy_key.pub
+
 # Temporary files
 *.tmp
 *.temp
