@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_navigator.dart';
 import '../home/home_screen.dart';
+import 'simple_login_screen.dart';
 
 class SimpleSignupScreen extends StatefulWidget {
   const SimpleSignupScreen({super.key});
@@ -50,10 +51,23 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
         const SnackBar(content: Text('OTP sent to your email. Check inbox or spam.'), backgroundColor: Colors.green),
       );
     } else if (mounted) {
+      final err = authProvider.error ?? 'Failed to send OTP';
+      final isAlreadyRegistered = err.toLowerCase().contains('already registered');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.error ?? 'Failed to send OTP'),
+          content: Text(err),
           backgroundColor: Colors.red,
+          action: isAlreadyRegistered
+              ? SnackBarAction(
+                  label: 'Login',
+                  textColor: Colors.white,
+                  onPressed: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
+                    );
+                  },
+                )
+              : null,
         ),
       );
     }

@@ -86,7 +86,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     _scrollController.dispose();
     super.dispose();
   }
-  
+
+  static String _avatarInitial(String? name) {
+    if (name == null || name.trim().isEmpty) return 'P';
+    return name.trim().substring(0, 1).toUpperCase();
+  }
+
+  static String _displayName(String? name) {
+    final n = name?.trim();
+    if (n == null || n.isEmpty) return 'User';
+    return n.split(' ').first;
+  }
+
   Future<void> _searchTrips() async {
     if (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,6 +120,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       date: _selectedDate,
     );
 
+    if (!mounted) return;
     setState(() {
       _isSearching = false;
       _searchResults = result['trips'] ?? [];
@@ -221,11 +233,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
               child: Row(
                 children: [
-                  CircleAvatar(
+                    CircleAvatar(
                     radius: 24,
                     backgroundColor: Colors.blue[50],
                     child: Text(
-                      (user?.name?.substring(0, 1).toUpperCase() ?? 'P'),
+                      _avatarInitial(user?.name),
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
@@ -239,7 +251,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.name?.split(' ').first ?? 'User',
+                          _displayName(user?.name),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -446,7 +458,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         ),
                       )
                     else
-                      ..._searchResults.map((trip) => _buildTripCard(trip)).toList(),
+                      ..._searchResults.map((trip) => _buildTripCard(trip, key: ValueKey(trip.id))),
                   ],
                 ),
               ),
@@ -577,8 +589,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
   
-  Widget _buildTripCard(TripModel trip) {
+  Widget _buildTripCard(TripModel trip, {Key? key}) {
     return Card(
+      key: key,
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

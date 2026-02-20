@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -14,18 +15,15 @@ class HomeScreen extends StatelessWidget {
     final user = authProvider.user;
     final role = (user?.role ?? 'passenger').toString().toLowerCase();
 
-    // Debug: Print user info
-    print('🔍 HomeScreen - User: ${user?.email}, Role: ${user?.role} (lowercase: $role)');
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('🔍 HomeScreen - User: ${user?.email}, Role: $role');
+    }
 
-    // Admin/Union Admin gets dedicated admin panel (no search bar, driver verification only)
     if (role == 'union_admin' || role == 'admin') {
-      print('✅ Showing Admin Panel');
       return const UnionAdminHomeScreen();
     }
 
-    // BlaBlaCar style: unified home for passengers and drivers
-    // Drivers see Create Ride; passengers see it too but gate at click
-    print('👤 Showing Passenger/Driver Screen');
     return const PassengerHomeScreen();
   }
 }

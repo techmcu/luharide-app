@@ -25,9 +25,10 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
 
   Future<void> _loadMyRides() async {
     setState(() => _isLoading = true);
-    
+
     final result = await _tripService.getMyTrips();
-    
+
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
       if (result['success']) {

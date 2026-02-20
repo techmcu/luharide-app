@@ -138,37 +138,14 @@ class _LandingScreenState extends State<LandingScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'LuhaRide',
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue[800],
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.blue.withOpacity(0.2), width: 1),
-                              ),
-                              child: Text(
-                                'Left Up, Help All',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.blue[700],
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          'LuhaRide',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[800],
+                            letterSpacing: 0.2,
+                          ),
                         ),
                         Row(
                           mainAxisSize: MainAxisSize.min,
@@ -209,10 +186,10 @@ class _LandingScreenState extends State<LandingScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
-                  // Search box - full width, beautiful, light
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.08),
+                  // Search box - centered a bit lower on screen
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(

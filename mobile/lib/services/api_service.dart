@@ -1,15 +1,16 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   late final Dio _dio;
-  
+
   factory ApiService() {
     return _instance;
   }
-  
+
   ApiService._internal() {
     _dio = Dio(
       BaseOptions(
@@ -23,28 +24,39 @@ class ApiService {
       ),
     );
 
-    // Add interceptors
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          // Token is already set in headers via setAuthToken method
-          print('🔵 REQUEST[${options.method}] => ${options.path}');
-          if (options.headers['Authorization'] != null) {
-            print('🔑 Token: ${options.headers['Authorization'].toString().substring(0, 20)}...');
-          } else {
-            print('⚠️  No token found in request');
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('🔵 REQUEST[${options.method}] => ${options.path}');
+            if (options.headers['Authorization'] != null) {
+              // ignore: avoid_print
+              print('🔑 Token: ${options.headers['Authorization'].toString().substring(0, 20)}...');
+            } else {
+              // ignore: avoid_print
+              print('⚠️  No token found in request');
+            }
           }
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          print('🟢 RESPONSE[${response.statusCode}] => ${response.requestOptions.path}');
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('🟢 RESPONSE[${response.statusCode}] => ${response.requestOptions.path}');
+          }
           return handler.next(response);
         },
         onError: (error, handler) {
-          print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.path}');
-          print('Error message: ${error.message}');
-          if (error.response?.statusCode == 401) {
-            print('❌ Authentication failed - Token might be invalid or expired');
+          if (kDebugMode) {
+            // ignore: avoid_print
+            print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.path}');
+            // ignore: avoid_print
+            print('Error message: ${error.message}');
+            if (error.response?.statusCode == 401) {
+              // ignore: avoid_print
+              print('❌ Authentication failed - Token might be invalid or expired');
+            }
           }
           return handler.next(error);
         },

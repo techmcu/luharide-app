@@ -20,6 +20,7 @@ class AuthProvider with ChangeNotifier {
   UserModel? _user;
   String? _error;
   bool _isLoading = false;
+  bool _isCheckingAuth = false;
 
   // Getters
   AuthStatus get status => _status;
@@ -28,8 +29,10 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
-  /// Check if user is already logged in
+  /// Check if user is already logged in (runs once on startup; guard prevents concurrent runs)
   Future<void> _checkAuthStatus() async {
+    if (_isCheckingAuth) return;
+    _isCheckingAuth = true;
     try {
       final isLoggedIn = await _authService.isLoggedIn();
       
@@ -59,6 +62,8 @@ class AuthProvider with ChangeNotifier {
       }
     } catch (e) {
       _status = AuthStatus.unauthenticated;
+    } finally {
+      _isCheckingAuth = false;
     }
     notifyListeners();
   }

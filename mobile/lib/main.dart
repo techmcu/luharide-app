@@ -13,22 +13,24 @@ import 'screens/landing/landing_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize configurations
   await EnvConfig.init();
-  
-  runApp(const LuhaRideApp());
+
+  // Single instance for app lifecycle (stable, no recreate on rebuild)
+  final apiService = ApiService();
+  final authService = AuthService(apiService);
+
+  runApp(LuhaRideApp(
+    authService: authService,
+  ));
 }
 
 class LuhaRideApp extends StatelessWidget {
-  const LuhaRideApp({super.key});
+  final AuthService authService;
+
+  const LuhaRideApp({super.key, required this.authService});
 
   @override
   Widget build(BuildContext context) {
-    // Initialize services
-    final apiService = ApiService();
-    final authService = AuthService(apiService);
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(

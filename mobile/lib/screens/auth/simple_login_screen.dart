@@ -31,21 +31,6 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
     super.dispose();
   }
 
-  Future<void> _createDemoAccounts() async {
-    setState(() => _isLoading = true);
-    final authProvider = context.read<AuthProvider>();
-    final ok = await authProvider.createDemoAccounts();
-    setState(() => _isLoading = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ok ? 'Demo accounts created! Login with admin@luharide.com / Admin@123' : 'Failed to create demo accounts'),
-          backgroundColor: ok ? Colors.green : Colors.red,
-        ),
-      );
-    }
-  }
-
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -60,9 +45,10 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
       password: _passwordController.text,
     );
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (success && mounted) {
+    if (success) {
       // Force navigate to HomeScreen, clear all previous routes
       if (navigatorKey.currentState != null) {
         navigatorKey.currentState!.pushAndRemoveUntil(
@@ -75,9 +61,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
       final isInvalidCreds = err.toLowerCase().contains('invalid') || err.toLowerCase().contains('password');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isInvalidCreds
-              ? 'Invalid credentials. Admin? Tap "Create Demo Accounts" first, then login.'
-              : err),
+          content: Text(isInvalidCreds ? 'Invalid email or password.' : err),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 4),
         ),
@@ -85,241 +69,196 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
     }
   }
 
-  void _fillAdminCredentials() {
-    setState(() {
-      _emailController.text = 'admin@luharide.com';
-      _passwordController.text = 'Admin@123';
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 600;
+    final horizontalPadding = 24.0;
+    final spacing = isSmallScreen ? 16.0 : 24.0;
+
     return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 60),
-                
-                // Logo
-                Center(
-                  child: Icon(
-                    Icons.local_taxi,
-                    size: 80,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Title
-                const Center(
-                  child: Text(
-                    'Login',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                
-                const SizedBox(height: 8),
-                
-                Center(
-                  child: Text(
-                    'Login to book rides, create rides, or access admin panel',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                
-                const SizedBox(height: 32),
-                
-                // Email field
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'passenger@demo.com',
-                    prefixIcon: const Icon(Icons.email),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Email is required';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Enter valid email';
-                    }
-                    return null;
-                  },
-                ),
-                
-                const SizedBox(height: 16),
-                
-                // Password field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    hintText: 'demo123',
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.blue.shade50,
+              Colors.white,
+              const Color(0xFFF8FAFC),
+            ],
+            stops: const [0.0, 0.4, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: screenHeight - topPadding - MediaQuery.of(context).padding.bottom,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(height: isSmallScreen ? 24 : 48),
+                    Center(
+                      child: Icon(
+                        Icons.local_taxi_rounded,
+                        size: isSmallScreen ? 64 : 80,
+                        color: Colors.blue.shade700,
                       ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
+                    ),
+                    SizedBox(height: spacing),
+                    Center(
+                      child: Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: isSmallScreen ? 26 : 30,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade900,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: spacing * 1.5),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      decoration: InputDecoration(
+                        labelText: 'Email',
+                        hintText: 'your@email.com',
+                        prefixIcon: Icon(Icons.email_outlined, color: Colors.blue.shade700, size: 22),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.blue.shade600, width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Email is required';
+                        if (!value.contains('@')) return 'Enter valid email';
+                        return null;
                       },
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                    SizedBox(height: isSmallScreen ? 12 : 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        hintText: 'Your password',
+                        prefixIcon: Icon(Icons.lock_outline_rounded, color: Colors.blue.shade700, size: 22),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: Colors.grey.shade600,
+                          ),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: Colors.blue.shade600, width: 1.5),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Password is required';
+                        return null;
+                      },
                     ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Password is required';
-                    }
-                    return null;
-                  },
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Login button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                    SizedBox(height: spacing),
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue.shade600,
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shadowColor: Colors.blue.withOpacity(0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Text(
+                                'Login',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    SizedBox(height: spacing),
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SimpleSignupScreen(),
                             ),
-                          )
-                        : const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          );
+                        },
+                        child: Text(
+                          "Don't have an account? Sign up",
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
                           ),
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Demo & Admin - same login, different roles open different screens
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Same login for all - role decides screen',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Colors.grey[800],
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Admin: admin@luharide.com / Admin@123 → Admin Panel',
-                        style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Demo: passenger@demo.com | driver@demo.com / demo123',
-                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _isLoading ? null : _createDemoAccounts,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                              ),
-                              child: const Text('Create Demo', style: TextStyle(fontSize: 11)),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _isLoading ? null : _fillAdminCredentials,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                              ),
-                              child: const Text('Fill Admin', style: TextStyle(fontSize: 11)),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Step 1: Create Demo (first time) → Step 2: Fill Admin → Step 3: Login',
-                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Signup link
-                Center(
-                  child: TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SimpleSignupScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "Don't have an account? Sign up",
-                      style: TextStyle(fontSize: 16),
                     ),
-                  ),
+                    SizedBox(height: 8),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(Icons.arrow_back_rounded, size: 20, color: Colors.grey.shade600),
+                        label: Text(
+                          'Back',
+                          style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                  ],
                 ),
-                
-                // Back button
-                const SizedBox(height: 8),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Back'),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

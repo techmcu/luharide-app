@@ -144,9 +144,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       requireApproval: _requireApproval,
     );
 
-    setState(() => _isLoading = false);
-
     if (!mounted) return;
+    setState(() => _isLoading = false);
 
     if (result['success']) {
       ScaffoldMessenger.of(context).showSnackBar(
