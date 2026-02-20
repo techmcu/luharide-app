@@ -1,6 +1,6 @@
 class ApiConstants {
-  // Base URLs (Use computer IP for phone access)
-  static const String baseUrl = 'http://10.135.178.9:3000/api';
+  // Production API (Hostinger VPS) – same as EnvConfig.apiBaseUrl
+  static const String baseUrl = 'http://76.13.243.157:3000/api';
   
   // Authentication Endpoints
   static const String sendOTP = '/auth/send-otp';

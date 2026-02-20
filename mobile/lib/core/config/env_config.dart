@@ -1,7 +1,7 @@
 class EnvConfig {
-  // API Configuration (Use computer IP for phone access)
-  static const String apiBaseUrl = 'http://10.135.178.9:3000/api';
-  static const String socketUrl = 'http://10.135.178.9:3000';
+  // Production API (Hostinger VPS)
+  static const String apiBaseUrl = 'http://76.13.243.157:3000/api';
+  static const String socketUrl = 'http://76.13.243.157:3000';
   
   // Google Maps API Key
   static const String googleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
