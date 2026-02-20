@@ -74,13 +74,20 @@ class TripService {
         },
       );
 
-      final List<dynamic> tripsJson = response.data['data']['trips'] ?? [];
-      final List<TripModel> trips = tripsJson
-          .map((json) => TripModel.fromJson(json))
-          .toList();
-      final int count = response.data['data']['count'] ?? trips.length;
+      final dynamic data = response.data is Map ? response.data['data'] ?? response.data : null;
+      final List<dynamic> tripsJson = (data is Map ? data['trips'] : null) as List<dynamic>? ?? [];
+      final List<TripModel> trips = [];
+      for (final item in tripsJson) {
+        if (item is! Map<String, dynamic>) continue;
+        try {
+          trips.add(TripModel.fromJson(Map<String, dynamic>.from(item)));
+        } catch (_) {
+          if (kDebugMode) debugPrint('Search: skip invalid trip item');
+        }
+      }
+      final int count = (data is Map ? data['count'] : null) as int? ?? trips.length;
       if (kDebugMode) {
-        debugPrint('Search trips: from=$from to=$to date=$dateStr → ${trips.length} trips');
+        debugPrint('Search trips: from=$from to=$to date=$dateStr → ${trips.length} trips (count=$count)');
       }
 
       return {
