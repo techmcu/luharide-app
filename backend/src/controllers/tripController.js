@@ -147,11 +147,15 @@ const searchTrips = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD.');
   }
 
-  const fromPat = `%${String(from).trim()}%`;
-  const toPat = `%${String(to).trim()}%`;
+  // Normalize: trim and collapse spaces so "Dehradun " and "Dehradun" both match
+  const fromNorm = String(from).trim().replace(/\s+/g, ' ');
+  const toNorm = String(to).trim().replace(/\s+/g, ' ');
+  const fromPat = `%${fromNorm}%`;
+  const toPat = `%${toNorm}%`;
 
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
+  // Match by calendar date so same date always shows (timezone-safe). Use (departure_time)::date = $3::date.
   let result;
   try {
     result = await pool.query(
@@ -163,8 +167,7 @@ const searchTrips = asyncHandler(async (req, res) => {
        WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
          AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
          AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-         AND t.departure_time >= ($3::date)::timestamp
-         AND t.departure_time < ($3::date + interval '1 day')::timestamp
+         AND ((t.departure_time AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::date = $3::date
          AND t.status = 'scheduled'
          AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
        ORDER BY t.departure_time ASC
@@ -178,7 +181,7 @@ const searchTrips = asyncHandler(async (req, res) => {
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id
          WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
            AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-           AND t.departure_time >= ($3::date)::timestamp AND t.departure_time < ($3::date + interval '1 day')::timestamp
+           AND ((t.departure_time AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::date = $3::date
            AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
          ORDER BY t.departure_time ASC LIMIT $4`,
         [fromPat, toPat, dateStr, limit]
