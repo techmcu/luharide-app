@@ -15,20 +15,21 @@ const respondSchema = Joi.object({
   action: Joi.string().valid('accept', 'reject').required()
 });
 
+// Create booking / my-bookings / cancel: allow passenger and driver (driver can book seats on others' trips)
 router.post(
   '/',
   authenticate,
-  authorize('passenger'),
+  authorize('passenger', 'driver'),
   validate(createBookingSchema),
   createBooking
 );
 
-router.get('/my-bookings', authenticate, authorize('passenger'), getMyBookings);
+router.get('/my-bookings', authenticate, authorize('passenger', 'driver'), getMyBookings);
 
 router.post(
   '/:id/cancel',
   authenticate,
-  authorize('passenger'),
+  authorize('passenger', 'driver'),
   cancelBooking
 );
 

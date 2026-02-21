@@ -21,10 +21,8 @@ subprojects {
 
 // Suppress deprecation notes from dependencies (e.g. razorpay_flutter)
 subprojects {
-    afterEvaluate {
-        tasks.withType<JavaCompile>().configureEach {
-            options.compilerArgs.add("-Xlint:-deprecation")
-        }
+    tasks.withType<JavaCompile>().configureEach {
+        options.compilerArgs.add("-Xlint:-deprecation")
     }
 }
 
