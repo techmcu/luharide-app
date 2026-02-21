@@ -43,7 +43,7 @@ const createTripForDriver = asyncHandler(async (req, res) => {
   const departureStr = departureDate.toISOString().slice(0, 19).replace('T', ' ');
   const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
 
-  // Create trip
+  // Create trip (DB uses total_capacity, not total_seats)
   const result = await pool.query(
     `INSERT INTO trips (
       driver_id, 
@@ -52,7 +52,7 @@ const createTripForDriver = asyncHandler(async (req, res) => {
       departure_time, 
       arrival_time,
       fare_per_seat,
-      total_seats,
+      total_capacity,
       available_seats,
       vehicle_number,
       stops,
@@ -113,9 +113,14 @@ const getUnionTrips = asyncHandler(async (req, res) => {
   query += ` ORDER BY t.departure_time DESC`;
 
   const result = await pool.query(query, params);
+  const trips = result.rows.map((t) => ({
+    ...t,
+    total_seats: t.total_seats ?? t.total_capacity ?? 0,
+    available_seats: t.available_seats ?? t.total_capacity ?? 0
+  }));
 
   ApiResponse.success(
-    { trips: result.rows, count: result.rows.length },
+    { trips, count: trips.length },
     'Union trips retrieved'
   ).send(res);
 });

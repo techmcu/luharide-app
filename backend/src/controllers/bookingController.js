@@ -35,8 +35,8 @@ const createBooking = asyncHandler(async (req, res) => {
 
     const trip = tripResult.rows[0];
     const farePerSeat = parseFloat(trip.fare_per_seat);
-    const totalSeats = trip.total_seats;
-    const availableSeats = trip.available_seats;
+    const totalSeats = trip.total_seats ?? trip.total_capacity ?? 0;
+    const availableSeats = trip.available_seats ?? trip.total_capacity ?? 0;
     const requireApproval = trip.require_approval === false ? false : true;
 
     const validSeats = seat_numbers.filter(s => Number.isInteger(s) && s >= 1 && s <= totalSeats);
@@ -291,7 +291,7 @@ const getMyBookings = asyncHandler(async (req, res) => {
     `SELECT 
       b.id, b.trip_id, b.seat_numbers, b.status, b.total_amount, b.created_at,
       t.from_location, t.to_location, t.departure_time, t.fare_per_seat,
-      t.vehicle_number, t.available_seats, t.total_seats,
+      t.vehicle_number, t.available_seats, COALESCE(t.total_seats, t.total_capacity) AS total_seats,
       u.name as driver_name, u.phone as driver_phone, u.email as driver_email, u.whatsapp_number as driver_whatsapp,
       u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
     FROM bookings b
