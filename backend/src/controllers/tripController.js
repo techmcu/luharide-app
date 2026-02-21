@@ -188,8 +188,8 @@ const searchTrips = asyncHandler(async (req, res) => {
 
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
-  // Only future rides: departure_time > now (UTC). Past date/time rides hidden so user is not confused.
-  // Match by calendar date + timezone-safe; then filter out past times on the same day.
+  // Strict: only the selected date (UTC day range) and only future times. Like RedBus/Blablacar.
+  // Date range: [date 00:00:00 UTC, date+1 00:00:00 UTC) so 22nd selection shows only 22nd, never 23rd.
   let result;
   try {
     result = await pool.query(
@@ -201,7 +201,8 @@ const searchTrips = asyncHandler(async (req, res) => {
        WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
          AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
          AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-         AND ((t.departure_time AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::date = $3::date
+         AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
+         AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
          AND (t.departure_time AT TIME ZONE 'UTC') > NOW()
          AND t.status = 'scheduled'
          AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
@@ -216,7 +217,8 @@ const searchTrips = asyncHandler(async (req, res) => {
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id
          WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
            AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-           AND ((t.departure_time AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::date = $3::date
+           AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
+           AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
            AND (t.departure_time AT TIME ZONE 'UTC') > NOW()
            AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
          ORDER BY t.departure_time ASC LIMIT $4`,

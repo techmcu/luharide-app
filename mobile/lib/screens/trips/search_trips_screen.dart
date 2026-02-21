@@ -115,9 +115,15 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       date: _selectedDate,
     );
 
+    final raw = result['trips'] ?? [];
+    final now = DateTime.now();
+    final filtered = raw.where((t) {
+      final d = t.departureTime;
+      return d.year == _selectedDate.year && d.month == _selectedDate.month && d.day == _selectedDate.day && d.isAfter(now);
+    }).toList();
     setState(() {
       _isSearching = false;
-      _searchResults = result['trips'] ?? [];
+      _searchResults = filtered;
     });
 
     if (result['success'] == true) {

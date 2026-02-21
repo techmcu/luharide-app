@@ -121,9 +121,16 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
 
     if (!mounted) return;
+    final raw = result['trips'] ?? [];
+    final now = DateTime.now();
+    // Only show trips for the selected date and future time (same as RedBus/Blablacar).
+    final filtered = raw.where((t) {
+      final d = t.departureTime;
+      return d.year == _selectedDate.year && d.month == _selectedDate.month && d.day == _selectedDate.day && d.isAfter(now);
+    }).toList();
     setState(() {
       _isSearching = false;
-      _searchResults = result['trips'] ?? [];
+      _searchResults = filtered;
     });
 
     // Smooth auto-scroll to results
