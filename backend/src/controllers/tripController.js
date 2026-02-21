@@ -188,7 +188,8 @@ const searchTrips = asyncHandler(async (req, res) => {
 
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
-  // Match by calendar date so same date always shows (timezone-safe). Use (departure_time)::date = $3::date.
+  // Only future rides: departure_time > now (UTC). Past date/time rides hidden so user is not confused.
+  // Match by calendar date + timezone-safe; then filter out past times on the same day.
   let result;
   try {
     result = await pool.query(
@@ -201,6 +202,7 @@ const searchTrips = asyncHandler(async (req, res) => {
          AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
          AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
          AND ((t.departure_time AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::date = $3::date
+         AND (t.departure_time AT TIME ZONE 'UTC') > NOW()
          AND t.status = 'scheduled'
          AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
        ORDER BY t.departure_time ASC
@@ -215,6 +217,7 @@ const searchTrips = asyncHandler(async (req, res) => {
          WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
            AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
            AND ((t.departure_time AT TIME ZONE 'UTC') AT TIME ZONE 'UTC')::date = $3::date
+           AND (t.departure_time AT TIME ZONE 'UTC') > NOW()
            AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
          ORDER BY t.departure_time ASC LIMIT $4`,
         [fromPat, toPat, dateStr, limit]
