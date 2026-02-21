@@ -35,8 +35,17 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
+}
+
+dependencies {
+    // Required by smart_auth (pinput OTP) for optional credential/SMS autofill
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 }
 
 flutter {

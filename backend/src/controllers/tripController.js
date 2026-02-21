@@ -123,7 +123,6 @@ const createTrip = asyncHandler(async (req, res) => {
   }
 
   const trip = result.rows[0];
-
   logger.info(`Trip created: ${trip.id} by driver ${driverId}`);
 
   ApiResponse.created(
@@ -151,30 +150,26 @@ const searchTrips = asyncHandler(async (req, res) => {
   const fromPat = `%${String(from).trim()}%`;
   const toPat = `%${String(to).trim()}%`;
 
-  // Match date by string prefix only (departure_time stored as 'YYYY-MM-DD HH:mm:ss') - no timezone issues
+  const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+
   let result;
   try {
     result = await pool.query(
-      `SELECT 
-        t.*,
-        u.name as driver_name,
-        u.email as driver_email,
-        u.phone as driver_phone,
-        u.whatsapp_number as driver_whatsapp,
-        u.driver_verification_status as driver_verified,
-        u.bio as driver_bio,
-        u.luggage_allowance_per_passenger as driver_luggage_allowance
-      FROM trips t
-      LEFT JOIN users u ON t.driver_id = u.id
-      WHERE 
-        COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
-        AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
-        AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-        AND t.departure_time::text LIKE $3 || '%'
-        AND t.status = 'scheduled'
-        AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
-      ORDER BY t.departure_time ASC`,
-      [fromPat, toPat, dateStr]
+      `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
+              u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
+              u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
+       FROM trips t
+       LEFT JOIN users u ON t.driver_id = u.id
+       WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
+         AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
+         AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
+         AND t.departure_time >= ($3::date)::timestamp
+         AND t.departure_time < ($3::date + interval '1 day')::timestamp
+         AND t.status = 'scheduled'
+         AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+       ORDER BY t.departure_time ASC
+       LIMIT $4`,
+      [fromPat, toPat, dateStr, limit]
     );
   } catch (err) {
     if (err.code === '42703') {
@@ -182,18 +177,16 @@ const searchTrips = asyncHandler(async (req, res) => {
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id
          WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
-         AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-         AND t.departure_time::text LIKE $3 || '%'
-         AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
-         ORDER BY t.departure_time ASC`,
-        [fromPat, toPat, dateStr]
+           AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
+           AND t.departure_time >= ($3::date)::timestamp AND t.departure_time < ($3::date + interval '1 day')::timestamp
+           AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+         ORDER BY t.departure_time ASC LIMIT $4`,
+        [fromPat, toPat, dateStr, limit]
       );
     } else {
       throw err;
     }
   }
-
-  logger.info('Search trips', { from: fromPat, to: toPat, date: dateStr, count: result.rows.length });
 
   const trips = result.rows.map(trip => ({
     id: trip.id,

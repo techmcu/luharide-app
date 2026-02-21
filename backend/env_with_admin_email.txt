@@ -1,7 +1,6 @@
 # Server Configuration
 NODE_ENV=development
 PORT=3000
-# Local = localhost. Live pe apna frontend URL daalna (e.g. https://luharide.com)
 CLIENT_URL=http://localhost:3000
 
 # Database Configuration
@@ -23,12 +22,12 @@ JWT_EXPIRES_IN=7d
 JWT_REFRESH_SECRET=luharide_refresh_secret_key_change_in_production_2024
 JWT_REFRESH_EXPIRES_IN=30d
 
-# Admin: this email gets Admin Dashboard (union_admin). Set to your email.
+# Admin: is email wale user ko Admin Dashboard milega (yahi email se login/signup = union_admin)
 ADMIN_EMAIL=orahulpanwar@gmail.com
 
 # Email OTP (Gmail SMTP) - send OTP to email for login/signup
-EMAIL_USER=apna_gmail@gmail.com
-EMAIL_APP_PASSWORD=apna_16_char_app_password
+EMAIL_USER=luharide@gmail.com
+EMAIL_APP_PASSWORD=ghlrmxpyltpfsaun
 
 # SMS Service (Twilio) - Add when ready
 TWILIO_ACCOUNT_SID=

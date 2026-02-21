@@ -125,6 +125,18 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
     setState(() => _isLoading = true);
 
+    final fromLocation = _fromController.text.trim();
+    final toLocation = _toController.text.trim();
+    if (fromLocation.length < 2 || toLocation.length < 2) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('From and To locations must be at least 2 characters')),
+        );
+      }
+      return;
+    }
+
     final departureTime = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -135,8 +147,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
     final totalSeats = _verifiedSeats ?? 7;
     final result = await _tripService.createTrip(
-      fromLocation: _fromController.text.trim(),
-      toLocation: _toController.text.trim(),
+      fromLocation: fromLocation,
+      toLocation: toLocation,
       departureTime: departureTime,
       farePerSeat: double.parse(_fareController.text),
       vehicleNumber: _vehicleNumberController.text.trim(),
@@ -156,10 +168,12 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       );
       Navigator.pop(context, true); // Return true to indicate success
     } else {
+      final msg = result['message'] ?? 'Failed to create trip';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message']),
+          content: Text(msg),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
     }
@@ -203,9 +217,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter starting location';
-                    }
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty) return 'Please enter starting location';
+                    if (v.length < 2) return 'Enter at least 2 characters';
                     return null;
                   },
                 );
@@ -238,9 +252,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter destination';
-                    }
+                    final v = value?.trim() ?? '';
+                    if (v.isEmpty) return 'Please enter destination';
+                    if (v.length < 2) return 'Enter at least 2 characters';
                     return null;
                   },
                 );

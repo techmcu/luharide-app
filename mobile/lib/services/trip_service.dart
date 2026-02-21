@@ -41,7 +41,7 @@ class TripService {
     } on DioException catch (e) {
       final msg = e.response?.data['message'] ?? 'Failed to create trip';
       // Log server response to find 400 cause (remove after fix confirmed)
-      if (e.response != null) {
+      if (kDebugMode && e.response != null) {
         debugPrint('Create trip error: status=${e.response!.statusCode} message=$msg');
       }
       return {
@@ -74,26 +74,15 @@ class TripService {
         },
       );
 
-      final dynamic data = response.data is Map ? response.data['data'] ?? response.data : null;
-      final List<dynamic> tripsJson = (data is Map ? data['trips'] : null) as List<dynamic>? ?? [];
-      final List<TripModel> trips = [];
-      for (final item in tripsJson) {
-        if (item is! Map<String, dynamic>) continue;
-        try {
-          trips.add(TripModel.fromJson(Map<String, dynamic>.from(item)));
-        } catch (_) {
-          if (kDebugMode) debugPrint('Search: skip invalid trip item');
-        }
-      }
-      final int count = (data is Map ? data['count'] : null) as int? ?? trips.length;
-      if (kDebugMode) {
-        debugPrint('Search trips: from=$from to=$to date=$dateStr → ${trips.length} trips (count=$count)');
-      }
+      final List<dynamic> tripsJson = response.data['data']?['trips'] ?? [];
+      final List<TripModel> trips = tripsJson
+          .map((json) => TripModel.fromJson(Map<String, dynamic>.from(json as Map)))
+          .toList();
 
       return {
         'success': true,
         'trips': trips,
-        'count': count,
+        'count': response.data['data']?['count'] ?? trips.length,
       };
     } on DioException catch (e) {
       return {
