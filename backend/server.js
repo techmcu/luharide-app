@@ -90,6 +90,20 @@ app.get('/', (req, res) => {
   });
 });
 
+// GET /api and GET /api/health – so opening in browser shows OK instead of 404
+app.get('/api', (req, res) => {
+  res.json({
+    ok: true,
+    message: 'LuhaRide API is running',
+    version: '1.0.0',
+    search: 'GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23',
+    endpoints: { trips: '/api/trips', search: '/api/trips/search', auth: '/api/auth', health: '/api/health' }
+  });
+});
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ ok: true, status: 'running' });
+});
+
 // Socket.IO connection handling
 io.on('connection', (socket) => {
   logger.info(`New client connected: ${socket.id}`);

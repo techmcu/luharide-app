@@ -150,33 +150,39 @@ const createTrip = asyncHandler(async (req, res) => {
   }
 
   const trip = result.rows[0];
-  logger.info(`Trip created: ${trip.id} by driver ${driverId}`);
+  logger.info(`Trip created: id=${trip.id} driver=${driverId} from=${trip.from_location} to=${trip.to_location} departure=${trip.departure_time} (verify in DB with this id)`);
 
   ApiResponse.created(
     { trip },
-    'Trip created successfully'
+    `Trip created successfully. ID: ${trip.id}`
   ).send(res);
 });
 
 /**
  * Search trips
- * GET /api/trips/search?from=Dehradun&to=Haridwar&date=2026-02-12
+ * GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23
+ * Params from query (GET) or body (POST). Aliases: from_location→from, to_location→to.
  */
 const searchTrips = asyncHandler(async (req, res) => {
-  const { from, to, date } = req.query;
+  const q = { ...req.query, ...(req.body && typeof req.body === 'object' ? req.body : {}) };
+  const from = (q.from != null ? String(q.from) : q.from_location != null ? String(q.from_location) : '').trim();
+  const to = (q.to != null ? String(q.to) : q.to_location != null ? String(q.to_location) : '').trim();
+  const date = (q.date != null ? String(q.date) : '').trim();
 
   if (!from || !to || !date) {
-    throw ApiError.badRequest('from, to, and date are required');
+    throw ApiError.badRequest(
+      'from, to, and date are required. Example: GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23'
+    );
   }
 
-  const dateStr = String(date).trim().slice(0, 10);
+  const dateStr = date.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD.');
+    throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD (e.g. 2026-02-23).');
   }
 
   // Normalize: trim and collapse spaces so "Dehradun " and "Dehradun" both match
-  const fromNorm = String(from).trim().replace(/\s+/g, ' ');
-  const toNorm = String(to).trim().replace(/\s+/g, ' ');
+  const fromNorm = from.replace(/\s+/g, ' ');
+  const toNorm = to.replace(/\s+/g, ' ');
   const fromPat = `%${fromNorm}%`;
   const toPat = `%${toNorm}%`;
 
