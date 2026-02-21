@@ -10,10 +10,10 @@ const logger = require('../config/logger');
  */
 const createTrip = asyncHandler(async (req, res) => {
   const {
-    from_location,
-    to_location,
+    from_location: rawFrom,
+    to_location: rawTo,
     departure_time,
-    fare_per_seat,
+    fare_per_seat: rawFare,
     total_seats: bodySeats,
     vehicle_number: bodyVehicleNumber,
     stops = [],
@@ -21,6 +21,20 @@ const createTrip = asyncHandler(async (req, res) => {
   } = req.body;
 
   const driverId = req.user.id;
+
+  // Sanitize: trim, limit length, ensure non-empty so DB never gets invalid data
+  const from_location = (rawFrom != null ? String(rawFrom).trim() : '').slice(0, 200);
+  const to_location = (rawTo != null ? String(rawTo).trim() : '').slice(0, 200);
+  if (!from_location || from_location.length < 2) {
+    throw ApiError.badRequest('From location is required (at least 2 characters).');
+  }
+  if (!to_location || to_location.length < 2) {
+    throw ApiError.badRequest('To location is required (at least 2 characters).');
+  }
+  const fare_per_seat = Number(rawFare);
+  if (Number.isNaN(fare_per_seat) || fare_per_seat <= 0) {
+    throw ApiError.badRequest('Fare per seat must be a positive number.');
+  }
 
   // MUST use verified vehicle - no manual override. Driver must complete verification first.
   let verif;
@@ -46,7 +60,7 @@ const createTrip = asyncHandler(async (req, res) => {
 
   const cap = verif.rows[0].vehicle_capacity;
   const totalSeats = (cap != null && cap > 0) ? cap : 7;
-  const vehicleNumber = verif.rows[0].vehicle_registration || bodyVehicleNumber || '';
+  const vehicleNumber = (verif.rows[0].vehicle_registration || bodyVehicleNumber || '').toString().trim().slice(0, 20);
   let vehicleModelId = null;
   try {
     const verif2 = await pool.query(
@@ -68,11 +82,15 @@ const createTrip = asyncHandler(async (req, res) => {
   const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
 
   const useRequireApproval = require_approval === false ? false : true;
-  let result;
+  const stopsArray = Array.isArray(stops) ? stops : [];
+  const stopsJson = JSON.stringify(stopsArray.map(s => (s != null ? String(s).trim() : '').slice(0, 200)));
 
-  // DB schema uses total_capacity (and optionally available_seats); no total_seats column
+  let result;
+  const runInsert = (query, params) => pool.query(query, params);
+
+  // DB schema: trips may have vehicle_id/route_id NOT NULL until migration 003 or 017 is run.
   try {
-    result = await pool.query(
+    result = await runInsert(
       `INSERT INTO trips (
         driver_id, from_location, to_location, departure_time, arrival_time,
         fare_per_seat, total_capacity, available_seats,
@@ -83,13 +101,13 @@ const createTrip = asyncHandler(async (req, res) => {
       [
         driverId, from_location, to_location, departureStr, arrivalStr,
         fare_per_seat, totalSeats, totalSeats,
-        vehicleNumber, vehicleModelId, JSON.stringify(stops), 'scheduled', useRequireApproval
+        vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval
       ]
     );
   } catch (err) {
     if (err.code === '42703' || (err.message && (err.message.includes('require_approval') || err.message.includes('vehicle_model_id')))) {
       try {
-        result = await pool.query(
+        result = await runInsert(
           `INSERT INTO trips (
             driver_id, from_location, to_location, departure_time, arrival_time,
             fare_per_seat, total_capacity, available_seats,
@@ -100,11 +118,16 @@ const createTrip = asyncHandler(async (req, res) => {
           [
             driverId, from_location, to_location, departureStr, arrivalStr,
             fare_per_seat, totalSeats, totalSeats,
-            vehicleNumber, JSON.stringify(stops), 'scheduled'
+            vehicleNumber, stopsJson, 'scheduled'
           ]
         );
       } catch (err2) {
         logger.error('Create trip INSERT fallback failed', { code: err2.code, message: err2.message });
+        if (err2.code === '23502' && /vehicle_id|route_id/.test((err2.message || ''))) {
+          throw ApiError.serviceUnavailable(
+            'Rides could not be saved: database schema is outdated. On the server run: cd backend && npm run migrate && pm2 restart luharide-api'
+          );
+        }
         throw ApiError.serviceUnavailable('Database schema may be outdated. Run migrations (npm run migrate).');
       }
     } else if (err.code === '42P01') {
@@ -112,10 +135,14 @@ const createTrip = asyncHandler(async (req, res) => {
       throw ApiError.serviceUnavailable('Trips table not available. Run database migrations.');
     } else if (err.code === '23502') {
       const msg = (err.message || '').toString();
-      const hint = msg.includes('vehicle_id') || msg.includes('route_id')
-        ? ' Run database migrations on the server (npm run migrate).'
-        : ' Check from_location, to_location, and other fields.';
-      throw ApiError.badRequest('Missing required trip data.' + hint);
+      if (/vehicle_id|route_id/.test(msg)) {
+        throw ApiError.serviceUnavailable(
+          'Rides could not be saved: database schema is outdated. On the server run: cd backend && npm run migrate && pm2 restart luharide-api'
+        );
+      }
+      throw ApiError.badRequest('Missing required trip data. Check from_location, to_location, and other fields.');
+    } else if (err.code === '23514') {
+      throw ApiError.badRequest('From and to locations are required for creating a trip.');
     } else {
       logger.error('Create trip INSERT failed', { code: err.code, message: err.message });
       throw err;
