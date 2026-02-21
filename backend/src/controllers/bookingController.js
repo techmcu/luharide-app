@@ -291,7 +291,7 @@ const getMyBookings = asyncHandler(async (req, res) => {
     `SELECT 
       b.id, b.trip_id, b.seat_numbers, b.status, b.total_amount, b.created_at,
       t.from_location, t.to_location, t.departure_time, t.fare_per_seat,
-      t.vehicle_number, t.available_seats, COALESCE(t.total_seats, t.total_capacity) AS total_seats,
+      t.vehicle_number, t.available_seats, t.total_capacity AS total_seats,
       u.name as driver_name, u.phone as driver_phone, u.email as driver_email, u.whatsapp_number as driver_whatsapp,
       u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
     FROM bookings b
