@@ -21,7 +21,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   Set<String> _selectedDriverIds = <String>{};
 
   String? _selectedRouteId;
-  DateTime? _selectedDateTime;
+  DateTime? _selectedDateTime; // global/default time
+  final Map<String, DateTime?> _driverTimes = <String, DateTime?>{};
 
   List<dynamic> _currentSchedules = const [];
   List<dynamic> _recentSchedules = const [];
@@ -114,6 +115,32 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       pickedTime.minute,
     );
     setState(() => _selectedDateTime = dt);
+  }
+
+  Future<void> _pickDriverDateTime(String driverId) async {
+    final now = DateTime.now();
+    final initial = _driverTimes[driverId] ?? _selectedDateTime ?? now;
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: now.subtract(const Duration(days: 0)),
+      lastDate: now.add(const Duration(days: 30)),
+    );
+    if (pickedDate == null) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (pickedTime == null) return;
+
+    final dt = DateTime(
+      pickedDate.year,
+      pickedDate.month,
+      pickedDate.day,
+      pickedTime.hour,
+      pickedTime.minute,
+    );
+    setState(() => _driverTimes[driverId] = dt);
   }
 
   Future<void> _showAddRouteDialog() async {
@@ -232,15 +259,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       );
       return;
     }
-    if (_selectedDateTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select date & time'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
     if (_selectedDriverIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -254,30 +272,71 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     final from = route['from_location']?.toString() ?? '';
     final to = route['to_location']?.toString() ?? '';
 
-    final res = await _service.createSchedulesBulk(
-      fromLocation: from,
-      toLocation: to,
-      departureTime: _selectedDateTime!,
-      unionDriverIds: _selectedDriverIds.toList(),
-    );
+    // Group drivers by their individual time (or global time if set)
+    final Map<DateTime, List<String>> groups = {};
+    for (final id in _selectedDriverIds) {
+      final dt = _driverTimes[id] ?? _selectedDateTime;
+      if (dt == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Please set time for all selected drivers (or a default time)'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      final key = DateTime(
+        dt.year,
+        dt.month,
+        dt.day,
+        dt.hour,
+        dt.minute,
+      ); // normalize seconds
+      groups.putIfAbsent(key, () => <String>[]).add(id);
+    }
+
+    String? error;
+    int totalCreated = 0;
+
+    for (final entry in groups.entries) {
+      final dt = entry.key;
+      final ids = entry.value;
+      final res = await _service.createSchedulesBulk(
+        fromLocation: from,
+        toLocation: to,
+        departureTime: dt,
+        unionDriverIds: ids,
+      );
+      if (res['success'] == true) {
+        totalCreated += (res['schedules'] as List<dynamic>? ?? []).length;
+      } else {
+        error = res['message']?.toString() ?? 'Failed to create some rides';
+        break;
+      }
+    }
+
     if (!mounted) return;
 
-    if (res['success'] == true) {
+    if (error == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rides created for selected drivers'),
+        SnackBar(
+          content: Text(
+            totalCreated > 0
+                ? 'Rides created for $totalCreated entries'
+                : 'Rides created',
+          ),
           backgroundColor: Colors.green,
         ),
       );
       _selectedDriverIds.clear();
       _selectedDateTime = null;
+      _driverTimes.clear();
       _loadAll();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            res['message']?.toString() ?? 'Failed to create rides',
-          ),
+          content: Text(error),
           backgroundColor: Colors.red,
         ),
       );
@@ -406,7 +465,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
             leading: const Icon(Icons.calendar_month),
             title: Text(
               _selectedDateTime == null
-                  ? 'Choose date & time'
+                  ? 'Default date & time (optional)'
                   : '${_selectedDateTime!.day.toString().padLeft(2, '0')}-'
                       '${_selectedDateTime!.month.toString().padLeft(2, '0')}-'
                       '${_selectedDateTime!.year}  '
@@ -414,7 +473,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                       '${_selectedDateTime!.minute.toString().padLeft(2, '0')}',
             ),
             subtitle: const Text(
-              'Jo time yaha set karoge, wahi sab selected drivers ke liye lagega.',
+              'Isko set karoge to ye time sab drivers ke liye default ban jayega. Har driver ka time aap alag bhi set kar sakte ho.',
               style: TextStyle(fontSize: 12),
             ),
             onTap: _pickDateTime,
@@ -437,20 +496,70 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
               final id = driver['id']?.toString() ?? '';
               final name = (driver['name'] ?? '').toString();
               final vehicle = (driver['vehicle_number'] ?? '').toString();
-              return CheckboxListTile(
-                value: _selectedDriverIds.contains(id),
-                onChanged: (val) {
-                  setState(() {
-                    if (val == true) {
-                      _selectedDriverIds.add(id);
-                    } else {
-                      _selectedDriverIds.remove(id);
-                    }
-                  });
-                },
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(name.isNotEmpty ? name : 'Driver'),
-                subtitle: vehicle.isNotEmpty ? Text('Gadi: $vehicle') : null,
+              final driverDt = _driverTimes[id];
+              final effectiveDt = driverDt ?? _selectedDateTime;
+              final timeLabel = effectiveDt == null
+                  ? 'Time not set'
+                  : '${effectiveDt.day.toString().padLeft(2, '0')}-'
+                      '${effectiveDt.month.toString().padLeft(2, '0')}-'
+                      '${effectiveDt.year}  '
+                      '${effectiveDt.hour.toString().padLeft(2, '0')}:'
+                      '${effectiveDt.minute.toString().padLeft(2, '0')}';
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Column(
+                    children: [
+                      CheckboxListTile(
+                        value: _selectedDriverIds.contains(id),
+                        onChanged: (val) {
+                          setState(() {
+                            if (val == true) {
+                              _selectedDriverIds.add(id);
+                            } else {
+                              _selectedDriverIds.remove(id);
+                            }
+                          });
+                        },
+                        controlAffinity: ListTileControlAffinity.leading,
+                        title: Text(name.isNotEmpty ? name : 'Driver'),
+                        subtitle:
+                            vehicle.isNotEmpty ? Text('Gadi: $vehicle') : null,
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                            left: 16, right: 16, bottom: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                timeLabel,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => _pickDriverDateTime(id),
+                              child: const Text(
+                                'Set time',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               );
             }),
           const SizedBox(height: 16),
