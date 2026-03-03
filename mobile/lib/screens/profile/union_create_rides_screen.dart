@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -443,8 +444,30 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       final name = 'LuhaRide-${from.isNotEmpty ? from : 'from'}-${to.isNotEmpty ? to : 'to'}.pdf'
           .replaceAll(RegExp(r'[^\w\.-]+'), '-');
 
+      final data = Uint8List.fromList(bytes);
+
+      if (kIsWeb) {
+        // On web: trigger a real browser download
+        // ignore: avoid_web_libraries_in_flutter
+        import 'dart:html' as html;
+        final blob = html.Blob([data], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        final anchor = html.AnchorElement(href: url)
+          ..download = name
+          ..click();
+        html.Url.revokeObjectUrl(url);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Poster downloaded (check your browser downloads)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        return;
+      }
+
+      // On mobile/desktop: open share sheet so user can save/share PDF
       final file = XFile.fromData(
-        Uint8List.fromList(bytes),
+        data,
         name: name,
         mimeType: 'application/pdf',
       );
@@ -691,11 +714,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Ye button ek hi baar me jitne drivers select kiye hain un sab ke liye schedule bana dega. '
-            'Isi data se aage chalkar poster bhi generate ho sakta hai.',
-            style: TextStyle(fontSize: 12),
-          ),
         ],
       ),
     );
