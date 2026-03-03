@@ -161,7 +161,8 @@ const verifyOTPController = asyncHandler(async (req, res) => {
       role: user.role,
       isVerified: user.is_verified,
       isActive: user.is_active,
-      driverVerificationStatus: user.driver_verification_status || 'none'
+      driverVerificationStatus: user.driver_verification_status || 'none',
+      driverCode: user.driver_code || null
     },
     tokens,
     isNewUser
@@ -252,7 +253,7 @@ const logoutController = asyncHandler(async (req, res) => {
  * Handles DB with or without bio/luggage columns (migration 013)
  */
 const getCurrentUserController = asyncHandler(async (req, res) => {
-  const baseCols = 'id, name, phone, email, role, profile_image_url, is_verified, is_active, driver_verification_status, whatsapp_number, last_login, created_at, updated_at';
+  const baseCols = 'id, name, phone, email, role, profile_image_url, is_verified, is_active, driver_verification_status, whatsapp_number, last_login, created_at, updated_at, driver_code';
   let userResult;
   try {
     userResult = await pool.query(

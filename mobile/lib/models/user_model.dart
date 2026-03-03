@@ -16,6 +16,8 @@ class UserModel {
   final String? bio;
   /// Driver: e.g. "1 bag", "2 bags" – luggage per passenger
   final String? luggageAllowancePerPassenger;
+  /// Short shareable code for drivers to join unions / be found easily
+  final String? driverCode;
 
   UserModel({
     required this.id,
@@ -32,6 +34,7 @@ class UserModel {
     this.driverVerificationStatus = 'none',
     this.bio,
     this.luggageAllowancePerPassenger,
+    this.driverCode,
   });
 
   bool get isDriverVerified => driverVerificationStatus == 'approved';
@@ -56,6 +59,7 @@ class UserModel {
       driverVerificationStatus: json['driver_verification_status'] ?? json['driverVerificationStatus'] ?? 'none',
       bio: json['bio']?.toString(),
       luggageAllowancePerPassenger: json['luggage_allowance_per_passenger'] ?? json['luggageAllowancePerPassenger']?.toString(),
+      driverCode: json['driver_code']?.toString() ?? json['driverCode']?.toString(),
     );
   }
 
@@ -75,6 +79,7 @@ class UserModel {
       'driverVerificationStatus': driverVerificationStatus,
       'bio': bio,
       'luggageAllowancePerPassenger': luggageAllowancePerPassenger,
+      'driverCode': driverCode,
     };
   }
 
@@ -93,6 +98,7 @@ class UserModel {
     String? driverVerificationStatus,
     String? bio,
     String? luggageAllowancePerPassenger,
+    String? driverCode,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -109,6 +115,7 @@ class UserModel {
       driverVerificationStatus: driverVerificationStatus ?? this.driverVerificationStatus,
       bio: bio ?? this.bio,
       luggageAllowancePerPassenger: luggageAllowancePerPassenger ?? this.luggageAllowancePerPassenger,
+      driverCode: driverCode ?? this.driverCode,
     );
   }
 }

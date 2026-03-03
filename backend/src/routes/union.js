@@ -6,6 +6,7 @@ const {
   getUnionTrips,
   getDashboardStats
 } = require('../controllers/unionTripController');
+const { registerUnion } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
 
@@ -21,7 +22,22 @@ const createTripForDriverSchema = Joi.object({
   stops: Joi.array().items(Joi.string()).default([])
 });
 
-// Union Admin routes
+// Union registration (any authenticated user)
+const registerUnionSchema = Joi.object({
+  name: Joi.string().min(3).max(200).required(),
+  location: Joi.string().max(200).allow('', null),
+  contact_phone: Joi.string().max(20).allow('', null),
+  contact_email: Joi.string().email().allow('', null),
+});
+
+router.post(
+  '/register',
+  authenticate,
+  validate(registerUnionSchema),
+  registerUnion
+);
+
+// Union Admin routes (after registration / role upgrade)
 router.get('/dashboard', authenticate, authorize('union_admin'), getDashboardStats);
 
 // Create trip for a driver in union

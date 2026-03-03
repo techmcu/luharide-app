@@ -434,7 +434,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       child: SizedBox(
         height: 56,
         child: ElevatedButton.icon(
-          onPressed: () {
+          onPressed: () async {
             final authProvider = context.read<AuthProvider>();
             if (widget.requireLogin && !authProvider.isAuthenticated) {
               showDialog(
@@ -459,7 +459,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               );
               return;
             }
-            _navigateToSeatSelection();
+            await _bookRideWithoutSeatSelection();
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
@@ -468,9 +468,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          icon: const Icon(Icons.event_seat, size: 24),
+          icon: const Icon(Icons.directions_bus, size: 24),
           label: const Text(
-            'Select Seats & Book',
+            'Book Ride',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
@@ -478,28 +478,47 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     );
   }
 
-  void _navigateToSeatSelection() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SeatSelectionScreen(
-          trip: _displayTrip!,
-          initialBookedSeats: _bookedSeats,
-          initialPendingSeats: _pendingSeats,
-        ),
-      ),
+  Future<void> _bookRideWithoutSeatSelection() async {
+    if (_displayTrip == null) return;
+
+    // Show simple loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    // If booking was successful
-    if (result == true && mounted) {
-      // Reload trip details to show updated seats
+    // For now, we treat each booking as a single seat/token.
+    // Backend still expects seat_numbers, so we send a dummy seat (2)
+    // and let backend handle capacity.
+    final result = await TripService().createBooking(
+      tripId: _displayTrip!.id,
+      seatNumbers: const [2],
+    );
+
+    if (!mounted) return;
+
+    Navigator.pop(context); // close dialog
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']?.toString() ?? 'Booking confirmed!'),
+          backgroundColor: Colors.green,
+        ),
+      );
       await _loadTripDetails();
-      
-      // Also return success to parent screen (search results)
-      // so they can refresh their list too
-      if (mounted && Navigator.canPop(context)) {
+      if (Navigator.canPop(context)) {
         Navigator.pop(context, true);
       }
+    } else {
+      final msg = result['message']?.toString() ?? 'Booking failed';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

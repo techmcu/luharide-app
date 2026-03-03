@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/trip_service.dart';
-import '../../services/driver_verification_service.dart';
 
 class CreateTripScreen extends StatefulWidget {
   const CreateTripScreen({super.key});
@@ -13,7 +12,6 @@ class CreateTripScreen extends StatefulWidget {
 class _CreateTripScreenState extends State<CreateTripScreen> {
   final _formKey = GlobalKey<FormState>();
   final _tripService = TripService();
-  final _verificationService = DriverVerificationService();
 
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
@@ -27,43 +25,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   List<String> _toSuggestions = [];
   bool _isLoading = false;
   bool _requireApproval = true;
-
-  /// From verified vehicle (registration time) – not editable so driver can't set wrong seats.
-  int? _verifiedSeats;
-  bool _verificationLoading = true;
-  bool _hasVerifiedVehicleNumber = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadVerifiedVehicle();
-  }
-
-  Future<void> _loadVerifiedVehicle() async {
-    final result = await _verificationService.getMyStatus();
-    if (!mounted) return;
-    setState(() {
-      _verificationLoading = false;
-      if (result['success'] == true && result['status'] == 'approved') {
-        final request = result['request'] as Map<String, dynamic>?;
-        if (request != null) {
-          // Get capacity from verified vehicle - NOT default 7
-          final cap = request['vehicle_capacity'];
-          _verifiedSeats = cap is int ? cap : (int.tryParse(cap?.toString() ?? '') ?? null);
-          if (_verifiedSeats == null || _verifiedSeats! < 1) _verifiedSeats = null;
-          final reg = request['vehicle_registration']?.toString()?.trim();
-          if (reg != null && reg.isNotEmpty) {
-            _vehicleNumberController.text = reg;
-            _hasVerifiedVehicleNumber = true;
-          }
-        } else {
-          _verifiedSeats = null; // Must complete verification
-        }
-      } else {
-        _verifiedSeats = null; // Must complete verification first
-      }
-    });
-  }
 
   @override
   void dispose() {
@@ -145,7 +106,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       _selectedTime.minute,
     );
 
-    final totalSeats = _verifiedSeats ?? 7;
+    // For now we treat trips as token-based, not exact seat layout.
+    // Keep a fixed small capacity to prevent over-booking.
+    const int totalSeats = 10;
     final result = await _tripService.createTrip(
       fromLocation: fromLocation,
       toLocation: toLocation,
@@ -304,10 +267,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Vehicle Number (from verified vehicle – read-only when set at registration)
+            // Vehicle Number
             TextFormField(
               controller: _vehicleNumberController,
-              readOnly: _hasVerifiedVehicleNumber,
               decoration: InputDecoration(
                 labelText: 'Vehicle Number',
                 prefixIcon: const Icon(Icons.directions_car),
@@ -315,9 +277,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 hintText: 'e.g., UK 07 AB 1234',
-                suffixIcon: _hasVerifiedVehicleNumber
-                    ? const Icon(Icons.verified, color: Colors.green, size: 20)
-                    : null,
               ),
               textCapitalization: TextCapitalization.characters,
               validator: (value) {
@@ -329,66 +288,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Seats from verified vehicle (read-only – no manual override)
-            if (_verificationLoading)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.event_seat, color: Colors.grey),
-                    SizedBox(width: 12),
-                    Text('Loading vehicle info...', style: TextStyle(color: Colors.grey)),
-                  ],
-                ),
-              )
-            else if (_verifiedSeats != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.event_seat, color: Colors.green.shade700),
-                    const SizedBox(width: 12),
-                    Text(
-                      'Seats: $_verifiedSeats (from your verified vehicle)',
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Colors.grey.shade800,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded, color: Colors.orange.shade700),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Complete driver verification first. Go to Profile → Become a Driver and add your vehicle (Brand, Model). Seats will be set from your car.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.orange.shade900,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             const SizedBox(height: 16),
 
             // Fare per seat
@@ -452,13 +351,11 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
             const SizedBox(height: 32),
 
-            // Create Button (disabled until verified vehicle info is loaded)
+            // Create Button
             SizedBox(
               height: 56,
               child: ElevatedButton(
-                onPressed: (_isLoading || _verificationLoading || _verifiedSeats == null)
-                    ? null
-                    : _createTrip,
+                onPressed: _isLoading ? null : _createTrip,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,

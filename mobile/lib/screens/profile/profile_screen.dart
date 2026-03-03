@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_navigator.dart';
 import '../landing/landing_screen.dart';
@@ -15,6 +16,8 @@ import 'driver_verification_form_screen.dart';
 import 'change_password_screen.dart';
 import 'help_screen.dart';
 import 'terms_screen.dart';
+import 'union_registration_screen.dart';
+import 'union_dashboard_screen.dart';
 import '../../services/review_service.dart';
 
 /// User Profile - BlaBlaCar style, simple & easy
@@ -45,6 +48,8 @@ class ProfileScreen extends StatelessWidget {
     final role = userRole ?? user?.role ?? 'passenger';
     final isDriver = role == 'driver' || user?.isDriverVerified == true;
     final driverStatus = user?.driverVerificationStatus ?? 'none';
+    final driverCode = user?.driverCode;
+    final isUnionAdmin = user?.role == 'union_admin';
 
     return Scaffold(
       appBar: AppBar(
@@ -113,6 +118,56 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
+
+          // Driver code (only when fully approved)
+          if (user?.isDriverVerified == true && driverCode != null && driverCode.isNotEmpty) ...[
+            Card(
+              color: Colors.green[50],
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Your driver code',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        SelectableText(
+                          driverCode,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: 'Copy',
+                          icon: const Icon(Icons.copy, size: 20),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: driverCode));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Driver code copied')),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Share this code with your taxi union so they can add you easily.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Share your ride - compact button
           _buildShareRideButton(context, authProvider),
@@ -216,6 +271,35 @@ class ProfileScreen extends StatelessWidget {
             },
           ),
           const SizedBox(height: 24),
+          // Union admin / registration
+          if (isUnionAdmin)
+            _buildMenuItem(
+              context,
+              icon: Icons.apartment,
+              title: 'Union Dashboard',
+              subtitle: 'Manage your taxi union',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
+                );
+              },
+            )
+          else
+            _buildMenuItem(
+              context,
+              icon: Icons.apartment,
+              title: 'Register Taxi Union',
+              subtitle: 'Create a union account',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UnionRegistrationScreen()),
+                );
+              },
+            ),
+          const SizedBox(height: 8),
+
           _buildMenuItem(
             context,
             icon: Icons.logout,

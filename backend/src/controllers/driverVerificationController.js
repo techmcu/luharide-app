@@ -204,7 +204,9 @@ const approveRequest = asyncHandler(async (req, res) => {
 
   await pool.query(
     `UPDATE users 
-     SET driver_verification_status = 'approved', role = 'driver' 
+     SET driver_verification_status = 'approved',
+         role = 'driver',
+         driver_code = COALESCE(driver_code, SUBSTRING(id::text, 1, 8))
      WHERE id = $1`,
     [request.user_id]
   );
