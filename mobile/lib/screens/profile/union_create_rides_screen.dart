@@ -20,9 +20,9 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   List<dynamic> _routes = const [];
   Set<String> _selectedDriverIds = <String>{};
 
-  String? _selectedRouteId;
   DateTime? _selectedDateTime; // global/default time
   final Map<String, DateTime?> _driverTimes = <String, DateTime?>{};
+  final Map<String, String?> _driverRouteIds = <String, String?>{};
 
   List<dynamic> _currentSchedules = const [];
   List<dynamic> _recentSchedules = const [];
@@ -69,17 +69,17 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       }
       if (routesResult['success'] == true) {
         _routes = routesResult['routes'] as List<dynamic>? ?? const [];
-        if (_selectedRouteId != null) {
-          final exists = _routes.any((r) {
-            final route = r as Map<String, dynamic>;
-            return route['id']?.toString() == _selectedRouteId;
-          });
-          if (!exists) {
-            _selectedRouteId = null;
-          }
-        }
+        // Clean up driver route selections that no longer exist
+        final routeIds = _routes
+            .map((r) => (r as Map<String, dynamic>)['id']?.toString())
+            .whereType<String>()
+            .toSet();
+        _driverRouteIds.removeWhere(
+          (driverId, routeId) => routeId != null && !routeIds.contains(routeId),
+        );
       } else {
-        _selectedRouteId = null;
+        _routes = const [];
+        _driverRouteIds.clear();
       }
       if (currentResult['success'] == true) {
         _currentSchedules =
@@ -242,23 +242,77 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     }
   }
 
-  Future<void> _createRides() async {
-    final route = _routes
-        .cast<Map<String, dynamic>>()
-        .firstWhere(
-          (r) => r['id']?.toString() == _selectedRouteId,
-          orElse: () => <String, dynamic>{},
-        );
-
-    if (_selectedRouteId == null || route.isEmpty) {
+  Future<void> _pickDriverRoute(String driverId) async {
+    if (_routes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a route'),
+          content: Text('No routes yet. Please add a route first.'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Choose route for this driver',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _routes.length,
+                  itemBuilder: (context, index) {
+                    final route =
+                        _routes[index] as Map<String, dynamic>? ?? {};
+                    final id = route['id']?.toString() ?? '';
+                    final from =
+                        route['from_location']?.toString() ?? '';
+                    final to = route['to_location']?.toString() ?? '';
+                    return ListTile(
+                      title: Text('$from → $to'),
+                      onTap: () => Navigator.pop(ctx, id),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && mounted) {
+      setState(() {
+        _driverRouteIds[driverId] = selected;
+      });
+    }
+  }
+
+  Future<void> _createRides() async {
     if (_selectedDriverIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -269,49 +323,54 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       return;
     }
 
-    final from = route['from_location']?.toString() ?? '';
-    final to = route['to_location']?.toString() ?? '';
+    String? error;
+    int totalCreated = 0;
 
-    // Group drivers by their individual time (or global time if set)
-    final Map<DateTime, List<String>> groups = {};
     for (final id in _selectedDriverIds) {
-      final dt = _driverTimes[id] ?? _selectedDateTime;
-      if (dt == null) {
+      final routeId = _driverRouteIds[id];
+      final route = _routes
+          .cast<Map<String, dynamic>>()
+          .firstWhere(
+            (r) => r['id']?.toString() == routeId,
+            orElse: () => <String, dynamic>{},
+          );
+
+      if (routeId == null || route.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content:
-                Text('Please set time for all selected drivers (or a default time)'),
+            content: Text('Please set route for all selected drivers'),
             backgroundColor: Colors.red,
           ),
         );
         return;
       }
-      final key = DateTime(
-        dt.year,
-        dt.month,
-        dt.day,
-        dt.hour,
-        dt.minute,
-      ); // normalize seconds
-      groups.putIfAbsent(key, () => <String>[]).add(id);
-    }
 
-    String? error;
-    int totalCreated = 0;
+      final from = route['from_location']?.toString() ?? '';
+      final to = route['to_location']?.toString() ?? '';
 
-    for (final entry in groups.entries) {
-      final dt = entry.key;
-      final ids = entry.value;
+      final dt = _driverTimes[id] ?? _selectedDateTime;
+      if (dt == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Please set time for all selected drivers (or a default time)',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
       final res = await _service.createSchedulesBulk(
         fromLocation: from,
         toLocation: to,
         departureTime: dt,
-        unionDriverIds: ids,
+        unionDriverIds: [id],
       );
       if (res['success'] == true) {
         totalCreated += (res['schedules'] as List<dynamic>? ?? []).length;
       } else {
-        error = res['message']?.toString() ?? 'Failed to create some rides';
+        error = res['message']?.toString() ?? 'Failed to create rides';
         break;
       }
     }
@@ -414,46 +473,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Step 1: Choose route',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  value: _selectedRouteId,
-                  decoration: const InputDecoration(
-                    labelText: 'Route (from → to)',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: _routes.map((r) {
-                    final route = r as Map<String, dynamic>;
-                    final id = route['id']?.toString() ?? '';
-                    final from = route['from_location']?.toString() ?? '';
-                    final to = route['to_location']?.toString() ?? '';
-                    return DropdownMenuItem<String>(
-                      value: id,
-                      child: Text('$from → $to'),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedRouteId = value);
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                onPressed: _showAddRouteDialog,
-                icon: const Icon(Icons.add_road),
-                tooltip: 'Add new route',
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Step 2: Date & time',
+            'Step 1: Default date & time',
             style: theme.textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
@@ -480,7 +500,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           ),
           const SizedBox(height: 16),
           Text(
-            'Step 3: Select drivers',
+            'Step 2: Select drivers & set route / time',
             style: theme.textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
@@ -505,6 +525,18 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                       '${effectiveDt.year}  '
                       '${effectiveDt.hour.toString().padLeft(2, '0')}:'
                       '${effectiveDt.minute.toString().padLeft(2, '0')}';
+              final routeId = _driverRouteIds[id];
+              final route = _routes
+                  .cast<Map<String, dynamic>>()
+                  .firstWhere(
+                    (r) => r['id']?.toString() == routeId,
+                    orElse: () => <String, dynamic>{},
+                  );
+              final from = route['from_location']?.toString() ?? '';
+              final to = route['to_location']?.toString() ?? '';
+              final routeLabel = routeId == null || route.isEmpty
+                  ? 'Route not set'
+                  : '$from → $to';
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 8),
@@ -535,24 +567,52 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                       Padding(
                         padding: const EdgeInsets.only(
                             left: 16, right: 16, bottom: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
                           children: [
-                            Flexible(
-                              child: Text(
-                                timeLabel,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.black87,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    timeLabel,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                TextButton(
+                                  onPressed: () => _pickDriverDateTime(id),
+                                  child: const Text(
+                                    'Set time',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
                             ),
-                            TextButton(
-                              onPressed: () => _pickDriverDateTime(id),
-                              child: const Text(
-                                'Set time',
-                                style: TextStyle(fontSize: 12),
-                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    routeLabel,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: _routes.isEmpty
+                                      ? null
+                                      : () => _pickDriverRoute(id),
+                                  child: const Text(
+                                    'Set route',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
