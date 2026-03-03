@@ -853,7 +853,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                   child: OutlinedButton.icon(
                     onPressed: () => _sharePoster(s),
                     icon: const Icon(Icons.picture_as_pdf),
-                    label: const Text('Share poster (PDF)'),
+                    label: const Text('Download / share poster (PDF)'),
                   ),
                 ),
               ],

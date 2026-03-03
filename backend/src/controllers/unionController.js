@@ -674,79 +674,115 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   const doc = new PDFDocument({
     size: 'A4',
-    margin: 40,
+    margin: 36,
   });
 
   doc.pipe(res);
 
-  // Header band
+  const pageWidth = doc.page.width;
+  const innerWidth = pageWidth - 72;
+
+  // Background
   doc
-    .rect(40, 40, doc.page.width - 80, 60)
-    .fill('#FF9800');
+    .rect(0, 0, pageWidth, doc.page.height)
+    .fill('#FFFDE7');
+
+  // Header band with union name
+  doc
+    .save()
+    .rect(0, 0, pageWidth, 90)
+    .fill('#FFB300')
+    .restore();
 
   doc
     .fillColor('#FFFFFF')
-    .fontSize(24)
+    .fontSize(26)
     .font('Helvetica-Bold')
-    .text(unionName, 50, 55, {
-      width: doc.page.width - 100,
+    .text(unionName, 36, 28, {
+      width: innerWidth,
+      align: 'center',
+    });
+
+  doc
+    .moveDown(0.5)
+    .fontSize(12)
+    .font('Helvetica')
+    .text('Daily taxi schedule', {
+      width: innerWidth,
       align: 'center',
     });
 
   doc.moveDown(2);
 
-  // Main route
+  // Main route card
+  const cardTop = 120;
+  doc
+    .save()
+    .roundedRect(36, cardTop, innerWidth, 120, 12)
+    .fill('#FFF8E1')
+    .restore();
+
   doc
     .fillColor('#000000')
-    .fontSize(22)
     .font('Helvetica-Bold')
-    .text(`${from} → ${to}`, {
+    .fontSize(22)
+    .text(`${from} → ${to}`, 48, cardTop + 18, {
+      width: innerWidth - 24,
       align: 'center',
     });
 
-  doc.moveDown(1);
-
-  // Date & time
   doc
-    .fontSize(16)
     .font('Helvetica')
-    .text(`Date: ${dateStr}`, {
+    .fontSize(14)
+    .text(`Date: ${dateStr}`, 48, cardTop + 60, {
+      width: innerWidth - 24,
       align: 'center',
     });
+
   doc.text(`Time: ${timeStr}`, {
+    width: innerWidth - 24,
     align: 'center',
   });
 
-  doc.moveDown(2);
-
-  // Driver & vehicle details
+  // Driver & vehicle box
+  const infoTop = cardTop + 150;
   doc
+    .save()
+    .roundedRect(36, infoTop, innerWidth, 80, 10)
+    .fill('#E3F2FD')
+    .restore();
+
+  doc
+    .fillColor('#0D47A1')
+    .font('Helvetica-Bold')
     .fontSize(14)
-    .font('Helvetica')
     .text(
-      driverName
-        ? `Driver: ${driverName}`
-        : 'Driver: —',
-      {
-        align: 'left',
-      }
+      driverName ? `Driver: ${driverName}` : 'Driver: —',
+      48,
+      infoTop + 16,
+      { width: innerWidth - 24 }
     );
 
   if (vehicleNumber) {
-    doc.text(`Vehicle: ${vehicleNumber}`, {
-      align: 'left',
-    });
+    doc
+      .fillColor('#0D47A1')
+      .font('Helvetica')
+      .fontSize(13)
+      .text(`Vehicle: ${vehicleNumber}`, 48, infoTop + 40, {
+        width: innerWidth - 24,
+      });
   }
-
-  doc.moveDown(2);
 
   // Footer note
   doc
-    .fontSize(10)
     .fillColor('#555555')
+    .fontSize(9)
     .text(
-      'This poster is auto-generated from LuhaRide union dashboard for sharing in local groups.',
+      'This poster is generated from the LuhaRide union dashboard. Share this as an image or PDF in your local groups so that passengers can easily see today\'s taxi timings.',
+      48,
+      doc.page.height - 72,
       {
+        width: innerWidth - 24,
         align: 'center',
       }
     );
