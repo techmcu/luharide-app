@@ -253,7 +253,7 @@ const searchTrips = asyncHandler(async (req, res) => {
     }
   }));
 
-  // Also fetch union-managed rides for same from/to/date (both directions allowed)
+  // Also fetch union-managed rides for same from/to/date (direction-specific, but flexible spelling)
   let unionResult;
   try {
     unionResult = await pool.query(
@@ -274,11 +274,8 @@ const searchTrips = asyncHandler(async (req, res) => {
        WHERE s.status = 'scheduled'
          AND COALESCE(TRIM(s.from_location), '') <> ''
          AND COALESCE(TRIM(s.to_location), '') <> ''
-         AND (
-           (LOWER(TRIM(s.from_location)) LIKE LOWER($1) AND LOWER(TRIM(s.to_location)) LIKE LOWER($2))
-           OR
-           (LOWER(TRIM(s.from_location)) LIKE LOWER($2) AND LOWER(TRIM(s.to_location)) LIKE LOWER($1))
-         )
+         AND LOWER(TRIM(s.from_location)) LIKE LOWER($1)
+         AND LOWER(TRIM(s.to_location)) LIKE LOWER($2)
          AND s.departure_time::date = $3::date
        ORDER BY s.departure_time ASC
        LIMIT $4`,

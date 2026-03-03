@@ -117,6 +117,19 @@ class _LandingScreenState extends State<LandingScreen> {
     }
   }
 
+  void _requireLoginForContact() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please login to contact the driver'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
@@ -685,7 +698,7 @@ class _LandingScreenState extends State<LandingScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: phone.isEmpty ? null : () => _launchPhone(phone),
+                    onPressed: phone.isEmpty ? null : _requireLoginForContact,
                     icon: const Icon(Icons.call),
                     label: const Text('Call'),
                   ),
@@ -693,7 +706,7 @@ class _LandingScreenState extends State<LandingScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: whatsapp.isEmpty ? null : () => _launchWhatsApp(whatsapp),
+                    onPressed: whatsapp.isEmpty ? null : _requireLoginForContact,
                     icon: const Icon(Icons.chat),
                     label: const Text('WhatsApp'),
                   ),
