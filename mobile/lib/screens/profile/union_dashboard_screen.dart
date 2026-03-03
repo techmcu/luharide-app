@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/union_service.dart';
 import 'union_manage_drivers_screen.dart';
 import 'union_create_rides_screen.dart';
+import 'union_routes_screen.dart';
 
 class UnionDashboardScreen extends StatefulWidget {
   const UnionDashboardScreen({super.key});
@@ -147,6 +148,23 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                         const UnionManageDriversScreen(),
                                   ),
                                 ).then((_) => _load());
+                              },
+                            ),
+                            const Divider(height: 1),
+                            ListTile(
+                              leading: const Icon(Icons.alt_route),
+                              title: const Text('Preset routes'),
+                              subtitle: const Text(
+                                'Save common routes (from → to) like Purola → Dehradun',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const UnionRoutesScreen(),
+                                  ),
+                                );
                               },
                             ),
                             const Divider(height: 1),
