@@ -18,6 +18,8 @@ class UserModel {
   final String? luggageAllowancePerPassenger;
   /// Short shareable code for drivers to join unions / be found easily
   final String? driverCode;
+  /// True only for global app admin (super admin)
+  final bool isAppAdmin;
 
   UserModel({
     required this.id,
@@ -35,6 +37,7 @@ class UserModel {
     this.bio,
     this.luggageAllowancePerPassenger,
     this.driverCode,
+    this.isAppAdmin = false,
   });
 
   bool get isDriverVerified => driverVerificationStatus == 'approved';
@@ -60,6 +63,7 @@ class UserModel {
       bio: json['bio']?.toString(),
       luggageAllowancePerPassenger: json['luggage_allowance_per_passenger'] ?? json['luggageAllowancePerPassenger']?.toString(),
       driverCode: json['driver_code']?.toString() ?? json['driverCode']?.toString(),
+      isAppAdmin: json['isAppAdmin'] == true || json['is_app_admin'] == true,
     );
   }
 
@@ -80,6 +84,7 @@ class UserModel {
       'bio': bio,
       'luggageAllowancePerPassenger': luggageAllowancePerPassenger,
       'driverCode': driverCode,
+      'isAppAdmin': isAppAdmin,
     };
   }
 
@@ -99,6 +104,7 @@ class UserModel {
     String? bio,
     String? luggageAllowancePerPassenger,
     String? driverCode,
+    bool? isAppAdmin,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -116,6 +122,7 @@ class UserModel {
       bio: bio ?? this.bio,
       luggageAllowancePerPassenger: luggageAllowancePerPassenger ?? this.luggageAllowancePerPassenger,
       driverCode: driverCode ?? this.driverCode,
+      isAppAdmin: isAppAdmin ?? this.isAppAdmin,
     );
   }
 }

@@ -14,13 +14,15 @@ class HomeScreen extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
     final role = (user?.role ?? 'passenger').toString().toLowerCase();
+     final isAppAdmin = user?.isAppAdmin ?? false;
 
     if (kDebugMode) {
       // ignore: avoid_print
       print('🔍 HomeScreen - User: ${user?.email}, Role: $role');
     }
 
-    if (role == 'union_admin' || role == 'admin') {
+    // Only global app admin sees full Admin Panel
+    if (isAppAdmin) {
       return const UnionAdminHomeScreen();
     }
 

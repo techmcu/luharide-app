@@ -97,11 +97,12 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     [value]
   );
 
+  const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
+  const isAppAdmin = !byPhone && adminEmail && value === adminEmail;
+  const effectiveRole = isAppAdmin ? 'union_admin' : role;
+
   let user;
   let isNewUser = false;
-
-  const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
-  const effectiveRole = (!byPhone && adminEmail && value === adminEmail) ? 'union_admin' : role;
 
   if (userResult.rows.length === 0) {
     if (!name || name.length < 2) {
@@ -162,7 +163,8 @@ const verifyOTPController = asyncHandler(async (req, res) => {
       isVerified: user.is_verified,
       isActive: user.is_active,
       driverVerificationStatus: user.driver_verification_status || 'none',
-      driverCode: user.driver_code || null
+      driverCode: user.driver_code || null,
+      isAppAdmin
     },
     tokens,
     isNewUser
@@ -275,6 +277,10 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
   const row = userResult.rows[0];
   if (row.bio === undefined) row.bio = null;
   if (row.luggage_allowance_per_passenger === undefined) row.luggage_allowance_per_passenger = null;
+
+  const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
+  const emailNorm = row.email ? String(row.email).toLowerCase().trim() : null;
+  row.isAppAdmin = !!(adminEmail && emailNorm && emailNorm === adminEmail);
 
   ApiResponse.success(row, 'User profile retrieved').send(res);
 });

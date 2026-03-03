@@ -14,7 +14,8 @@ const signup = asyncHandler(async (req, res) => {
   const { email, password, name, role = 'passenger' } = req.body;
   const emailNorm = (email || '').toLowerCase().trim();
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
-  const effectiveRole = (adminEmail && emailNorm === adminEmail) ? 'union_admin' : role;
+  const isAppAdmin = adminEmail && emailNorm === adminEmail;
+  const effectiveRole = isAppAdmin ? 'union_admin' : role;
 
   // Check if user exists
   const existingUser = await pool.query(
@@ -63,7 +64,8 @@ const signup = asyncHandler(async (req, res) => {
         isVerified: user.is_verified,
         isActive: user.is_active,
         driverVerificationStatus: user.driver_verification_status || 'none',
-        driverCode: user.driver_code || null
+        driverCode: user.driver_code || null,
+        isAppAdmin
       },
       tokens
     },
@@ -79,6 +81,7 @@ const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const emailNorm = (email || '').toLowerCase().trim();
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
+  const isAppAdmin = adminEmail && emailNorm === adminEmail;
 
   // Find user
   const result = await pool.query(
@@ -141,7 +144,8 @@ const login = asyncHandler(async (req, res) => {
         role: user.role,
         isVerified: user.is_verified,
         isActive: user.is_active,
-        driverVerificationStatus: user.driver_verification_status || 'none'
+        driverVerificationStatus: user.driver_verification_status || 'none',
+        isAppAdmin
       },
       tokens
     },
