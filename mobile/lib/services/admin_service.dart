@@ -55,6 +55,30 @@ class AdminService {
     }
   }
 
+  /// Get pending union registration requests
+  Future<Map<String, dynamic>> getUnionRequests() async {
+    try {
+      final response = await _apiService.get(ApiConstants.adminUnionRequests);
+      final data = response.data['data'] ?? {};
+      return {
+        'success': true,
+        'requests': data['requests'] ?? [],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'requests': <dynamic>[],
+        'message': e.response?.data['message'] ?? 'Failed',
+      };
+    } catch (e) {
+      return {
+        'success': false,
+        'requests': <dynamic>[],
+        'message': 'An error occurred',
+      };
+    }
+  }
+
   /// Approve driver request
   Future<Map<String, dynamic>> approveDriver(String requestId) async {
     try {
@@ -75,6 +99,30 @@ class AdminService {
         data: {'reason': reason ?? 'Documents rejected'},
       );
       return {'success': true, 'message': 'Request rejected'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Approve union request
+  Future<Map<String, dynamic>> approveUnion(String unionId) async {
+    try {
+      await _apiService.post('${ApiConstants.adminUnionRequests}/$unionId/approve');
+      return {'success': true, 'message': 'Union approved'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Reject union request
+  Future<Map<String, dynamic>> rejectUnion(String unionId) async {
+    try {
+      await _apiService.post('${ApiConstants.adminUnionRequests}/$unionId/reject');
+      return {'success': true, 'message': 'Union request rejected'};
     } on DioException catch (e) {
       return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
     } catch (e) {

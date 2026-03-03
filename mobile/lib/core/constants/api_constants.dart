@@ -35,6 +35,7 @@ class ApiConstants {
   // Driver Verification
   static const String driverVerification = '/driver-verification';
   static const String adminDriverRequests = '/admin/driver-requests';
+  static const String adminUnionRequests = '/admin/union-requests';
 
   // Notifications
   // Use leading slash so final URL is: {baseUrl}/notifications

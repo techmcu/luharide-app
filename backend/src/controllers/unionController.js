@@ -42,6 +42,99 @@ const getMyUnion = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get all pending union registration requests (for admin panel).
+ * GET /api/admin/union-requests
+ */
+const getPendingUnionRequests = asyncHandler(async (req, res) => {
+  const result = await pool.query(
+    `SELECT 
+       u.*,
+       ua.user_id,
+       usr.name   AS owner_name,
+       usr.email  AS owner_email,
+       usr.phone  AS owner_phone
+     FROM unions u
+     LEFT JOIN union_admins ua ON ua.union_id = u.id
+     LEFT JOIN users usr ON usr.id = ua.user_id
+     WHERE u.status = 'pending'
+     ORDER BY u.created_at ASC`
+  );
+
+  ApiResponse.success(
+    { requests: result.rows },
+    'Pending union requests retrieved'
+  ).send(res);
+});
+
+/**
+ * Approve union request from admin panel.
+ * POST /api/admin/union-requests/:id/approve
+ */
+const approveUnionRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const unionRes = await pool.query(
+    'SELECT * FROM unions WHERE id = $1 AND status = $2',
+    [id, 'pending']
+  );
+  if (unionRes.rows.length === 0) {
+    throw ApiError.notFound('Pending union not found');
+  }
+
+  await pool.query(
+    `UPDATE unions
+     SET status = 'approved', is_active = TRUE, updated_at = NOW()
+     WHERE id = $1`,
+    [id]
+  );
+
+  await pool.query(
+    `UPDATE users
+     SET role = 'union_admin'
+     WHERE id IN (SELECT user_id FROM union_admins WHERE union_id = $1)
+       AND role <> 'union_admin'`,
+    [id]
+  );
+
+  logger.info(`Union approved from admin panel ${id} by user ${req.user.id}`);
+
+  ApiResponse.success(
+    { id, status: 'approved' },
+    'Union approved successfully'
+  ).send(res);
+});
+
+/**
+ * Reject union request from admin panel.
+ * POST /api/admin/union-requests/:id/reject
+ */
+const rejectUnionRequest = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const unionRes = await pool.query(
+    'SELECT * FROM unions WHERE id = $1 AND status = $2',
+    [id, 'pending']
+  );
+  if (unionRes.rows.length === 0) {
+    throw ApiError.notFound('Pending union not found');
+  }
+
+  await pool.query(
+    `UPDATE unions
+     SET status = 'rejected', is_active = FALSE, updated_at = NOW()
+     WHERE id = $1`,
+    [id]
+  );
+
+  logger.info(`Union rejected from admin panel ${id} by user ${req.user.id}`);
+
+  ApiResponse.success(
+    { id, status: 'rejected' },
+    'Union rejected'
+  ).send(res);
+});
+
+/**
  * Register a new union for the current user.
  * POST /api/union/register
  */
@@ -222,6 +315,9 @@ module.exports = {
   listUnions,
   approveUnion,
   rejectUnion,
+  getPendingUnionRequests,
+  approveUnionRequest,
+  rejectUnionRequest,
   getUnionDrivers,
 };
 

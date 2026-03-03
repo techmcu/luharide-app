@@ -16,7 +16,8 @@ class UnionAdminHomeScreen extends StatefulWidget {
 
 class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   final _adminService = AdminService();
-  List<dynamic> _requests = [];
+  List<dynamic> _driverRequests = [];
+  List<dynamic> _unionRequests = [];
   bool _loading = true;
   int _totalTrips = 0;
   int _totalBookings = 0;
@@ -31,25 +32,37 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final statsResult = await _adminService.getUnionDashboardStats();
-    final result = await _adminService.getDriverRequests();
-    if (mounted) {
-      setState(() {
-        _loading = false;
-        _requests = result['requests'] ?? [];
-        if (statsResult['success'] == true) {
-          _totalTrips = statsResult['total_trips'] ?? 0;
-          _totalBookings = statsResult['total_bookings'] ?? 0;
-          _driversVerified = statsResult['drivers_verified'] ?? 0;
-        }
-      });
-      if (result['success'] != true && result['message'] != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Failed to load requests'),
-            backgroundColor: Colors.red,
-          ),
-        );
+    final driverResult = await _adminService.getDriverRequests();
+    final unionResult = await _adminService.getUnionRequests();
+
+    if (!mounted) return;
+
+    setState(() {
+      _loading = false;
+      _driverRequests = driverResult['requests'] ?? [];
+      _unionRequests = unionResult['requests'] ?? [];
+      if (statsResult['success'] == true) {
+        _totalTrips = statsResult['total_trips'] ?? 0;
+        _totalBookings = statsResult['total_bookings'] ?? 0;
+        _driversVerified = statsResult['drivers_verified'] ?? 0;
       }
+    });
+
+    if (driverResult['success'] != true && driverResult['message'] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(driverResult['message'] ?? 'Failed to load driver requests'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+    if (unionResult['success'] != true && unionResult['message'] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(unionResult['message'] ?? 'Failed to load union requests'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -64,6 +77,18 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       );
       if (result['success'] == true) _load();
     }
+  }
+
+  Future<void> _approveUnion(String id) async {
+    final result = await _adminService.approveUnion(id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? ''),
+        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
+      ),
+    );
+    if (result['success'] == true) _load();
   }
 
   Future<void> _reject(String id) async {
@@ -96,6 +121,18 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       );
       if (result['success'] == true) _load();
     }
+  }
+
+  Future<void> _rejectUnion(String id) async {
+    final result = await _adminService.rejectUnion(id);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message'] ?? ''),
+        backgroundColor: result['success'] == true ? Colors.orange : Colors.red,
+      ),
+    );
+    if (result['success'] == true) _load();
   }
 
   @override
@@ -141,36 +178,63 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                 ),
                 const Divider(height: 1),
                 Expanded(
-                  child: _requests.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No pending driver requests',
-                                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                  child: RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        if (_unionRequests.isEmpty && _driverRequests.isEmpty)
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'No pending requests',
+                                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Union registrations and driver requests will appear here',
+                                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          )
+                        else ...[
+                          if (_unionRequests.isNotEmpty) ...[
+                            const Text(
+                              'Pending union registrations',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Driver verification requests will appear here',
-                                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                            ),
+                            const SizedBox(height: 8),
+                            ..._unionRequests
+                                .map((r) => _buildUnionRequestCard(r as Map<String, dynamic>))
+                                .toList(),
+                            const SizedBox(height: 16),
+                          ],
+                          if (_driverRequests.isNotEmpty) ...[
+                            const Text(
+                              'Pending driver requests',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
                               ),
-                            ],
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _requests.length,
-                            itemBuilder: (context, i) {
-                              final r = _requests[i] as Map<String, dynamic>;
-                              return _buildRequestCard(r);
-                            },
-                          ),
-                        ),
+                            ),
+                            const SizedBox(height: 8),
+                            ..._driverRequests
+                                .map((r) => _buildRequestCard(r as Map<String, dynamic>))
+                                .toList(),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -267,6 +331,98 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                 ElevatedButton(
                   onPressed: () => _approve(id),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                  child: const Text('Approve'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnionRequestCard(Map<String, dynamic> r) {
+    final id = r['id']?.toString() ?? '';
+    final name = (r['name'] ?? '').toString();
+    final location = (r['address'] ?? '').toString();
+    final ownerName = (r['owner_name'] ?? '').toString();
+    final ownerEmail = (r['owner_email'] ?? '').toString();
+    final ownerPhone = (r['owner_phone'] ?? '').toString();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.blue[100],
+                  child: const Icon(Icons.apartment, color: Colors.blue),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name.isNotEmpty ? name : 'Taxi union',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      if (location.isNotEmpty)
+                        Text(
+                          location,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Owner',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            if (ownerName.isNotEmpty)
+              Text(
+                ownerName,
+                style: const TextStyle(fontSize: 13),
+              ),
+            if (ownerEmail.isNotEmpty)
+              Text(
+                ownerEmail,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            if (ownerPhone.isNotEmpty)
+              Text(
+                ownerPhone,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: () => _rejectUnion(id),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                  child: const Text('Reject'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () => _approveUnion(id),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
                   child: const Text('Approve'),
                 ),
               ],
