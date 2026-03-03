@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const PDFDocument = require('pdfkit');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -604,6 +605,155 @@ const cancelUnionSchedule = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
+/**
+ * Generate a simple PDF poster for a union schedule.
+ * GET /api/union/schedules/:id/poster
+ */
+const getUnionSchedulePoster = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  // Ensure this user is an approved union admin and fetch union id
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+  const unionId = resUnion.rows[0].union_id;
+
+  // Load schedule + driver + union info
+  const schedRes = await pool.query(
+    `SELECT 
+       s.*,
+       d.name AS driver_name,
+       d.vehicle_number,
+       u.name AS union_name
+     FROM union_schedules s
+     JOIN union_drivers d ON d.id = s.union_driver_id
+     JOIN unions u ON u.id = s.union_id
+     WHERE s.id = $1 AND s.union_id = $2`,
+    [id, unionId]
+  );
+
+  if (schedRes.rows.length === 0) {
+    throw ApiError.notFound('Schedule not found');
+  }
+
+  const s = schedRes.rows[0];
+  const from = (s.from_location || '').toString();
+  const to = (s.to_location || '').toString();
+  const driverName = (s.driver_name || '').toString();
+  const vehicleNumber = (s.vehicle_number || '').toString();
+  const unionName = (s.union_name || '').toString() || 'Taxi Union';
+
+  const dt = s.departure_time ? new Date(s.departure_time) : null;
+  const pad = (n) => (n < 10 ? `0${n}` : `${n}`);
+  const dateStr = dt
+    ? `${pad(dt.getDate())}-${pad(dt.getMonth() + 1)}-${dt.getFullYear()}`
+    : '—';
+  const timeStr = dt
+    ? `${pad(dt.getHours())}:${pad(dt.getMinutes())}`
+    : '—';
+
+  // Prepare PDF response
+  const safeUnion = unionName.replace(/[^\w]+/g, '-').slice(0, 40) || 'union';
+  const safeFrom = from.replace(/[^\w]+/g, '-').slice(0, 40) || 'from';
+  const safeTo = to.replace(/[^\w]+/g, '-').slice(0, 40) || 'to';
+  const filename = `${safeUnion}-${safeFrom}-${safeTo}-${dateStr}.pdf`;
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `inline; filename="${filename}"`
+  );
+
+  const doc = new PDFDocument({
+    size: 'A4',
+    margin: 40,
+  });
+
+  doc.pipe(res);
+
+  // Header band
+  doc
+    .rect(40, 40, doc.page.width - 80, 60)
+    .fill('#FF9800');
+
+  doc
+    .fillColor('#FFFFFF')
+    .fontSize(24)
+    .font('Helvetica-Bold')
+    .text(unionName, 50, 55, {
+      width: doc.page.width - 100,
+      align: 'center',
+    });
+
+  doc.moveDown(2);
+
+  // Main route
+  doc
+    .fillColor('#000000')
+    .fontSize(22)
+    .font('Helvetica-Bold')
+    .text(`${from} → ${to}`, {
+      align: 'center',
+    });
+
+  doc.moveDown(1);
+
+  // Date & time
+  doc
+    .fontSize(16)
+    .font('Helvetica')
+    .text(`Date: ${dateStr}`, {
+      align: 'center',
+    });
+  doc.text(`Time: ${timeStr}`, {
+    align: 'center',
+  });
+
+  doc.moveDown(2);
+
+  // Driver & vehicle details
+  doc
+    .fontSize(14)
+    .font('Helvetica')
+    .text(
+      driverName
+        ? `Driver: ${driverName}`
+        : 'Driver: —',
+      {
+        align: 'left',
+      }
+    );
+
+  if (vehicleNumber) {
+    doc.text(`Vehicle: ${vehicleNumber}`, {
+      align: 'left',
+    });
+  }
+
+  doc.moveDown(2);
+
+  // Footer note
+  doc
+    .fontSize(10)
+    .fillColor('#555555')
+    .text(
+      'This poster is auto-generated from LuhaRide union dashboard for sharing in local groups.',
+      {
+        align: 'center',
+      }
+    );
+
+  doc.end();
+});
+
 module.exports = {
   getMyUnion,
   registerUnion,
@@ -620,5 +770,6 @@ module.exports = {
   createUnionSchedulesBulk,
   getUnionSchedules,
   cancelUnionSchedule,
+   getUnionSchedulePoster,
 };
 

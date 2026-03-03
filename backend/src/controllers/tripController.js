@@ -253,8 +253,60 @@ const searchTrips = asyncHandler(async (req, res) => {
     }
   }));
 
+  // Also fetch union-managed rides for same from/to/date window
+  let unionResult;
+  try {
+    unionResult = await pool.query(
+      `SELECT 
+         s.id,
+         s.from_location,
+         s.to_location,
+         s.departure_time,
+         s.status,
+         d.name AS driver_name,
+         d.vehicle_number,
+         d.phone,
+         d.whatsapp_number,
+         u.name AS union_name
+       FROM union_schedules s
+       JOIN union_drivers d ON d.id = s.union_driver_id
+       JOIN unions u ON u.id = s.union_id
+       WHERE s.status = 'scheduled'
+         AND COALESCE(TRIM(s.from_location), '') <> ''
+         AND COALESCE(TRIM(s.to_location), '') <> ''
+         AND LOWER(TRIM(s.from_location)) LIKE LOWER($1)
+         AND LOWER(TRIM(s.to_location)) LIKE LOWER($2)
+         AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
+         AND (s.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+         AND (s.departure_time AT TIME ZONE 'UTC') > NOW()
+       ORDER BY s.departure_time ASC
+       LIMIT $4`,
+      [fromPat, toPat, dateStr, limit]
+    );
+  } catch (err) {
+    if (err.code === '42P01') {
+      // union_schedules/union_drivers/unions might not exist on very old DB
+      unionResult = { rows: [] };
+    } else {
+      throw err;
+    }
+  }
+
+  const unionRides = unionResult.rows.map(row => ({
+    id: row.id,
+    from_location: row.from_location,
+    to_location: row.to_location,
+    departure_time: row.departure_time,
+    status: row.status,
+    driver_name: row.driver_name,
+    vehicle_number: row.vehicle_number,
+    phone: row.phone,
+    whatsapp_number: row.whatsapp_number,
+    union_name: row.union_name,
+  }));
+
   ApiResponse.success(
-    { trips, count: trips.length },
+    { trips, count: trips.length, unionRides, union_count: unionRides.length },
     'Trips found'
   ).send(res);
 });

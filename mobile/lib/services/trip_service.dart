@@ -74,14 +74,24 @@ class TripService {
         },
       );
 
-      final List<dynamic> tripsJson = response.data['data']?['trips'] ?? [];
+      final data = response.data['data'] ?? {};
+      final List<dynamic> tripsJson = data['trips'] ?? [];
       final List<TripModel> trips = tripsJson
           .map((json) => TripModel.fromJson(Map<String, dynamic>.from(json as Map)))
           .toList();
 
+      // Union rides (union-managed schedules) are returned as simple JSON objects.
+      // Older servers may not send this field, so default to empty list.
+      final List<dynamic> unionRides = List<dynamic>.from(
+        data['unionRides'] ??
+            data['union_rides'] ?? // fallback if backend uses snake_case
+            const [],
+      );
+
       return {
         'success': true,
         'trips': trips,
+        'unionRides': unionRides,
         'count': response.data['data']?['count'] ?? trips.length,
       };
     } on DioException catch (e) {

@@ -274,5 +274,33 @@ class UnionService {
       };
     }
   }
+
+  /// Download poster PDF bytes for a given schedule (for sharing/downloading).
+  Future<Map<String, dynamic>> getSchedulePosterBytes(String id) async {
+    try {
+      final response = await _api.get(
+        '/union/schedules/$id/poster',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = response.data;
+      final bytes = data is List<int>
+          ? data
+          : (data is List<dynamic> ? data.cast<int>() : <int>[]);
+      return {
+        'success': true,
+        'bytes': bytes,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to download poster',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred while downloading poster',
+      };
+    }
+  }
 }
 

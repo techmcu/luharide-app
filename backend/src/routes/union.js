@@ -19,6 +19,7 @@ const {
   createUnionSchedulesBulk,
   getUnionSchedules,
   cancelUnionSchedule,
+  getUnionSchedulePoster,
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -133,6 +134,14 @@ router.delete(
   authenticate,
   authorize('union_admin'),
   cancelUnionSchedule
+);
+
+// Union admin: generate PDF poster for a schedule
+router.get(
+  '/schedules/:id/poster',
+  authenticate,
+  authorize('union_admin'),
+  getUnionSchedulePoster
 );
 
 // Union Admin routes (after registration / role upgrade)

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
 import 'trip_details_screen.dart';
@@ -22,6 +23,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   List<String> _toSuggestions = [];
   
   List<TripModel> _searchResults = [];
+  List<dynamic> _unionRides = [];
   bool _isSearching = false;
   bool _hasSearched = false;
   List<dynamic> _recentRoutes = [];
@@ -124,6 +126,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     setState(() {
       _isSearching = false;
       _searchResults = filtered;
+      _unionRides = List<dynamic>.from(result['unionRides'] ?? const []);
     });
 
     if (result['success'] == true) {
@@ -343,7 +346,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_searchResults.isEmpty) {
+    if (_searchResults.isEmpty && _unionRides.isEmpty) {
       return Center(
         child: SingleChildScrollView(
           child: Column(
@@ -352,7 +355,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
               Icon(Icons.directions_bus_outlined, size: 80, color: Colors.grey[300]),
               const SizedBox(height: 16),
               Text(
-                'No trips found',
+                'No rides found',
                 style: TextStyle(fontSize: 18, color: Colors.grey[600]),
               ),
               const SizedBox(height: 8),
@@ -366,13 +369,35 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       );
     }
 
-    return ListView.builder(
+    return ListView(
       padding: const EdgeInsets.all(16),
-      itemCount: _searchResults.length,
-      itemBuilder: (context, index) {
-        final trip = _searchResults[index];
-        return _buildTripCard(trip);
-      },
+      children: [
+        if (_searchResults.isNotEmpty) ...[
+          Text(
+            'Individual driver rides',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._searchResults.map(_buildTripCard),
+          const SizedBox(height: 16),
+        ],
+        if (_unionRides.isNotEmpty) ...[
+          Text(
+            'Taxi union rides',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._unionRides.map((ride) => _buildUnionRideCard(ride as Map<String, dynamic>)),
+        ],
+      ],
     );
   }
 
@@ -538,5 +563,162 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildUnionRideCard(Map<String, dynamic> ride) {
+    final from = (ride['from_location'] ?? '').toString();
+    final to = (ride['to_location'] ?? '').toString();
+    final unionName = (ride['union_name'] ?? '').toString();
+    final driverName = (ride['driver_name'] ?? '').toString();
+    final vehicleNumber = (ride['vehicle_number'] ?? '').toString();
+    final phone = (ride['phone'] ?? '').toString();
+    final whatsapp = (ride['whatsapp_number'] ?? '').toString();
+
+    DateTime? departure;
+    final rawDt = ride['departure_time'];
+    if (rawDt is String) {
+      try {
+        departure = DateTime.tryParse(rawDt)?.toLocal();
+      } catch (_) {}
+    } else if (rawDt is DateTime) {
+      departure = rawDt.toLocal();
+    }
+
+    final departureText = departure != null
+        ? DateFormat('dd MMM yyyy • hh:mm a').format(departure)
+        : 'Time not available';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (unionName.isNotEmpty) ...[
+              Text(
+                unionName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue,
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+            Row(
+              children: [
+                const Icon(Icons.trip_origin, color: Colors.green, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    from,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.location_on, color: Colors.red, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    to,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      departureText,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+                if (vehicleNumber.isNotEmpty)
+                  Row(
+                    children: [
+                      const Icon(Icons.directions_car, size: 18, color: Colors.grey),
+                      const SizedBox(width: 4),
+                      Text(
+                        vehicleNumber,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (driverName.isNotEmpty)
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 18, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      driverName,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: phone.isEmpty ? null : () => _launchPhone(phone),
+                    icon: const Icon(Icons.call),
+                    label: const Text('Call'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: whatsapp.isEmpty ? null : () => _launchWhatsApp(whatsapp),
+                    icon: const Icon(Icons.chat),
+                    label: const Text('WhatsApp'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchPhone(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
+  }
+
+  Future<void> _launchWhatsApp(String phone) async {
+    if (phone.isEmpty) return;
+    final normalized = phone.replaceAll(' ', '');
+    final uri = Uri.parse('https://wa.me/$normalized');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }

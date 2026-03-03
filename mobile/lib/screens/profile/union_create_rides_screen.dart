@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../services/union_service.dart';
 
@@ -416,6 +419,51 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     }
   }
 
+  Future<void> _sharePoster(Map<String, dynamic> schedule) async {
+    final id = schedule['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+
+    final res = await _service.getSchedulePosterBytes(id);
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final bytes = (res['bytes'] as List<int>? ?? <int>[]);
+      if (bytes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Poster could not be generated'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final from = (schedule['from_location'] ?? '').toString();
+      final to = (schedule['to_location'] ?? '').toString();
+      final name = 'LuhaRide-${from.isNotEmpty ? from : 'from'}-${to.isNotEmpty ? to : 'to'}.pdf'
+          .replaceAll(RegExp(r'[^\w\.-]+'), '-');
+
+      final file = XFile.fromData(
+        Uint8List.fromList(bytes),
+        name: name,
+        mimeType: 'application/pdf',
+      );
+
+      await Share.shareXFiles(
+        [file],
+        text: 'Taxi union ride poster from LuhaRide',
+      );
+    } else {
+      final msg = res['message']?.toString() ?? 'Failed to download poster';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -798,8 +846,20 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                 style: const TextStyle(fontSize: 12),
               ),
             ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _sharePoster(s),
+                    icon: const Icon(Icons.picture_as_pdf),
+                    label: const Text('Share poster (PDF)'),
+                  ),
+                ),
+              ],
+            ),
             if (canCancel) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
