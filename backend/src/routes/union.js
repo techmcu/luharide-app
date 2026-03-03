@@ -6,7 +6,13 @@ const {
   getUnionTrips,
   getDashboardStats
 } = require('../controllers/unionTripController');
-const { registerUnion } = require('../controllers/unionController');
+const {
+  registerUnion,
+  listUnions,
+  approveUnion,
+  rejectUnion,
+  getUnionDrivers,
+} = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
 
@@ -22,7 +28,7 @@ const createTripForDriverSchema = Joi.object({
   stops: Joi.array().items(Joi.string()).default([])
 });
 
-// Union registration (any authenticated user)
+// Union registration (any authenticated user) - goes into pending status
 const registerUnionSchema = Joi.object({
   name: Joi.string().min(3).max(200).required(),
   location: Joi.string().max(200).allow('', null),
@@ -35,6 +41,19 @@ router.post(
   authenticate,
   validate(registerUnionSchema),
   registerUnion
+);
+
+// Platform admin: list / approve / reject unions
+router.get('/admin/unions', authenticate, listUnions);
+router.post('/admin/unions/:id/approve', authenticate, approveUnion);
+router.post('/admin/unions/:id/reject', authenticate, rejectUnion);
+
+// Union admin: basic read-only drivers list
+router.get(
+  '/drivers',
+  authenticate,
+  authorize('union_admin'),
+  getUnionDrivers
 );
 
 // Union Admin routes (after registration / role upgrade)

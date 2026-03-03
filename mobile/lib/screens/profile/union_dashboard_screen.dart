@@ -12,6 +12,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _stats;
+  List<dynamic> _drivers = const [];
 
   @override
   void initState() {
@@ -24,19 +25,40 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       _loading = true;
       _error = null;
     });
-    final result = await UnionService().getDashboard();
-    if (!mounted) return;
-    if (result['success'] == true) {
-      setState(() {
-        _stats = result['data'] as Map<String, dynamic>?;
-        _loading = false;
-      });
+
+    final service = UnionService();
+
+    // Load dashboard stats
+    final dashboardResult = await service.getDashboard();
+    Map<String, dynamic>? stats;
+    String? error;
+    if (dashboardResult['success'] == true) {
+      stats = dashboardResult['data'] as Map<String, dynamic>?;
     } else {
-      setState(() {
-        _error = result['message']?.toString() ?? 'Failed to load';
-        _loading = false;
-      });
+      error = dashboardResult['message']?.toString() ?? 'Failed to load dashboard';
     }
+
+    // Load basic read-only driver list (only if dashboard succeeded)
+    List<dynamic> drivers = const [];
+    if (error == null) {
+      final driversResult = await service.getDrivers();
+      if (driversResult['success'] == true) {
+        final raw = driversResult['drivers'];
+        if (raw is List) {
+          drivers = raw;
+        }
+      } else {
+        error = driversResult['message']?.toString() ?? 'Failed to load drivers';
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _stats = stats;
+      _drivers = drivers;
+      _error = error;
+      _loading = false;
+    });
   }
 
   @override
@@ -110,9 +132,27 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       const SizedBox(height: 8),
                       const Text(
                         '• Daily schedule / poster maker\n'
-                        '• Union driver list & ratings\n'
+                        '• Advanced driver ratings & analytics\n'
                         '• Pending union join requests',
                       ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Drivers in this union (read-only)',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      if (_drivers.isEmpty)
+                        const Text(
+                          'No drivers added yet. This list will show drivers managed by your union.',
+                          style: TextStyle(fontSize: 13),
+                        )
+                      else
+                        ..._drivers
+                            .map((d) => _buildDriverCard(d as Map<String, dynamic>))
+                            .toList(),
                     ],
                   ),
                 ),
@@ -144,6 +184,63 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDriverCard(Map<String, dynamic> driver) {
+    final name = (driver['name'] ?? '').toString();
+    final vehicleNumber = (driver['vehicle_number'] ?? '').toString();
+    final phone = (driver['phone'] ?? '').toString();
+    final whatsapp = (driver['whatsapp_number'] ?? '').toString();
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            const CircleAvatar(
+              radius: 20,
+              child: Icon(Icons.person, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name.isNotEmpty ? name : 'Driver',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  if (vehicleNumber.isNotEmpty)
+                    Text(
+                      'Gadi: $vehicleNumber',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  if (phone.isNotEmpty || whatsapp.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        [
+                          if (phone.isNotEmpty) 'Phone: $phone',
+                          if (whatsapp.isNotEmpty) 'WhatsApp: $whatsapp',
+                        ].join('  •  '),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

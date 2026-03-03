@@ -64,5 +64,26 @@ class UnionService {
       };
     }
   }
+
+  /// Get basic read-only list of drivers for this union admin.
+  Future<Map<String, dynamic>> getDrivers() async {
+    try {
+      final response = await _api.get('/union/drivers');
+      return {
+        'success': true,
+        'drivers': response.data['data']?['drivers'] ?? [],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to load drivers',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
 }
 
