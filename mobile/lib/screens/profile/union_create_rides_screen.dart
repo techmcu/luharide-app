@@ -20,7 +20,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   List<dynamic> _routes = const [];
   Set<String> _selectedDriverIds = <String>{};
 
-  Map<String, dynamic>? _selectedRoute;
+  String? _selectedRouteId;
   DateTime? _selectedDateTime;
 
   List<dynamic> _currentSchedules = const [];
@@ -68,6 +68,17 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       }
       if (routesResult['success'] == true) {
         _routes = routesResult['routes'] as List<dynamic>? ?? const [];
+        if (_selectedRouteId != null) {
+          final exists = _routes.any((r) {
+            final route = r as Map<String, dynamic>;
+            return route['id']?.toString() == _selectedRouteId;
+          });
+          if (!exists) {
+            _selectedRouteId = null;
+          }
+        }
+      } else {
+        _selectedRouteId = null;
       }
       if (currentResult['success'] == true) {
         _currentSchedules =
@@ -205,7 +216,14 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   }
 
   Future<void> _createRides() async {
-    if (_selectedRoute == null) {
+    final route = _routes
+        .cast<Map<String, dynamic>>()
+        .firstWhere(
+          (r) => r['id']?.toString() == _selectedRouteId,
+          orElse: () => <String, dynamic>{},
+        );
+
+    if (_selectedRouteId == null || route.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please select a route'),
@@ -233,8 +251,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       return;
     }
 
-    final from = _selectedRoute!['from_location']?.toString() ?? '';
-    final to = _selectedRoute!['to_location']?.toString() ?? '';
+    final from = route['from_location']?.toString() ?? '';
+    final to = route['to_location']?.toString() ?? '';
 
     final res = await _service.createSchedulesBulk(
       fromLocation: from,
@@ -345,23 +363,24 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<Map<String, dynamic>>(
-                  value: _selectedRoute,
+                child: DropdownButtonFormField<String>(
+                  value: _selectedRouteId,
                   decoration: const InputDecoration(
                     labelText: 'Route (from → to)',
                     border: OutlineInputBorder(),
                   ),
                   items: _routes.map((r) {
                     final route = r as Map<String, dynamic>;
+                    final id = route['id']?.toString() ?? '';
                     final from = route['from_location']?.toString() ?? '';
                     final to = route['to_location']?.toString() ?? '';
-                    return DropdownMenuItem<Map<String, dynamic>>(
-                      value: route,
+                    return DropdownMenuItem<String>(
+                      value: id,
                       child: Text('$from → $to'),
                     );
                   }).toList(),
                   onChanged: (value) {
-                    setState(() => _selectedRoute = value);
+                    setState(() => _selectedRouteId = value);
                   },
                 ),
               ),
