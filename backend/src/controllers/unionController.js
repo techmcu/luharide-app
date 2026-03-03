@@ -16,6 +16,32 @@ function ensurePlatformAdmin(user) {
 }
 
 /**
+ * Get current user's union + status.
+ * GET /api/union/me
+ */
+const getMyUnion = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+
+  const result = await pool.query(
+    `SELECT u.*
+     FROM unions u
+     JOIN union_admins ua ON ua.union_id = u.id
+     WHERE ua.user_id = $1
+     ORDER BY u.created_at DESC
+     LIMIT 1`,
+    [userId]
+  );
+
+  const union = result.rows[0] || null;
+  const status = union?.status || 'none';
+
+  ApiResponse.success(
+    { union, status },
+    'Union status retrieved'
+  ).send(res);
+});
+
+/**
  * Register a new union for the current user.
  * POST /api/union/register
  */
@@ -191,6 +217,7 @@ const getUnionDrivers = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
+  getMyUnion,
   registerUnion,
   listUnions,
   approveUnion,

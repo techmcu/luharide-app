@@ -7,6 +7,7 @@ const {
   getDashboardStats
 } = require('../controllers/unionTripController');
 const {
+  getMyUnion,
   registerUnion,
   listUnions,
   approveUnion,
@@ -42,6 +43,9 @@ router.post(
   validate(registerUnionSchema),
   registerUnion
 );
+
+// Current user's union + status
+router.get('/me', authenticate, getMyUnion);
 
 // Platform admin: list / approve / reject unions
 router.get('/admin/unions', authenticate, listUnions);

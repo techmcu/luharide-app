@@ -65,6 +65,29 @@ class UnionService {
     }
   }
 
+  /// Get current user's union + status (pending/approved/rejected/none).
+  Future<Map<String, dynamic>> getMyUnion() async {
+    try {
+      final response = await _api.get('/union/me');
+      final data = response.data['data'] ?? {};
+      return {
+        'success': true,
+        'union': data['union'],
+        'status': data['status'] ?? 'none',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to load union status',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
+
   /// Get basic read-only list of drivers for this union admin.
   Future<Map<String, dynamic>> getDrivers() async {
     try {
