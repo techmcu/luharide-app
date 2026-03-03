@@ -309,6 +309,285 @@ const getUnionDrivers = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
+/**
+ * Add a driver to this union (simple list entry, driver may not have app account).
+ * POST /api/union/drivers
+ */
+const addUnionDriver = asyncHandler(async (req, res) => {
+  const { name, vehicle_number, phone, whatsapp_number } = req.body;
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+
+  const unionId = resUnion.rows[0].union_id;
+  const insertRes = await pool.query(
+    `INSERT INTO union_drivers (union_id, name, vehicle_number, phone, whatsapp_number)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [unionId, name.trim(), vehicle_number.trim(), phone || null, whatsapp_number || null]
+  );
+
+  const driver = insertRes.rows[0];
+  logger.info(`Union driver added ${driver.id} for union ${unionId} by admin ${req.user.id}`);
+
+  ApiResponse.created(
+    { driver },
+    'Driver added to union'
+  ).send(res);
+});
+
+/**
+ * Get preset routes for this union (for from/to dropdown).
+ * GET /api/union/routes
+ */
+const getUnionRoutes = asyncHandler(async (req, res) => {
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+
+  const unionId = resUnion.rows[0].union_id;
+  const routesRes = await pool.query(
+    `SELECT id, from_location, to_location, is_active, created_at
+     FROM union_routes
+     WHERE union_id = $1 AND is_active = TRUE
+     ORDER BY from_location, to_location`,
+    [unionId]
+  );
+
+  ApiResponse.success(
+    { routes: routesRes.rows, count: routesRes.rows.length },
+    'Union routes retrieved'
+  ).send(res);
+});
+
+/**
+ * Add a preset route (from/to) for this union.
+ * POST /api/union/routes
+ */
+const addUnionRoute = asyncHandler(async (req, res) => {
+  const { from_location, to_location } = req.body;
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+
+  const unionId = resUnion.rows[0].union_id;
+  const insertRes = await pool.query(
+    `INSERT INTO union_routes (union_id, from_location, to_location, is_active)
+     VALUES ($1, $2, $3, TRUE)
+     RETURNING *`,
+    [unionId, from_location.trim(), to_location.trim()]
+  );
+
+  const route = insertRes.rows[0];
+  logger.info(`Union route added ${route.id} for union ${unionId} by admin ${req.user.id}`);
+
+  ApiResponse.created(
+    { route },
+    'Route added for union'
+  ).send(res);
+});
+
+/**
+ * Create schedules (rides) for multiple drivers in one go.
+ * POST /api/union/schedules/bulk
+ */
+const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
+  const { from_location, to_location, departure_time, union_driver_ids } = req.body;
+
+  if (!Array.isArray(union_driver_ids) || union_driver_ids.length === 0) {
+    throw ApiError.badRequest('At least one driver must be selected');
+  }
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+  const unionId = resUnion.rows[0].union_id;
+
+  // Ensure all drivers belong to this union
+  const driversCheck = await pool.query(
+    `SELECT id FROM union_drivers
+     WHERE union_id = $1 AND id = ANY($2::uuid[])`,
+    [unionId, union_driver_ids]
+  );
+  if (driversCheck.rows.length !== union_driver_ids.length) {
+    throw ApiError.badRequest('One or more drivers are invalid for this union');
+  }
+
+  const created = [];
+  // Insert one schedule per selected driver
+  for (const driverId of union_driver_ids) {
+    const insertRes = await pool.query(
+      `INSERT INTO union_schedules (
+         union_id,
+         union_driver_id,
+         from_location,
+         to_location,
+         departure_time,
+         status
+       )
+       VALUES ($1, $2, $3, $4, $5, 'scheduled')
+       RETURNING *`,
+      [unionId, driverId, from_location.trim(), to_location.trim(), departure_time]
+    );
+    created.push(insertRes.rows[0]);
+  }
+
+  logger.info(
+    `Union schedules created for union ${unionId} by admin ${req.user.id} count=${created.length}`
+  );
+
+  ApiResponse.created(
+    { schedules: created, count: created.length },
+    'Rides created for selected drivers'
+  ).send(res);
+});
+
+/**
+ * Get union schedules (rides) - upcoming or recent.
+ * GET /api/union/schedules?scope=current|recent
+ */
+const getUnionSchedules = asyncHandler(async (req, res) => {
+  const scope = (req.query.scope || 'current').toString();
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+  const unionId = resUnion.rows[0].union_id;
+
+  let query = `
+    SELECT s.*,
+           d.name AS driver_name,
+           d.vehicle_number,
+           d.phone,
+           d.whatsapp_number,
+           (s.departure_time - NOW() > INTERVAL '5 minutes') AS can_cancel
+    FROM union_schedules s
+    JOIN union_drivers d ON d.id = s.union_driver_id
+    WHERE s.union_id = $1
+  `;
+  const params = [unionId];
+
+  if (scope === 'recent') {
+    query += `
+      AND s.departure_time >= NOW() - INTERVAL '10 days'
+      ORDER BY s.departure_time DESC
+      LIMIT 100
+    `;
+  } else {
+    // current / upcoming
+    query += `
+      AND s.status = 'scheduled'
+      AND s.departure_time >= NOW() - INTERVAL '5 minutes'
+      ORDER BY s.departure_time ASC
+    `;
+  }
+
+  const result = await pool.query(query, params);
+
+  ApiResponse.success(
+    { schedules: result.rows, count: result.rows.length },
+    'Union schedules retrieved'
+  ).send(res);
+});
+
+/**
+ * Cancel a union schedule (only if departure is > 5 minutes away).
+ * DELETE /api/union/schedules/:id
+ */
+const cancelUnionSchedule = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+  const unionId = resUnion.rows[0].union_id;
+
+  const schedRes = await pool.query(
+    `SELECT *
+     FROM union_schedules
+     WHERE id = $1 AND union_id = $2`,
+    [id, unionId]
+  );
+  if (schedRes.rows.length === 0) {
+    throw ApiError.notFound('Schedule not found');
+  }
+
+  const canCancelRes = await pool.query(
+    `SELECT (departure_time - NOW() > INTERVAL '5 minutes') AS can_cancel
+     FROM union_schedules
+     WHERE id = $1`,
+    [id]
+  );
+  const canCancel = canCancelRes.rows[0]?.can_cancel;
+  if (!canCancel) {
+    throw ApiError.badRequest('Ride cannot be cancelled now (time too close)');
+  }
+
+  await pool.query(
+    `UPDATE union_schedules
+     SET status = 'cancelled'
+     WHERE id = $1`,
+    [id]
+  );
+
+  logger.info(`Union schedule cancelled ${id} for union ${unionId} by admin ${req.user.id}`);
+
+  ApiResponse.success(
+    { id, status: 'cancelled' },
+    'Ride cancelled successfully'
+  ).send(res);
+});
+
 module.exports = {
   getMyUnion,
   registerUnion,
@@ -319,6 +598,11 @@ module.exports = {
   approveUnionRequest,
   rejectUnionRequest,
   getUnionDrivers,
+  addUnionDriver,
+  getUnionRoutes,
+  addUnionRoute,
+  createUnionSchedulesBulk,
+  getUnionSchedules,
+  cancelUnionSchedule,
 };
-
 

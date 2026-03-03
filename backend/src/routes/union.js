@@ -13,6 +13,12 @@ const {
   approveUnion,
   rejectUnion,
   getUnionDrivers,
+  addUnionDriver,
+  getUnionRoutes,
+  addUnionRoute,
+  createUnionSchedulesBulk,
+  getUnionSchedules,
+  cancelUnionSchedule,
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -27,6 +33,25 @@ const createTripForDriverSchema = Joi.object({
   total_seats: Joi.number().integer().min(1).max(10).default(7),
   vehicle_number: Joi.string().required().max(20),
   stops: Joi.array().items(Joi.string()).default([])
+});
+
+const addUnionDriverSchema = Joi.object({
+  name: Joi.string().min(2).max(100).required(),
+  vehicle_number: Joi.string().max(32).required(),
+  phone: Joi.string().max(20).allow('', null),
+  whatsapp_number: Joi.string().max(20).allow('', null),
+});
+
+const addUnionRouteSchema = Joi.object({
+  from_location: Joi.string().min(2).max(100).required(),
+  to_location: Joi.string().min(2).max(100).required(),
+});
+
+const createSchedulesSchema = Joi.object({
+  from_location: Joi.string().min(2).max(100).required(),
+  to_location: Joi.string().min(2).max(100).required(),
+  departure_time: Joi.date().iso().required(),
+  union_driver_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
 });
 
 // Union registration (any authenticated user) - goes into pending status
@@ -58,6 +83,56 @@ router.get(
   authenticate,
   authorize('union_admin'),
   getUnionDrivers
+);
+
+// Union admin: add driver to union list
+router.post(
+  '/drivers',
+  authenticate,
+  authorize('union_admin'),
+  validate(addUnionDriverSchema),
+  addUnionDriver
+);
+
+// Union admin: preset routes
+router.get(
+  '/routes',
+  authenticate,
+  authorize('union_admin'),
+  getUnionRoutes
+);
+
+router.post(
+  '/routes',
+  authenticate,
+  authorize('union_admin'),
+  validate(addUnionRouteSchema),
+  addUnionRoute
+);
+
+// Union admin: bulk schedules/rides creation
+router.post(
+  '/schedules/bulk',
+  authenticate,
+  authorize('union_admin'),
+  validate(createSchedulesSchema),
+  createUnionSchedulesBulk
+);
+
+// Union admin: view schedules
+router.get(
+  '/schedules',
+  authenticate,
+  authorize('union_admin'),
+  getUnionSchedules
+);
+
+// Union admin: cancel a schedule
+router.delete(
+  '/schedules/:id',
+  authenticate,
+  authorize('union_admin'),
+  cancelUnionSchedule
 );
 
 // Union Admin routes (after registration / role upgrade)

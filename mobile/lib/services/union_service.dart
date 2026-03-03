@@ -108,5 +108,171 @@ class UnionService {
       };
     }
   }
+
+  /// Add a driver to the union-managed list.
+  Future<Map<String, dynamic>> addDriver({
+    required String name,
+    required String vehicleNumber,
+    String? phone,
+    String? whatsappNumber,
+  }) async {
+    try {
+      final response = await _api.post(
+        '/union/drivers',
+        data: {
+          'name': name,
+          'vehicle_number': vehicleNumber,
+          if (phone != null && phone.isNotEmpty) 'phone': phone,
+          if (whatsappNumber != null && whatsappNumber.isNotEmpty)
+            'whatsapp_number': whatsappNumber,
+        },
+      );
+      return {
+        'success': true,
+        'driver': response.data['data']?['driver'] ?? response.data['data'],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to add driver',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
+
+  /// Get preset routes (from/to) for this union.
+  Future<Map<String, dynamic>> getRoutes() async {
+    try {
+      final response = await _api.get('/union/routes');
+      return {
+        'success': true,
+        'routes': response.data['data']?['routes'] ?? [],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to load routes',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
+
+  /// Add a new preset route.
+  Future<Map<String, dynamic>> addRoute({
+    required String fromLocation,
+    required String toLocation,
+  }) async {
+    try {
+      final response = await _api.post(
+        '/union/routes',
+        data: {
+          'from_location': fromLocation,
+          'to_location': toLocation,
+        },
+      );
+      return {
+        'success': true,
+        'route': response.data['data']?['route'] ?? response.data['data'],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to add route',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
+
+  /// Bulk create schedules (rides) for multiple drivers.
+  Future<Map<String, dynamic>> createSchedulesBulk({
+    required String fromLocation,
+    required String toLocation,
+    required DateTime departureTime,
+    required List<String> unionDriverIds,
+  }) async {
+    try {
+      final response = await _api.post(
+        '/union/schedules/bulk',
+        data: {
+          'from_location': fromLocation,
+          'to_location': toLocation,
+          'departure_time': departureTime.toIso8601String(),
+          'union_driver_ids': unionDriverIds,
+        },
+      );
+      return {
+        'success': true,
+        'schedules': response.data['data']?['schedules'] ?? [],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message':
+            e.response?.data['message'] ?? 'Failed to create rides for drivers',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
+
+  /// Get union schedules: scope = 'current' or 'recent'.
+  Future<Map<String, dynamic>> getSchedules({String scope = 'current'}) async {
+    try {
+      final response = await _api.get(
+        '/union/schedules',
+        queryParameters: {'scope': scope},
+      );
+      return {
+        'success': true,
+        'schedules': response.data['data']?['schedules'] ?? [],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to load schedules',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
+
+  /// Cancel a single schedule (if allowed by backend).
+  Future<Map<String, dynamic>> cancelSchedule(String id) async {
+    try {
+      await _api.delete('/union/schedules/$id');
+      return {
+        'success': true,
+        'message': 'Ride cancelled successfully',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to cancel ride',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
 }
 

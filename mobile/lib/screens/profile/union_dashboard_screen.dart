@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/union_service.dart';
+import 'union_manage_drivers_screen.dart';
+import 'union_create_rides_screen.dart';
 
 class UnionDashboardScreen extends StatefulWidget {
   const UnionDashboardScreen({super.key});
@@ -121,6 +123,52 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         title: 'Verified Drivers (overall)',
                         value: _stats?['drivers_verified']?.toString() ?? '0',
                         color: Colors.purple[50],
+                      ),
+                      const SizedBox(height: 24),
+                      Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.directions_car),
+                              title: const Text('Union drivers'),
+                              subtitle: const Text(
+                                'Add / see all drivers in your union list',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const UnionManageDriversScreen(),
+                                  ),
+                                ).then((_) => _load());
+                              },
+                            ),
+                            const Divider(height: 1),
+                            ListTile(
+                              leading: const Icon(Icons.event_note),
+                              title: const Text('Create rides & posters'),
+                              subtitle: const Text(
+                                'Select drivers, set route and time, auto make schedule',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const UnionCreateRidesScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 24),
                       const Text(
