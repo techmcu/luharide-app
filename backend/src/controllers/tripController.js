@@ -188,7 +188,7 @@ const searchTrips = asyncHandler(async (req, res) => {
 
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
-  // Strict: only the selected date (UTC day range) and only future times. Like RedBus/Blablacar.
+  // Strict: only the selected date (UTC day range). Time filtering (past vs future) is handled on mobile side.
   // Date range: [date 00:00:00 UTC, date+1 00:00:00 UTC) so 22nd selection shows only 22nd, never 23rd.
   let result;
   try {
@@ -203,7 +203,6 @@ const searchTrips = asyncHandler(async (req, res) => {
          AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
          AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
          AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
-         AND (t.departure_time AT TIME ZONE 'UTC') > NOW()
          AND t.status = 'scheduled'
          AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
        ORDER BY t.departure_time ASC
@@ -219,7 +218,6 @@ const searchTrips = asyncHandler(async (req, res) => {
            AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
            AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
            AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
-           AND (t.departure_time AT TIME ZONE 'UTC') > NOW()
            AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
          ORDER BY t.departure_time ASC LIMIT $4`,
         [fromPat, toPat, dateStr, limit]

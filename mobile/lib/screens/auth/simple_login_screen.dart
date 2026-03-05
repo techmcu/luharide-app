@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_navigator.dart';
 import '../home/home_screen.dart';
+import 'forgot_password_screen.dart';
 import 'simple_signup_screen.dart';
 
 class SimpleLoginScreen extends StatefulWidget {
@@ -189,6 +190,33 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         if (value == null || value.isEmpty) return 'Password is required';
                         return null;
                       },
+                    ),
+                    SizedBox(height: spacing / 2),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 0),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ),
                     SizedBox(height: spacing),
                     SizedBox(

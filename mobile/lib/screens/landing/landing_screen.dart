@@ -22,7 +22,6 @@ class _LandingScreenState extends State<LandingScreen> {
   final _toController = TextEditingController();
   final _scrollController = ScrollController();
   DateTime _selectedDate = DateTime.now();
-  int _passengerCount = 1;
 
   List<TripModel> _searchResults = [];
   List<dynamic> _unionRides = [];
@@ -61,14 +60,45 @@ class _LandingScreenState extends State<LandingScreen> {
 
     final raw = result['trips'] ?? [];
     final now = DateTime.now();
+    final isToday = _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+
+    // Driver rides: same date only; if today, hide past times.
     final filtered = raw.where((t) {
       final d = t.departureTime;
-      return d.year == _selectedDate.year && d.month == _selectedDate.month && d.day == _selectedDate.day && d.isAfter(now);
+      final sameDate = d.year == _selectedDate.year &&
+          d.month == _selectedDate.month &&
+          d.day == _selectedDate.day;
+      if (!sameDate) return false;
+      if (!isToday) return true;
+      return d.isAfter(now);
     }).toList();
+    // Union rides: backend already filters by date; if today, hide past times.
+    final List<dynamic> rawUnion =
+        List<dynamic>.from(result['unionRides'] ?? const []);
+    final filteredUnion = rawUnion.where((ride) {
+      final map = ride as Map<String, dynamic>;
+      final rawDt = map['departure_time'];
+      DateTime? d;
+      if (rawDt is String) {
+        d = DateTime.tryParse(rawDt)?.toLocal();
+      } else if (rawDt is DateTime) {
+        d = rawDt.toLocal();
+      }
+      if (d == null) return true;
+      final sameDate = d.year == _selectedDate.year &&
+          d.month == _selectedDate.month &&
+          d.day == _selectedDate.day;
+      if (!sameDate) return false;
+      if (!isToday) return true;
+      return d.isAfter(now);
+    }).toList();
+
     setState(() {
       _isSearching = false;
       _searchResults = filtered;
-      _unionRides = List<dynamic>.from(result['unionRides'] ?? const []);
+      _unionRides = filteredUnion;
     });
 
     if (_searchResults.isNotEmpty && mounted) {
@@ -276,65 +306,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 ),
                               ),
                             ),
-                            Divider(height: 1, color: Colors.grey[100], thickness: 1),
-                            InkWell(
-                              onTap: () {
-                              showModalBottomSheet(
-                                context: context,
-                                backgroundColor: Colors.transparent,
-                                builder: (ctx) => Container(
-                                  height: MediaQuery.of(context).size.height * 0.5,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                                  ),
-                                  child: SafeArea(
-                                    child: Column(
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.all(16),
-                                          child: Text('Passengers', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-                                        ),
-                                        Expanded(
-                                          child: ListView.builder(
-                                            itemCount: 10,
-                                            itemBuilder: (_, i) {
-                                              final n = i + 1;
-                                              return ListTile(
-                                                title: Text(
-                                                  '$n passenger${n > 1 ? 's' : ''}',
-                                                  style: TextStyle(fontSize: 16, fontWeight: n == _passengerCount ? FontWeight.w600 : FontWeight.w400),
-                                                ),
-                                                onTap: () {
-                                                  setState(() => _passengerCount = n);
-                                                  Navigator.pop(ctx);
-                                                },
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.person_outline_rounded, color: Colors.grey[400], size: 20),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    '$_passengerCount passenger${_passengerCount > 1 ? 's' : ''}',
-                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[800]),
-                                  ),
-                                  const Spacer(),
-                                  Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400], size: 22),
-                                ],
-                              ),
-                            ),
-                          ),
+                            // Passenger count removed for simpler flow (ride is per passenger token).
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,

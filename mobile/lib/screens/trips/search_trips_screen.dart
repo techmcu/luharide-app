@@ -119,14 +119,45 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
 
     final raw = result['trips'] ?? [];
     final now = DateTime.now();
+    final isToday = _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+
+    // Driver rides: same date only; if today, hide past times.
     final filtered = raw.where((t) {
       final d = t.departureTime;
-      return d.year == _selectedDate.year && d.month == _selectedDate.month && d.day == _selectedDate.day && d.isAfter(now);
+      final sameDate = d.year == _selectedDate.year &&
+          d.month == _selectedDate.month &&
+          d.day == _selectedDate.day;
+      if (!sameDate) return false;
+      if (!isToday) return true;
+      return d.isAfter(now);
+    }).toList();
+
+    // Union rides: backend already filters by date; if today, hide past times.
+    final List<dynamic> rawUnion =
+        List<dynamic>.from(result['unionRides'] ?? const []);
+    final filteredUnion = rawUnion.where((ride) {
+      final map = ride as Map<String, dynamic>;
+      final rawDt = map['departure_time'];
+      DateTime? d;
+      if (rawDt is String) {
+        d = DateTime.tryParse(rawDt)?.toLocal();
+      } else if (rawDt is DateTime) {
+        d = rawDt.toLocal();
+      }
+      if (d == null) return true;
+      final sameDate = d.year == _selectedDate.year &&
+          d.month == _selectedDate.month &&
+          d.day == _selectedDate.day;
+      if (!sameDate) return false;
+      if (!isToday) return true;
+      return d.isAfter(now);
     }).toList();
     setState(() {
       _isSearching = false;
       _searchResults = filtered;
-      _unionRides = List<dynamic>.from(result['unionRides'] ?? const []);
+      _unionRides = filteredUnion;
     });
 
     if (result['success'] == true) {

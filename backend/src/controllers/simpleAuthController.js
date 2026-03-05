@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const { generateTokenPair } = require('../services/tokenService');
+const { createOTPByEmail, verifyOTPByEmail, sendOTPByEmail } = require('../services/otpService');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -272,9 +273,102 @@ const changePassword = asyncHandler(async (req, res) => {
   ApiResponse.success(null, 'Password updated successfully').send(res);
 });
 
+/**
+ * Request password reset (email-based, OTP flow).
+ * POST /api/simple-auth/forgot-password
+ */
+const requestPasswordReset = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const emailNorm = (email || '').toLowerCase().trim();
+
+  // Even if user doesn't exist, respond success (avoid user enumeration).
+  const existing = await pool.query('SELECT id FROM users WHERE email = $1', [emailNorm]);
+  if (existing.rows.length === 0) {
+    logger.info(`Password reset requested for non-existing email: ${emailNorm}`);
+    ApiResponse.success(
+      { email: emailNorm },
+      'If an account exists for this email, a reset OTP has been sent.'
+    ).send(res);
+    return;
+  }
+
+  let otpData;
+  try {
+    otpData = await createOTPByEmail(emailNorm, 'password_reset');
+  } catch (err) {
+    logger.error('Password reset: createOTPByEmail failed', { message: err.message, code: err.code });
+    if (err.code === '42703' || err.message?.includes('otp_verifications')) {
+      throw ApiError.internal('Database migration pending for OTP system. Ask server admin to run migrations.');
+    }
+    throw err;
+  }
+
+  await sendOTPByEmail(emailNorm, otpData.otp);
+  logger.info(`Password reset OTP sent to ${emailNorm}`);
+
+  ApiResponse.success(
+    {
+      email: emailNorm,
+      expiresIn: '10 minutes',
+      // In development we already log OTP in otpService; no need to expose here.
+    },
+    'If an account exists for this email, a reset OTP has been sent.'
+  ).send(res);
+});
+
+/**
+ * Reset password using email + OTP.
+ * POST /api/simple-auth/reset-password
+ */
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  const emailNorm = (email || '').toLowerCase().trim();
+
+  // Verify OTP for this email
+  const verification = await verifyOTPByEmail(emailNorm, otp);
+  if (!verification.verified) {
+    throw ApiError.badRequest('OTP verification failed');
+  }
+  if (verification.purpose && verification.purpose !== 'password_reset') {
+    throw ApiError.badRequest('This OTP is not valid for password reset');
+  }
+
+  // Ensure user exists
+  const result = await pool.query(
+    'SELECT id FROM users WHERE email = $1',
+    [emailNorm]
+  );
+  if (result.rows.length === 0) {
+    // For security: behave as if success, even if user is missing
+    logger.warn(`Password reset: user not found for email ${emailNorm} after OTP verified`);
+    ApiResponse.success(
+      null,
+      'Password updated successfully'
+    ).send(res);
+    return;
+  }
+
+  const userId = result.rows[0].id;
+  const newHash = await bcrypt.hash(newPassword, 10);
+
+  await pool.query(
+    'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+    [newHash, userId]
+  );
+
+  logger.info(`Password reset via OTP for user ${userId}`);
+
+  ApiResponse.success(
+    null,
+    'Password updated successfully. You can now login with your new password.'
+  ).send(res);
+});
+
 module.exports = {
   signup,
   login,
   createDemoAccounts,
-  changePassword
+  changePassword,
+  requestPasswordReset,
+  resetPassword
 };

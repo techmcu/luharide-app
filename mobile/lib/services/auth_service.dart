@@ -284,6 +284,58 @@ class AuthService {
     }
   }
 
+  /// Forgot password - request OTP to email
+  Future<bool> requestPasswordReset({
+    required String email,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/simple-auth/forgot-password',
+        data: {
+          'email': email.trim().toLowerCase(),
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return true;
+      }
+      throw Exception(response.data['message'] ?? 'Failed to request password reset');
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to request password reset');
+      }
+      throw Exception('Network error');
+    }
+  }
+
+  /// Reset password using email + OTP
+  Future<bool> resetPasswordWithEmailOtp({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/simple-auth/reset-password',
+        data: {
+          'email': email.trim().toLowerCase(),
+          'otp': otp,
+          'newPassword': newPassword,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return true;
+      }
+      throw Exception(response.data['message'] ?? 'Failed to reset password');
+    } on DioException catch (e) {
+      if (e.response != null) {
+        throw Exception(e.response!.data['message'] ?? 'Failed to reset password');
+      }
+      throw Exception('Network error');
+    }
+  }
+
   /// Check if user is logged in
   Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();

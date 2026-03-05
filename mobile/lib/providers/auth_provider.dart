@@ -242,6 +242,46 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Request password reset (send OTP to email)
+  Future<bool> requestPasswordReset(String email) async {
+    try {
+      _setLoading(true);
+      _error = null;
+      final ok = await _authService.requestPasswordReset(email: email);
+      _setLoading(false);
+      return ok;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _setLoading(false);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Reset password using email + OTP
+  Future<bool> resetPasswordWithEmailOtp({
+    required String email,
+    required String otp,
+    required String newPassword,
+  }) async {
+    try {
+      _setLoading(true);
+      _error = null;
+      final ok = await _authService.resetPasswordWithEmailOtp(
+        email: email,
+        otp: otp,
+        newPassword: newPassword,
+      );
+      _setLoading(false);
+      return ok;
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _setLoading(false);
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Refresh current user data
   Future<void> refreshUser() async {
     try {
