@@ -446,26 +446,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
       final data = Uint8List.fromList(bytes);
 
-      if (kIsWeb) {
-        // On web: trigger a real browser download
-        // ignore: avoid_web_libraries_in_flutter
-        import 'dart:html' as html;
-        final blob = html.Blob([data], 'application/pdf');
-        final url = html.Url.createObjectUrlFromBlob(blob);
-        final anchor = html.AnchorElement(href: url)
-          ..download = name
-          ..click();
-        html.Url.revokeObjectUrl(url);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Poster downloaded (check your browser downloads)'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        return;
-      }
-
-      // On mobile/desktop: open share sheet so user can save/share PDF
+      // Open system share sheet so user can save/share PDF locally
       final file = XFile.fromData(
         data,
         name: name,
