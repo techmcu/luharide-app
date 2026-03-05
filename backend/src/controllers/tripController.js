@@ -276,7 +276,8 @@ const searchTrips = asyncHandler(async (req, res) => {
          AND COALESCE(TRIM(s.to_location), '') <> ''
          AND LOWER(TRIM(s.from_location)) LIKE LOWER($1)
          AND LOWER(TRIM(s.to_location)) LIKE LOWER($2)
-         AND s.departure_time::date = $3::date
+         AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
+         AND (s.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
        ORDER BY s.departure_time ASC
        LIMIT $4`,
       [fromPat, toPat, dateStr, limit]

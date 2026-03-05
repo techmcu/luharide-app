@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,6 +25,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   String? _statusError;
   String _status = 'none';
   Map<String, dynamic>? _union;
+  Timer? _statusTimer;
 
   @override
   void initState() {
@@ -32,6 +35,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
 
   @override
   void dispose() {
+    _statusTimer?.cancel();
     _nameController.dispose();
     _locationController.dispose();
     _phoneController.dispose();
@@ -56,11 +60,36 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
         _union = result['union'] as Map<String, dynamic>?;
         _loadingStatus = false;
       });
+      _configureAutoRefresh();
     } else {
       setState(() {
         _statusError = result['message']?.toString();
         _loadingStatus = false;
       });
+    }
+  }
+
+  void _configureAutoRefresh() {
+    // Auto-poll while request is pending so that as soon as
+    // admin approves, screen updates without app restart.
+    if (_status == 'pending') {
+      _statusTimer ??= Timer.periodic(const Duration(seconds: 10), (timer) {
+        if (!mounted) {
+          timer.cancel();
+          _statusTimer = null;
+          return;
+        }
+        // Only poll while still pending; stops automatically once approved/rejected.
+        if (_status == 'pending') {
+          _loadStatus();
+        } else {
+          timer.cancel();
+          _statusTimer = null;
+        }
+      });
+    } else {
+      _statusTimer?.cancel();
+      _statusTimer = null;
     }
   }
 
