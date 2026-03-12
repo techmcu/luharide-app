@@ -18,8 +18,8 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           cat > ~/.ssh/deploy_key << 'EOF'
-${{ secrets.SSH_PRIVATE_KEY }}
-EOF
+          ${{ secrets.SSH_PRIVATE_KEY }}
+          EOF
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts
 
