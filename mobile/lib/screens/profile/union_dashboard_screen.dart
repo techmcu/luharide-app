@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/union_service.dart';
 import 'union_manage_drivers_screen.dart';
 import 'union_create_rides_screen.dart';
@@ -17,6 +18,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   Map<String, dynamic>? _stats;
   List<dynamic> _drivers = const [];
 
+  static const _orange = Color(0xFFFF6B00);
+  static const _orangeLight = Color(0xFFFFF3E0);
+
   @override
   void initState() {
     super.initState();
@@ -31,27 +35,23 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
     final service = UnionService();
 
-    // Load dashboard stats
     final dashboardResult = await service.getDashboard();
     Map<String, dynamic>? stats;
     String? error;
     if (dashboardResult['success'] == true) {
       stats = dashboardResult['data'] as Map<String, dynamic>?;
     } else {
-      error = dashboardResult['message']?.toString() ?? 'Failed to load dashboard';
+      error = dashboardResult['message']?.toString() ?? 'Dashboard load nahi hua';
     }
 
-    // Load basic read-only driver list (only if dashboard succeeded)
     List<dynamic> drivers = const [];
     if (error == null) {
       final driversResult = await service.getDrivers();
       if (driversResult['success'] == true) {
         final raw = driversResult['drivers'];
-        if (raw is List) {
-          drivers = raw;
-        }
+        if (raw is List) drivers = raw;
       } else {
-        error = driversResult['message']?.toString() ?? 'Failed to load drivers';
+        error = driversResult['message']?.toString() ?? 'Drivers load nahi hue';
       }
     }
 
@@ -64,193 +64,456 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     });
   }
 
+  Future<void> _callDriver(String phone) async {
+    final uri = Uri.parse('tel:$phone');
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _whatsappDriver(String number) async {
+    final clean = number.replaceAll(RegExp(r'\D'), '');
+    final uri = Uri.parse('https://wa.me/91$clean');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Union Dashboard'),
-        backgroundColor: Colors.orange,
+        title: const Text(
+          'Union Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: _orange,
         foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: _loading ? null : _load,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: _orange),
+                  SizedBox(height: 16),
+                  Text('Loading...', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            )
           : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+              ? _buildError()
               : RefreshIndicator(
+                  color: _orange,
                   onRefresh: _load,
                   child: ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.zero,
                     children: [
-                      const Text(
-                        'Today\'s Overview',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildStatCard(
-                        title: 'Total Trips',
-                        value: _stats?['total_trips']?.toString() ?? '0',
-                        color: Colors.blue[50],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildStatCard(
-                        title: 'Active Bookings',
-                        value: _stats?['total_bookings']?.toString() ?? '0',
-                        color: Colors.green[50],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildStatCard(
-                        title: 'Verified Drivers (overall)',
-                        value: _stats?['drivers_verified']?.toString() ?? '0',
-                        color: Colors.purple[50],
+                      _buildHeader(),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildStatsRow(),
                       ),
                       const SizedBox(height: 24),
-                      Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.directions_car),
-                              title: const Text('Union drivers'),
-                              subtitle: const Text(
-                                'Add / see all drivers in your union list',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const UnionManageDriversScreen(),
-                                  ),
-                                ).then((_) => _load());
-                              },
-                            ),
-                            const Divider(height: 1),
-                            ListTile(
-                              leading: const Icon(Icons.alt_route),
-                              title: const Text('Preset routes'),
-                              subtitle: const Text(
-                                'Save common routes (from → to) like Purola → Dehradun',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const UnionRoutesScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                            const Divider(height: 1),
-                            ListTile(
-                              leading: const Icon(Icons.event_note),
-                              title: const Text('Create rides & posters'),
-                              subtitle: const Text(
-                                'Select drivers, set route and time, auto make schedule',
-                                style: TextStyle(fontSize: 12),
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const UnionCreateRidesScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Next features coming soon:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '• Daily schedule / poster maker\n'
-                        '• Advanced driver ratings & analytics\n'
-                        '• Pending union join requests',
-                      ),
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Drivers in this union (read-only)',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildSectionLabel('Kya karna hai?', Icons.touch_app_rounded),
                       ),
                       const SizedBox(height: 12),
-                      if (_drivers.isEmpty)
-                        const Text(
-                          'No drivers added yet. This list will show drivers managed by your union.',
-                          style: TextStyle(fontSize: 13),
-                        )
-                      else
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildActionGrid(context),
+                      ),
+                      const SizedBox(height: 28),
+                      if (_drivers.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildSectionLabel(
+                            'Aapke Drivers (${_drivers.length})',
+                            Icons.people_alt_rounded,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         ..._drivers
-                            .map((d) => _buildDriverCard(d as Map<String, dynamic>))
+                            .map((d) => Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                  child: _buildDriverCard(d as Map<String, dynamic>),
+                                ))
                             .toList(),
+                        const SizedBox(height: 8),
+                      ] else ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildNoDriversCard(context),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
     );
   }
 
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_orange, Color(0xFFFF8C00)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.local_taxi_rounded, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Aapka Union Panel',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'Rides, drivers aur routes yahan manage karo',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsRow() {
+    final totalTrips = _stats?['total_trips'] ?? 0;
+    final totalBookings = _stats?['total_bookings'] ?? 0;
+    final driversVerified = _stats?['drivers_verified'] ?? 0;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            label: 'Kul Rides',
+            value: totalTrips.toString(),
+            icon: Icons.directions_car_filled_rounded,
+            color: const Color(0xFF1E88E5),
+            bgColor: const Color(0xFFE3F2FD),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildStatCard(
+            label: 'Bookings',
+            value: totalBookings.toString(),
+            icon: Icons.bookmark_rounded,
+            color: const Color(0xFF43A047),
+            bgColor: const Color(0xFFE8F5E9),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildStatCard(
+            label: 'Drivers',
+            value: driversVerified.toString(),
+            icon: Icons.verified_rounded,
+            color: const Color(0xFF8E24AA),
+            bgColor: const Color(0xFFF3E5F5),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatCard({
-    required String title,
+    required String label,
     required String value,
-    Color? color,
+    required IconData icon,
+    required Color color,
+    required Color bgColor,
   }) {
-    return Card(
-      color: color ?? Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: _orange),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF222222),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionGrid(BuildContext context) {
+    return Column(
+      children: [
+        // Row 1: Drivers + Routes
+        Row(
           children: [
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.people_alt_rounded,
+                iconBg: const Color(0xFFE3F2FD),
+                iconColor: const Color(0xFF1E88E5),
+                title: 'Drivers',
+                subtitle: 'Driver add karo\nlist dekho',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UnionManageDriversScreen()),
+                ).then((_) => _load()),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildActionCard(
+                icon: Icons.route_rounded,
+                iconBg: const Color(0xFFE8F5E9),
+                iconColor: const Color(0xFF43A047),
+                title: 'Routes',
+                subtitle: 'Purola → Dehradun\njaisi routes save karo',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UnionRoutesScreen()),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Row 2: Create Rides (full width — most important action)
+        _buildActionCardWide(
+          icon: Icons.add_road_rounded,
+          iconBg: const Color(0xFFFFF3E0),
+          iconColor: _orange,
+          title: 'Ride Banao & Poster Nikalo',
+          subtitle: 'Drivers chunno, route set karo, time daalo — ride ek click mein tayar',
+          badge: 'Sabse Zaroori',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const UnionCreateRidesScreen()),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionCard({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.07),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: iconColor, size: 26),
+            ),
+            const SizedBox(height: 12),
             Text(
               title,
               style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF222222),
               ),
             ),
+            const SizedBox(height: 4),
             Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+              subtitle,
+              style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  'Kholo →',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: iconColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionCardWide({
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    String? badge,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [_orangeLight, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _orange.withOpacity(0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: _orange.withOpacity(0.12),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(14)),
+              child: Icon(icon, color: iconColor, size: 30),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (badge != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _orange,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        badge,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF222222),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 12, color: Colors.black54, height: 1.4),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _orange.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_forward_rounded, color: _orange, size: 18),
             ),
           ],
         ),
@@ -263,50 +526,210 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     final vehicleNumber = (driver['vehicle_number'] ?? '').toString();
     final phone = (driver['phone'] ?? '').toString();
     final whatsapp = (driver['whatsapp_number'] ?? '').toString();
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: _orange.withOpacity(0.15),
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: _orange,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isNotEmpty ? name : 'Driver',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                if (vehicleNumber.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.directions_car_rounded, size: 13, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(
+                          vehicleNumber,
+                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (phone.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.phone_rounded, size: 13, color: Colors.grey),
+                        const SizedBox(width: 4),
+                        Text(
+                          phone,
+                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (phone.isNotEmpty || whatsapp.isNotEmpty)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (phone.isNotEmpty)
+                  _iconBtn(
+                    icon: Icons.call_rounded,
+                    color: const Color(0xFF43A047),
+                    onTap: () => _callDriver(phone),
+                    tooltip: 'Call',
+                  ),
+                if (whatsapp.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  _iconBtn(
+                    icon: Icons.chat_rounded,
+                    color: const Color(0xFF25D366),
+                    onTap: () => _whatsappDriver(whatsapp),
+                    tooltip: 'WhatsApp',
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconBtn({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: color, size: 18),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoDriversCard(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const UnionManageDriversScreen()),
+      ).then((_) => _load()),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
         child: Row(
           children: [
-            const CircleAvatar(
-              radius: 20,
-              child: Icon(Icons.person, size: 20),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _orange.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person_add_alt_1_rounded, color: _orange, size: 26),
             ),
-            const SizedBox(width: 12),
-            Expanded(
+            const SizedBox(width: 16),
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name.isNotEmpty ? name : 'Driver',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    'Koi driver nahi hai abhi',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
-                  const SizedBox(height: 4),
-                  if (vehicleNumber.isNotEmpty)
-                    Text(
-                      'Gadi: $vehicleNumber',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                  if (phone.isNotEmpty || whatsapp.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        [
-                          if (phone.isNotEmpty) 'Phone: $phone',
-                          if (whatsapp.isNotEmpty) 'WhatsApp: $whatsapp',
-                        ].join('  •  '),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black54,
-                        ),
-                      ),
-                    ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Yahan tap karo aur apna pehla driver add karo',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
                 ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.wifi_off_rounded, size: 48, color: Colors.red.shade400),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Dobara Try karo'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -315,4 +738,3 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     );
   }
 }
-
