@@ -30,13 +30,13 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   DateTime _selectedDate = DateTime.now();
   
   List<TripModel> _searchResults = [];
+  List<Map<String, dynamic>> _unionSearchResults = const []; // Union schedules for this search (poster-style rides)
   bool _isSearching = false;
   bool _hasSearched = false;
   final _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
   String? _selectedRouteId; // Canonical route id for consistent search
   List<Map<String, dynamic>> _presetRoutes = const [];
-  String? _selectedRouteId; // Canonical route for consistent search (Dehradun → Purola etc.)
 
   @override
   void initState() {
@@ -154,15 +154,37 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
     if (!mounted) return;
     final raw = result['trips'] ?? [];
+    final unionRaw = (result['unionRides'] ?? result['union_rides'] ?? const []) as List<dynamic>;
     final now = DateTime.now();
     // Only show trips for the selected date and future time (same as RedBus/Blablacar).
     final filtered = raw.where((t) {
       final d = t.departureTime;
-      return d.year == _selectedDate.year && d.month == _selectedDate.month && d.day == _selectedDate.day && d.isAfter(now);
+      return d.year == _selectedDate.year &&
+          d.month == _selectedDate.month &&
+          d.day == _selectedDate.day &&
+          d.isAfter(now);
     }).toList();
+
+    // Union rides: map raw JSON to simple map and apply same date filter (departure_time in UTC/IST).
+    final List<Map<String, dynamic>> unionRides = [];
+    for (final r in unionRaw) {
+      if (r is! Map) continue;
+      final m = r.cast<String, dynamic>();
+      final depStr = m['departure_time']?.toString();
+      if (depStr == null || depStr.isEmpty) continue;
+      final depTime = DateTime.tryParse(depStr);
+      if (depTime == null) continue;
+      if (depTime.year == _selectedDate.year &&
+          depTime.month == _selectedDate.month &&
+          depTime.day == _selectedDate.day &&
+          depTime.isAfter(now)) {
+        unionRides.add(m);
+      }
+    }
     setState(() {
       _isSearching = false;
       _searchResults = filtered;
+      _unionSearchResults = unionRides;
     });
 
     // Smooth auto-scroll to results
@@ -501,9 +523,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        if (_searchResults.isNotEmpty)
+                        if (_searchResults.isNotEmpty || _unionSearchResults.isNotEmpty)
                           Text(
-                            '${_searchResults.length} trips found',
+                            '${_searchResults.length + _unionSearchResults.length} rides found',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[600],
@@ -520,7 +542,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                           child: CircularProgressIndicator(),
                         ),
                       )
-                    else if (_searchResults.isEmpty)
+                    else if (_searchResults.isEmpty && _unionSearchResults.isEmpty)
                       Center(
                         child: Padding(
                           padding: const EdgeInsets.all(32),
@@ -548,7 +570,33 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         ),
                       )
                     else
-                      ..._searchResults.map((trip) => _buildTripCard(trip, key: ValueKey(trip.id))),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Driver-created trips (bookable with seat selection)
+                          if (_searchResults.isNotEmpty) ...[
+                            ..._searchResults.map(
+                              (trip) => _buildTripCard(trip, key: ValueKey(trip.id)),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          // Union-managed schedules (poster-style)
+                          if (_unionSearchResults.isNotEmpty) ...[
+                            Text(
+                              'Union scheduled rides',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ..._unionSearchResults.map(
+                              (ride) => _buildUnionRideCard(ride),
+                            ),
+                          ],
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -574,6 +622,92 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         ),
       ),
       bottomNavigationBar: _buildFooter(context),
+    );
+  }
+
+  // Simple card for union-managed rides (from union_schedules) – poster-style, no direct booking from app yet.
+  Widget _buildUnionRideCard(Map<String, dynamic> ride) {
+    final from = (ride['from_location'] ?? '').toString();
+    final to = (ride['to_location'] ?? '').toString();
+    final unionName = (ride['union_name'] ?? '').toString();
+    final driverName = (ride['driver_name'] ?? '').toString();
+    final vehicleNumber = (ride['vehicle_number'] ?? '').toString();
+    final phone = (ride['phone'] ?? '').toString();
+    final whatsapp = (ride['whatsapp_number'] ?? '').toString();
+    final depStr = ride['departure_time']?.toString() ?? '';
+    DateTime? depTime = DateTime.tryParse(depStr);
+    String timeLabel = depStr;
+    if (depTime != null) {
+      timeLabel = DateFormat('dd MMM, HH:mm').format(depTime.toLocal());
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.directions_bus, color: Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$from → $to',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Departure: $timeLabel',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[700],
+              ),
+            ),
+            if (unionName.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Union: $unionName',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+            if (driverName.isNotEmpty || vehicleNumber.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                [
+                  if (driverName.isNotEmpty) 'Driver: $driverName',
+                  if (vehicleNumber.isNotEmpty) 'Taxi: $vehicleNumber',
+                ].join(' • '),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ],
+            if (phone.isNotEmpty || whatsapp.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Contact union/driver at stand for seat booking.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
