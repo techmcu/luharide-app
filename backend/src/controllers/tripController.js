@@ -17,7 +17,8 @@ const createTrip = asyncHandler(async (req, res) => {
     total_seats: bodySeats,
     vehicle_number: bodyVehicleNumber,
     stops = [],
-    require_approval = true
+    require_approval = true,
+    route_id: rawRouteId,
   } = req.body;
 
   const driverId = req.user.id;
@@ -35,6 +36,9 @@ const createTrip = asyncHandler(async (req, res) => {
   if (Number.isNaN(fare_per_seat) || fare_per_seat <= 0) {
     throw ApiError.badRequest('Fare per seat must be a positive number.');
   }
+
+  // Optional canonical route binding (UUID as text). Used for consistent search by route_id.
+  const routeId = rawRouteId != null ? String(rawRouteId).trim() : null;
 
   // MUST use verified vehicle - no manual override. Driver must complete verification first.
   let verif;
@@ -94,14 +98,14 @@ const createTrip = asyncHandler(async (req, res) => {
       `INSERT INTO trips (
         driver_id, from_location, to_location, departure_time, arrival_time,
         fare_per_seat, total_capacity, available_seats,
-        vehicle_number, vehicle_model_id, stops, status, require_approval
+        vehicle_number, vehicle_model_id, stops, status, require_approval, route_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *`,
       [
         driverId, from_location, to_location, departureStr, arrivalStr,
         fare_per_seat, totalSeats, totalSeats,
-        vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval
+        vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId
       ]
     );
   } catch (err) {
@@ -111,14 +115,14 @@ const createTrip = asyncHandler(async (req, res) => {
           `INSERT INTO trips (
             driver_id, from_location, to_location, departure_time, arrival_time,
             fare_per_seat, total_capacity, available_seats,
-            vehicle_number, stops, status
+            vehicle_number, stops, status, route_id
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           RETURNING *`,
           [
             driverId, from_location, to_location, departureStr, arrivalStr,
             fare_per_seat, totalSeats, totalSeats,
-            vehicleNumber, stopsJson, 'scheduled'
+            vehicleNumber, stopsJson, 'scheduled', routeId
           ]
         );
       } catch (err2) {
@@ -161,6 +165,7 @@ const createTrip = asyncHandler(async (req, res) => {
 /**
  * Search trips
  * GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23
+ * or GET /api/trips/search?route_id=uuid&date=2026-02-23 (canonical route-based search)
  * Params from query (GET) or body (POST). Aliases: from_location→from, to_location→to.
  */
 const searchTrips = asyncHandler(async (req, res) => {
@@ -168,10 +173,13 @@ const searchTrips = asyncHandler(async (req, res) => {
   const from = (q.from != null ? String(q.from) : q.from_location != null ? String(q.from_location) : '').trim();
   const to = (q.to != null ? String(q.to) : q.to_location != null ? String(q.to_location) : '').trim();
   const date = (q.date != null ? String(q.date) : '').trim();
+  const routeId = q.route_id != null ? String(q.route_id).trim() : '';
 
-  if (!from || !to || !date) {
+  if ((!routeId && (!from || !to)) || !date) {
     throw ApiError.badRequest(
-      'from, to, and date are required. Example: GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23'
+      routeId
+        ? 'date is required. Example: GET /api/trips/search?route_id=uuid&date=2026-02-23'
+        : 'from, to, and date are required. Example: GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23'
     );
   }
 
@@ -180,37 +188,60 @@ const searchTrips = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD (e.g. 2026-02-23).');
   }
 
-  // Normalize: trim and collapse spaces so "Dehradun " and "Dehradun" both match
-  const fromNorm = from.replace(/\s+/g, ' ');
-  const toNorm = to.replace(/\s+/g, ' ');
-  const fromPat = `%${fromNorm}%`;
-  const toPat = `%${toNorm}%`;
-
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
   // Strict: only the selected date (UTC day range). Time filtering (past vs future) is handled on mobile side.
   // Date range: [date 00:00:00 UTC, date+1 00:00:00 UTC) so 22nd selection shows only 22nd, never 23rd.
   let result;
   try {
-    result = await pool.query(
-      `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
-              u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
-              u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
-       FROM trips t
-       LEFT JOIN users u ON t.driver_id = u.id
-       WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
-         AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
-         AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
-         AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
-         AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
-         AND t.status = 'scheduled'
-         AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
-       ORDER BY t.departure_time ASC
-       LIMIT $4`,
-      [fromPat, toPat, dateStr, limit]
-    );
+    if (routeId) {
+      // Canonical route-based search: ignores free-text from/to and uses route_id + date window.
+      result = await pool.query(
+        `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
+                u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
+                u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
+         FROM trips t
+         LEFT JOIN users u ON t.driver_id = u.id
+         WHERE t.route_id = $1
+           AND (t.departure_time AT TIME ZONE 'UTC') >= (($2::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
+           AND (t.departure_time AT TIME ZONE 'UTC') < (($2::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+           AND t.status = 'scheduled'
+           AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+         ORDER BY t.departure_time ASC
+         LIMIT $3`,
+        [routeId, dateStr, limit]
+      );
+    } else {
+      // Fallback: free-text from/to search (current behaviour)
+      const fromNorm = from.replace(/\s+/g, ' ');
+      const toNorm = to.replace(/\s+/g, ' ');
+      const fromPat = `%${fromNorm}%`;
+      const toPat = `%${toNorm}%`;
+
+      result = await pool.query(
+        `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
+                u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
+                u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
+         FROM trips t
+         LEFT JOIN users u ON t.driver_id = u.id
+         WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
+           AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
+           AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
+           AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
+           AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+           AND t.status = 'scheduled'
+           AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+         ORDER BY t.departure_time ASC
+         LIMIT $4`,
+        [fromPat, toPat, dateStr, limit]
+      );
+    }
   } catch (err) {
-    if (err.code === '42703') {
+    if (!routeId && err.code === '42703') {
+      const fromNorm = from.replace(/\s+/g, ' ');
+      const toNorm = to.replace(/\s+/g, ' ');
+      const fromPat = `%${fromNorm}%`;
+      const toPat = `%${toNorm}%`;
       result = await pool.query(
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id

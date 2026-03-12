@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/union_service.dart';
 import '../trips/trip_details_screen.dart';
 import '../trips/passenger_my_rides_screen.dart';
 import '../trips/create_trip_screen.dart';
@@ -22,6 +23,7 @@ class PassengerHomeScreen extends StatefulWidget {
 
 class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   final _tripService = TripService();
+  final _unionService = UnionService();
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
   final _scrollController = ScrollController();
@@ -32,12 +34,16 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   bool _hasSearched = false;
   final _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
+  String? _selectedRouteId; // Canonical route id for consistent search
+  List<Map<String, dynamic>> _presetRoutes = const [];
+  String? _selectedRouteId; // Canonical route for consistent search (Dehradun → Purola etc.)
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkVerificationNotification());
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadUnreadNotifications());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPresetRoutes());
   }
 
   /// Show "Verification approved!" when admin has approved driver
@@ -98,11 +104,36 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     return n.split(' ').first;
   }
 
+  Future<void> _loadPresetRoutes() async {
+    try {
+      final res = await _unionService.getRoutes();
+      if (!mounted) return;
+      if (res['success'] == true) {
+        final raw = res['routes'] as List<dynamic>? ?? const [];
+        // Normalize to easy Map list
+        final routes = raw.map<Map<String, dynamic>>((r) {
+          final m = (r as Map).cast<String, dynamic>();
+          return {
+            'id': m['id']?.toString(),
+            'from_location': (m['from_location'] ?? '').toString(),
+            'to_location': (m['to_location'] ?? '').toString(),
+          };
+        }).toList();
+        setState(() {
+          _presetRoutes = routes;
+        });
+      }
+    } catch (_) {
+      // Silent: preset routes are optional sugar for search
+    }
+  }
+
   Future<void> _searchTrips() async {
-    if (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty) {
+    if ((_selectedRouteId == null || _selectedRouteId!.isEmpty) &&
+        (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please enter both locations'),
+          content: Text('Please select a route or enter both locations'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -118,6 +149,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       from: _fromController.text.trim(),
       to: _toController.text.trim(),
       date: _selectedDate,
+      routeId: _selectedRouteId,
     );
 
     if (!mounted) return;
@@ -327,6 +359,57 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Preset routes (chips) - fast one-tap search
+                      if (_presetRoutes.isNotEmpty) ...[
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Popular routes',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: _presetRoutes.map((route) {
+                              final id = route['id']?.toString();
+                              final from = route['from_location']?.toString() ?? '';
+                              final to = route['to_location']?.toString() ?? '';
+                              final isSelected = _selectedRouteId != null && _selectedRouteId == id;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ChoiceChip(
+                                  label: Text(
+                                    '$from → $to',
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                  selected: isSelected,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      _selectedRouteId = id;
+                                      _fromController.text = from;
+                                      _toController.text = to;
+                                    });
+                                  },
+                                  selectedColor: Colors.blue.shade600,
+                                  labelStyle: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.black87,
+                                  ),
+                                  backgroundColor: Colors.grey.shade100,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
                       // Date Selector
                       InkWell(

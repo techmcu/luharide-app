@@ -61,17 +61,23 @@ class TripService {
     required String from,
     required String to,
     required DateTime date,
+    String? routeId,
   }) async {
     try {
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      
+      final query = <String, dynamic>{
+        'date': dateStr,
+      };
+      if (routeId != null && routeId.isNotEmpty) {
+        query['route_id'] = routeId;
+      } else {
+        query['from'] = from;
+        query['to'] = to;
+      }
+
       final response = await _apiService.get(
         ApiConstants.searchTrips,
-        queryParameters: {
-          'from': from,
-          'to': to,
-          'date': dateStr,
-        },
+        queryParameters: query,
       );
 
       final data = response.data['data'] ?? {};
