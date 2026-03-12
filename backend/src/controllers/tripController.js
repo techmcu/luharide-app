@@ -190,13 +190,11 @@ const searchTrips = asyncHandler(async (req, res) => {
 
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
-  // Normalize from/to once so both trips and union_schedules can use them.
-  // Even when routeId is provided, we keep from/to for union rides search
-  // (case-insensitive and spacing-insensitive).
-  const fromNorm = from.replace(/\s+/g, ' ');
-  const toNorm = to.replace(/\s+/g, ' ');
-  const fromPat = `%${fromNorm}%`;
-  const toPat = `%${toNorm}%`;
+  // Normalize: remove ALL spaces + lowercase so "Deh ra dun" == "dehradun" == "DEHRADUN"
+  const fromNorm = from.toLowerCase().replace(/\s+/g, '');
+  const toNorm   = to.toLowerCase().replace(/\s+/g, '');
+  const fromPat  = `%${fromNorm}%`;
+  const toPat    = `%${toNorm}%`;
 
   // Strict: only the selected date (UTC day range). Time filtering (past vs future) is handled on mobile side.
   // Date range: [date 00:00:00 UTC, date+1 00:00:00 UTC) so 22nd selection shows only 22nd, never 23rd.
@@ -228,8 +226,8 @@ const searchTrips = asyncHandler(async (req, res) => {
          FROM trips t
          LEFT JOIN users u ON t.driver_id = u.id
          WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
-           AND LOWER(TRIM(t.from_location)) LIKE LOWER($1)
-           AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
+           AND regexp_replace(LOWER(TRIM(t.from_location)), '\s+', '', 'g') LIKE $1
+           AND regexp_replace(LOWER(TRIM(t.to_location)),   '\s+', '', 'g') LIKE $2
            AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
            AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
            AND t.status = 'scheduled'
@@ -245,7 +243,8 @@ const searchTrips = asyncHandler(async (req, res) => {
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id
          WHERE COALESCE(TRIM(t.from_location), '') <> '' AND COALESCE(TRIM(t.to_location), '') <> ''
-           AND LOWER(TRIM(t.from_location)) LIKE LOWER($1) AND LOWER(TRIM(t.to_location)) LIKE LOWER($2)
+           AND regexp_replace(LOWER(TRIM(t.from_location)), '\s+', '', 'g') LIKE $1
+           AND regexp_replace(LOWER(TRIM(t.to_location)),   '\s+', '', 'g') LIKE $2
            AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
            AND (t.departure_time AT TIME ZONE 'UTC') < (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
            AND t.status = 'scheduled' AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
@@ -302,8 +301,8 @@ const searchTrips = asyncHandler(async (req, res) => {
        WHERE s.status = 'scheduled'
          AND COALESCE(TRIM(s.from_location), '') <> ''
          AND COALESCE(TRIM(s.to_location), '') <> ''
-         AND LOWER(TRIM(s.from_location)) LIKE LOWER($1)
-         AND LOWER(TRIM(s.to_location)) LIKE LOWER($2)
+         AND regexp_replace(LOWER(TRIM(s.from_location)), '\s+', '', 'g') LIKE $1
+         AND regexp_replace(LOWER(TRIM(s.to_location)),   '\s+', '', 'g') LIKE $2
          AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
          AND (s.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
        ORDER BY s.departure_time ASC

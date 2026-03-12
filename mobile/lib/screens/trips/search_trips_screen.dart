@@ -19,8 +19,6 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   final _toController = TextEditingController();
   
   DateTime _selectedDate = DateTime.now();
-  List<String> _fromSuggestions = [];
-  List<String> _toSuggestions = [];
   
   List<TripModel> _searchResults = [];
   List<dynamic> _unionRides = [];
@@ -77,23 +75,6 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     }
   }
 
-  Future<void> _loadFromSuggestions(String query) async {
-    if (query.length < 2) {
-      setState(() => _fromSuggestions = []);
-      return;
-    }
-    final suggestions = await _tripService.getLocationSuggestions(query);
-    setState(() => _fromSuggestions = suggestions);
-  }
-
-  Future<void> _loadToSuggestions(String query) async {
-    if (query.length < 2) {
-      setState(() => _toSuggestions = []);
-      return;
-    }
-    final suggestions = await _tripService.getLocationSuggestions(query);
-    setState(() => _toSuggestions = suggestions);
-  }
 
   Future<void> _searchTrips() async {
     if (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty) {
@@ -232,64 +213,32 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
                   const SizedBox(height: 16),
                 ],
                 // From Location
-                Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text.isEmpty) {
-                      return const Iterable<String>.empty();
-                    }
-                    _loadFromSuggestions(textEditingValue.text);
-                    return _fromSuggestions;
-                  },
-                  onSelected: (String selection) {
-                    _fromController.text = selection;
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                    _fromController.text = controller.text;
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        labelText: 'From',
-                        prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                      ),
-                    );
-                  },
+                TextField(
+                  controller: _fromController,
+                  decoration: InputDecoration(
+                    labelText: 'From',
+                    prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
                 ),
                 const SizedBox(height: 12),
 
                 // To Location
-                Autocomplete<String>(
-                  optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text.isEmpty) {
-                      return const Iterable<String>.empty();
-                    }
-                    _loadToSuggestions(textEditingValue.text);
-                    return _toSuggestions;
-                  },
-                  onSelected: (String selection) {
-                    _toController.text = selection;
-                  },
-                  fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                    _toController.text = controller.text;
-                    return TextField(
-                      controller: controller,
-                      focusNode: focusNode,
-                      decoration: InputDecoration(
-                        labelText: 'To',
-                        prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        filled: true,
-                        fillColor: Colors.grey[50],
-                      ),
-                    );
-                  },
+                TextField(
+                  controller: _toController,
+                  decoration: InputDecoration(
+                    labelText: 'To',
+                    prefixIcon: const Icon(Icons.location_on, color: Colors.red),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
                 ),
                 const SizedBox(height: 12),
 
