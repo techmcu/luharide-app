@@ -17,9 +17,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   String? _error;
   Map<String, dynamic>? _stats;
   List<dynamic> _drivers = const [];
+  String _posterHeader = '';
 
   static const _orange = Color(0xFFFF6B00);
   static const _orangeLight = Color(0xFFFFF3E0);
+  static const _purple = Color(0xFF7B1FA2);
 
   @override
   void initState() {
@@ -35,7 +37,16 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
     final service = UnionService();
 
-    final dashboardResult = await service.getDashboard();
+    final results = await Future.wait([
+      service.getDashboard(),
+      service.getDrivers(),
+      service.getMyUnion(),
+    ]);
+
+    final dashboardResult = results[0];
+    final driversResult   = results[1];
+    final unionResult     = results[2];
+
     Map<String, dynamic>? stats;
     String? error;
     if (dashboardResult['success'] == true) {
@@ -45,20 +56,22 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     }
 
     List<dynamic> drivers = const [];
-    if (error == null) {
-      final driversResult = await service.getDrivers();
-      if (driversResult['success'] == true) {
-        final raw = driversResult['drivers'];
-        if (raw is List) drivers = raw;
-      } else {
-        error = driversResult['message']?.toString() ?? 'Failed to load drivers';
-      }
+    if (driversResult['success'] == true) {
+      final raw = driversResult['drivers'];
+      if (raw is List) drivers = raw;
+    }
+
+    String posterHeader = '';
+    if (unionResult['success'] == true) {
+      final union = unionResult['union'] as Map<String, dynamic>?;
+      posterHeader = (union?['poster_header'] ?? '').toString();
     }
 
     if (!mounted) return;
     setState(() {
       _stats = stats;
       _drivers = drivers;
+      _posterHeader = posterHeader;
       _error = error;
       _loading = false;
     });
@@ -136,6 +149,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: _buildActionGrid(context),
+                      ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildPosterBrandingCard(context),
                       ),
                       const SizedBox(height: 28),
                       if (_drivers.isNotEmpty) ...[
@@ -762,6 +780,314 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── Poster Branding Card ───────────────────────────────────────────────────
+
+  Widget _buildPosterBrandingCard(BuildContext context) {
+    final hasHeader = _posterHeader.isNotEmpty;
+    return GestureDetector(
+      onTap: () => _showBrandingSheet(context),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasHeader ? _purple.withOpacity(0.3) : Colors.grey.shade200,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.picture_as_pdf_rounded,
+                  color: _purple,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Poster Branding',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      hasHeader
+                          ? 'Header: "$_posterHeader"'
+                          : 'Tap to set a custom header for your ride posters\n(e.g. blessing, deity name)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hasHeader ? _purple : Colors.grey.shade500,
+                        fontStyle: hasHeader ? FontStyle.italic : FontStyle.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  hasHeader ? 'Edit' : 'Set Up',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _purple,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showBrandingSheet(BuildContext context) async {
+    final ctrl    = TextEditingController(text: _posterHeader);
+    bool saving   = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+              top: 8,
+              left: 20,
+              right: 20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                // Header row
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _purple.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.picture_as_pdf_rounded, color: _purple, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Poster Header Branding',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'This line appears at the very top of every ride poster',
+                            style: TextStyle(fontSize: 12, color: Colors.black54),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Preview box
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF6B00),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: ctrl,
+                        builder: (_, v, __) => v.text.isNotEmpty
+                            ? Text(
+                                '*  ${v.text}  *',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'YOUR UNION NAME',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'TAXI UNION  -  DAILY RIDE SCHEDULE',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 9,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Live preview of your poster header above',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                // Examples row
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    'Jai Mata Di',
+                    'Jai Shri Ram',
+                    'Jai Bholenath',
+                    'Shri Ganeshaye Namah',
+                  ].map((example) => ActionChip(
+                    label: Text(example, style: const TextStyle(fontSize: 12)),
+                    onPressed: () => ctrl.text = example,
+                    backgroundColor: _purple.withOpacity(0.08),
+                    labelStyle: TextStyle(color: _purple),
+                  )).toList(),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: ctrl,
+                  maxLength: 60,
+                  decoration: InputDecoration(
+                    labelText: 'Custom header text (optional)',
+                    hintText: 'e.g. Jai Mata Di',
+                    prefixIcon: const Icon(Icons.format_quote_rounded, size: 20),
+                    helperText: 'Leave blank to remove the header line from posters',
+                    filled: true,
+                    fillColor: const Color(0xFFF8F8F8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _purple, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            setSheet(() => saving = true);
+                            final result = await UnionService().updateBranding(
+                              posterHeader: ctrl.text.trim(),
+                            );
+                            setSheet(() => saving = false);
+                            if (!mounted) return;
+                            if (result['success'] == true) {
+                              setState(() => _posterHeader = ctrl.text.trim());
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Row(children: [
+                                    Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                                    SizedBox(width: 8),
+                                    Text('Poster branding saved'),
+                                  ]),
+                                  backgroundColor: _purple,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(result['message']?.toString() ?? 'Failed to save'),
+                                  backgroundColor: Colors.red,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              );
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _purple,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    child: saving
+                        ? const SizedBox(
+                            width: 22, height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            'Save Branding',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

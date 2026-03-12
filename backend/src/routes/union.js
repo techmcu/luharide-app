@@ -20,6 +20,7 @@ const {
   getUnionSchedules,
   cancelUnionSchedule,
   getUnionSchedulePoster,
+  updateUnionBranding,
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -72,6 +73,14 @@ router.post(
 
 // Current user's union + status
 router.get('/me', authenticate, getMyUnion);
+
+// Union admin: update poster branding (custom header text)
+router.patch(
+  '/branding',
+  authenticate,
+  authorize('union_admin'),
+  updateUnionBranding
+);
 
 // Platform admin: list / approve / reject unions
 router.get('/admin/unions', authenticate, listUnions);

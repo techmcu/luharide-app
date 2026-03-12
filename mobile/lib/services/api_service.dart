@@ -122,6 +122,26 @@ class ApiService {
     }
   }
 
+  // PATCH request
+  Future<Response> patch(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      final response = await _dio.patch(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // DELETE request
   Future<Response> delete(
     String path, {
