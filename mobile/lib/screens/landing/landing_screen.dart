@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/trip_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
 import '../auth/simple_login_screen.dart';
 import '../auth/simple_signup_screen.dart';
@@ -58,47 +59,12 @@ class _LandingScreenState extends State<LandingScreen> {
       date: _selectedDate,
     );
 
-    final raw = result['trips'] ?? [];
-    final now = DateTime.now();
-    final isToday = _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-
-    // Driver rides: same date only; if today, hide past times.
-    final filtered = raw.where((t) {
-      final d = t.departureTime;
-      final sameDate = d.year == _selectedDate.year &&
-          d.month == _selectedDate.month &&
-          d.day == _selectedDate.day;
-      if (!sameDate) return false;
-      if (!isToday) return true;
-      return d.isAfter(now);
-    }).toList();
-    // Union rides: backend already filters by date; if today, hide past times.
-    final List<dynamic> rawUnion =
-        List<dynamic>.from(result['unionRides'] ?? const []);
-    final filteredUnion = rawUnion.where((ride) {
-      final map = ride as Map<String, dynamic>;
-      final rawDt = map['departure_time'];
-      DateTime? d;
-      if (rawDt is String) {
-        d = DateTime.tryParse(rawDt)?.toLocal();
-      } else if (rawDt is DateTime) {
-        d = rawDt.toLocal();
-      }
-      if (d == null) return true;
-      final sameDate = d.year == _selectedDate.year &&
-          d.month == _selectedDate.month &&
-          d.day == _selectedDate.day;
-      if (!sameDate) return false;
-      if (!isToday) return true;
-      return d.isAfter(now);
-    }).toList();
-
+    // Show ALL rides returned by backend — no client-side time filtering.
+    // Backend already handles the date range. Hiding past-time rides caused missed results.
     setState(() {
       _isSearching = false;
-      _searchResults = filtered;
-      _unionRides = filteredUnion;
+      _searchResults = List<TripModel>.from(result['trips'] ?? []);
+      _unionRides   = List<dynamic>.from(result['unionRides'] ?? []);
     });
 
     if (_searchResults.isNotEmpty && mounted) {
@@ -147,17 +113,57 @@ class _LandingScreenState extends State<LandingScreen> {
     }
   }
 
-  void _requireLoginForContact() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Please login to contact the driver'),
-        backgroundColor: Colors.orange,
-      ),
-    );
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
-    );
+  /// Auth-guarded contact: launch if logged in, show login dialog if not.
+  void _guardedContact(VoidCallback action) {
+    final isLoggedIn =
+        Provider.of<AuthProvider>(context, listen: false).isAuthenticated;
+    if (isLoggedIn) {
+      action();
+    } else {
+      showDialog(
+        context: context,
+        builder: (dialogCtx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.lock_rounded, color: Color(0xFF2563EB), size: 22),
+              SizedBox(width: 8),
+              Text('Login Required',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: const Text(
+            'Please login to contact the driver.',
+            style: TextStyle(fontSize: 14),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              onPressed: () {
+                Navigator.pop(dialogCtx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const SimpleLoginScreen()),
+                );
+              },
+              child: const Text('Login',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -492,59 +498,59 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   Widget _buildTripCard(TripModel trip) {
+    final phone = trip.driver?.phone ?? '';
+    final wa    = trip.driver?.whatsappNumber ?? trip.driver?.phone ?? '';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _onTripTap(trip),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.trip_origin, color: Colors.green, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(trip.fromLocation, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, color: Colors.red, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(trip.toLocation, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
-                ],
-              ),
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [const Icon(Icons.access_time, size: 18, color: Colors.grey), const SizedBox(width: 4), Text(trip.formattedDepartureTime, style: const TextStyle(fontSize: 14))]),
-                  Row(children: [const Icon(Icons.event_seat, size: 18, color: Colors.grey), const SizedBox(width: 4), Text('${trip.availableSeats} seats', style: TextStyle(fontSize: 14, color: trip.availableSeats > 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold))]),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(children: [const Icon(Icons.currency_rupee, size: 20, color: Colors.blue), Text('${trip.farePerSeat.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)), const Text(' /seat')]),
-                ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Route
+            Row(children: [
+              const Icon(Icons.trip_origin, color: Colors.green, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(trip.fromLocation, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              const Icon(Icons.location_on, color: Colors.red, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text(trip.toLocation, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+            ]),
+            const Divider(height: 24),
+            // Meta
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Row(children: [const Icon(Icons.access_time, size: 18, color: Colors.grey), const SizedBox(width: 4), Text(trip.formattedDepartureTime, style: const TextStyle(fontSize: 14))]),
+              Row(children: [const Icon(Icons.event_seat, size: 18, color: Colors.grey), const SizedBox(width: 4), Text('${trip.availableSeats} seats', style: TextStyle(fontSize: 14, color: trip.availableSeats > 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold))]),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [const Icon(Icons.currency_rupee, size: 20, color: Colors.blue), Text(trip.farePerSeat.toStringAsFixed(0), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)), const Text(' /seat')]),
+            const SizedBox(height: 14),
+            // Call + WhatsApp + Book
+            Row(children: [
+              if (phone.isNotEmpty) ...[
+                Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _guardedContact(() => _launchPhone(phone)))),
+                const SizedBox(width: 8),
+              ],
+              if (wa.isNotEmpty) ...[
+                Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _guardedContact(() => _launchWhatsApp(wa)))),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                flex: 2,
                 child: ElevatedButton(
                   onPressed: () => _onTripTap(trip),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                  child: const Text('View Details & Book'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
+                  child: const Text('Book', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
-            ],
-          ),
+            ]),
+          ],
         ),
       ),
     );
@@ -666,25 +672,14 @@ class _LandingScreenState extends State<LandingScreen> {
                 ],
               ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: phone.isEmpty ? null : _requireLoginForContact,
-                    icon: const Icon(Icons.call),
-                    label: const Text('Call'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: whatsapp.isEmpty ? null : _requireLoginForContact,
-                    icon: const Icon(Icons.chat),
-                    label: const Text('WhatsApp'),
-                  ),
-                ),
+            Row(children: [
+              if (phone.isNotEmpty) ...[
+                Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _guardedContact(() => _launchPhone(phone)))),
+                const SizedBox(width: 8),
               ],
-            ),
+              if ((whatsapp.isNotEmpty || phone.isNotEmpty))
+                Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _guardedContact(() => _launchWhatsApp(whatsapp.isNotEmpty ? whatsapp : phone)))),
+            ]),
           ],
         ),
       ),
@@ -692,74 +687,73 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   Future<void> _launchPhone(String phone) async {
-    final uri = Uri(scheme: 'tel', path: phone);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
+    final uri = Uri(scheme: 'tel', path: phone.trim());
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
-  Future<void> _launchWhatsApp(String phone) async {
-    if (phone.isEmpty) return;
-    final normalized = phone.replaceAll(' ', '');
-    final uri = Uri.parse('https://wa.me/$normalized');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  Future<void> _launchWhatsApp(String raw) async {
+    if (raw.trim().isEmpty) return;
+    final number = raw.replaceAll(RegExp(r'\s+'), '');
+    final uri = Uri.parse('https://wa.me/$number');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Widget _contactBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Material(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: color),
+              const SizedBox(width: 5),
+              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-/// Location field with autocomplete from DB (trips) - suggests places from existing rides
+/// Plain location input — no suggestions, no autocomplete, no TypeAhead.
 class _LocationField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final Color iconColor;
-  final TripService tripService;
+  // tripService kept in signature for backward compatibility but not used for suggestions
+  final TripService? tripService;
 
   const _LocationField({
     required this.controller,
     required this.label,
     required this.icon,
     required this.iconColor,
-    required this.tripService,
+    this.tripService,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TypeAheadField<String>(
+    return TextField(
       controller: controller,
-      suggestionsCallback: (query) async {
-        if (query.length < 2) return [];
-        return tripService.getLocationSuggestions(query);
-      },
-      debounceDuration: const Duration(milliseconds: 300),
-      hideOnLoading: true,
-      hideOnEmpty: true,
-      hideOnUnfocus: true,
-      builder: (context, ctrl, focusNode) => TextField(
-        controller: ctrl,
-        focusNode: focusNode,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: iconColor, size: 22),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Colors.grey[600]),
-          hintStyle: TextStyle(color: Colors.grey[400]),
-        ),
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[800]),
+      textCapitalization: TextCapitalization.words,
+      enableSuggestions: false,
+      autocorrect: false,
+      autofillHints: const [],
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: iconColor, size: 22),
+        border: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Colors.grey[600]),
       ),
-      itemBuilder: (context, suggestion) => ListTile(
-        dense: true,
-        leading: Icon(icon, color: iconColor, size: 20),
-        title: Text(
-          suggestion,
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Colors.grey[800]),
-        ),
-      ),
-      onSelected: (suggestion) {
-        controller.text = suggestion;
-      },
+      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[800]),
     );
   }
 }
