@@ -30,7 +30,7 @@ const { pool } = require('../config/database');
 const logger = require('../config/logger');
 
 // How long to keep completed/cancelled trip records (bookings cascade-delete with them)
-const TRIP_RETENTION_DAYS = 90;
+const TRIP_RETENTION_DAYS = 60;
 
 async function runCleanup() {
   const label = '[RideCleanup]';
@@ -103,7 +103,7 @@ function start() {
     runCleanup();
   });
 
-  logger.info(`[RideCleanup] Scheduled — midnight IST daily. Retention: ${TRIP_RETENTION_DAYS} days for trips`);
+  logger.info(`[RideCleanup] Scheduled — midnight IST daily. Trip retention: ${TRIP_RETENTION_DAYS} days`);
 }
 
 module.exports = { start, runCleanup };

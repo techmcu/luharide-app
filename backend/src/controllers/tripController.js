@@ -601,7 +601,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
 const getMyTrips = asyncHandler(async (req, res) => {
   const driverId = req.user.id;
   const { status } = req.query;
-  const days  = Math.min(90, Math.max(0, parseInt(req.query.days,  10) || 30));
+  const days  = Math.min(60, Math.max(0, parseInt(req.query.days,  10) || 30));
   const page  = Math.max(1,  parseInt(req.query.page,  10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
   const offset = (page - 1) * limit;
