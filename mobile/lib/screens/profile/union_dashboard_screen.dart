@@ -215,16 +215,16 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   }
 
   Widget _buildStatsRow() {
-    final totalTrips = _stats?['total_trips'] ?? 0;
-    final totalBookings = _stats?['total_bookings'] ?? 0;
-    final driversVerified = _stats?['drivers_verified'] ?? 0;
+    final scheduledRides = _stats?['scheduled_rides'] ?? 0;
+    final totalDrivers   = _stats?['total_drivers'] ?? 0;
+    final ridesToday     = _stats?['rides_today'] ?? 0;
 
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
-            label: 'Total Trips',
-            value: totalTrips.toString(),
+            label: 'Active Rides',
+            value: scheduledRides.toString(),
             icon: Icons.directions_car_filled_rounded,
             color: const Color(0xFF1E88E5),
             bgColor: const Color(0xFFE3F2FD),
@@ -233,19 +233,19 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         const SizedBox(width: 10),
         Expanded(
           child: _buildStatCard(
-            label: 'Bookings',
-            value: totalBookings.toString(),
-            icon: Icons.bookmark_rounded,
-            color: const Color(0xFF43A047),
-            bgColor: const Color(0xFFE8F5E9),
+            label: 'Today\'s Rides',
+            value: ridesToday.toString(),
+            icon: Icons.today_rounded,
+            color: const Color(0xFFFF6B00),
+            bgColor: const Color(0xFFFFF3E0),
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _buildStatCard(
             label: 'Drivers',
-            value: driversVerified.toString(),
-            icon: Icons.verified_rounded,
+            value: totalDrivers.toString(),
+            icon: Icons.people_alt_rounded,
             color: const Color(0xFF8E24AA),
             bgColor: const Color(0xFFF3E5F5),
           ),

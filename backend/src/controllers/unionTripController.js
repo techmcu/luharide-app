@@ -171,23 +171,66 @@ const getUnionTrips = asyncHandler(async (req, res) => {
 });
 
 /**
- * Union admin dashboard – simple counts
+ * Union admin dashboard – union-scoped real counts.
  * GET /api/union/dashboard
+ *
+ * Returns stats for THIS admin's union only:
+ *   scheduled_rides  → active (status=scheduled) union_schedules for this union
+ *   total_drivers    → union_drivers registered under this union
+ *   rides_today      → union_schedules departing today (IST date)
  */
 const getDashboardStats = asyncHandler(async (req, res) => {
-  const [tripsRes, bookingsRes, driversRes] = await Promise.all([
-    pool.query('SELECT COUNT(*)::int AS count FROM trips'),
-    pool.query("SELECT COUNT(*)::int AS count FROM bookings WHERE status IN ('confirmed', 'pending')"),
+  // Resolve the calling admin's approved union
+  const unionRes = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+
+  // If admin has no approved union yet, return zeroes — no error
+  if (unionRes.rows.length === 0) {
+    return ApiResponse.success(
+      { scheduled_rides: 0, total_drivers: 0, rides_today: 0 },
+      'Dashboard stats'
+    ).send(res);
+  }
+
+  const unionId = unionRes.rows[0].union_id;
+
+  const [ridesRes, driversRes, todayRes] = await Promise.all([
+    // Active scheduled rides for this union
     pool.query(
-      "SELECT COUNT(DISTINCT user_id)::int AS count FROM driver_verification_requests WHERE status = 'approved'"
-    )
+      `SELECT COUNT(*)::int AS count
+       FROM union_schedules
+       WHERE union_id = $1 AND status = 'scheduled'`,
+      [unionId]
+    ),
+    // Drivers registered under this union
+    pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM union_drivers
+       WHERE union_id = $1`,
+      [unionId]
+    ),
+    // Rides departing today (UTC day, same as stored departure_time)
+    pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM union_schedules
+       WHERE union_id = $1
+         AND departure_time >= CURRENT_DATE::timestamp
+         AND departure_time <  CURRENT_DATE::timestamp + interval '1 day'`,
+      [unionId]
+    ),
   ]);
 
   ApiResponse.success(
     {
-      total_trips: tripsRes.rows[0].count,
-      total_bookings: bookingsRes.rows[0].count,
-      drivers_verified: driversRes.rows[0].count
+      scheduled_rides: ridesRes.rows[0].count,
+      total_drivers:   driversRes.rows[0].count,
+      rides_today:     todayRes.rows[0].count,
     },
     'Dashboard stats'
   ).send(res);
