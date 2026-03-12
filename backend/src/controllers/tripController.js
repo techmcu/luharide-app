@@ -190,6 +190,14 @@ const searchTrips = asyncHandler(async (req, res) => {
 
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
+  // Normalize from/to once so both trips and union_schedules can use them.
+  // Even when routeId is provided, we keep from/to for union rides search
+  // (case-insensitive and spacing-insensitive).
+  const fromNorm = from.replace(/\s+/g, ' ');
+  const toNorm = to.replace(/\s+/g, ' ');
+  const fromPat = `%${fromNorm}%`;
+  const toPat = `%${toNorm}%`;
+
   // Strict: only the selected date (UTC day range). Time filtering (past vs future) is handled on mobile side.
   // Date range: [date 00:00:00 UTC, date+1 00:00:00 UTC) so 22nd selection shows only 22nd, never 23rd.
   let result;
@@ -213,11 +221,6 @@ const searchTrips = asyncHandler(async (req, res) => {
       );
     } else {
       // Fallback: free-text from/to search (current behaviour)
-      const fromNorm = from.replace(/\s+/g, ' ');
-      const toNorm = to.replace(/\s+/g, ' ');
-      const fromPat = `%${fromNorm}%`;
-      const toPat = `%${toNorm}%`;
-
       result = await pool.query(
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
                 u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
@@ -238,10 +241,6 @@ const searchTrips = asyncHandler(async (req, res) => {
     }
   } catch (err) {
     if (!routeId && err.code === '42703') {
-      const fromNorm = from.replace(/\s+/g, ' ');
-      const toNorm = to.replace(/\s+/g, ' ');
-      const fromPat = `%${fromNorm}%`;
-      const toPat = `%${toNorm}%`;
       result = await pool.query(
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id
