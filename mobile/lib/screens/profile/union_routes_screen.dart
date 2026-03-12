@@ -558,7 +558,7 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
                 onPressed: _submitting
                     ? null
                     : () {
-                        widget.onSave((val) {
+                        widget.onSave((val) async {
                           if (mounted) setState(() => _submitting = val);
                         });
                       },

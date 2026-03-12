@@ -275,24 +275,6 @@ class UnionService {
     }
   }
 
-  /// Get the current union's info including poster_header.
-  Future<Map<String, dynamic>> getMyUnion() async {
-    try {
-      final response = await _api.get('/union/me');
-      return {
-        'success': true,
-        'union': response.data['data']?['union'],
-      };
-    } on DioException catch (e) {
-      return {
-        'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to load union info',
-      };
-    } catch (_) {
-      return {'success': false, 'message': 'An unexpected error occurred'};
-    }
-  }
-
   /// Update the poster branding (custom header line) for this union.
   Future<Map<String, dynamic>> updateBranding({required String posterHeader}) async {
     try {

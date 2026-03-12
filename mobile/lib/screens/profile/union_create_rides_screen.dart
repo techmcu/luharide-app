@@ -1537,7 +1537,7 @@ class _QuickAddRouteSheetState extends State<_QuickAddRouteSheet> {
                     ? null
                     : () {
                         widget.onSave(
-                          (val) { if (mounted) setState(() => _submitting = val); },
+                          (val) async { if (mounted) setState(() => _submitting = val); },
                         );
                       },
                 style: ElevatedButton.styleFrom(

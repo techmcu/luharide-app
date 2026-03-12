@@ -526,7 +526,7 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
                 onPressed: _submitting
                     ? null
                     : () {
-                        widget.onSave((val) {
+                        widget.onSave((val) async {
                           if (mounted) setState(() => _submitting = val);
                         });
                       },
