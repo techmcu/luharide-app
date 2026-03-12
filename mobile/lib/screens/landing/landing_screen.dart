@@ -565,19 +565,19 @@ class _LandingScreenState extends State<LandingScreen> {
     final phone = (ride['phone'] ?? '').toString();
     final whatsapp = (ride['whatsapp_number'] ?? '').toString();
 
+    // UTC-safe parsing: backend stores UTC without 'Z' suffix
     DateTime? departure;
     final rawDt = ride['departure_time'];
-    if (rawDt is String) {
-      try {
-        departure = DateTime.tryParse(rawDt)?.toLocal();
-      } catch (_) {}
+    if (rawDt is String && rawDt.isNotEmpty) {
+      final withZ = (rawDt.endsWith('Z') || rawDt.contains('+')) ? rawDt : '${rawDt}Z';
+      departure = DateTime.tryParse(withZ)?.toLocal();
     } else if (rawDt is DateTime) {
       departure = rawDt.toLocal();
     }
 
     final departureText = departure != null
         ? DateFormat('dd MMM yyyy • hh:mm a').format(departure)
-        : 'Time not available';
+        : 'Time N/A';
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),

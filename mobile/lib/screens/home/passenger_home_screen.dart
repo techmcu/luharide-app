@@ -6,7 +6,6 @@ import '../../providers/auth_provider.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
 import '../../services/notification_service.dart';
-import '../../services/union_service.dart';
 import '../trips/trip_details_screen.dart';
 import '../trips/passenger_my_rides_screen.dart';
 import '../trips/create_trip_screen.dart';
@@ -24,7 +23,6 @@ class PassengerHomeScreen extends StatefulWidget {
 
 class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   final _tripService = TripService();
-  final _unionService = UnionService();
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
   final _scrollController = ScrollController();
@@ -527,92 +525,104 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
-  // Simple card for union-managed rides (from union_schedules) – poster-style, no direct booking from app yet.
+  // Union ride card — shows union name, route, time, driver, and contact buttons.
   Widget _buildUnionRideCard(Map<String, dynamic> ride) {
-    final from = (ride['from_location'] ?? '').toString();
-    final to = (ride['to_location'] ?? '').toString();
-    final unionName = (ride['union_name'] ?? '').toString();
-    final driverName = (ride['driver_name'] ?? '').toString();
-    final vehicleNumber = (ride['vehicle_number'] ?? '').toString();
-    final phone = (ride['phone'] ?? '').toString();
-    final whatsapp = (ride['whatsapp_number'] ?? '').toString();
-    final depStr = ride['departure_time']?.toString() ?? '';
-    DateTime? depTime = DateTime.tryParse(depStr);
-    String timeLabel = depStr;
-    if (depTime != null) {
-      timeLabel = DateFormat('dd MMM, HH:mm').format(depTime.toLocal());
-    }
+    final from        = (ride['from_location']  ?? '').toString();
+    final to          = (ride['to_location']    ?? '').toString();
+    final unionName   = (ride['union_name']     ?? '').toString();
+    final driverName  = (ride['driver_name']    ?? '').toString();
+    final vehicleNo   = (ride['vehicle_number'] ?? '').toString();
+    final phone       = (ride['phone']          ?? '').toString();
+    final whatsapp    = (ride['whatsapp_number']?? '').toString();
+    final effectiveWa = whatsapp.isNotEmpty ? whatsapp : phone;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    // UTC-safe parsing: backend stores UTC without 'Z', add it before parsing
+    final depRaw = ride['departure_time']?.toString() ?? '';
+    DateTime? depTime;
+    if (depRaw.isNotEmpty) {
+      final withZ = (depRaw.endsWith('Z') || depRaw.contains('+')) ? depRaw : '${depRaw}Z';
+      depTime = DateTime.tryParse(withZ)?.toLocal();
+    }
+    final timeLabel = depTime != null
+        ? DateFormat('dd MMM yyyy • hh:mm a').format(depTime)
+        : 'Time N/A';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Union name badge
+          if (unionName.isNotEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.business_rounded, size: 15, color: Colors.orange),
+                const SizedBox(width: 6),
+                Expanded(child: Text(unionName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.orange), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ]),
+            ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(14, unionName.isNotEmpty ? 12 : 14, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.directions_bus, color: Colors.orange, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '$from → $to',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
+                // Route
+                Row(children: [
+                  const Icon(Icons.trip_origin, color: Colors.green, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(from, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                ]),
+                const SizedBox(height: 6),
+                Row(children: [
+                  const Icon(Icons.location_on, color: Colors.red, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(to, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                ]),
+                const SizedBox(height: 10),
+                // Meta chips
+                Wrap(spacing: 14, runSpacing: 4, children: [
+                  _metaChip(Icons.access_time_rounded, timeLabel),
+                  if (driverName.isNotEmpty) _metaChip(Icons.person_rounded, driverName),
+                  if (vehicleNo.isNotEmpty)  _metaChip(Icons.directions_car_rounded, vehicleNo),
+                ]),
+                if (phone.isNotEmpty || effectiveWa.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    if (phone.isNotEmpty) ...[
+                      Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(phone))),
+                      const SizedBox(width: 8),
+                    ],
+                    if (effectiveWa.isNotEmpty)
+                      Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(effectiveWa))),
+                  ]),
+                ],
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Departure: $timeLabel',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[700],
-              ),
-            ),
-            if (unionName.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Union: $unionName',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[700],
-                ),
-              ),
-            ],
-            if (driverName.isNotEmpty || vehicleNumber.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                [
-                  if (driverName.isNotEmpty) 'Driver: $driverName',
-                  if (vehicleNumber.isNotEmpty) 'Taxi: $vehicleNumber',
-                ].join(' • '),
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey[700],
-                ),
-              ),
-            ],
-                    if (phone.isNotEmpty || whatsapp.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Row(children: [
-                if (phone.isNotEmpty) ...[
-                  Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(phone))),
-                  const SizedBox(width: 8),
-                ],
-                if ((whatsapp.isNotEmpty || phone.isNotEmpty))
-                  Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(whatsapp.isNotEmpty ? whatsapp : phone))),
-              ]),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  Widget _metaChip(IconData icon, String label) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 14, color: Colors.grey[500]),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+    ],
+  );
 
   void _onCreateRideTap(BuildContext context, user) {
     final status = user?.driverVerificationStatus ?? 'none';
@@ -672,49 +682,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
-  Widget _buildPopularRoute(String from, String to, String price, String trips) {
-    return Card(
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.blue[50],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Icon(Icons.route, color: Colors.blue),
-        ),
-        title: Text(
-          '$from → $to',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(trips),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              price,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.green,
-              ),
-            ),
-            const Text(
-              'per seat',
-              style: TextStyle(fontSize: 11),
-            ),
-          ],
-        ),
-        onTap: () {
-          // TODO: Quick book this route
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Searching trips: $from → $to')),
-          );
-        },
-      ),
-    );
-  }
   
   Widget _buildTripCard(TripModel trip, {Key? key}) {
     return Card(
