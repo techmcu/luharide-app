@@ -31,6 +31,7 @@ const logger = require('./src/config/logger');
 // Import socket handlers
 const socketHandlers = require('./src/socket/socketHandlers');
 const rateNotificationJob = require('./src/jobs/rateNotificationJob');
+const rideCleanupJob = require('./src/jobs/rideCleanupJob');
 
 const app = express();
 const server = http.createServer(app);
@@ -131,6 +132,7 @@ server.listen(PORT, () => {
   logger.info(`🔗 API: http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
   rateNotificationJob.start();
+  rideCleanupJob.start();
 });
 
 // Graceful shutdown

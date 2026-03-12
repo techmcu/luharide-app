@@ -511,21 +511,8 @@ const getUnionSchedules = asyncHandler(async (req, res) => {
   }
   const unionId = resUnion.rows[0].union_id;
 
-  // Auto-clean old records: keep only last 10 days
-  try {
-    await pool.query(
-      `DELETE FROM union_schedules
-       WHERE union_id = $1
-         AND departure_time < NOW() - INTERVAL '10 days'`,
-      [unionId]
-    );
-  } catch (err) {
-    logger.warn('Failed to cleanup old union_schedules', {
-      unionId,
-      code: err.code,
-      message: err.message,
-    });
-  }
+  // Note: expired union_schedules are cleaned up globally by rideCleanupJob (midnight cron).
+  // No lazy per-request cleanup needed here.
 
   let query = `
     SELECT s.*,
