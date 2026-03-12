@@ -448,23 +448,37 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('One or more drivers are invalid for this union');
   }
 
-  const created = [];
-  // Insert one schedule per selected driver
-  for (const driverId of union_driver_ids) {
-    const insertRes = await pool.query(
-      `INSERT INTO union_schedules (
-         union_id,
-         union_driver_id,
-         from_location,
-         to_location,
-         departure_time,
-         status
-       )
-       VALUES ($1, $2, $3, $4, $5, 'scheduled')
+  // Single multi-row INSERT in a transaction: atomic, one DB round-trip regardless of driver count.
+  const client = await pool.connect();
+  let created = [];
+  try {
+    await client.query('BEGIN');
+
+    const fromTrimmed = from_location.trim();
+    const toTrimmed   = to_location.trim();
+
+    // Build flat params array and placeholder groups: ($1,$2,$3,$4,$5), ($6,$7,$8,$9,$10), ...
+    const flatParams = [];
+    const placeholders = union_driver_ids.map((driverId, i) => {
+      const base = i * 5;
+      flatParams.push(unionId, driverId, fromTrimmed, toTrimmed, departure_time);
+      return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, 'scheduled')`;
+    });
+
+    const insertRes = await client.query(
+      `INSERT INTO union_schedules (union_id, union_driver_id, from_location, to_location, departure_time, status)
+       VALUES ${placeholders.join(', ')}
        RETURNING *`,
-      [unionId, driverId, from_location.trim(), to_location.trim(), departure_time]
+      flatParams
     );
-    created.push(insertRes.rows[0]);
+    created = insertRes.rows;
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 
   logger.info(
