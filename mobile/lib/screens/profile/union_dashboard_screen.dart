@@ -41,7 +41,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     if (dashboardResult['success'] == true) {
       stats = dashboardResult['data'] as Map<String, dynamic>?;
     } else {
-      error = dashboardResult['message']?.toString() ?? 'Dashboard load nahi hua';
+      error = dashboardResult['message']?.toString() ?? 'Failed to load dashboard';
     }
 
     List<dynamic> drivers = const [];
@@ -51,7 +51,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         final raw = driversResult['drivers'];
         if (raw is List) drivers = raw;
       } else {
-        error = driversResult['message']?.toString() ?? 'Drivers load nahi hue';
+        error = driversResult['message']?.toString() ?? 'Failed to load drivers';
       }
     }
 
@@ -125,7 +125,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildSectionLabel('Kya karna hai?', Icons.touch_app_rounded),
+                        child: _buildSectionLabel('Quick Actions', Icons.touch_app_rounded),
                       ),
                       const SizedBox(height: 12),
                       Padding(
@@ -137,7 +137,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: _buildSectionLabel(
-                            'Aapke Drivers (${_drivers.length})',
+                            'Your Drivers (${_drivers.length})',
                             Icons.people_alt_rounded,
                           ),
                         ),
@@ -193,7 +193,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Aapka Union Panel',
+                      'Union Control Panel',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -201,7 +201,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       ),
                     ),
                     Text(
-                      'Rides, drivers aur routes yahan manage karo',
+                      'Manage rides, drivers and routes',
                       style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
@@ -223,7 +223,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       children: [
         Expanded(
           child: _buildStatCard(
-            label: 'Kul Rides',
+            label: 'Total Trips',
             value: totalTrips.toString(),
             icon: Icons.directions_car_filled_rounded,
             color: const Color(0xFF1E88E5),
@@ -327,7 +327,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 iconBg: const Color(0xFFE3F2FD),
                 iconColor: const Color(0xFF1E88E5),
                 title: 'Drivers',
-                subtitle: 'Driver add karo\nlist dekho',
+                subtitle: 'Add & manage\nyour union drivers',
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const UnionManageDriversScreen()),
@@ -341,7 +341,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 iconBg: const Color(0xFFE8F5E9),
                 iconColor: const Color(0xFF43A047),
                 title: 'Routes',
-                subtitle: 'Purola → Dehradun\njaisi routes save karo',
+                subtitle: 'Save common routes\nlike Purola → Dehradun',
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const UnionRoutesScreen()),
@@ -356,9 +356,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           icon: Icons.add_road_rounded,
           iconBg: const Color(0xFFFFF3E0),
           iconColor: _orange,
-          title: 'Ride Banao & Poster Nikalo',
-          subtitle: 'Drivers chunno, route set karo, time daalo — ride ek click mein tayar',
-          badge: 'Sabse Zaroori',
+          title: 'Create Rides & Posters',
+          subtitle: 'Select drivers, set route and time — schedule is ready instantly',
+          badge: 'Most Important',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const UnionCreateRidesScreen()),
@@ -417,7 +417,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             Row(
               children: [
                 Text(
-                  'Kholo →',
+                  'Open →',
                   style: TextStyle(
                     fontSize: 12,
                     color: iconColor,
@@ -681,12 +681,12 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Koi driver nahi hai abhi',
+                    'No drivers added yet',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Yahan tap karo aur apna pehla driver add karo',
+                    'Tap here to add your first driver',
                     style: TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                 ],
@@ -724,7 +724,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             ElevatedButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Dobara Try karo'),
+              label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _orange,
                 foregroundColor: Colors.white,
