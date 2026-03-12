@@ -67,12 +67,13 @@ class TripService {
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
       final query = <String, dynamic>{
         'date': dateStr,
+        // Always send from/to for union_schedules text search (case-insensitive LIKE),
+        // even when we provide a canonical route_id for trips table.
+        'from': from,
+        'to': to,
       };
       if (routeId != null && routeId.isNotEmpty) {
         query['route_id'] = routeId;
-      } else {
-        query['from'] = from;
-        query['to'] = to;
       }
 
       final response = await _apiService.get(
