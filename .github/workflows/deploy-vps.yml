@@ -14,21 +14,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Start SSH agent and add key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Prepare SSH known_hosts dir
+      - name: Install sshpass
         run: |
-          mkdir -p ~/.ssh
+          sudo apt-get update
+          sudo apt-get install -y sshpass
 
-      - name: Deploy to VPS
+      - name: Deploy to VPS (password-based SSH)
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           VPS_IP: ${{ secrets.VPS_IP }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
         run: |
-          ssh -o StrictHostKeyChecking=no root@$VPS_IP "
+          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no root@$VPS_IP "
             cd /var/www/luharide-backend && \
             git remote set-url origin https://techmcu:${GH_PAT}@github.com/techmcu/luharide-app.git && \
             git fetch origin && \
