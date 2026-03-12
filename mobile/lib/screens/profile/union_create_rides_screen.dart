@@ -327,7 +327,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     }
 
     String? error;
-    int totalCreated = 0;
+    final List<String> createdIds = [];
 
     for (final id in _selectedDriverIds) {
       final routeId = _driverRouteIds[id];
@@ -349,15 +349,13 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       }
 
       final from = route['from_location']?.toString() ?? '';
-      final to = route['to_location']?.toString() ?? '';
+      final to   = route['to_location']?.toString() ?? '';
+      final dt   = _driverTimes[id] ?? _selectedDateTime;
 
-      final dt = _driverTimes[id] ?? _selectedDateTime;
       if (dt == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Please set time for all selected drivers (or a default time)',
-            ),
+            content: Text('Please set time for all selected drivers (or a default time)'),
             backgroundColor: Colors.red,
           ),
         );
@@ -371,7 +369,11 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         unionDriverIds: [id],
       );
       if (res['success'] == true) {
-        totalCreated += (res['schedules'] as List<dynamic>? ?? []).length;
+        final schedules = res['schedules'] as List<dynamic>? ?? [];
+        for (final s in schedules) {
+          final sid = (s as Map<String, dynamic>)['id']?.toString();
+          if (sid != null) createdIds.add(sid);
+        }
       } else {
         error = res['message']?.toString() ?? 'Failed to create rides';
         break;
@@ -381,24 +383,65 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     if (!mounted) return;
 
     if (error == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            totalCreated > 0
-                ? 'Rides created for $totalCreated entries'
-                : 'Rides created',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
       _selectedDriverIds.clear();
       _selectedDateTime = null;
       _driverTimes.clear();
       _loadAll();
+
+      // Auto-download combined poster for all created rides
+      if (createdIds.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [
+              const SizedBox(
+                width: 18, height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text('${createdIds.length} rides created — generating poster...'),
+            ]),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        await _downloadCombinedPoster(createdIds);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  Future<void> _downloadCombinedPoster(List<String> ids) async {
+    if (!mounted) return;
+    final res = await _service.getCombinedPosterBytes(ids);
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final bytes  = (res['bytes'] as List<int>? ?? <int>[]);
+      if (bytes.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Poster could not be generated'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      await Share.shareXFiles(
+        [XFile.fromData(Uint8List.fromList(bytes),
+            name: 'luharide-daily-schedule.pdf',
+            mimeType: 'application/pdf')],
+        text: 'Daily taxi schedule — powered by LuhaRide',
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error),
+          content: Text(res['message']?.toString() ?? 'Failed to generate poster'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1066,12 +1109,41 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     final totalUpcoming = _currentSchedules.length;
     final totalHistory  = _recentSchedules.length;
 
+    // Collect IDs for combined poster
+    final upcomingIds = _currentSchedules
+        .map((s) => (s as Map<String, dynamic>)['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+
     return RefreshIndicator(
       color: _orange,
       onRefresh: _loadAll,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
+          // ── Download full poster button ───────────────────────────────────
+          if (upcomingIds.isNotEmpty) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () => _downloadCombinedPoster(upcomingIds),
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+                label: Text(
+                  'Download Full Daily Poster  (${upcomingIds.length} rides)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // ── Upcoming rides section ────────────────────────────────────────
           _sectionHeader(
             icon: Icons.upcoming_rounded,
@@ -1370,50 +1442,29 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           ),
 
           // ── Action row ─────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _sharePoster(s),
-                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
-                    label: const Text(
-                      'Share Poster',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _orange,
-                      side: BorderSide(color: _orange.withOpacity(0.5)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                    ),
+          if (canCancel)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: () => _cancelSchedule(s['id']?.toString() ?? ''),
+                  icon: const Icon(Icons.cancel_outlined, size: 16),
+                  label: const Text(
+                    'Cancel Ride',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.redAccent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   ),
                 ),
-                if (canCancel) ...[
-                  const SizedBox(width: 10),
-                  OutlinedButton.icon(
-                    onPressed: () => _cancelSchedule(s['id']?.toString() ?? ''),
-                    icon: const Icon(Icons.cancel_outlined, size: 16),
-                    label: const Text(
-                      'Cancel',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.redAccent),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+              ),
+            )
+          else
+            const SizedBox(height: 12),
         ],
       ),
     );

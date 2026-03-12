@@ -963,6 +963,267 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   doc.end();
 });
 
+// ─── Combined poster helpers ──────────────────────────────────────────────────
+
+/** Draw a filled rect (no rounding). */
+function _fillRect(doc, x, y, w, h, color) {
+  doc.save().rect(x, y, w, h).fill(color).restore();
+}
+
+/** Draw a rounded filled rect. */
+function _fillRounded(doc, x, y, w, h, r, color) {
+  doc.save().roundedRect(x, y, w, h, r).fill(color).restore();
+}
+
+/** Draw a horizontal rule. */
+function _hLine(doc, x, y, w, color = '#E0E0E0', lw = 0.6) {
+  doc.save().moveTo(x, y).lineTo(x + w, y)
+    .strokeColor(color).lineWidth(lw).stroke().restore();
+}
+
+/** Draw a vertical rule. */
+function _vLine(doc, x, y, h, color = '#E0E0E0', lw = 0.6) {
+  doc.save().moveTo(x, y).lineTo(x, y + h)
+    .strokeColor(color).lineWidth(lw).stroke().restore();
+}
+
+/** Draw table header row. Returns bottom Y. */
+function _tableHeader(doc, x, y, cols, rowH) {
+  const totalW = cols.reduce((s, c) => s + c.w, 0);
+  _fillRect(doc, x, y, totalW, rowH, '#FF6B00');
+  let cx = x;
+  for (const col of cols) {
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9)
+      .text(col.label, cx + 5, y + (rowH - 9) / 2 + 1,
+        { width: col.w - 10, align: col.align || 'center' });
+    cx += col.w;
+  }
+  return y + rowH;
+}
+
+/** Draw one table data row. Returns bottom Y. */
+function _tableRow(doc, x, y, cols, values, rowH, evenRow) {
+  const totalW = cols.reduce((s, c) => s + c.w, 0);
+  _fillRect(doc, x, y, totalW, rowH, evenRow ? '#FFF8F2' : '#FFFFFF');
+  let cx = x;
+  for (let i = 0; i < cols.length; i++) {
+    doc.fillColor('#1A1A1A').font(i === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(10)
+      .text(String(values[i] ?? '—'), cx + 5, y + (rowH - 10) / 2 + 1,
+        { width: cols[i].w - 10, align: cols[i].align || 'left', lineBreak: false });
+    cx += cols[i].w;
+  }
+  _hLine(doc, x, y + rowH, totalW, '#F0E0D0');
+  return y + rowH;
+}
+
+/** Draw full table border. */
+function _tableBorder(doc, x, y, totalW, totalH) {
+  doc.save().rect(x, y, totalW, totalH)
+    .strokeColor('#FF6B00').lineWidth(1.2).stroke().restore();
+  // Vertical column dividers drawn inside rows already
+}
+
+/**
+ * Generate a combined PDF poster for multiple union schedules (all on one page).
+ * GET /api/union/schedules/poster-combined?ids=id1,id2,...
+ */
+const getUnionCombinedPoster = asyncHandler(async (req, res) => {
+  const rawIds = (req.query.ids || '').toString().trim();
+  if (!rawIds) throw ApiError.badRequest('No schedule IDs provided');
+
+  const ids = rawIds.split(',').map(s => s.trim()).filter(Boolean).slice(0, 50);
+  if (ids.length === 0) throw ApiError.badRequest('No valid IDs');
+
+  // Verify admin belongs to an approved union
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved' LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) throw ApiError.forbidden('No approved union');
+  const unionId = resUnion.rows[0].union_id;
+
+  // Load all requested schedules + union branding
+  const placeholders = ids.map((_, i) => `$${i + 2}`).join(',');
+  const schedRes = await pool.query(
+    `SELECT
+       s.id, s.from_location, s.to_location, s.departure_time, s.status,
+       d.name AS driver_name, d.vehicle_number, d.phone AS driver_phone,
+       u.name AS union_name, u.poster_header
+     FROM union_schedules s
+     JOIN union_drivers d ON d.id = s.union_driver_id
+     JOIN unions u        ON u.id = s.union_id
+     WHERE s.union_id = $1 AND s.id IN (${placeholders})
+     ORDER BY s.from_location, s.to_location, s.departure_time ASC`,
+    [unionId, ...ids]
+  );
+
+  if (schedRes.rows.length === 0) throw ApiError.notFound('No schedules found');
+
+  const rows        = schedRes.rows;
+  const unionName   = (rows[0].union_name || 'Taxi Union').toString();
+  const posterHdr   = (rows[0].poster_header || '').toString().trim();
+
+  // Determine date label from first schedule
+  const pad  = n => String(n).padStart(2, '0');
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const firstDt = rows[0].departure_time ? new Date(rows[0].departure_time) : new Date();
+  const dateLabel = `${DAYS[firstDt.getDay()]}, ${pad(firstDt.getDate())} ${MONTHS[firstDt.getMonth()]} ${firstDt.getFullYear()}`;
+
+  // Group schedules by route key "FROM → TO"
+  const groups = new Map();
+  for (const r of rows) {
+    const key = `${(r.from_location||'').toUpperCase()} → ${(r.to_location||'').toUpperCase()}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  }
+
+  // ─── PDF setup ─────────────────────────────────────────────────────────────
+  const safe = s => s.replace(/[^\w]+/g,'-').slice(0,40);
+  const fname = `${safe(unionName)}-schedule-${dateLabel.replace(/[, ]+/g,'-')}.pdf`;
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${fname}"`);
+
+  const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: `${unionName} - Daily Schedule`, Author: 'LuhaRide' } });
+  doc.pipe(res);
+
+  const W   = doc.page.width;
+  const H   = doc.page.height;
+  const ML  = 28;
+  const CW  = W - ML * 2;
+  const FOOTER_H = 58;
+
+  // ── Background ─────────────────────────────────────────────────────────────
+  _fillRect(doc, 0, 0, W, H, '#FAFAFA');
+
+  // ── Top accent ─────────────────────────────────────────────────────────────
+  _fillRect(doc, 0, 0, W, 5, '#CC4400');
+
+  // ── Header band ────────────────────────────────────────────────────────────
+  const headerH = posterHdr ? 128 : 100;
+  _fillRect(doc, 0, 5, W, headerH, '#FF6B00');
+
+  let y = 16;
+  if (posterHdr) {
+    doc.fillColor('#FFFFFF').font('Helvetica-Oblique').fontSize(13)
+      .text(`  *  ${posterHdr}  *`, 0, y, { width: W, align: 'center' });
+    y += 22;
+    _hLine(doc, ML + 40, y, CW - 80, 'rgba(255,255,255,0.3)');
+    y += 8;
+  } else {
+    y = 20;
+  }
+
+  // Union name
+  const unFontSize = unionName.length > 26 ? 20 : (unionName.length > 18 ? 24 : 28);
+  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(unFontSize)
+    .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
+  y += unFontSize + 5;
+
+  // Date + subtitle
+  doc.fillColor('rgba(255,255,255,0.85)').font('Helvetica').fontSize(10)
+    .text(`DAILY RIDE SCHEDULE  —  ${dateLabel.toUpperCase()}`, 0, y,
+      { width: W, align: 'center', characterSpacing: 0.8 });
+
+  y = 5 + headerH + 16;
+
+  // ── Route count badge ───────────────────────────────────────────────────────
+  const badgeTxt = `${rows.length} ride${rows.length > 1 ? 's' : ''}  across  ${groups.size} route${groups.size > 1 ? 's' : ''}`;
+  const badgeW   = 220;
+  _fillRounded(doc, (W - badgeW) / 2, y, badgeW, 22, 11, '#FF6B00');
+  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9)
+    .text(badgeTxt, (W - badgeW) / 2, y + 6, { width: badgeW, align: 'center' });
+  y += 36;
+
+  // ── Column definitions ─────────────────────────────────────────────────────
+  const COL_NO   = { label: 'No.',    w: 34,  align: 'center' };
+  const COL_TIME = { label: 'Time',   w: 76,  align: 'center' };
+  const COL_DRV  = { label: 'Driver', w: 220, align: 'left'   };
+  const COL_VEH  = { label: 'Vehicle',w: CW - 34 - 76 - 220, align: 'center' };
+  const COLS     = [COL_NO, COL_TIME, COL_DRV, COL_VEH];
+  const TOTAL_W  = COLS.reduce((s, c) => s + c.w, 0);
+  const ROW_H    = 26;
+  const HDR_H    = 24;
+
+  // Route color palette
+  const ROUTE_COLORS = ['#FF6B00','#1E88E5','#43A047','#8E24AA','#E53935','#00897B'];
+  let colorIdx = 0;
+
+  // ── For each route group, draw a section ───────────────────────────────────
+  for (const [routeKey, schedules] of groups) {
+    const sectionH = HDR_H + 8 + ROW_H + schedules.length * ROW_H + 20;
+    // Page break if needed
+    if (y + sectionH > H - FOOTER_H - 20) {
+      doc.addPage({ size: 'A4', margin: 0 });
+      _fillRect(doc, 0, 0, W, H, '#FAFAFA');
+      y = 20;
+    }
+
+    const accentColor = ROUTE_COLORS[colorIdx % ROUTE_COLORS.length];
+    colorIdx++;
+
+    // Section header pill
+    _fillRounded(doc, ML, y, TOTAL_W, HDR_H, 6, accentColor);
+    // Left dot indicator
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(11)
+      .text(`  ${routeKey}`, ML + 8, y + (HDR_H - 11) / 2 + 1,
+        { width: TOTAL_W - 70, lineBreak: false });
+    const cnt = schedules.length;
+    const cntTxt = `${cnt} ride${cnt > 1 ? 's' : ''}`;
+    doc.fillColor('rgba(255,255,255,0.85)').font('Helvetica').fontSize(9)
+      .text(cntTxt, ML, y + (HDR_H - 9) / 2 + 1,
+        { width: TOTAL_W - 8, align: 'right' });
+    y += HDR_H + 4;
+
+    // Table header
+    const tableStartY = y;
+    y = _tableHeader(doc, ML, y, COLS, ROW_H);
+
+    // Table rows
+    for (let i = 0; i < schedules.length; i++) {
+      const s   = schedules[i];
+      const dt  = s.departure_time ? new Date(s.departure_time) : null;
+      const rawH = dt ? dt.getHours() : 0;
+      const ampm = rawH >= 12 ? 'PM' : 'AM';
+      const hr12 = rawH % 12 || 12;
+      const timeStr = dt ? `${pad(hr12)}:${pad(dt.getMinutes())} ${ampm}` : '—';
+
+      y = _tableRow(doc, ML, y, COLS,
+        [pad(i + 1), timeStr, s.driver_name || '—', s.vehicle_number || '—'],
+        ROW_H, i % 2 === 0);
+    }
+
+    // Table outer border
+    _tableBorder(doc, ML, tableStartY, TOTAL_W, ROW_H + schedules.length * ROW_H);
+
+    // Vertical column dividers
+    let divX = ML;
+    for (let i = 0; i < COLS.length - 1; i++) {
+      divX += COLS[i].w;
+      _vLine(doc, divX, tableStartY, ROW_H + schedules.length * ROW_H, '#F0D0C0', 0.5);
+    }
+
+    y += 16;
+  }
+
+  // ── Footer band ─────────────────────────────────────────────────────────────
+  const footerY = H - FOOTER_H;
+  _fillRect(doc, 0, footerY, W, FOOTER_H, '#CC4400');
+  _fillRect(doc, 0, footerY, W, 3, '#FF6B00');
+
+  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(13)
+    .text('Find & Book this ride on  luharide.in', 0, footerY + 11,
+      { width: W, align: 'center' });
+  doc.fillColor('rgba(255,255,255,0.75)').font('Helvetica').fontSize(10)
+    .text('Yeh ride luharide.in par bhi milegi  |  Abhi book karein', 0, footerY + 32,
+      { width: W, align: 'center' });
+
+  doc.end();
+});
+
 module.exports = {
   getMyUnion,
   registerUnion,
@@ -980,6 +1241,7 @@ module.exports = {
   getUnionSchedules,
   cancelUnionSchedule,
   getUnionSchedulePoster,
+  getUnionCombinedPoster,
   updateUnionBranding,
 };
 

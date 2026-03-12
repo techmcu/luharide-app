@@ -20,6 +20,7 @@ const {
   getUnionSchedules,
   cancelUnionSchedule,
   getUnionSchedulePoster,
+  getUnionCombinedPoster,
   updateUnionBranding,
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
@@ -145,7 +146,16 @@ router.delete(
   cancelUnionSchedule
 );
 
-// Union admin: generate PDF poster for a schedule
+// Union admin: generate combined PDF poster for multiple schedules (one page)
+// IMPORTANT: this route must come BEFORE /schedules/:id/poster so 'combined' isn't treated as an id
+router.get(
+  '/schedules/poster-combined',
+  authenticate,
+  authorize('union_admin'),
+  getUnionCombinedPoster
+);
+
+// Union admin: generate PDF poster for a single schedule
 router.get(
   '/schedules/:id/poster',
   authenticate,
