@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
@@ -35,15 +36,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   bool _hasSearched = false;
   final _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
-  String? _selectedRouteId; // Canonical route id for consistent search
-  List<Map<String, dynamic>> _presetRoutes = const [];
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkVerificationNotification());
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadUnreadNotifications());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPresetRoutes());
   }
 
   /// Show "Verification approved!" when admin has approved driver
@@ -104,36 +101,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     return n.split(' ').first;
   }
 
-  Future<void> _loadPresetRoutes() async {
-    try {
-      final res = await _unionService.getRoutes();
-      if (!mounted) return;
-      if (res['success'] == true) {
-        final raw = res['routes'] as List<dynamic>? ?? const [];
-        // Normalize to easy Map list
-        final routes = raw.map<Map<String, dynamic>>((r) {
-          final m = (r as Map).cast<String, dynamic>();
-          return {
-            'id': m['id']?.toString(),
-            'from_location': (m['from_location'] ?? '').toString(),
-            'to_location': (m['to_location'] ?? '').toString(),
-          };
-        }).toList();
-        setState(() {
-          _presetRoutes = routes;
-        });
-      }
-    } catch (_) {
-      // Silent: preset routes are optional sugar for search
-    }
-  }
-
   Future<void> _searchTrips() async {
-    if ((_selectedRouteId == null || _selectedRouteId!.isEmpty) &&
-        (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty)) {
+    if (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a route or enter both locations'),
+          content: Text('Please enter both From and To locations'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -149,41 +121,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       from: _fromController.text.trim(),
       to: _toController.text.trim(),
       date: _selectedDate,
-      routeId: _selectedRouteId,
     );
 
     if (!mounted) return;
-    final raw = result['trips'] ?? [];
-    final unionRaw = (result['unionRides'] ?? result['union_rides'] ?? const []) as List<dynamic>;
-    final now = DateTime.now();
-    // Only show trips for the selected date and future time (same as RedBus/Blablacar).
-    final filtered = raw.where((t) {
-      final d = t.departureTime;
-      return d.year == _selectedDate.year &&
-          d.month == _selectedDate.month &&
-          d.day == _selectedDate.day &&
-          d.isAfter(now);
-    }).toList();
-
-    // Union rides: map raw JSON to simple map and apply same date filter (departure_time in UTC/IST).
+    // Show ALL rides the backend returns — no client-side time filtering.
+    // Hiding past-time rides caused rides to disappear. Backend handles date range.
     final List<Map<String, dynamic>> unionRides = [];
-    for (final r in unionRaw) {
-      if (r is! Map) continue;
-      final m = r.cast<String, dynamic>();
-      final depStr = m['departure_time']?.toString();
-      if (depStr == null || depStr.isEmpty) continue;
-      final depTime = DateTime.tryParse(depStr);
-      if (depTime == null) continue;
-      if (depTime.year == _selectedDate.year &&
-          depTime.month == _selectedDate.month &&
-          depTime.day == _selectedDate.day &&
-          depTime.isAfter(now)) {
-        unionRides.add(m);
-      }
+    for (final r in (result['unionRides'] ?? result['union_rides'] ?? const []) as List<dynamic>) {
+      if (r is Map) unionRides.add(r.cast<String, dynamic>());
     }
     setState(() {
       _isSearching = false;
-      _searchResults = filtered;
+      _searchResults = List<TripModel>.from(result['trips'] ?? []);
       _unionSearchResults = unionRides;
     });
 
@@ -357,13 +306,15 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                       // From Location
                       TextField(
                         controller: _fromController,
+                        textCapitalization: TextCapitalization.words,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        autofillHints: const [],
                         decoration: InputDecoration(
                           labelText: 'From',
-                          hintText: 'Pickup location',
-                          prefixIcon: const Icon(Icons.my_location, color: Colors.green),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          hintText: 'e.g. Dehradun',
+                          prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -371,67 +322,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                       // To Location
                       TextField(
                         controller: _toController,
+                        textCapitalization: TextCapitalization.words,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        autofillHints: const [],
                         decoration: InputDecoration(
                           labelText: 'To',
-                          hintText: 'Drop location',
+                          hintText: 'e.g. Purola',
                           prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Preset routes (chips) - fast one-tap search
-                      if (_presetRoutes.isNotEmpty) ...[
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Popular routes',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: _presetRoutes.map((route) {
-                              final id = route['id']?.toString();
-                              final from = route['from_location']?.toString() ?? '';
-                              final to = route['to_location']?.toString() ?? '';
-                              final isSelected = _selectedRouteId != null && _selectedRouteId == id;
-                              return Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: ChoiceChip(
-                                  label: Text(
-                                    '$from → $to',
-                                    style: const TextStyle(fontSize: 11),
-                                  ),
-                                  selected: isSelected,
-                                  onSelected: (_) {
-                                    setState(() {
-                                      _selectedRouteId = id;
-                                      _fromController.text = from;
-                                      _toController.text = to;
-                                    });
-                                  },
-                                  selectedColor: Colors.blue.shade600,
-                                  labelStyle: TextStyle(
-                                    color: isSelected ? Colors.white : Colors.black87,
-                                  ),
-                                  backgroundColor: Colors.grey.shade100,
-                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
 
                       // Date Selector
                       InkWell(
@@ -695,15 +597,16 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 ),
               ),
             ],
-            if (phone.isNotEmpty || whatsapp.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Contact union/driver at stand for seat booking.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
+                    if (phone.isNotEmpty || whatsapp.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(children: [
+                if (phone.isNotEmpty) ...[
+                  Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(phone))),
+                  const SizedBox(width: 8),
+                ],
+                if ((whatsapp.isNotEmpty || phone.isNotEmpty))
+                  Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(whatsapp.isNotEmpty ? whatsapp : phone))),
+              ]),
             ],
           ],
         ),
@@ -937,46 +840,73 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               ],
             ),
             
-            const SizedBox(height: 16),
-            
-            // Book Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TripDetailsScreen(
-                        tripId: trip.id,
-                        initialTrip: trip,
-                      ),
-                    ),
-                  );
-                  
-                  // If booking was successful, refresh search results
-                  if (result == true && mounted) {
-                    _searchTrips();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            const SizedBox(height: 14),
+
+            // Call + WhatsApp + Book
+            Row(children: [
+              if ((trip.driver?.phone ?? '').isNotEmpty) ...[
+                Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(trip.driver!.phone!))),
+                const SizedBox(width: 8),
+              ],
+              if ((trip.driver?.whatsappNumber ?? trip.driver?.phone ?? '').isNotEmpty) ...[
+                Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(trip.driver!.whatsappNumber ?? trip.driver!.phone ?? ''))),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                flex: 2,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => TripDetailsScreen(tripId: trip.id, initialTrip: trip)),
+                    );
+                    if (result == true && mounted) _searchTrips();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                ),
-                child: const Text(
-                  'View Details & Book',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  child: const Text('Book', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ),
-            ),
+            ]),
           ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchPhone(String phone) async {
+    final uri = Uri(scheme: 'tel', path: phone.trim());
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
+  Future<void> _launchWhatsApp(String raw) async {
+    if (raw.trim().isEmpty) return;
+    final number = raw.replaceAll(RegExp(r'\s+'), '');
+    final uri = Uri.parse('https://wa.me/$number');
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Widget _contactBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+    return Material(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 17, color: color),
+              const SizedBox(width: 5),
+              Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+            ],
+          ),
         ),
       ),
     );
