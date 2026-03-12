@@ -28,7 +28,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/deploy_key root@$VPS_IP "
             cd /var/www/luharide-backend && \
-            git remote set-url origin https://${GH_PAT}@github.com/techmcu/luharide-app.git && \
+            git remote set-url origin https://techmcu:${GH_PAT}@github.com/techmcu/luharide-app.git && \
             git fetch origin && \
             git reset --hard origin/main && \
             git remote set-url origin https://github.com/techmcu/luharide-app.git && \
