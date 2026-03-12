@@ -17,8 +17,10 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          # SSH_PRIVATE_KEY contains the raw private key text; write it directly
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          # Write multi-line private key safely via heredoc
+          cat << 'EOF' > ~/.ssh/deploy_key
+          ${{ secrets.SSH_PRIVATE_KEY }}
+          EOF
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts
 
