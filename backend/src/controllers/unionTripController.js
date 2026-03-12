@@ -200,7 +200,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
   const unionId = unionRes.rows[0].union_id;
 
-  const [ridesRes, driversRes, todayRes] = await Promise.all([
+  const [ridesRes, driversRes, todayRes, allTimeRes] = await Promise.all([
     // Active scheduled rides for this union
     pool.query(
       `SELECT COUNT(*)::int AS count
@@ -224,13 +224,21 @@ const getDashboardStats = asyncHandler(async (req, res) => {
          AND departure_time <  CURRENT_DATE::timestamp + interval '1 day'`,
       [unionId]
     ),
+    // Grand total: all rides ever created by this union
+    pool.query(
+      `SELECT COUNT(*)::int AS count
+       FROM union_schedules
+       WHERE union_id = $1`,
+      [unionId]
+    ),
   ]);
 
   ApiResponse.success(
     {
-      scheduled_rides: ridesRes.rows[0].count,
-      total_drivers:   driversRes.rows[0].count,
-      rides_today:     todayRes.rows[0].count,
+      scheduled_rides:    ridesRes.rows[0].count,
+      total_drivers:      driversRes.rows[0].count,
+      rides_today:        todayRes.rows[0].count,
+      total_rides_all_time: allTimeRes.rows[0].count,
     },
     'Dashboard stats'
   ).send(res);

@@ -518,65 +518,178 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     );
   }
 
+  String _fmtDt(DateTime dt) =>
+      '${dt.day.toString().padLeft(2, '0')} '
+      '${_monthName(dt.month)} ${dt.year}  '
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
+  String _monthName(int m) => const [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ][m];
+
   Widget _buildCreateTab(ThemeData theme) {
+    final allIds = _drivers
+        .map((d) => (d as Map<String, dynamic>)['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final allSelected =
+        allIds.isNotEmpty && _selectedDriverIds.containsAll(allIds);
+
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(
-            'Step 1: Default date & time',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          ListTile(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            tileColor: Colors.orange[50],
-            leading: const Icon(Icons.calendar_month),
-            title: Text(
-              _selectedDateTime == null
-                  ? 'Default date & time (optional)'
-                  : '${_selectedDateTime!.day.toString().padLeft(2, '0')}-'
-                      '${_selectedDateTime!.month.toString().padLeft(2, '0')}-'
-                      '${_selectedDateTime!.year}  '
-                      '${_selectedDateTime!.hour.toString().padLeft(2, '0')}:'
-                      '${_selectedDateTime!.minute.toString().padLeft(2, '0')}',
-            ),
-            subtitle: const Text(
-              'Isko set karoge to ye time sab drivers ke liye default ban jayega. Har driver ka time aap alag bhi set kar sakte ho.',
-              style: TextStyle(fontSize: 12),
-            ),
+          // ── Step 1: Default time ──────────────────────────────────────────
+          _stepHeader('1', 'Set a default departure time'),
+          const SizedBox(height: 10),
+          GestureDetector(
             onTap: _pickDateTime,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _selectedDateTime != null
+                    ? const Color(0xFFE8F5E9)
+                    : Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _selectedDateTime != null
+                      ? Colors.green.shade300
+                      : Colors.orange.shade200,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _selectedDateTime != null
+                          ? Colors.green.withOpacity(0.15)
+                          : Colors.orange.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.calendar_month_rounded,
+                      color: _selectedDateTime != null
+                          ? Colors.green.shade700
+                          : Colors.orange,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _selectedDateTime == null
+                              ? 'Tap to set date & time'
+                              : _fmtDt(_selectedDateTime!),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: _selectedDateTime != null
+                                ? Colors.green.shade800
+                                : Colors.orange.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'This time will apply to all drivers by default.\nYou can override per driver below.',
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.edit_rounded,
+                    color: _selectedDateTime != null
+                        ? Colors.green.shade600
+                        : Colors.orange,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            'Step 2: Select drivers & set route / time',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
+
+          // ── Step 2: Select drivers ────────────────────────────────────────
+          _stepHeader('2', 'Select drivers & set their route / time'),
+          const SizedBox(height: 10),
+
           if (_drivers.isEmpty)
-            const Text(
-              'No drivers in your union list yet.\nAdd drivers first from "Union Drivers".',
-              style: TextStyle(fontSize: 13),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.person_add_rounded,
+                      color: Colors.grey.shade500, size: 32),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text(
+                      'No drivers in your union yet.\nGo to "Drivers" and add your drivers first.',
+                      style: TextStyle(fontSize: 13, color: Colors.black54),
+                    ),
+                  ),
+                ],
+              ),
             )
-          else
+          else ...[
+            // Select All / Deselect All row
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_selectedDriverIds.length} of ${_drivers.length} selected',
+                    style: const TextStyle(
+                        fontSize: 13, color: Colors.black54),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      if (allSelected) {
+                        _selectedDriverIds.clear();
+                      } else {
+                        _selectedDriverIds = Set.from(allIds);
+                      }
+                    });
+                  },
+                  icon: Icon(
+                    allSelected
+                        ? Icons.deselect_rounded
+                        : Icons.select_all_rounded,
+                    size: 18,
+                  ),
+                  label: Text(allSelected ? 'Deselect All' : 'Select All'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.orange.shade800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
             ..._drivers.map((d) {
               final driver = d as Map<String, dynamic>;
               final id = driver['id']?.toString() ?? '';
               final name = (driver['name'] ?? '').toString();
               final vehicle = (driver['vehicle_number'] ?? '').toString();
+              final isSelected = _selectedDriverIds.contains(id);
+
               final driverDt = _driverTimes[id];
               final effectiveDt = driverDt ?? _selectedDateTime;
-              final timeLabel = effectiveDt == null
-                  ? 'Time not set'
-                  : '${effectiveDt.day.toString().padLeft(2, '0')}-'
-                      '${effectiveDt.month.toString().padLeft(2, '0')}-'
-                      '${effectiveDt.year}  '
-                      '${effectiveDt.hour.toString().padLeft(2, '0')}:'
-                      '${effectiveDt.minute.toString().padLeft(2, '0')}';
+              final timeSet = effectiveDt != null;
+              final timeLabel = timeSet ? _fmtDt(effectiveDt!) : 'Time not set — tap to set';
+              final hasCustomTime = _driverTimes[id] != null;
+
               final routeId = _driverRouteIds[id];
               final route = _routes
                   .cast<Map<String, dynamic>>()
@@ -584,118 +697,345 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                     (r) => r['id']?.toString() == routeId,
                     orElse: () => <String, dynamic>{},
                   );
+              final routeSet = routeId != null && route.isNotEmpty;
               final from = route['from_location']?.toString() ?? '';
               final to = route['to_location']?.toString() ?? '';
-              final routeLabel = routeId == null || route.isEmpty
-                  ? 'Route not set'
-                  : '$from → $to';
+              final routeLabel = routeSet
+                  ? '$from  →  $to'
+                  : 'Route not set — tap to choose';
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              final isReady = isSelected && timeSet && routeSet;
+
+              return GestureDetector(
+                onTap: () => setState(() {
+                  if (isSelected) {
+                    _selectedDriverIds.remove(id);
+                  } else {
+                    _selectedDriverIds.add(id);
+                  }
+                }),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isReady
+                          ? Colors.green.shade400
+                          : isSelected
+                              ? Colors.orange.shade300
+                              : Colors.grey.shade200,
+                      width: isSelected ? 2 : 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                   child: Column(
                     children: [
-                      CheckboxListTile(
-                        value: _selectedDriverIds.contains(id),
-                        onChanged: (val) {
-                          setState(() {
-                            if (val == true) {
-                              _selectedDriverIds.add(id);
-                            } else {
-                              _selectedDriverIds.remove(id);
-                            }
-                          });
-                        },
-                        controlAffinity: ListTileControlAffinity.leading,
-                        title: Text(name.isNotEmpty ? name : 'Driver'),
-                        subtitle:
-                            vehicle.isNotEmpty ? Text('Gadi: $vehicle') : null,
-                      ),
+                      // ── Driver header row ────────────────────────────────
                       Padding(
-                        padding: const EdgeInsets.only(
-                            left: 16, right: 16, bottom: 8),
-                        child: Column(
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                        child: Row(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    timeLabel,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: isSelected
+                                  ? Colors.orange.withOpacity(0.15)
+                                  : Colors.grey.shade100,
+                              child: Text(
+                                name.isNotEmpty
+                                    ? name[0].toUpperCase()
+                                    : 'D',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected
+                                      ? Colors.orange.shade800
+                                      : Colors.grey.shade600,
                                 ),
-                                TextButton(
-                                  onPressed: () => _pickDriverDateTime(id),
-                                  child: const Text(
-                                    'Set time',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    routeLabel,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name.isNotEmpty ? name : 'Driver',
                                     style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.black87,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
                                     ),
                                   ),
-                                ),
-                                TextButton(
-                                  onPressed: _routes.isEmpty
-                                      ? null
-                                      : () => _pickDriverRoute(id),
-                                  child: const Text(
-                                    'Set route',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ),
-                              ],
+                                  if (vehicle.isNotEmpty)
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                            Icons.directions_car_rounded,
+                                            size: 13,
+                                            color: Colors.grey),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          vehicle,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.black54),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+                            // Selected / unselected indicator
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? Colors.orange
+                                    : Colors.grey.shade200,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                isSelected ? Icons.check_rounded : Icons.add_rounded,
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey.shade500,
+                                size: 18,
+                              ),
                             ),
                           ],
                         ),
                       ),
+
+                      // ── Route & Time tiles ───────────────────────────────
+                      if (isSelected) ...[
+                        const Divider(height: 1, indent: 14, endIndent: 14),
+                        // Route tile
+                        _infoTile(
+                          icon: Icons.route_rounded,
+                          label: 'Route',
+                          value: routeLabel,
+                          isSet: routeSet,
+                          actionLabel: routeSet ? 'Change' : 'Set Route',
+                          onTap: _routes.isEmpty
+                              ? () => ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'No routes yet. Add routes first.'),
+                                      backgroundColor: Colors.orange,
+                                    ),
+                                  )
+                              : () => _pickDriverRoute(id),
+                        ),
+                        const Divider(height: 1, indent: 14, endIndent: 14),
+                        // Time tile
+                        _infoTile(
+                          icon: Icons.access_time_rounded,
+                          label: hasCustomTime ? 'Custom Time' : 'Time',
+                          value: timeLabel,
+                          isSet: timeSet,
+                          actionLabel:
+                              hasCustomTime ? 'Change' : (timeSet ? 'Override' : 'Set Time'),
+                          onTap: () => _pickDriverDateTime(id),
+                          badge: hasCustomTime ? 'Custom' : null,
+                        ),
+                        // Ready indicator
+                        if (isReady)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 8, horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(16),
+                                bottomRight: Radius.circular(16),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle_rounded,
+                                    color: Colors.green.shade600, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Ready to create ride',
+                                  style: TextStyle(
+                                    color: Colors.green.shade700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ],
                   ),
                 ),
               );
             }),
-          const SizedBox(height: 16),
+          ],
+
+          const SizedBox(height: 20),
+
+          // ── Create button ─────────────────────────────────────────────────
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 56,
             child: ElevatedButton.icon(
               onPressed: _createRides,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                elevation: 2,
               ),
-              icon: const Icon(Icons.check_circle),
-              label: const Text(
-                'Create rides for selected drivers',
-                style: TextStyle(fontWeight: FontWeight.w600),
+              icon: const Icon(Icons.check_circle_rounded, size: 22),
+              label: Text(
+                _selectedDriverIds.isEmpty
+                    ? 'Select drivers above to create rides'
+                    : 'Create rides for ${_selectedDriverIds.length} driver${_selectedDriverIds.length > 1 ? 's' : ''}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 15),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  Widget _stepHeader(String number, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: Colors.orange,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Text(
+              number,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF222222),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _infoTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool isSet,
+    required String actionLabel,
+    required VoidCallback onTap,
+    String? badge,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 20,
+                color: isSet ? Colors.green.shade600 : Colors.grey.shade500),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade100,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            badge,
+                            style: TextStyle(
+                                fontSize: 9,
+                                color: Colors.blue.shade800,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isSet
+                          ? const Color(0xFF222222)
+                          : Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: isSet
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                actionLabel,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: isSet ? Colors.green.shade700 : Colors.orange.shade800,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -716,8 +1056,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
             const Padding(
               padding: EdgeInsets.only(bottom: 16),
               child: Text(
-                'No upcoming rides. Naye ride create karne ke baad yaha show honge.',
-                style: TextStyle(fontSize: 13),
+                'No upcoming rides. Create rides from the "Create rides" tab.',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
               ),
             )
           else
@@ -821,7 +1161,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
             ),
             if (vehicle.isNotEmpty)
               Text(
-                'Gadi: $vehicle',
+                'Vehicle: $vehicle',
                 style: const TextStyle(fontSize: 13),
               ),
             const SizedBox(height: 8),
@@ -841,7 +1181,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                 '$from → $to\n'
                 'Date: $dateStr\n'
                 'Driver: ${driverName.isNotEmpty ? driverName : '—'}'
-                '${vehicle.isNotEmpty ? '\nGadi: $vehicle' : ''}',
+                '${vehicle.isNotEmpty ? '\nVehicle: $vehicle' : ''}',
                 style: const TextStyle(fontSize: 12),
               ),
             ),
