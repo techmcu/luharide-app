@@ -282,50 +282,84 @@ const respondToBooking = asyncHandler(async (req, res) => {
 
 /**
  * Get my bookings (Passenger)
- * GET /api/bookings/my-bookings
+ * GET /api/bookings/my-bookings?days=30&page=1&limit=20
+ *
+ * Params:
+ *   days  — how many past days to fetch (default 30, max 90, use 0 for all within retention)
+ *   page  — page number (default 1)
+ *   limit — results per page (default 20, max 50)
+ *
+ * Tiered display strategy:
+ *   - Default: last 30 days (fast, relevant)
+ *   - User taps "Load older": pass days=90 (or days=0 for all retained records)
+ *   - Records older than 90 days are purged by cron — intentionally not shown
  */
 const getMyBookings = asyncHandler(async (req, res) => {
   const passengerId = req.user.id;
+  const days  = Math.min(90, Math.max(0, parseInt(req.query.days,  10) || 30));
+  const page  = Math.max(1,  parseInt(req.query.page,  10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const offset = (page - 1) * limit;
 
-  const result = await pool.query(
-    `SELECT 
-      b.id, b.trip_id, b.seat_numbers, b.status, b.total_amount, b.created_at,
-      t.from_location, t.to_location, t.departure_time, t.fare_per_seat,
-      t.vehicle_number, t.available_seats, t.total_capacity AS total_seats,
-      u.name as driver_name, u.phone as driver_phone, u.email as driver_email, u.whatsapp_number as driver_whatsapp,
-      u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
-    FROM bookings b
-    JOIN trips t ON b.trip_id = t.id
-    LEFT JOIN users u ON t.driver_id = u.id
-    WHERE b.passenger_id = $1
-    ORDER BY b.created_at DESC`,
-    [passengerId]
-  );
+  // days=0 → no date filter (show everything within retention window)
+  const dateClause = days > 0
+    ? `AND b.created_at >= NOW() - INTERVAL '${days} days'`
+    : '';
 
-  const bookings = result.rows.map(row => ({
-    id: row.id,
-    trip_id: row.trip_id,
-    seat_numbers: row.seat_numbers,
-    status: row.status,
-    total_amount: parseFloat(row.total_amount),
-    created_at: row.created_at,
-    from_location: row.from_location,
-    to_location: row.to_location,
+  const [dataRes, countRes] = await Promise.all([
+    pool.query(
+      `SELECT
+        b.id, b.trip_id, b.seat_numbers, b.status, b.total_amount, b.created_at,
+        t.from_location, t.to_location, t.departure_time, t.fare_per_seat,
+        t.vehicle_number, t.total_capacity AS total_seats,
+        u.name  AS driver_name,  u.phone AS driver_phone,
+        u.email AS driver_email, u.whatsapp_number AS driver_whatsapp,
+        u.bio   AS driver_bio,   u.luggage_allowance_per_passenger AS driver_luggage_allowance
+       FROM bookings b
+       JOIN trips t ON b.trip_id = t.id
+       LEFT JOIN users u ON t.driver_id = u.id
+       WHERE b.passenger_id = $1
+         ${dateClause}
+       ORDER BY b.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [passengerId, limit, offset]
+    ),
+    pool.query(
+      `SELECT COUNT(*)::int AS total
+       FROM bookings b
+       WHERE b.passenger_id = $1
+         ${dateClause}`,
+      [passengerId]
+    ),
+  ]);
+
+  const total      = countRes.rows[0].total;
+  const totalPages = Math.ceil(total / limit);
+
+  const bookings = dataRes.rows.map(row => ({
+    id:             row.id,
+    trip_id:        row.trip_id,
+    seat_numbers:   row.seat_numbers,
+    status:         row.status,
+    total_amount:   parseFloat(row.total_amount),
+    created_at:     row.created_at,
+    from_location:  row.from_location,
+    to_location:    row.to_location,
     departure_time: row.departure_time,
-    fare_per_seat: parseFloat(row.fare_per_seat),
+    fare_per_seat:  parseFloat(row.fare_per_seat),
     vehicle_number: row.vehicle_number,
     driver: row.status === 'confirmed' ? {
-      name: row.driver_name,
-      phone: row.driver_phone,
-      email: row.driver_email,
-      whatsapp_number: row.driver_whatsapp,
-      bio: row.driver_bio || null,
-      luggage_allowance_per_passenger: row.driver_luggage_allowance || null
-    } : null // Only show driver details when approved
+      name:                          row.driver_name,
+      phone:                         row.driver_phone,
+      email:                         row.driver_email,
+      whatsapp_number:               row.driver_whatsapp,
+      bio:                           row.driver_bio || null,
+      luggage_allowance_per_passenger: row.driver_luggage_allowance || null,
+    } : null,
   }));
 
   ApiResponse.success(
-    { bookings },
+    { bookings, total, page, limit, total_pages: totalPages, days_filter: days },
     'Bookings retrieved'
   ).send(res);
 });

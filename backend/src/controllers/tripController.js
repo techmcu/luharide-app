@@ -590,39 +590,58 @@ const getTripDetails = asyncHandler(async (req, res) => {
 
 /**
  * Get my trips (Driver only)
- * GET /api/trips/my-trips
- * Includes pending_requests_count for each trip so driver can see which need approval
+ * GET /api/trips/my-trips?status=scheduled&days=30&page=1&limit=20
+ *
+ * Params:
+ *   status — filter by trip status (optional)
+ *   days   — how many past days to include (default 30, 0 = all within retention)
+ *   page   — page number (default 1)
+ *   limit  — results per page (default 20, max 50)
  */
 const getMyTrips = asyncHandler(async (req, res) => {
   const driverId = req.user.id;
   const { status } = req.query;
-
-  let query = `
-    SELECT t.*,
-      (SELECT COUNT(*) FROM bookings b 
-       WHERE b.trip_id = t.id AND b.status = 'pending') as pending_requests_count
-    FROM trips t
-    WHERE t.driver_id = $1
-  `;
+  const days  = Math.min(90, Math.max(0, parseInt(req.query.days,  10) || 30));
+  const page  = Math.max(1,  parseInt(req.query.page,  10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const offset = (page - 1) * limit;
 
   const params = [driverId];
+  let whereClauses = 'WHERE t.driver_id = $1';
 
-  if (status) {
-    query += ` AND t.status = $2`;
-    params.push(status);
+  // Scheduled trips always shown regardless of date — driver needs to action them
+  // Completed/cancelled trips respect the days filter
+  if (days > 0) {
+    whereClauses += `
+      AND (t.status = 'scheduled'
+           OR t.departure_time >= NOW() - INTERVAL '${days} days')`;
   }
 
-  query += ` ORDER BY pending_requests_count DESC, t.departure_time DESC`;
+  if (status) {
+    params.push(status);
+    whereClauses += ` AND t.status = $${params.length}`;
+  }
 
-  const result = await pool.query(query, params);
+  params.push(limit, offset);
+
+  const result = await pool.query(
+    `SELECT t.*,
+       (SELECT COUNT(*) FROM bookings b
+        WHERE b.trip_id = t.id AND b.status = 'pending') AS pending_requests_count
+     FROM trips t
+     ${whereClauses}
+     ORDER BY pending_requests_count DESC, t.departure_time DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
 
   const trips = result.rows.map(row => ({
     ...row,
-    pending_requests_count: parseInt(row.pending_requests_count, 10) || 0
+    pending_requests_count: parseInt(row.pending_requests_count, 10) || 0,
   }));
 
   ApiResponse.success(
-    { trips, count: trips.length },
+    { trips, count: trips.length, page, limit, days_filter: days },
     'Trips retrieved'
   ).send(res);
 });
