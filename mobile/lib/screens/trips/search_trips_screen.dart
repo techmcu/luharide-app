@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/trip_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
+import '../auth/simple_login_screen.dart';
 import 'trip_details_screen.dart';
 
 // ── Palette constants ────────────────────────────────────────────────────────
@@ -24,6 +27,55 @@ Future<void> _launchWhatsApp(String raw) async {
   final number = raw.replaceAll(RegExp(r'\s+'), '');
   final uri = Uri.parse('https://wa.me/$number');
   if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+// ── Auth guard – check login before contacting driver ───────────────────────
+void _guardedContact(BuildContext ctx, VoidCallback action) {
+  final isLoggedIn = Provider.of<AuthProvider>(ctx, listen: false).isAuthenticated;
+  if (isLoggedIn) {
+    action();
+  } else {
+    _showLoginDialog(ctx);
+  }
+}
+
+void _showLoginDialog(BuildContext ctx) {
+  showDialog(
+    context: ctx,
+    builder: (dialogCtx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Row(
+        children: [
+          Icon(Icons.lock_rounded, color: _kBlue, size: 22),
+          SizedBox(width: 8),
+          Text('Login Required', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+        ],
+      ),
+      content: const Text(
+        'You need to be logged in to contact the driver.',
+        style: TextStyle(fontSize: 14, color: Colors.black87),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogCtx),
+          child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _kBlue,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () {
+            Navigator.pop(dialogCtx);
+            Navigator.push(ctx, MaterialPageRoute(builder: (_) => const SimpleLoginScreen()));
+          },
+          child: const Text('Login', style: TextStyle(fontWeight: FontWeight.w700)),
+        ),
+      ],
+    ),
+  );
 }
 
 // ── Route header widget (shared between both card types) ────────────────────
@@ -83,6 +135,8 @@ class _RouteRow extends StatelessWidget {
 }
 
 // ── Contact buttons (Call + WhatsApp) ───────────────────────────────────────
+// Numbers are NEVER shown as text – only icon+label buttons.
+// Requires login: if not authenticated, shows login dialog instead of launching.
 class _ContactButtons extends StatelessWidget {
   const _ContactButtons({required this.phone, required this.whatsapp});
   final String phone;
@@ -90,9 +144,11 @@ class _ContactButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasPhone   = phone.trim().isNotEmpty;
-    final hasWa      = whatsapp.trim().isNotEmpty;
-    final effectiveWa = hasWa ? whatsapp : phone; // fall back to phone for WA
+    final hasPhone    = phone.trim().isNotEmpty;
+    final effectiveWa = whatsapp.trim().isNotEmpty ? whatsapp : phone;
+    final hasWa       = effectiveWa.trim().isNotEmpty;
+
+    if (!hasPhone && !hasWa) return const SizedBox.shrink();
 
     return Row(
       children: [
@@ -102,19 +158,20 @@ class _ContactButtons extends StatelessWidget {
               icon: Icons.call_rounded,
               label: 'Call',
               color: _kGreen,
-              onTap: () => _launchPhone(phone),
+              onTap: () => _guardedContact(context, () => _launchPhone(phone)),
             ),
           ),
           const SizedBox(width: 8),
         ],
-        Expanded(
-          child: _IconBtn(
-            icon: Icons.chat_rounded,
-            label: 'WhatsApp',
-            color: _kWa,
-            onTap: effectiveWa.trim().isEmpty ? null : () => _launchWhatsApp(effectiveWa),
+        if (hasWa)
+          Expanded(
+            child: _IconBtn(
+              icon: Icons.chat_rounded,
+              label: 'WhatsApp',
+              color: _kWa,
+              onTap: () => _guardedContact(context, () => _launchWhatsApp(effectiveWa)),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -679,6 +736,8 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
 }
 
 // ── Location input field (extracted widget) ───────────────────────────────────
+// enableSuggestions: false  → disables keyboard predictive text
+// autofillHints: []         → disables browser/OS autofill dropdown
 class _LocationField extends StatelessWidget {
   const _LocationField({
     required this.controller,
@@ -698,6 +757,9 @@ class _LocationField extends StatelessWidget {
     return TextField(
       controller: controller,
       textCapitalization: TextCapitalization.words,
+      enableSuggestions: false,
+      autocorrect: false,
+      autofillHints: const [],
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
