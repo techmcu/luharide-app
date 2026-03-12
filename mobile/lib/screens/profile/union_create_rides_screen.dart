@@ -149,101 +149,54 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
   Future<void> _showAddRouteDialog() async {
     final fromController = TextEditingController();
-    final toController = TextEditingController();
+    final toController   = TextEditingController();
     final formKey = GlobalKey<FormState>();
-    bool submitting = false;
 
-    final result = await showDialog<bool>(
+    await showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Add route'),
-          content: StatefulBuilder(
-            builder: (context, setDialogState) {
-              return Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextFormField(
-                      controller: fromController,
-                      decoration: const InputDecoration(
-                        labelText: 'From (e.g. Purola)',
-                      ),
-                      validator: (v) {
-                        final value = v?.trim() ?? '';
-                        if (value.isEmpty) return 'Enter from location';
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: toController,
-                      decoration: const InputDecoration(
-                        labelText: 'To (e.g. Dehradun)',
-                      ),
-                      validator: (v) {
-                        final value = v?.trim() ?? '';
-                        if (value.isEmpty) return 'Enter to location';
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            StatefulBuilder(
-              builder: (context, setDialogState) {
-                return TextButton(
-                  onPressed: submitting
-                      ? null
-                      : () async {
-                          if (!formKey.currentState!.validate()) return;
-                          setDialogState(() => submitting = true);
-                          final res = await _service.addRoute(
-                            fromLocation: fromController.text.trim(),
-                            toLocation: toController.text.trim(),
-                          );
-                          setDialogState(() => submitting = false);
-                          if (!mounted) return;
-                          if (res['success'] == true) {
-                            Navigator.pop(ctx, true);
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  res['message']?.toString() ??
-                                      'Failed to add route',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
-                            );
-                          }
-                        },
-                  child: submitting
-                      ? const SizedBox(
-                          height: 18,
-                          width: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Save'),
-                );
-              },
-            ),
-          ],
-        );
-      },
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _QuickAddRouteSheet(
+        formKey: formKey,
+        fromCtrl: fromController,
+        toCtrl: toController,
+        onSave: (submitting) async {
+          if (!formKey.currentState!.validate()) return;
+          submitting(true);
+          final res = await _service.addRoute(
+            fromLocation: fromController.text.trim(),
+            toLocation: toController.text.trim(),
+          );
+          submitting(false);
+          if (!mounted) return;
+          if (res['success'] == true) {
+            Navigator.pop(ctx);
+            _loadAll();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Row(children: [
+                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text('Route saved'),
+                ]),
+                backgroundColor: const Color(0xFF43A047),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(res['message']?.toString() ?? 'Failed to add route'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            );
+          }
+        },
+      ),
     );
-
-    if (result == true) {
-      _loadAll();
-    }
   }
 
   Future<void> _pickDriverRoute(String driverId) async {
@@ -259,51 +212,97 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
     final selected = await showModalBottomSheet<String>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.grey[400],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Choose route for this driver',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _routes.length,
-                  itemBuilder: (context, index) {
-                    final route =
-                        _routes[index] as Map<String, dynamic>? ?? {};
-                    final id = route['id']?.toString() ?? '';
-                    final from =
-                        route['from_location']?.toString() ?? '';
-                    final to = route['to_location']?.toString() ?? '';
-                    return ListTile(
-                      title: Text('$from → $to'),
-                      onTap: () => Navigator.pop(ctx, id),
-                    );
-                  },
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _orange.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.route_rounded, color: _orange, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Choose Route',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 14),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: _routes.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final route = _routes[index] as Map<String, dynamic>? ?? {};
+                      final id   = route['id']?.toString() ?? '';
+                      final from = route['from_location']?.toString() ?? '';
+                      final to   = route['to_location']?.toString() ?? '';
+                      return InkWell(
+                        onTap: () => Navigator.pop(ctx, id),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F8F8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 10, height: 10,
+                                decoration: const BoxDecoration(
+                                  color: _orange, shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '$from  →  $to',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios_rounded,
+                                  size: 14, color: Colors.grey),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -468,41 +467,64 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     }
   }
 
+  static const _orange = Color(0xFFFF6B00);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text('Create rides & posters'),
-        backgroundColor: Colors.orange,
+        title: const Text(
+          'Create Rides & Posters',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: _orange,
         foregroundColor: Colors.white,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          unselectedLabelStyle: const TextStyle(fontSize: 13),
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: const [
-            Tab(text: 'Create rides'),
-            Tab(text: 'View rides'),
+            Tab(icon: Icon(Icons.add_circle_outline_rounded, size: 18), text: 'Create'),
+            Tab(icon: Icon(Icons.list_alt_rounded, size: 18), text: 'View Rides'),
           ],
         ),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: _orange))
           : _error != null
               ? Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(32),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
                         Text(
                           _error!,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.red),
+                          style: const TextStyle(color: Colors.black54),
                         ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
                           onPressed: _loadAll,
-                          child: const Text('Retry'),
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Try Again'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _orange,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1041,40 +1063,47 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   }
 
   Widget _buildViewTab(ThemeData theme) {
+    final totalUpcoming = _currentSchedules.length;
+    final totalHistory  = _recentSchedules.length;
+
     return RefreshIndicator(
+      color: _orange,
       onRefresh: _loadAll,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          Text(
-            'Current / upcoming rides',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+          // ── Upcoming rides section ────────────────────────────────────────
+          _sectionHeader(
+            icon: Icons.upcoming_rounded,
+            color: _orange,
+            title: 'Upcoming Rides',
+            count: totalUpcoming,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (_currentSchedules.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 16),
-              child: Text(
-                'No upcoming rides. Create rides from the "Create rides" tab.',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
+            _emptySection(
+              icon: Icons.directions_bus_outlined,
+              message: 'No upcoming rides.\nCreate rides from the "Create" tab.',
             )
           else
             ..._currentSchedules
                 .map((s) => _buildScheduleCard(s as Map<String, dynamic>, true))
                 .toList(),
-          const SizedBox(height: 16),
-          Text(
-            'Last 10 days history',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+
+          const SizedBox(height: 20),
+
+          // ── History section ───────────────────────────────────────────────
+          _sectionHeader(
+            icon: Icons.history_rounded,
+            color: const Color(0xFF3949AB),
+            title: 'Last 10 Days History',
+            count: totalHistory,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (_recentSchedules.isEmpty)
-            const Text(
-              'No recent rides saved in last 10 days.',
-              style: TextStyle(fontSize: 13),
+            _emptySection(
+              icon: Icons.history_outlined,
+              message: 'No rides in the last 10 days.',
             )
           else
             ..._recentSchedules
@@ -1085,136 +1114,474 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     );
   }
 
+  Widget _sectionHeader({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required int count,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ),
+        if (count > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _emptySection({required IconData icon, required String message}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.grey.shade400, size: 32),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildScheduleCard(Map<String, dynamic> s, bool allowCancel) {
-    final from = (s['from_location'] ?? '').toString();
-    final to = (s['to_location'] ?? '').toString();
+    final from       = (s['from_location'] ?? '').toString();
+    final to         = (s['to_location'] ?? '').toString();
     final driverName = (s['driver_name'] ?? '').toString();
-    final vehicle = (s['vehicle_number'] ?? '').toString();
-    final status = (s['status'] ?? '').toString();
-    final canCancel = s['can_cancel'] == true && allowCancel;
+    final vehicle    = (s['vehicle_number'] ?? '').toString();
+    final status     = (s['status'] ?? '').toString();
+    final canCancel  = s['can_cancel'] == true && allowCancel;
 
     DateTime? dt;
     final dtRaw = s['departure_time'];
-    if (dtRaw != null) {
-      dt = DateTime.tryParse(dtRaw.toString());
-    }
+    if (dtRaw != null) dt = DateTime.tryParse(dtRaw.toString());
 
     final dateStr = dt != null
-        ? '${dt.day.toString().padLeft(2, '0')}-'
-            '${dt.month.toString().padLeft(2, '0')}-'
-            '${dt.year}  '
-            '${dt.hour.toString().padLeft(2, '0')}:'
-            '${dt.minute.toString().padLeft(2, '0')}'
+        ? '${_fmtDt(dt)}'
         : '—';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    // Status color
+    Color statusColor;
+    Color statusBg;
+    IconData statusIcon;
+    switch (status) {
+      case 'cancelled':
+        statusColor = Colors.red.shade700;
+        statusBg    = Colors.red.shade50;
+        statusIcon  = Icons.cancel_rounded;
+        break;
+      case 'completed':
+        statusColor = const Color(0xFF3949AB);
+        statusBg    = const Color(0xFFE8EAF6);
+        statusIcon  = Icons.check_circle_rounded;
+        break;
+      default:
+        statusColor = const Color(0xFF2E7D32);
+        statusBg    = const Color(0xFFE8F5E9);
+        statusIcon  = Icons.schedule_rounded;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // ── Header strip ───────────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 10),
+            decoration: BoxDecoration(
+              color: _orange.withOpacity(0.05),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
               children: [
-                const Icon(Icons.directions_bus, color: Colors.orange),
-                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _orange.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.directions_bus_rounded, color: _orange, size: 20),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    '$from → $to',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        from.isNotEmpty && to.isNotEmpty ? '$from  →  $to' : '—',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_rounded,
+                              size: 12, color: Colors.grey.shade500),
+                          const SizedBox(width: 4),
+                          Text(
+                            dateStr,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
+                // Status badge
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
-                    color: status == 'cancelled'
-                        ? Colors.red[50]
-                        : Colors.green[50],
+                    color: statusBg,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: status == 'cancelled'
-                          ? Colors.red[700]
-                          : Colors.green[700],
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 12, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        status.isEmpty ? 'ACTIVE' : status.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              dateStr,
-              style: const TextStyle(fontSize: 13),
+          ),
+
+          // ── Driver info row ────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+            child: Row(
+              children: [
+                if (driverName.isNotEmpty) ...[
+                  Container(
+                    width: 34, height: 34,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E88E5).withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        driverName[0].toUpperCase(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E88E5),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          driverName,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        if (vehicle.isNotEmpty)
+                          Row(
+                            children: [
+                              Icon(Icons.directions_car_rounded,
+                                  size: 12, color: Colors.grey.shade500),
+                              const SizedBox(width: 4),
+                              Text(
+                                vehicle,
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ] else
+                  Expanded(
+                    child: Text(
+                      'Driver not assigned',
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              driverName.isNotEmpty ? 'Driver: $driverName' : 'Driver: —',
-              style: const TextStyle(fontSize: 13),
-            ),
-            if (vehicle.isNotEmpty)
-              Text(
-                'Vehicle: $vehicle',
-                style: const TextStyle(fontSize: 13),
-              ),
-            const SizedBox(height: 8),
-            const Text(
-              'Poster preview (simple text):',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: Text(
-                '$from → $to\n'
-                'Date: $dateStr\n'
-                'Driver: ${driverName.isNotEmpty ? driverName : '—'}'
-                '${vehicle.isNotEmpty ? '\nVehicle: $vehicle' : ''}',
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
+          ),
+
+          // ── Action row ─────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _sharePoster(s),
-                    icon: const Icon(Icons.picture_as_pdf),
-                    label: const Text('Download / share poster (PDF)'),
+                    icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+                    label: const Text(
+                      'Share Poster',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _orange,
+                      side: BorderSide(color: _orange.withOpacity(0.5)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                    ),
                   ),
                 ),
+                if (canCancel) ...[
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => _cancelSchedule(s['id']?.toString() ?? ''),
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text(
+                      'Cancel',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.redAccent),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                  ),
+                ],
               ],
             ),
-            if (canCancel) ...[
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () => _cancelSchedule(s['id']?.toString() ?? ''),
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  label: const Text(
-                    'Cancel ride',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
+// ── Quick Add Route Sheet (used inside Create Rides tab) ──────────────────────
+
+class _QuickAddRouteSheet extends StatefulWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController fromCtrl, toCtrl;
+  final void Function(Future<void> Function(bool)) onSave;
+
+  const _QuickAddRouteSheet({
+    required this.formKey,
+    required this.fromCtrl,
+    required this.toCtrl,
+    required this.onSave,
+  });
+
+  @override
+  State<_QuickAddRouteSheet> createState() => _QuickAddRouteSheetState();
+}
+
+class _QuickAddRouteSheetState extends State<_QuickAddRouteSheet> {
+  bool _submitting = false;
+  static const _orange = Color(0xFFFF6B00);
+  static const _blue   = Color(0xFF1E88E5);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 8,
+        left: 20,
+        right: 20,
+      ),
+      child: Form(
+        key: widget.formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _orange.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.add_road_rounded, color: _orange, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Quick Add Route',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    Text('Save route to use when creating rides',
+                        style: TextStyle(fontSize: 12, color: Colors.black54)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            TextFormField(
+              controller: widget.fromCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: _inputDeco('From (e.g. Purola)', Icons.trip_origin_rounded, _orange),
+              validator: (v) =>
+                  (v?.trim() ?? '').isEmpty ? 'Enter departure location' : null,
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(children: [
+                      Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text('to', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+            TextFormField(
+              controller: widget.toCtrl,
+              textCapitalization: TextCapitalization.words,
+              decoration: _inputDeco('To (e.g. Dehradun)', Icons.location_on_rounded, _blue),
+              validator: (v) =>
+                  (v?.trim() ?? '').isEmpty ? 'Enter destination' : null,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: _submitting
+                    ? null
+                    : () {
+                        widget.onSave(
+                          (val) { if (mounted) setState(() => _submitting = val); },
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                child: _submitting
+                    ? const SizedBox(
+                        width: 20, height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text('Save Route',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDeco(String label, IconData icon, Color accent) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, size: 18, color: accent),
+      filled: true,
+      fillColor: const Color(0xFFF8F8F8),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade200),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: accent, width: 1.5),
+      ),
+    );
+  }
+}
