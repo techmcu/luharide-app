@@ -24,26 +24,11 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   List<dynamic> _unionRides = [];
   bool _isSearching = false;
   bool _hasSearched = false;
-  List<dynamic> _recentRoutes = [];
-
   @override
   void dispose() {
     _fromController.dispose();
     _toController.dispose();
     super.dispose();
-  }
-  
-  @override
-  void initState() {
-    super.initState();
-    _loadRecentRoutes();
-  }
-
-  Future<void> _loadRecentRoutes() async {
-    final result = await _tripService.getRecentRoutes();
-    if (mounted && result['success'] == true) {
-      setState(() => _recentRoutes = List<dynamic>.from(result['routes'] ?? []));
-    }
   }
   
   // Optional: Load today's trips automatically
@@ -98,56 +83,19 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       date: _selectedDate,
     );
 
-    final raw = result['trips'] ?? [];
-    final now = DateTime.now();
-    final isToday = _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-
-    // Driver rides: same date only; if today, hide past times.
-    final filtered = raw.where((t) {
-      final d = t.departureTime;
-      final sameDate = d.year == _selectedDate.year &&
-          d.month == _selectedDate.month &&
-          d.day == _selectedDate.day;
-      if (!sameDate) return false;
-      if (!isToday) return true;
-      return d.isAfter(now);
-    }).toList();
-
-    // Union rides: backend already filters by date; if today, hide past times.
-    final List<dynamic> rawUnion =
+    // Show ALL rides returned by backend for the selected date, no time filtering.
+    // Backend already handles date range. Hiding past-time rides causes missed results.
+    final List<TripModel> filtered = List<TripModel>.from(result['trips'] ?? []);
+    final List<dynamic> filteredUnion =
         List<dynamic>.from(result['unionRides'] ?? const []);
-    final filteredUnion = rawUnion.where((ride) {
-      final map = ride as Map<String, dynamic>;
-      final rawDt = map['departure_time'];
-      DateTime? d;
-      if (rawDt is String) {
-        d = DateTime.tryParse(rawDt)?.toLocal();
-      } else if (rawDt is DateTime) {
-        d = rawDt.toLocal();
-      }
-      if (d == null) return true;
-      final sameDate = d.year == _selectedDate.year &&
-          d.month == _selectedDate.month &&
-          d.day == _selectedDate.day;
-      if (!sameDate) return false;
-      if (!isToday) return true;
-      return d.isAfter(now);
-    }).toList();
+
     setState(() {
       _isSearching = false;
       _searchResults = filtered;
       _unionRides = filteredUnion;
     });
 
-    if (result['success'] == true) {
-      _tripService.saveRecentRoute(
-        from: _fromController.text.trim(),
-        to: _toController.text.trim(),
-      );
-      _loadRecentRoutes();
-    } else if (mounted) {
+    if (result['success'] != true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? 'Search failed'),
@@ -182,36 +130,6 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
             ),
             child: Column(
               children: [
-                // Recent routes (quick fill)
-                if (_recentRoutes.isNotEmpty) ...[
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Recent routes',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 6,
-                    children: _recentRoutes.map<Widget>((r) {
-                      final from = r['from_location']?.toString() ?? '';
-                      final to = r['to_location']?.toString() ?? '';
-                      return ActionChip(
-                        label: Text('$from → $to', style: const TextStyle(fontSize: 12)),
-                        onPressed: () {
-                          _fromController.text = from;
-                          _toController.text = to;
-                          setState(() {});
-                        },
-                        backgroundColor: Colors.blue[50],
-                        side: BorderSide(color: Colors.blue[200]!),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                ],
                 // From Location
                 TextField(
                   controller: _fromController,

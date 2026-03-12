@@ -1,3 +1,13 @@
+/// Parses a datetime string that may or may not have a timezone marker.
+/// Backend stores UTC without 'Z', so we append 'Z' if missing to ensure
+/// correct local-time conversion (e.g. 4:30 UTC → 10:00 IST, not 4:30 IST).
+DateTime _parseUtc(String s) {
+  final trimmed = s.trim();
+  if (trimmed.isEmpty) return DateTime.now();
+  final withZ = (trimmed.endsWith('Z') || trimmed.contains('+')) ? trimmed : '${trimmed}Z';
+  return DateTime.parse(withZ).toLocal();
+}
+
 class TripModel {
   final String id;
   final String fromLocation;
@@ -37,10 +47,10 @@ class TripModel {
       fromLocation: json['from_location']?.toString() ?? '',
       toLocation: json['to_location']?.toString() ?? '',
       departureTime: json['departure_time'] != null
-          ? DateTime.parse(json['departure_time'])
+          ? _parseUtc(json['departure_time'].toString())
           : DateTime.now(),
       arrivalTime: json['arrival_time'] != null
-          ? DateTime.tryParse(json['arrival_time'])
+          ? _parseUtc(json['arrival_time'].toString())
           : null,
       farePerSeat: double.tryParse(json['fare_per_seat']?.toString() ?? '0') ?? 0.0,
       availableSeats: int.tryParse(json['available_seats']?.toString() ?? '0') ?? 0,
