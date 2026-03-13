@@ -738,14 +738,16 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const CW = W - ML * 2;      // usable content width
 
   // ─── Background ────────────────────────────────────────────────────────────
-  _rect(doc, 0, 0, W, H, '#FAFAFA');
+  // Soft warm background for eye‑comfort
+  _rect(doc, 0, 0, W, H, '#FFFDF5');
 
   // ─── Top accent stripe ─────────────────────────────────────────────────────
-  _rect(doc, 0, 0, W, 5, '#CC4400');
+  _rect(doc, 0, 0, W, 5, '#212121');
 
   // ─── Header band ───────────────────────────────────────────────────────────
   const headerH = posterHeader ? 148 : 120;
-  _rect(doc, 0, 5, W, headerH, '#FF6B00');
+  // Taxi‑style warm yellow/orange header
+  _rect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 16;
 
@@ -753,7 +755,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   if (posterHeader) {
     // Decorative dots left & right
     const dotTxt = '  * ';
-    doc.fillColor('#FFFFFF')
+    doc.fillColor('#212121')
        .font('Helvetica-Oblique')
        .fontSize(15)
        .text(`${dotTxt}${posterHeader}${dotTxt}`, 0, y, { width: W, align: 'center' });
@@ -766,14 +768,14 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   }
 
   // Union name
-  doc.fillColor('#FFFFFF')
+  doc.fillColor('#212121')
      .font('Helvetica-Bold')
      .fontSize(unionName.length > 22 ? 22 : 28)
      .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += (unionName.length > 22 ? 22 : 28) + 6;
 
   // Sub label
-  doc.fillColor('rgba(255,255,255,0.75)')
+  doc.fillColor('#424242')
      .font('Helvetica')
      .fontSize(10)
      .text('TAXI UNION  -  DAILY RIDE SCHEDULE', 0, y, {
@@ -781,18 +783,18 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
      });
   y += 18;
 
-  // White wave bottom of header
-  _rect(doc, 0, 5 + headerH - 10, W, 10, '#FAFAFA');
+  // Light wave bottom of header
+  _rect(doc, 0, 5 + headerH - 10, W, 10, '#FFFDF5');
   // Overlay to make the bottom of header appear rounded
-  _roundedRect(doc, 0, 5 + headerH - 24, W, 30, 20, '#FAFAFA');
+  _roundedRect(doc, 0, 5 + headerH - 24, W, 30, 20, '#FFFDF5');
 
   y = 5 + headerH + 14;
 
   // ─── "TODAY'S RIDE" pill label ─────────────────────────────────────────────
   const pillW = 130;
   const pillX = (W - pillW) / 2;
-  _roundedRect(doc, pillX, y, pillW, 22, 11, '#FF6B00');
-  doc.fillColor('#FFFFFF')
+  _roundedRect(doc, pillX, y, pillW, 22, 11, '#212121');
+  doc.fillColor('#FFC107')
      .font('Helvetica-Bold')
      .fontSize(9)
      .text("TODAY'S RIDE", pillX, y + 6, {
@@ -802,40 +804,40 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   // ─── Route card ────────────────────────────────────────────────────────────
   const routeCardH = 108;
-  _roundedRect(doc, ML, y, CW, routeCardH, 14, '#FFF3E0');
-  // Orange left accent strip
-  _roundedRect(doc, ML, y, 6, routeCardH, 3, '#FF6B00');
+  _roundedRect(doc, ML, y, CW, routeCardH, 14, '#FFF8E1');
+  // Dark left accent strip
+  _roundedRect(doc, ML, y, 6, routeCardH, 3, '#212121');
 
   const half = (CW - 20) / 2;
 
   // FROM label
-  doc.fillColor('#FF6B00')
+  doc.fillColor('#F57F17')
      .font('Helvetica-Bold')
      .fontSize(9)
      .text('FROM', ML + 14, y + 14, { width: half, align: 'left', characterSpacing: 1.2 });
 
   // TO label (right side, aligned right of center arrow)
-  doc.fillColor('#FF6B00')
+  doc.fillColor('#F57F17')
      .font('Helvetica-Bold')
      .fontSize(9)
      .text('TO', ML + CW / 2 + 6, y + 14, { width: half - 6, align: 'left', characterSpacing: 1.2 });
 
   // FROM city name
   const fromFontSize = from.length > 12 ? 20 : (from.length > 8 ? 24 : 28);
-  doc.fillColor('#1A1A1A')
+  doc.fillColor('#212121')
      .font('Helvetica-Bold')
      .fontSize(fromFontSize)
      .text(from, ML + 14, y + 30, { width: half - 10, align: 'left' });
 
   // Arrow indicator in centre
-  doc.fillColor('#FF6B00')
+  doc.fillColor('#F57F17')
      .font('Helvetica-Bold')
      .fontSize(22)
      .text('-->', ML + half + 2, y + 40, { width: 30, align: 'center' });
 
   // TO city name
   const toFontSize = to.length > 12 ? 20 : (to.length > 8 ? 24 : 28);
-  doc.fillColor('#1A1A1A')
+  doc.fillColor('#212121')
      .font('Helvetica-Bold')
      .fontSize(toFontSize)
      .text(to, ML + CW / 2 + 6, y + 30, { width: half - 6, align: 'left' });
@@ -845,7 +847,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   doc.save()
      .moveTo(ML + 14, lineY)
      .lineTo(ML + CW - 14, lineY)
-     .strokeColor('#FFB300')
+     .strokeColor('#FBC02D')
      .lineWidth(1.5)
      .dash(6, { space: 4 })
      .stroke()
@@ -857,7 +859,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const dtBoxH = 76;
   const dtW    = (CW - 10) / 2;
 
-  // Date box (blue)
+  // Date box (soft blue)
   _roundedRect(doc, ML, y, dtW, dtBoxH, 12, '#E3F2FD');
   _roundedRect(doc, ML, y, dtW, 5, 3, '#1565C0');
   doc.fillColor('#1565C0')
@@ -872,7 +874,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
        .text(dayStr, ML, y + 54, { width: dtW, align: 'center' });
   }
 
-  // Time box (green)
+  // Time box (soft green)
   const tx = ML + dtW + 10;
   _roundedRect(doc, tx, y, dtW, dtBoxH, 12, '#E8F5E9');
   _roundedRect(doc, tx, y, dtW, 5, 3, '#2E7D32');
@@ -887,22 +889,22 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   // ─── Driver details card ───────────────────────────────────────────────────
   const drvBoxH = vehicleNum ? 88 : 68;
-  _roundedRect(doc, ML, y, CW, drvBoxH, 12, '#E8EAF6');
-  _roundedRect(doc, ML, y, 6, drvBoxH, 3, '#3949AB');
+  _roundedRect(doc, ML, y, CW, drvBoxH, 12, '#FFFDE7');
+  _roundedRect(doc, ML, y, 6, drvBoxH, 3, '#212121');
 
-  doc.fillColor('#3949AB')
+  doc.fillColor('#757575')
      .font('Helvetica-Bold').fontSize(9)
      .text('DRIVER', ML + 16, y + 14, { characterSpacing: 1.5 });
 
-  doc.fillColor('#1A237E')
+  doc.fillColor('#212121')
      .font('Helvetica-Bold').fontSize(20)
      .text(driverName || '—', ML + 16, y + 28, { width: CW - 30 });
 
   if (vehicleNum) {
     // Grey vehicle pill
     const pillVW = Math.min(180, vehicleNum.length * 11 + 40);
-    _roundedRect(doc, ML + 16, y + 58, pillVW, 20, 5, '#C5CAE9');
-    doc.fillColor('#283593')
+    _roundedRect(doc, ML + 16, y + 58, pillVW, 20, 5, '#FFF3CD');
+    doc.fillColor('#424242')
        .font('Helvetica-Bold').fontSize(11)
        .text(`  Vehicle: ${vehicleNum}`, ML + 16, y + 63, { width: pillVW });
   }
@@ -911,19 +913,19 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   // ─── How to book box ───────────────────────────────────────────────────────
   const bookH = driverPhone ? 62 : 50;
-  _roundedRect(doc, ML, y, CW, bookH, 12, '#F3E5F5');
-  _roundedRect(doc, ML, y, 6, bookH, 3, '#7B1FA2');
+  _roundedRect(doc, ML, y, CW, bookH, 12, '#EDE7F6');
+  _roundedRect(doc, ML, y, 6, bookH, 3, '#4527A0');
 
-  doc.fillColor('#6A1B9A')
+  doc.fillColor('#4527A0')
      .font('Helvetica-Bold').fontSize(9)
      .text('BOOK THIS RIDE', ML + 16, y + 12, { characterSpacing: 1.5 });
 
-  doc.fillColor('#4A148C')
+  doc.fillColor('#311B92')
      .font('Helvetica-Bold').fontSize(13)
      .text('www.luharide.in', ML + 16, y + 28, { width: CW - 30 });
 
   if (driverPhone) {
-    doc.fillColor('#6A1B9A')
+    doc.fillColor('#5E35B1')
        .font('Helvetica').fontSize(11)
        .text(`Call driver: ${driverPhone}`, ML + 16, y + 46, { width: CW - 30 });
   }
@@ -943,12 +945,12 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   // ─── Footer band ───────────────────────────────────────────────────────────
   const footerH  = 64;
   const footerY  = H - footerH;
-  _rect(doc, 0, footerY, W, footerH, '#CC4400');
-  _rect(doc, 0, footerY, W, 3, '#FF6B00');
+  _rect(doc, 0, footerY, W, footerH, '#212121');
+  _rect(doc, 0, footerY, W, 3, '#FFC107');
 
   doc.fillColor('#FFFFFF')
      .font('Helvetica-Bold').fontSize(13)
-     .text('Find & Book this ride on  luharide.in', 0, footerY + 12, {
+     .text('Find & book this ride on  LUHARIDE.IN', 0, footerY + 12, {
        width: W, align: 'center'
      });
 
@@ -1097,18 +1099,18 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   const FOOTER_H = 58;
 
   // ── Background ─────────────────────────────────────────────────────────────
-  _fillRect(doc, 0, 0, W, H, '#FAFAFA');
+  _fillRect(doc, 0, 0, W, H, '#FFFDF5');
 
   // ── Top accent ─────────────────────────────────────────────────────────────
-  _fillRect(doc, 0, 0, W, 5, '#CC4400');
+  _fillRect(doc, 0, 0, W, 5, '#212121');
 
   // ── Header band ────────────────────────────────────────────────────────────
   const headerH = posterHdr ? 128 : 100;
-  _fillRect(doc, 0, 5, W, headerH, '#FF6B00');
+  _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 16;
   if (posterHdr) {
-    doc.fillColor('#FFFFFF').font('Helvetica-Oblique').fontSize(13)
+    doc.fillColor('#212121').font('Helvetica-Oblique').fontSize(13)
       .text(`  *  ${posterHdr}  *`, 0, y, { width: W, align: 'center' });
     y += 22;
     _hLine(doc, ML + 40, y, CW - 80, 'rgba(255,255,255,0.3)');
@@ -1119,12 +1121,12 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
   // Union name
   const unFontSize = unionName.length > 26 ? 20 : (unionName.length > 18 ? 24 : 28);
-  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(unFontSize)
+  doc.fillColor('#212121').font('Helvetica-Bold').fontSize(unFontSize)
     .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += unFontSize + 5;
 
   // Date + subtitle
-  doc.fillColor('rgba(255,255,255,0.85)').font('Helvetica').fontSize(10)
+  doc.fillColor('#424242').font('Helvetica').fontSize(10)
     .text(`DAILY RIDE SCHEDULE  —  ${dateLabel.toUpperCase()}`, 0, y,
       { width: W, align: 'center', characterSpacing: 0.8 });
 
@@ -1133,23 +1135,29 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // ── Route count badge ───────────────────────────────────────────────────────
   const badgeTxt = `${rows.length} ride${rows.length > 1 ? 's' : ''}  across  ${groups.size} route${groups.size > 1 ? 's' : ''}`;
   const badgeW   = 220;
-  _fillRounded(doc, (W - badgeW) / 2, y, badgeW, 22, 11, '#FF6B00');
-  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9)
+  _fillRounded(doc, (W - badgeW) / 2, y, badgeW, 22, 11, '#212121');
+  doc.fillColor('#FFC107').font('Helvetica-Bold').fontSize(9)
     .text(badgeTxt, (W - badgeW) / 2, y + 6, { width: badgeW, align: 'center' });
   y += 36;
 
   // ── Column definitions ─────────────────────────────────────────────────────
-  const COL_NO   = { label: 'No.',    w: 34,  align: 'center' };
-  const COL_TIME = { label: 'Time',   w: 76,  align: 'center' };
-  const COL_DRV  = { label: 'Driver', w: 220, align: 'left'   };
-  const COL_VEH  = { label: 'Vehicle',w: CW - 34 - 76 - 220, align: 'center' };
-  const COLS     = [COL_NO, COL_TIME, COL_DRV, COL_VEH];
+  const COL_NO    = { label: 'No.',     w: 34,  align: 'center' };
+  const COL_TIME  = { label: 'Time',    w: 76,  align: 'center' };
+  const COL_DRV   = { label: 'Driver',  w: 200, align: 'left'   };
+  const COL_VEH   = { label: 'Vehicle', w: 110, align: 'center' };
+  const COL_PHONE = {
+    label: 'Phone',
+    w: CW - 34 - 76 - 200 - 110,
+    align: 'center',
+  };
+  const COLS      = [COL_NO, COL_TIME, COL_DRV, COL_VEH, COL_PHONE];
   const TOTAL_W  = COLS.reduce((s, c) => s + c.w, 0);
-  const ROW_H    = 26;
-  const HDR_H    = 24;
+  // Slightly shrink row height when there are many rides so most schedules fit on one page.
+  const ROW_H    = rows.length > 20 ? 20 : 24;
+  const HDR_H    = 22;
 
-  // Route color palette
-  const ROUTE_COLORS = ['#FF6B00','#1E88E5','#43A047','#8E24AA','#E53935','#00897B'];
+  // Route color palette (softer, taxi‑inspired)
+  const ROUTE_COLORS = ['#FFC107','#FFB300','#F9A825','#F57F17','#0288D1','#43A047'];
   let colorIdx = 0;
 
   // ── For each route group, draw a section ───────────────────────────────────
@@ -1167,13 +1175,13 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
     // Section header pill
     _fillRounded(doc, ML, y, TOTAL_W, HDR_H, 6, accentColor);
-    // Left dot indicator
-    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(11)
+    // Route title
+    doc.fillColor('#212121').font('Helvetica-Bold').fontSize(11)
       .text(`  ${routeKey}`, ML + 8, y + (HDR_H - 11) / 2 + 1,
         { width: TOTAL_W - 70, lineBreak: false });
     const cnt = schedules.length;
     const cntTxt = `${cnt} ride${cnt > 1 ? 's' : ''}`;
-    doc.fillColor('rgba(255,255,255,0.85)').font('Helvetica').fontSize(9)
+    doc.fillColor('#212121').font('Helvetica').fontSize(9)
       .text(cntTxt, ML, y + (HDR_H - 9) / 2 + 1,
         { width: TOTAL_W - 8, align: 'right' });
     y += HDR_H + 4;
@@ -1191,9 +1199,21 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
       const hr12 = rawH % 12 || 12;
       const timeStr = dt ? `${pad(hr12)}:${pad(dt.getMinutes())} ${ampm}` : '—';
 
-      y = _tableRow(doc, ML, y, COLS,
-        [pad(i + 1), timeStr, s.driver_name || '—', s.vehicle_number || '—'],
-        ROW_H, i % 2 === 0);
+      y = _tableRow(
+        doc,
+        ML,
+        y,
+        COLS,
+        [
+          pad(i + 1),
+          timeStr,
+          s.driver_name || '—',
+          s.vehicle_number || '—',
+          s.driver_phone || '—',
+        ],
+        ROW_H,
+        i % 2 === 0
+      );
     }
 
     // Table outer border
@@ -1211,11 +1231,11 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
   // ── Footer band ─────────────────────────────────────────────────────────────
   const footerY = H - FOOTER_H;
-  _fillRect(doc, 0, footerY, W, FOOTER_H, '#CC4400');
-  _fillRect(doc, 0, footerY, W, 3, '#FF6B00');
+  _fillRect(doc, 0, footerY, W, FOOTER_H, '#212121');
+  _fillRect(doc, 0, footerY, W, 3, '#FFC107');
 
   doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(13)
-    .text('Find & Book this ride on  luharide.in', 0, footerY + 11,
+    .text('Find & book these rides on  LUHARIDE.IN', 0, footerY + 11,
       { width: W, align: 'center' });
   doc.fillColor('rgba(255,255,255,0.75)').font('Helvetica').fontSize(10)
     .text('Yeh ride luharide.in par bhi milegi  |  Abhi book karein', 0, footerY + 32,
