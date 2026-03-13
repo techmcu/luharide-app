@@ -774,12 +774,12 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
      .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += (unionName.length > 22 ? 22 : 28) + 6;
 
-  // Sub label
+  // Sub label - simple daily timings line
   doc.fillColor('#424242')
      .font('Helvetica')
      .fontSize(10)
-     .text('TAXI UNION  -  DAILY RIDE SCHEDULE', 0, y, {
-       width: W, align: 'center', characterSpacing: 1.2
+     .text('DAILY TAXI TIMINGS', 0, y, {
+       width: W, align: 'center', characterSpacing: 1.0
      });
   y += 18;
 
@@ -950,14 +950,14 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   doc.fillColor('#FFFFFF')
      .font('Helvetica-Bold').fontSize(13)
-     .text('Find & book this ride on  LUHARIDE.IN', 0, footerY + 12, {
+     .text('You can also find and book this ride on  luharide.in', 0, footerY + 12, {
        width: W, align: 'center'
      });
 
-  doc.fillColor('rgba(255,255,255,0.75)')
+  doc.fillColor('rgba(255,255,255,0.8)')
      .font('Helvetica').fontSize(10)
      .text(
-       'Yeh ride luharide.in par bhi milegi  |  Abhi book karein',
+       'Share this poster or book directly on luharide.in',
        0, footerY + 34,
        { width: W, align: 'center' }
      );
@@ -1132,25 +1132,24 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
   y = 5 + headerH + 16;
 
-  // ── Route count badge ───────────────────────────────────────────────────────
-  const badgeTxt = `${rows.length} ride${rows.length > 1 ? 's' : ''}  across  ${groups.size} route${groups.size > 1 ? 's' : ''}`;
+  // ── Simple count badge ──────────────────────────────────────────────────────
+  const badgeTxt = `${rows.length} ride${rows.length > 1 ? 's' : ''}  •  ${groups.size} section${groups.size > 1 ? 's' : ''}`;
   const badgeW   = 220;
   _fillRounded(doc, (W - badgeW) / 2, y, badgeW, 22, 11, '#212121');
   doc.fillColor('#FFC107').font('Helvetica-Bold').fontSize(9)
     .text(badgeTxt, (W - badgeW) / 2, y + 6, { width: badgeW, align: 'center' });
   y += 36;
 
-  // ── Column definitions ─────────────────────────────────────────────────────
-  const COL_NO    = { label: 'No.',     w: 34,  align: 'center' };
-  const COL_TIME  = { label: 'Time',    w: 76,  align: 'center' };
-  const COL_DRV   = { label: 'Driver',  w: 200, align: 'left'   };
-  const COL_VEH   = { label: 'Vehicle', w: 110, align: 'center' };
+  // ── Column definitions (simple & passenger‑friendly) ───────────────────────
+  const COL_TIME  = { label: 'Time',        w: 80,  align: 'center' };
+  const COL_DRV   = { label: 'Driver name', w: 210, align: 'left'   };
+  const COL_VEH   = { label: 'Cab number',  w: 110, align: 'center' };
   const COL_PHONE = {
     label: 'Phone',
-    w: CW - 34 - 76 - 200 - 110,
+    w: CW - 80 - 210 - 110,
     align: 'center',
   };
-  const COLS      = [COL_NO, COL_TIME, COL_DRV, COL_VEH, COL_PHONE];
+  const COLS      = [COL_TIME, COL_DRV, COL_VEH, COL_PHONE];
   const TOTAL_W  = COLS.reduce((s, c) => s + c.w, 0);
   // Slightly shrink row height when there are many rides so most schedules fit on one page.
   const ROW_H    = rows.length > 20 ? 20 : 24;
@@ -1205,7 +1204,6 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
         y,
         COLS,
         [
-          pad(i + 1),
           timeStr,
           s.driver_name || '—',
           s.vehicle_number || '—',
@@ -1235,7 +1233,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   _fillRect(doc, 0, footerY, W, 3, '#FFC107');
 
   doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(13)
-    .text('Find & book these rides on  LUHARIDE.IN', 0, footerY + 11,
+    .text('You can also find and book these rides on  luharide.in', 0, footerY + 11,
       { width: W, align: 'center' });
   doc.fillColor('rgba(255,255,255,0.75)').font('Helvetica').fontSize(10)
     .text('Yeh ride luharide.in par bhi milegi  |  Abhi book karein', 0, footerY + 32,
