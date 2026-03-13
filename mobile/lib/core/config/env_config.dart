@@ -7,10 +7,6 @@ class EnvConfig {
   // Google Maps API Key
   static const String googleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
   
-  // Razorpay Keys
-  static const String razorpayKeyId = 'YOUR_RAZORPAY_KEY_ID';
-  static const String razorpayKeySecret = 'YOUR_RAZORPAY_KEY_SECRET';
-  
   // Firebase Configuration
   // Add Firebase config after Firebase setup
   
