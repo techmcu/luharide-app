@@ -59,9 +59,11 @@ router.post('/login', validate(loginSchema), login);
 /**
  * @route   POST /api/simple-auth/create-demo
  * @desc    Create demo accounts for testing
- * @access  Public (should be protected in production)
+ * @access  Public in development only (never mounted in production)
  */
-router.post('/create-demo', createDemoAccounts);
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/create-demo', createDemoAccounts);
+}
 
 /**
  * @route   POST /api/simple-auth/change-password
