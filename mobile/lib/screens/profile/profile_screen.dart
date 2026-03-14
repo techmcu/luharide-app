@@ -53,7 +53,7 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Profile'),
         backgroundColor: isDriver ? Colors.green : Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -174,8 +174,8 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 28),
 
-          // ── Section: Taxi union (so union users see their option first) ──
-          _sectionLabel('For taxi union'),
+          // ── Section: Taxi union (so union admins see their option first) ──
+          _sectionLabel('For taxi union (admins)'),
           const SizedBox(height: 8),
           if (isUnionAdmin)
             _buildMenuItem(
@@ -203,23 +203,21 @@ class ProfileScreen extends StatelessWidget {
                 );
               },
             ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
 
-          // ── Section: Your trips (bookings, rides, ratings – individual use) ──
-          _sectionLabel('Your trips'),
+          // ── Section: Your trips (bookings & ratings – for passengers) ──
+          _sectionLabel('Your trips (passenger)'),
           const SizedBox(height: 8),
           _buildMenuItem(
             context,
             icon: Icons.confirmation_number_outlined,
-            title: isDriver ? 'My rides' : 'My bookings',
-            subtitle: isDriver ? 'Rides I created' : 'Trips I booked',
+            title: 'My bookings',
+            subtitle: 'Trips I booked',
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => isDriver
-                      ? const MyRidesScreen()
-                      : const PassengerMyRidesScreen(),
+                  builder: (context) => const PassengerMyRidesScreen(),
                 ),
               );
             },
@@ -238,19 +236,50 @@ class ProfileScreen extends StatelessWidget {
               );
             },
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
 
-          // ── Section: Independent driver (not union – verify & create rides) ──
-          if (driverStatus != 'approved') ...[
-            _sectionLabel('Independent driver'),
-            const SizedBox(height: 8),
+          // ── Section: Independent taxi driver (create & manage rides) ──
+          _sectionLabel('For independent taxi driver'),
+          const SizedBox(height: 8),
+          if (driverStatus == 'approved') ...[
             _buildMenuItem(
               context,
-              icon: Icons.drive_eta,
-              title: driverStatus == 'pending' ? 'Verification pending' : 'Drive with LuhaRide',
+              icon: Icons.add_road_rounded,
+              title: 'Create ride',
+              subtitle: 'Post a taxi ride for passengers',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CreateTripScreen()),
+                );
+              },
+            ),
+            _buildMenuItem(
+              context,
+              icon: Icons.route,
+              title: 'My rides',
+              subtitle: 'Rides I created as driver',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyRidesScreen()),
+                );
+              },
+            ),
+          ] else ...[
+            _buildMenuItem(
+              context,
+              icon: driverStatus == 'rejected' ? Icons.error_outline : Icons.drive_eta,
+              title: driverStatus == 'pending'
+                  ? 'Verification pending'
+                  : driverStatus == 'rejected'
+                      ? 'Verification rejected'
+                      : 'Drive with LuhaRide',
               subtitle: driverStatus == 'pending'
                   ? 'Admin is reviewing your documents'
-                  : 'Get verified to create rides',
+                  : driverStatus == 'rejected'
+                      ? 'Documents were rejected. Update details and submit again.'
+                      : 'Get verified to create rides',
               onTap: driverStatus == 'pending'
                   ? null
                   : () {
@@ -260,8 +289,8 @@ class ProfileScreen extends StatelessWidget {
                       ).then((_) => authProvider.refreshUser());
                     },
             ),
-            const SizedBox(height: 20),
           ],
+          const SizedBox(height: 24),
 
           // ── Section: Account ──
           _sectionLabel('Account'),

@@ -1000,7 +1000,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         top: false,
         child: Row(
           children: [
-            if (isDriver)
+            Expanded(
+              child: _buildFooterItem(
+                context,
+                icon: Icons.book_online,
+                label: 'My Booking',
+                iconColor: Colors.orange[700]!,
+                bgColor: Colors.orange[50]!,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PassengerMyRidesScreen())),
+              ),
+            ),
+            const SizedBox(width: 6),
+            if (isDriver) ...[
               Expanded(
                 child: _buildFooterItem(
                   context,
@@ -1011,12 +1022,13 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyRidesScreen())),
                 ),
               ),
-            if (isDriver) const SizedBox(width: 6),
+              const SizedBox(width: 6),
+            ],
             Expanded(
               child: _buildFooterItem(
                 context,
-                icon: Icons.settings,
-                label: 'Settings',
+                icon: Icons.person,
+                label: 'Profile',
                 iconColor: Colors.blue[700]!,
                 bgColor: Colors.blue[50]!,
                 isHighlight: true,
