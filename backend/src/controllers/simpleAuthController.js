@@ -157,80 +157,14 @@ const login = asyncHandler(async (req, res) => {
 /**
  * Create Demo Accounts
  * POST /api/simple-auth/create-demo
+ *
+ * NOTE: All hard-coded demo users have been removed for security reasons.
+ * This endpoint is now effectively a no-op and kept only for backwards compatibility in development.
  */
 const createDemoAccounts = asyncHandler(async (req, res) => {
-  const demoAccounts = [
-    { email: 'passenger@demo.com', password: 'demo123', name: 'Demo Passenger', role: 'passenger' },
-    { email: 'driver@demo.com', password: 'demo123', name: 'Demo Driver', role: 'driver' },
-    { email: 'admin@demo.com', password: 'demo123', name: 'Demo Admin', role: 'union_admin' },
-    { email: 'admin@luharide.com', password: 'Admin@123', name: 'LuhaRide Admin', role: 'union_admin' }
-  ];
-
-  const created = [];
-
-  for (const account of demoAccounts) {
-    const passwordHash = await bcrypt.hash(account.password, 10);
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [account.email]);
-
-    if (existing.rows.length === 0) {
-      const phonePlaceholder = account.email.slice(0, 15) || `D${Date.now().toString().slice(-14)}`;
-      const result = await pool.query(
-        `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone, driver_verification_status)
-         VALUES ($1, $2, $3, $4, TRUE, TRUE, $5, $6)
-         RETURNING id, name, email, role`,
-        [account.name, account.email, passwordHash, account.role, phonePlaceholder, account.role === 'driver' ? 'approved' : 'none']
-      );
-      created.push(result.rows[0]);
-
-      // For demo driver: add driver_verification_requests with Mahindra Bolero 7-seater
-      if (account.role === 'driver') {
-        const driverId = result.rows[0].id;
-        await pool.query(
-          `INSERT INTO driver_verification_requests (
-            user_id, driving_license_number, vehicle_registration, vehicle_type, vehicle_model, vehicle_model_id, vehicle_capacity, status
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved')
-          ON CONFLICT (user_id) DO UPDATE SET
-            vehicle_capacity = EXCLUDED.vehicle_capacity,
-            vehicle_registration = EXCLUDED.vehicle_registration,
-            vehicle_type = EXCLUDED.vehicle_type,
-            vehicle_model = EXCLUDED.vehicle_model,
-            vehicle_model_id = EXCLUDED.vehicle_model_id,
-            status = 'approved',
-            updated_at = CURRENT_TIMESTAMP`,
-          [driverId, 'DL-DEMO-001', 'DEMO-001', 'SUV', 'Mahindra Bolero 7-Seater', 'mahindra_bolero_suv', 7]
-        );
-      }
-    } else {
-      // For demo accounts, always reset password + role + name to known values
-      const userId = existing.rows[0].id;
-      await pool.query(
-        'UPDATE users SET password_hash = $1, role = $2, name = $3, is_verified = TRUE, is_active = TRUE, driver_verification_status = $5 WHERE email = $4',
-        [passwordHash, account.role, account.name, account.email, account.role === 'driver' ? 'approved' : 'none']
-      );
-
-      // For demo driver: ensure driver_verification_requests exists with vehicle
-      if (account.role === 'driver') {
-        await pool.query(
-          `INSERT INTO driver_verification_requests (
-            user_id, driving_license_number, vehicle_registration, vehicle_type, vehicle_model, vehicle_model_id, vehicle_capacity, status
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved')
-          ON CONFLICT (user_id) DO UPDATE SET
-            vehicle_capacity = EXCLUDED.vehicle_capacity,
-            vehicle_registration = EXCLUDED.vehicle_registration,
-            vehicle_type = EXCLUDED.vehicle_type,
-            vehicle_model = EXCLUDED.vehicle_model,
-            vehicle_model_id = EXCLUDED.vehicle_model_id,
-            status = 'approved',
-            updated_at = CURRENT_TIMESTAMP`,
-          [userId, 'DL-DEMO-001', 'DEMO-001', 'SUV', 'Mahindra Bolero 7-Seater', 'mahindra_bolero_suv', 7]
-        );
-      }
-    }
-  }
-
   ApiResponse.success(
-    { created, message: 'Demo accounts ready' },
-    `Created ${created.length} demo accounts`
+    { created: [], message: 'Demo account creation is disabled' },
+    'Demo accounts are disabled'
   ).send(res);
 });
 
