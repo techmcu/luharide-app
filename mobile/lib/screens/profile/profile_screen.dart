@@ -53,7 +53,7 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Settings'),
         backgroundColor: isDriver ? Colors.green : Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -159,7 +159,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Share this code with your taxi union so they can add you easily.',
+                      'Give this code to your union to get added as a driver.',
                       style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                     ),
                   ],
@@ -169,46 +169,50 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 16),
           ],
 
-          // Share your ride - compact button
+          // Share your ride - compact button (for independent drivers only)
           _buildShareRideButton(context, authProvider),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
 
-          // Become a Driver (only if not yet approved)
-          if (driverStatus != 'approved')
+          // ── Section: Taxi union (so union users see their option first) ──
+          _sectionLabel('For taxi union'),
+          const SizedBox(height: 8),
+          if (isUnionAdmin)
             _buildMenuItem(
               context,
-              icon: Icons.drive_eta,
-              title: driverStatus == 'pending' ? 'Driver Verification Pending' : 'Become a Driver',
-              subtitle: driverStatus == 'pending'
-                  ? 'Admin is reviewing your documents'
-                  : 'Submit documents to create rides',
-              onTap: driverStatus == 'pending'
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
-                      ).then((_) => authProvider.refreshUser());
-                    },
+              icon: Icons.business_rounded,
+              title: 'Union hub',
+              subtitle: 'Schedules, drivers, posters',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
+                );
+              },
+            )
+          else
+            _buildMenuItem(
+              context,
+              icon: Icons.business_rounded,
+              title: 'Add your union',
+              subtitle: 'List your union on LuhaRide',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const UnionRegistrationScreen()),
+                );
+              },
             ),
-          _buildMenuItem(
-            context,
-            icon: Icons.person_outline,
-            title: 'Edit Profile',
-            subtitle: 'Name, email, profile pic',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-              );
-            },
-          ),
+          const SizedBox(height: 20),
+
+          // ── Section: Your trips (bookings, rides, ratings – individual use) ──
+          _sectionLabel('Your trips'),
+          const SizedBox(height: 8),
           _buildMenuItem(
             context,
             icon: Icons.confirmation_number_outlined,
-            title: isDriver ? 'My Rides' : 'My Bookings',
-            subtitle: isDriver ? 'Rides you created' : 'Rides you booked',
+            title: isDriver ? 'My rides' : 'My bookings',
+            subtitle: isDriver ? 'Rides I created' : 'Trips I booked',
             onTap: () {
               Navigator.push(
                 context,
@@ -223,8 +227,8 @@ class ProfileScreen extends StatelessWidget {
           _buildMenuItem(
             context,
             icon: Icons.star_outline,
-            title: 'My Ratings',
-            subtitle: 'See all ratings from users',
+            title: 'Ratings',
+            subtitle: 'What passengers said',
             onTap: () {
               Navigator.push(
                 context,
@@ -234,11 +238,51 @@ class ProfileScreen extends StatelessWidget {
               );
             },
           ),
+          const SizedBox(height: 20),
+
+          // ── Section: Independent driver (not union – verify & create rides) ──
+          if (driverStatus != 'approved') ...[
+            _sectionLabel('Independent driver'),
+            const SizedBox(height: 8),
+            _buildMenuItem(
+              context,
+              icon: Icons.drive_eta,
+              title: driverStatus == 'pending' ? 'Verification pending' : 'Drive with LuhaRide',
+              subtitle: driverStatus == 'pending'
+                  ? 'Admin is reviewing your documents'
+                  : 'Get verified to create rides',
+              onTap: driverStatus == 'pending'
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
+                      ).then((_) => authProvider.refreshUser());
+                    },
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // ── Section: Account ──
+          _sectionLabel('Account'),
+          const SizedBox(height: 8),
+          _buildMenuItem(
+            context,
+            icon: Icons.person_outline,
+            title: 'Edit profile',
+            subtitle: 'Name, email, photo',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+              );
+            },
+          ),
           _buildMenuItem(
             context,
             icon: Icons.lock_outline,
-            title: 'Change Password',
-            subtitle: 'Update your password',
+            title: 'Change password',
+            subtitle: 'Update password',
             onTap: () {
               Navigator.push(
                 context,
@@ -250,7 +294,7 @@ class ProfileScreen extends StatelessWidget {
             context,
             icon: Icons.help_outline,
             title: 'Help',
-            subtitle: 'FAQs, contact',
+            subtitle: 'FAQs and contact',
             onTap: () {
               Navigator.push(
                 context,
@@ -261,8 +305,8 @@ class ProfileScreen extends StatelessWidget {
           _buildMenuItem(
             context,
             icon: Icons.description_outlined,
-            title: 'Terms & Conditions',
-            subtitle: 'Please read carefully',
+            title: 'Terms',
+            subtitle: 'Terms of use',
             onTap: () {
               Navigator.push(
                 context,
@@ -271,44 +315,31 @@ class ProfileScreen extends StatelessWidget {
             },
           ),
           const SizedBox(height: 24),
-          // Union admin / registration
-          if (isUnionAdmin)
-            _buildMenuItem(
-              context,
-              icon: Icons.apartment,
-              title: 'Union Dashboard',
-              subtitle: 'Manage your taxi union',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
-                );
-              },
-            )
-          else
-            _buildMenuItem(
-              context,
-              icon: Icons.apartment,
-              title: 'Register Taxi Union',
-              subtitle: 'Create a union account',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UnionRegistrationScreen()),
-                );
-              },
-            ),
-          const SizedBox(height: 8),
 
           _buildMenuItem(
             context,
             icon: Icons.logout,
-            title: 'Logout',
-            subtitle: 'Sign out',
+            title: 'Sign out',
+            subtitle: 'Log out of your account',
             color: Colors.red,
             onTap: () => _showLogoutDialog(context, authProvider),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: Colors.grey[600],
+          letterSpacing: 0.5,
+        ),
       ),
     );
   }
@@ -380,7 +411,7 @@ class ProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Share your ride', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.green[800])),
+                  Text('Create a ride', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.green[800])),
                   Text(
                     status == 'approved' ? 'Create a new trip' : (status == 'pending' ? 'Verification pending' : 'Verify to create rides'),
                     style: TextStyle(fontSize: 12, color: Colors.green[700]),

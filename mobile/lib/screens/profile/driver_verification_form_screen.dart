@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/driver_verification_service.dart';
-import '../../models/vehicle_catalog.dart';
-import '../../models/seat_layout.dart';
 
-/// Form to submit driver verification documents
+/// Form to submit driver verification documents.
+/// Vehicle and sub-brand are free text; seat capacity is +/- counter (max 50).
 class DriverVerificationFormScreen extends StatefulWidget {
   const DriverVerificationFormScreen({super.key});
 
@@ -16,20 +15,19 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   final _service = DriverVerificationService();
   final _licenseController = TextEditingController();
   final _vehicleRegController = TextEditingController();
-  final _vehicleTypeController = TextEditingController();
-  final _vehicleModelController = TextEditingController();
-  final _capacityController = TextEditingController(); // Set from vehicle model only
+  final _vehicleController = TextEditingController();
+  final _vehicleSubBrandController = TextEditingController();
   bool _isLoading = false;
-  VehicleBrandConfig? _selectedBrand;
-  VehicleModelConfig? _selectedModel;
+  int _seatCapacity = 4;
+  static const int _minSeats = 1;
+  static const int _maxSeats = 50;
 
   @override
   void dispose() {
     _licenseController.dispose();
     _vehicleRegController.dispose();
-    _vehicleTypeController.dispose();
-    _vehicleModelController.dispose();
-    _capacityController.dispose();
+    _vehicleController.dispose();
+    _vehicleSubBrandController.dispose();
     super.dispose();
   }
 
@@ -38,13 +36,18 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
 
     setState(() => _isLoading = true);
 
+    final vehicleType = _vehicleController.text.trim();
+    final vehicleModel = _vehicleSubBrandController.text.trim().isNotEmpty
+        ? _vehicleSubBrandController.text.trim()
+        : vehicleType;
+
     final result = await _service.submitVerification(
       drivingLicenseNumber: _licenseController.text.trim(),
       vehicleRegistration: _vehicleRegController.text.trim(),
-      vehicleType: _vehicleTypeController.text.trim(),
-      vehicleModel: _vehicleModelController.text.trim(),
-      vehicleModelId: _selectedModel?.id,
-      vehicleCapacity: int.tryParse(_capacityController.text) ?? 7,
+      vehicleType: vehicleType,
+      vehicleModel: vehicleModel,
+      vehicleModelId: null,
+      vehicleCapacity: _seatCapacity,
     );
 
     setState(() => _isLoading = false);
@@ -119,114 +122,68 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 16),
-              // Brand dropdown
-              DropdownButtonFormField<VehicleBrandConfig>(
-                value: _selectedBrand,
-                isExpanded: true,
+              TextFormField(
+                controller: _vehicleController,
                 decoration: InputDecoration(
-                  labelText: 'Vehicle Brand',
-                  hintText: 'Select brand (e.g. Mahindra, Maruti)',
+                  labelText: 'Vehicle (brand / name)',
+                  hintText: 'e.g. Mahindra, Tata, Toyota',
                   prefixIcon: const Icon(Icons.directions_car),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                items: VehicleCatalog.brands
-                    .map(
-                      (b) => DropdownMenuItem(
-                        value: b,
-                        child: Text(b.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (brand) {
-                  setState(() {
-                    _selectedBrand = brand;
-                    _selectedModel = null;
-                    _vehicleTypeController.text = brand?.name ?? '';
-                    _vehicleModelController.clear();
-                    _capacityController.clear(); // Must select model for capacity
-                  });
-                },
-                validator: (v) => v == null ? 'Select brand' : null,
-              ),
-              const SizedBox(height: 16),
-              // Model dropdown (depends on brand)
-              DropdownButtonFormField<VehicleModelConfig>(
-                value: _selectedModel,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: 'Vehicle Model',
-                  hintText: 'Select exact model',
-                  prefixIcon: const Icon(Icons.directions_car),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                items: (_selectedBrand?.models ?? [])
-                    .map(
-                      (m) => DropdownMenuItem(
-                        value: m,
-                        child: Text(
-                          m.name,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (model) {
-                  setState(() {
-                    _selectedModel = model;
-                    if (model != null) {
-                      _vehicleModelController.text = model.name;
-                      _vehicleTypeController.text = model.bodyType;
-                      _capacityController.text = model.capacity.toString();
-                    }
-                  });
-                },
-                validator: (v) => v == null ? 'Select model' : null,
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
-                controller: _capacityController,
-                keyboardType: TextInputType.number,
+                controller: _vehicleSubBrandController,
                 decoration: InputDecoration(
-                  labelText: 'Seat Capacity',
-                  hintText: 'Auto from model',
-                  prefixIcon: const Icon(Icons.event_seat),
+                  labelText: 'Sub-brand / model (optional)',
+                  hintText: 'e.g. Bolero, Innova, Ertiga',
+                  prefixIcon: const Icon(Icons.directions_car),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                readOnly: true,
-                validator: (v) {
-                  if (v == null || v.isEmpty) return 'Required';
-                  final n = int.tryParse(v);
-                  if (n == null || n < 1 || n > 15) return 'Enter 1-15';
-                  return null;
-                },
               ),
-              const SizedBox(height: 16),
-              if (_selectedModel != null) ...[
-                Text(
-                  'Seat layout (top view)',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800],
+              const SizedBox(height: 20),
+              Text(
+                'Seat capacity',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  IconButton.filled(
+                    onPressed: _seatCapacity <= _minSeats
+                        ? null
+                        : () => setState(() => _seatCapacity = (_seatCapacity - 1).clamp(_minSeats, _maxSeats)),
+                    icon: const Icon(Icons.remove),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.green[100],
+                      foregroundColor: Colors.green[800],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Card(
-                  elevation: 1,
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: SeatLayoutView(layout: _selectedModel!.layout),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      '$_seatCapacity',
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'This is an approximate seating layout to help with bookings. '
-                  'Actual vehicle configuration may vary slightly.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-                const SizedBox(height: 16),
-              ],
+                  IconButton.filled(
+                    onPressed: _seatCapacity >= _maxSeats
+                        ? null
+                        : () => setState(() => _seatCapacity = (_seatCapacity + 1).clamp(_minSeats, _maxSeats)),
+                    icon: const Icon(Icons.add),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.green[100],
+                      foregroundColor: Colors.green[800],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'seats (max $_maxSeats)',
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
+              ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,

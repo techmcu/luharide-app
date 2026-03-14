@@ -96,7 +96,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text(
-          'Union Dashboard',
+          'Union hub',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: _orange,
@@ -143,7 +143,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildSectionLabel('Quick Actions', Icons.touch_app_rounded),
+                        child: _buildSectionLabel('Quick actions', Icons.touch_app_rounded),
                       ),
                       const SizedBox(height: 12),
                       Padding(
@@ -160,7 +160,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: _buildSectionLabel(
-                            'Your Drivers (${_drivers.length})',
+                            'Your drivers (${_drivers.length})',
                             Icons.people_alt_rounded,
                           ),
                         ),
@@ -216,7 +216,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Union Control Panel',
+                      'Your union',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 20,
@@ -224,7 +224,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       ),
                     ),
                     Text(
-                      'Manage rides, drivers and routes',
+                      'Drivers, routes, schedules and posters',
                       style: TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
@@ -441,9 +441,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           icon: Icons.add_road_rounded,
           iconBg: const Color(0xFFFFF3E0),
           iconColor: _orange,
-          title: 'Create Rides & Posters',
-          subtitle: 'Select drivers, set route and time — schedule is ready instantly',
-          badge: 'Most Important',
+          title: 'Schedules & posters',
+          subtitle: 'Pick drivers, set route and time — get your daily schedule and PDF',
+          badge: 'Main',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const UnionCreateRidesScreen()),
@@ -827,7 +827,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Poster Branding',
+                      'Poster header',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     const SizedBox(height: 3),
@@ -920,7 +920,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Poster Header Branding',
+                            'Poster header',
                             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                           ),
                           Text(

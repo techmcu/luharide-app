@@ -520,7 +520,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text(
-          'Create Rides & Posters',
+          'Schedules & posters',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: _orange,
@@ -536,7 +536,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(icon: Icon(Icons.add_circle_outline_rounded, size: 18), text: 'Create'),
-            Tab(icon: Icon(Icons.list_alt_rounded, size: 18), text: 'View Rides'),
+            Tab(icon: Icon(Icons.list_alt_rounded, size: 18), text: 'View rides'),
           ],
         ),
       ),
@@ -1148,14 +1148,14 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           _sectionHeader(
             icon: Icons.upcoming_rounded,
             color: _orange,
-            title: 'Upcoming Rides',
+            title: 'Upcoming',
             count: totalUpcoming,
           ),
           const SizedBox(height: 10),
           if (_currentSchedules.isEmpty)
             _emptySection(
               icon: Icons.directions_bus_outlined,
-              message: 'No upcoming rides.\nCreate rides from the "Create" tab.',
+              message: 'No upcoming rides.\nAdd from the Create tab.',
             )
           else
             ..._currentSchedules

@@ -140,7 +140,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Register Taxi Union'),
+        title: const Text('Add your union'),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
       ),

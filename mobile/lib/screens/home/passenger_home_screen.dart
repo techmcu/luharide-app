@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -26,14 +27,23 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
   final _scrollController = ScrollController();
+  final _fromFocusNode = FocusNode();
+  final _toFocusNode = FocusNode();
   DateTime _selectedDate = DateTime.now();
-  
+
   List<TripModel> _searchResults = [];
-  List<Map<String, dynamic>> _unionSearchResults = const []; // Union schedules for this search (poster-style rides)
+  List<Map<String, dynamic>> _unionSearchResults = const [];
   bool _isSearching = false;
   bool _hasSearched = false;
   final _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
+
+  // Location suggestions (debounced) for find-ride search bar
+  List<String> _fromSuggestions = [];
+  List<String> _toSuggestions = [];
+  Timer? _debounceFrom;
+  Timer? _debounceTo;
+  static const _suggestionDebounce = Duration(milliseconds: 350);
   @override
   void initState() {
     super.initState();
@@ -82,10 +92,40 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   @override
   void dispose() {
+    _debounceFrom?.cancel();
+    _debounceTo?.cancel();
+    _fromFocusNode.dispose();
+    _toFocusNode.dispose();
     _fromController.dispose();
     _toController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onFromChanged(String value) {
+    _debounceFrom?.cancel();
+    if (value.trim().length < 2) {
+      setState(() => _fromSuggestions = []);
+      return;
+    }
+    _debounceFrom = Timer(_suggestionDebounce, () async {
+      final suggestions = await _tripService.getLocationSuggestions(value.trim());
+      if (!mounted) return;
+      setState(() => _fromSuggestions = suggestions);
+    });
+  }
+
+  void _onToChanged(String value) {
+    _debounceTo?.cancel();
+    if (value.trim().length < 2) {
+      setState(() => _toSuggestions = []);
+      return;
+    }
+    _debounceTo = Timer(_suggestionDebounce, () async {
+      final suggestions = await _tripService.getLocationSuggestions(value.trim());
+      if (!mounted) return;
+      setState(() => _toSuggestions = suggestions);
+    });
   }
 
   static String _avatarInitial(String? name) {
@@ -134,14 +174,15 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       _unionSearchResults = unionRides;
     });
 
-    // Smooth auto-scroll to results
-    if (_searchResults.isNotEmpty && mounted) {
-      await Future.delayed(const Duration(milliseconds: 200));
+    // Smooth auto-scroll to results (same as landing: so user sees where results are)
+    final hasAnyResults = _searchResults.isNotEmpty || _unionSearchResults.isNotEmpty;
+    if (mounted) {
+      await Future.delayed(const Duration(milliseconds: 350));
       if (mounted) {
-        final targetOffset = 380.0;
+        final targetOffset = hasAnyResults ? 420.0 : 400.0;
         _scrollController.animateTo(
           targetOffset,
-          duration: const Duration(milliseconds: 600),
+          duration: const Duration(milliseconds: 900),
           curve: Curves.easeInOutCubic,
         );
       }
@@ -171,7 +212,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add_circle_outline, size: 24),
-            tooltip: 'Share your ride',
+            tooltip: 'Create ride',
             onPressed: () => _onCreateRideTap(context, user),
           ),
           IconButton(
@@ -301,35 +342,113 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      // From Location
-                      TextField(
-                        controller: _fromController,
-                        textCapitalization: TextCapitalization.words,
-                        enableSuggestions: false,
-                        autocorrect: false,
-                        autofillHints: const [],
-                        decoration: InputDecoration(
-                          labelText: 'From',
-                          hintText: 'e.g. Dehradun',
-                          prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
+                      // From Location with suggestions
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextField(
+                            controller: _fromController,
+                            focusNode: _fromFocusNode,
+                            textCapitalization: TextCapitalization.words,
+                            onChanged: _onFromChanged,
+                            onTap: () => setState(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'From',
+                              hintText: 'e.g. Dehradun',
+                              prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                          if (_fromSuggestions.isNotEmpty && _fromFocusNode.hasFocus)
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              constraints: const BoxConstraints(maxHeight: 180),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                padding: EdgeInsets.zero,
+                                itemCount: _fromSuggestions.length,
+                                itemBuilder: (context, i) {
+                                  final s = _fromSuggestions[i];
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Icon(Icons.place, size: 20, color: Colors.grey[600]),
+                                    title: Text(s, style: const TextStyle(fontSize: 14)),
+                                    onTap: () {
+                                      _fromController.text = s;
+                                      setState(() => _fromSuggestions = []);
+                                      _fromFocusNode.unfocus();
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 
-                      // To Location
-                      TextField(
-                        controller: _toController,
-                        textCapitalization: TextCapitalization.words,
-                        enableSuggestions: false,
-                        autocorrect: false,
-                        autofillHints: const [],
-                        decoration: InputDecoration(
-                          labelText: 'To',
-                          hintText: 'e.g. Purola',
-                          prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
+                      // To Location with suggestions
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          TextField(
+                            controller: _toController,
+                            focusNode: _toFocusNode,
+                            textCapitalization: TextCapitalization.words,
+                            onChanged: _onToChanged,
+                            onTap: () => setState(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'To',
+                              hintText: 'e.g. Purola',
+                              prefixIcon: const Icon(Icons.location_on, color: Colors.red),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                          if (_toSuggestions.isNotEmpty && _toFocusNode.hasFocus)
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              constraints: const BoxConstraints(maxHeight: 180),
+                              child: ListView.builder(
+                                shrinkWrap: true,
+                                padding: EdgeInsets.zero,
+                                itemCount: _toSuggestions.length,
+                                itemBuilder: (context, i) {
+                                  final s = _toSuggestions[i];
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Icon(Icons.place, size: 20, color: Colors.grey[600]),
+                                    title: Text(s, style: const TextStyle(fontSize: 14)),
+                                    onTap: () {
+                                      _toController.text = s;
+                                      setState(() => _toSuggestions = []);
+                                      _toFocusNode.unfocus();
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 
@@ -501,23 +620,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 ),
               ),
 
-            // View All (only after search)
-            if (_hasSearched && _searchResults.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: TextButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PassengerMyRidesScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.list_alt, size: 20),
-                  label: const Text('View My Bookings'),
-                ),
-              ),
           ],
         ),
       ),
@@ -898,23 +1000,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         top: false,
         child: Row(
           children: [
-            Expanded(
-              child: _buildFooterItem(
-                context,
-                icon: Icons.confirmation_number,
-                label: 'My Bookings',
-                iconColor: Colors.blue[700]!,
-                bgColor: Colors.blue[50]!,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PassengerMyRidesScreen())),
-              ),
-            ),
-            const SizedBox(width: 6),
             if (isDriver)
               Expanded(
                 child: _buildFooterItem(
                   context,
                   icon: Icons.route,
-                  label: 'My Rides',
+                  label: 'My rides',
                   iconColor: Colors.green[700]!,
                   bgColor: Colors.green[50]!,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyRidesScreen())),
@@ -924,8 +1015,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             Expanded(
               child: _buildFooterItem(
                 context,
-                icon: Icons.person,
-                label: 'Profile',
+                icon: Icons.settings,
+                label: 'Settings',
                 iconColor: Colors.blue[700]!,
                 bgColor: Colors.blue[50]!,
                 isHighlight: true,

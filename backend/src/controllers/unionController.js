@@ -705,7 +705,8 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const driverName    = (s.driver_name     || '').toString();
   const vehicleNum    = (s.vehicle_number  || '').toString();
   const driverPhone   = (s.driver_phone    || '').toString();
-  const unionName     = (s.union_name      || 'Taxi Union').toString();
+  let unionName     = (s.union_name      || 'Taxi Union').toString().trim();
+  if (unionName.toLowerCase() === 'techmcu') unionName = 'Taxi Union';
   const posterHeader  = (s.poster_header   || '').toString().trim();
 
   const pad  = (n) => String(n).padStart(2, '0');
@@ -949,18 +950,10 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   _rect(doc, 0, footerY, W, 3, '#FFC107');
 
   doc.fillColor('#FFFFFF')
-     .font('Helvetica-Bold').fontSize(13)
-     .text('You can also find and book this ride on  luharide.in', 0, footerY + 12, {
+     .font('Helvetica-Bold').fontSize(12)
+     .text('Book or find rides online at luharide.in', 0, footerY + 20, {
        width: W, align: 'center'
      });
-
-  doc.fillColor('rgba(255,255,255,0.8)')
-     .font('Helvetica').fontSize(10)
-     .text(
-       'Share this poster or book directly on luharide.in',
-       0, footerY + 34,
-       { width: W, align: 'center' }
-     );
 
   doc.end();
 });
@@ -1065,7 +1058,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   if (schedRes.rows.length === 0) throw ApiError.notFound('No schedules found');
 
   const rows        = schedRes.rows;
-  const unionName   = (rows[0].union_name || 'Taxi Union').toString();
+  let unionName     = (rows[0].union_name || 'Taxi Union').toString().trim();
+  if (unionName.toLowerCase() === 'techmcu') unionName = 'Taxi Union';
   const posterHdr   = (rows[0].poster_header || '').toString().trim();
 
   // Determine date label from first schedule
@@ -1232,11 +1226,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   _fillRect(doc, 0, footerY, W, FOOTER_H, '#212121');
   _fillRect(doc, 0, footerY, W, 3, '#FFC107');
 
-  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(13)
-    .text('You can also find and book these rides on  luharide.in', 0, footerY + 11,
-      { width: W, align: 'center' });
-  doc.fillColor('rgba(255,255,255,0.75)').font('Helvetica').fontSize(10)
-    .text('Yeh ride luharide.in par bhi milegi  |  Abhi book karein', 0, footerY + 32,
+  doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(12)
+    .text('Book or find rides online at luharide.in', 0, footerY + 20,
       { width: W, align: 'center' });
 
   doc.end();
