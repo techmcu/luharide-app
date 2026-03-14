@@ -888,7 +888,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         color: Colors.blue,
                       ),
                     ),
-                    const Text(' /seat'),
                   ],
                 ),
                 if (trip.driver != null)
@@ -911,36 +910,57 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             
             const SizedBox(height: 14),
 
-            // Call + WhatsApp + Book
-            Row(children: [
-              if ((trip.driver?.phone ?? '').isNotEmpty) ...[
-                Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(trip.driver!.phone!))),
-                const SizedBox(width: 8),
-              ],
-              if ((trip.driver?.whatsappNumber ?? trip.driver?.phone ?? '').isNotEmpty) ...[
-                Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(trip.driver!.whatsappNumber ?? trip.driver!.phone ?? ''))),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => TripDetailsScreen(tripId: trip.id, initialTrip: trip)),
-                    );
-                    if (result == true && mounted) _searchTrips();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            // Call + WhatsApp row
+            Row(
+              children: [
+                if ((trip.driver?.phone ?? '').isNotEmpty) ...[
+                  Expanded(
+                    child: _contactBtn(
+                      Icons.call_rounded,
+                      'Call',
+                      const Color(0xFF16A34A),
+                      () => _launchPhone(trip.driver!.phone!),
+                    ),
                   ),
-                  child: const Text('Book', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 8),
+                ],
+                if ((trip.driver?.whatsappNumber ?? trip.driver?.phone ?? '').isNotEmpty)
+                  Expanded(
+                    child: _contactBtn(
+                      Icons.chat_rounded,
+                      'WhatsApp',
+                      const Color(0xFF25D366),
+                      () => _launchWhatsApp(trip.driver!.whatsappNumber ?? trip.driver!.phone ?? ''),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Book button full width (separate row for mobile-friendly layout)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TripDetailsScreen(tripId: trip.id, initialTrip: trip),
+                    ),
+                  );
+                  if (result == true && mounted) _searchTrips();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text(
+                  'Book',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                 ),
               ),
-            ]),
+            ),
           ],
         ),
       ),

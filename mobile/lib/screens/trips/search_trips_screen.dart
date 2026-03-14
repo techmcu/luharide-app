@@ -255,7 +255,7 @@ class _TripCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Fare
+                // Fare (no per-seat label, no seat badge)
                 Row(
                   children: [
                     const Icon(Icons.currency_rupee, size: 20, color: _kBlue),
@@ -263,11 +263,8 @@ class _TripCard extends StatelessWidget {
                       trip.farePerSeat.toStringAsFixed(0),
                       style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _kBlue),
                     ),
-                    const Text(' /seat', style: TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
-                // Seat badge
-                _SeatBadge(seats: trip.availableSeats),
               ],
             ),
           ),

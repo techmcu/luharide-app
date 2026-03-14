@@ -524,12 +524,35 @@ class _LandingScreenState extends State<LandingScreen> {
             ]),
             const Divider(height: 24),
             // Meta
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Row(children: [const Icon(Icons.access_time, size: 18, color: Colors.grey), const SizedBox(width: 4), Text(trip.formattedDepartureTime, style: const TextStyle(fontSize: 14))]),
-              Row(children: [const Icon(Icons.event_seat, size: 18, color: Colors.grey), const SizedBox(width: 4), Text('${trip.availableSeats} seats', style: TextStyle(fontSize: 14, color: trip.availableSeats > 0 ? Colors.green : Colors.red, fontWeight: FontWeight.bold))]),
-            ]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      trip.formattedDepartureTime,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
-            Row(children: [const Icon(Icons.currency_rupee, size: 20, color: Colors.blue), Text(trip.farePerSeat.toStringAsFixed(0), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)), const Text(' /seat')]),
+            Row(
+              children: [
+                const Icon(Icons.currency_rupee, size: 20, color: Colors.blue),
+                Text(
+                  trip.farePerSeat.toStringAsFixed(0),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 14),
             // Call + WhatsApp + Book
             Row(children: [

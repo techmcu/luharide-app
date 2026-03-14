@@ -142,48 +142,6 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Seat capacity',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[800]),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  IconButton.filled(
-                    onPressed: _seatCapacity <= _minSeats
-                        ? null
-                        : () => setState(() => _seatCapacity = (_seatCapacity - 1).clamp(_minSeats, _maxSeats)),
-                    icon: const Icon(Icons.remove),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.green[100],
-                      foregroundColor: Colors.green[800],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      '$_seatCapacity',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  IconButton.filled(
-                    onPressed: _seatCapacity >= _maxSeats
-                        ? null
-                        : () => setState(() => _seatCapacity = (_seatCapacity + 1).clamp(_minSeats, _maxSeats)),
-                    icon: const Icon(Icons.add),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.green[100],
-                      foregroundColor: Colors.green[800],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'seats (max $_maxSeats)',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
