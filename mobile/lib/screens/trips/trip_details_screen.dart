@@ -459,7 +459,24 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               );
               return;
             }
-            await _bookRideWithoutSeatSelection();
+            // Independent driver: open seat selection (dynamic layout by trip totalSeats)
+            final t = _displayTrip!;
+            final booked = List<int>.from(_bookedSeats);
+            final pending = List<int>.from(_pendingSeats);
+            final result = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SeatSelectionScreen(
+                  trip: t,
+                  initialBookedSeats: booked.isEmpty ? null : booked,
+                  initialPendingSeats: pending.isEmpty ? null : pending,
+                ),
+              ),
+            );
+            if (result == true) await _loadTripDetails();
+            if (mounted && result == true && Navigator.canPop(context)) {
+              Navigator.pop(context, true);
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue,
@@ -478,49 +495,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     );
   }
 
-  Future<void> _bookRideWithoutSeatSelection() async {
-    if (_displayTrip == null) return;
-
-    // Show simple loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
-    );
-
-    // For now, we treat each booking as a single seat/token.
-    // Backend still expects seat_numbers, so we send a dummy seat (2)
-    // and let backend handle capacity.
-    final result = await TripService().createBooking(
-      tripId: _displayTrip!.id,
-      seatNumbers: const [2],
-    );
-
-    if (!mounted) return;
-
-    Navigator.pop(context); // close dialog
-
-    if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']?.toString() ?? 'Booking confirmed!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      await _loadTripDetails();
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context, true);
-      }
-    } else {
-      final msg = result['message']?.toString() ?? 'Booking failed';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 }
 
 class _DriverRatingRow extends StatelessWidget {

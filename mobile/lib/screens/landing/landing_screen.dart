@@ -397,7 +397,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       else ...[
                         if (_searchResults.isNotEmpty) ...[
                           Text(
-                            'Individual driver rides',
+                            'Independent driver rides',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -410,7 +410,7 @@ class _LandingScreenState extends State<LandingScreen> {
                         ],
                         if (_unionRides.isNotEmpty) ...[
                           Text(
-                            'Taxi union rides',
+                            'Union scheduled rides',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -463,7 +463,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               ),
                             ),
                             TextSpan(
-                              text: 'techmcu',
+                              text: 'LuhaRide',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
@@ -498,9 +498,6 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   Widget _buildTripCard(TripModel trip) {
-    final phone = trip.driver?.phone ?? '';
-    final wa    = trip.driver?.whatsappNumber ?? trip.driver?.phone ?? '';
-
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -510,7 +507,24 @@ class _LandingScreenState extends State<LandingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Route
+            // Independent driver label
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_pin_car_rounded, size: 16, color: Colors.blue[700]),
+                  const SizedBox(width: 6),
+                  Text('Independent driver • Book on app', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue[800])),
+                ],
+              ),
+            ),
             Row(children: [
               const Icon(Icons.trip_origin, color: Colors.green, size: 20),
               const SizedBox(width: 8),
@@ -523,7 +537,6 @@ class _LandingScreenState extends State<LandingScreen> {
               Expanded(child: Text(trip.toLocation, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
             ]),
             const Divider(height: 24),
-            // Meta
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -531,9 +544,16 @@ class _LandingScreenState extends State<LandingScreen> {
                   children: [
                     const Icon(Icons.access_time, size: 18, color: Colors.grey),
                     const SizedBox(width: 4),
+                    Text(trip.formattedDepartureTime, style: const TextStyle(fontSize: 14)),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Icon(Icons.event_seat, size: 18, color: Colors.grey),
+                    const SizedBox(width: 4),
                     Text(
-                      trip.formattedDepartureTime,
-                      style: const TextStyle(fontSize: 14),
+                      '${trip.availableSeats} / ${trip.totalSeats} seats',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: trip.availableSeats > 0 ? Colors.green : Colors.red),
                     ),
                   ],
                 ),
@@ -545,34 +565,19 @@ class _LandingScreenState extends State<LandingScreen> {
                 const Icon(Icons.currency_rupee, size: 20, color: Colors.blue),
                 Text(
                   trip.farePerSeat.toStringAsFixed(0),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
                 ),
               ],
             ),
             const SizedBox(height: 14),
-            // Call + WhatsApp + Book
-            Row(children: [
-              if (phone.isNotEmpty) ...[
-                Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _guardedContact(() => _launchPhone(phone)))),
-                const SizedBox(width: 8),
-              ],
-              if (wa.isNotEmpty) ...[
-                Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _guardedContact(() => _launchWhatsApp(wa)))),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                flex: 2,
-                child: ElevatedButton(
-                  onPressed: () => _onTripTap(trip),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
-                  child: const Text('Book', style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _onTripTap(trip),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
+                child: const Text('Book', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
-            ]),
+            ),
           ],
         ),
       ),
@@ -611,17 +616,27 @@ class _LandingScreenState extends State<LandingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (unionName.isNotEmpty) ...[
-              Text(
-                unionName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue,
-                ),
+            // Union ride label
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange[200]!),
               ),
-              const SizedBox(height: 4),
-            ],
+              child: Row(
+                children: [
+                  const Icon(Icons.business_rounded, size: 16, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Text('Union ride', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[800])),
+                  if (unionName.isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(unionName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.orange), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ],
+                ],
+              ),
+            ),
             Row(
               children: [
                 const Icon(Icons.trip_origin, color: Colors.green, size: 20),

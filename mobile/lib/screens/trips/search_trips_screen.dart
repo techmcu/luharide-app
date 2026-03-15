@@ -228,10 +228,7 @@ class _TripCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final driver  = trip.driver;
-    final phone   = driver?.phone ?? '';
-    final wa      = driver?.whatsappNumber ?? driver?.phone ?? '';
-    final hasContact = phone.isNotEmpty || wa.isNotEmpty;
+    final driver = trip.driver;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -245,17 +242,28 @@ class _TripCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Top header bar ──────────────────────────────────────────────
+          // Independent driver label
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: _kBlue.withOpacity(0.06),
+              color: _kBlue.withOpacity(0.08),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
+              children: [
+                Icon(Icons.person_pin_car_rounded, size: 18, color: _kBlue),
+                const SizedBox(width: 8),
+                Text('Independent driver • Book on app', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kBlue)),
+              ],
+            ),
+          ),
+          // Fare + seats
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Fare (no per-seat label, no seat badge)
                 Row(
                   children: [
                     const Icon(Icons.currency_rupee, size: 20, color: _kBlue),
@@ -265,15 +273,23 @@ class _TripCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                Row(
+                  children: [
+                    const Icon(Icons.event_seat, size: 18, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${trip.availableSeats} / ${trip.totalSeats} seats',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: trip.availableSeats > 0 ? _kGreen : _kRed),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
-          // ── Route ───────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: _RouteRow(from: trip.fromLocation, to: trip.toLocation),
           ),
-          // ── Meta row ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
             child: Wrap(
@@ -290,31 +306,22 @@ class _TripCard extends StatelessWidget {
               ],
             ),
           ),
-          // ── Action buttons ───────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              children: [
-                if (hasContact) ...[
-                  _ContactButtons(phone: phone, whatsapp: wa),
-                  const SizedBox(height: 8),
-                ],
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: onBook,
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                    label: const Text('View Details & Book', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kBlue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                    ),
-                  ),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onBook,
+                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                label: const Text('View Details & Book', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _kBlue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -366,19 +373,21 @@ class _UnionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Union badge ─────────────────────────────────────────────────
-          if (unionName.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF7ED),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.business_rounded, size: 15, color: Colors.orange),
-                  const SizedBox(width: 6),
+          // Union ride label
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.business_rounded, size: 15, color: Colors.orange),
+                const SizedBox(width: 6),
+                Text('Union ride', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.orange[800])),
+                if (unionName.isNotEmpty) ...[
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       unionName,
@@ -388,11 +397,11 @@ class _UnionCard extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-          // ── Route ───────────────────────────────────────────────────────
+          ),
           Padding(
-            padding: EdgeInsets.fromLTRB(16, unionName.isNotEmpty ? 12 : 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: _RouteRow(from: from, to: to),
           ),
           // ── Meta ────────────────────────────────────────────────────────
@@ -695,7 +704,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
         if (_trips.isNotEmpty) ...[
-          _SectionLabel(label: 'Private Driver Rides', count: _trips.length),
+          _SectionLabel(label: 'Independent driver rides', count: _trips.length),
           ..._trips.map((t) => _TripCard(
             trip: t,
             onBook: () => Navigator.push(
@@ -706,7 +715,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
           const SizedBox(height: 8),
         ],
         if (_unionRides.isNotEmpty) ...[
-          _SectionLabel(label: 'Taxi Union Rides', count: _unionRides.length),
+          _SectionLabel(label: 'Union scheduled rides', count: _unionRides.length),
           ..._unionRides.map((r) => _UnionCard(ride: r as Map<String, dynamic>)),
         ],
       ],

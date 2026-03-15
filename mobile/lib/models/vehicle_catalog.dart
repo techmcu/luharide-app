@@ -14,6 +14,9 @@ class VehicleModelConfig {
     required this.capacity,
     required this.layout,
   });
+
+  /// Display line for dropdown: "Name (X seater)"
+  String get dropdownLabel => '$name ($capacity seater)';
 }
 
 class VehicleBrandConfig {
@@ -28,6 +31,21 @@ class VehicleBrandConfig {
   });
 }
 
+/// One option for driver verification dropdown: id + display name + capacity + layout.
+class VehicleDropdownOption {
+  final String id;
+  final String displayName;
+  final int capacity;
+  final SeatLayoutConfig layout;
+
+  const VehicleDropdownOption({
+    required this.id,
+    required this.displayName,
+    required this.capacity,
+    required this.layout,
+  });
+}
+
 /// All layouts: RHD (driver right in top-view). rowCols = real car proportions (front 2, middle 3, rear 2 etc).
 class VehicleCatalog {
   static final List<VehicleBrandConfig> brands = [
@@ -35,6 +53,7 @@ class VehicleCatalog {
     _mahindra(),
     _marutiSuzuki(),
     _toyota(),
+    _kia(),
   ];
 
   // —— 4-seater: [2,2] ——
@@ -135,9 +154,38 @@ class VehicleCatalog {
     ],
   );
 
+  /// Tempo Traveller / bus: RHD top view — front row [passenger, driver], then rows of 3 (or 2).
+  static SeatLayoutConfig _tempoLayout(int totalSeats) {
+    final seats = <SeatPosition>[];
+    final rowCols = <int>[2]; // row 0: passenger, driver
+    seats.add(const SeatPosition(id: 'F1', row: 0, col: 0, type: 'front'));
+    seats.add(const SeatPosition(id: 'D1', row: 0, col: 1, type: 'driver'));
+    int remaining = totalSeats - 2;
+    int row = 1;
+    while (remaining > 0) {
+      final inRow = remaining >= 3 ? 3 : remaining;
+      rowCols.add(inRow);
+      for (int c = 0; c < inRow; c++) {
+        final type = row >= 4 ? 'rear' : 'middle';
+        seats.add(SeatPosition(id: 'S${seats.length + 1}', row: row, col: c, type: type));
+      }
+      remaining -= inRow;
+      row++;
+    }
+    final cols = rowCols.reduce((a, b) => a > b ? a : b);
+    return SeatLayoutConfig(rows: row, cols: cols, rowCols: rowCols, seats: seats);
+  }
+
+  static final _layoutTempo12 = _tempoLayout(12);
+  static final _layoutTempo16 = _tempoLayout(16);
+  static final _layoutTempo18 = _tempoLayout(18);
+  static final _layoutTempo20 = _tempoLayout(20);
+  static final _layoutTempo24 = _tempoLayout(24);
+  static final _layoutTempo26 = _tempoLayout(26);
+  static final _layoutTempo30 = _tempoLayout(30);
+  static final _layoutTempo32 = _tempoLayout(32);
+
   /// Get a generic seat layout for a given total seat count.
-  /// This is used for passenger seat selection so that the seat map
-  /// matches the same top-view style used during driver verification.
   static SeatLayoutConfig layoutForCapacity(int totalSeats) {
     switch (totalSeats) {
       case 4:
@@ -152,6 +200,22 @@ class VehicleCatalog {
         return _layout9Sumo;
       case 10:
         return _layoutJeep10;
+      case 12:
+        return _layoutTempo12;
+      case 16:
+        return _layoutTempo16;
+      case 18:
+        return _layoutTempo18;
+      case 20:
+        return _layoutTempo20;
+      case 24:
+        return _layoutTempo24;
+      case 26:
+        return _layoutTempo26;
+      case 30:
+        return _layoutTempo30;
+      case 32:
+        return _layoutTempo32;
       default:
         // Fallback: simple car/bus style grid (similar to old seat selection)
         final seatsPerRow = totalSeats <= 7 ? 2 : 3;
@@ -250,6 +314,53 @@ class VehicleCatalog {
     );
   }
 
+  static VehicleBrandConfig _kia() {
+    return VehicleBrandConfig(
+      id: 'kia',
+      name: 'Kia',
+      models: [
+        VehicleModelConfig(id: 'kia_seltos', name: 'Seltos', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'kia_sonet', name: 'Sonet', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'kia_carens', name: 'Carens', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'kia_carnival', name: 'Carnival', bodyType: 'MPV', capacity: 7, layout: _layout7),
+      ],
+    );
+  }
+
+  /// Tempo Traveller / bus options (RTO-style seat counts)
+  static List<VehicleDropdownOption> _tempoOptions() {
+    return [
+      VehicleDropdownOption(id: 'tempo_10', displayName: 'Tempo Traveller / 10 seater', capacity: 10, layout: _layoutJeep10),
+      VehicleDropdownOption(id: 'tempo_12', displayName: 'Tempo Traveller 12 seater', capacity: 12, layout: _layoutTempo12),
+      VehicleDropdownOption(id: 'tempo_16', displayName: 'Tempo Traveller 16 seater', capacity: 16, layout: _layoutTempo16),
+      VehicleDropdownOption(id: 'tempo_18', displayName: 'Tempo Traveller 18 seater', capacity: 18, layout: _layoutTempo18),
+      VehicleDropdownOption(id: 'tempo_20', displayName: 'Tempo Traveller 20 seater', capacity: 20, layout: _layoutTempo20),
+      VehicleDropdownOption(id: 'tempo_24', displayName: 'Tempo Traveller 24 seater', capacity: 24, layout: _layoutTempo24),
+      VehicleDropdownOption(id: 'tempo_26', displayName: 'Tempo Traveller 26 seater', capacity: 26, layout: _layoutTempo26),
+      VehicleDropdownOption(id: 'tempo_30', displayName: 'Tempo Traveller 30 seater', capacity: 30, layout: _layoutTempo30),
+      VehicleDropdownOption(id: 'tempo_32', displayName: 'Tempo Traveller 32 seater', capacity: 32, layout: _layoutTempo32),
+    ];
+  }
+
+  /// Single list for driver verification dropdown: "Kaunsi gadi hai aapko?"
+  /// Cars + Tempo. Each option has fixed layout; selecting one fixes seat count & layout for trips.
+  static List<VehicleDropdownOption> get allVehicleOptionsForDropdown {
+    final list = <VehicleDropdownOption>[];
+    for (final brand in brands) {
+      for (final model in brand.models) {
+        list.add(VehicleDropdownOption(
+          id: model.id,
+          displayName: '${brand.name} ${model.name} (${model.capacity} seater)',
+          capacity: model.capacity,
+          layout: model.layout,
+        ));
+      }
+    }
+    list.addAll(_tempoOptions());
+    list.sort((a, b) => a.capacity.compareTo(b.capacity));
+    return list;
+  }
+
   static VehicleBrandConfig? findBrandById(String id) {
     try {
       return brands.firstWhere((b) => b.id == id);
@@ -264,6 +375,12 @@ class VehicleCatalog {
         return brand.models.firstWhere((m) => m.id == id);
       } catch (_) {
         continue;
+      }
+    }
+    // Tempo / bus options (id like tempo_12, tempo_16)
+    for (final opt in _tempoOptions()) {
+      if (opt.id == id) {
+        return VehicleModelConfig(id: opt.id, name: opt.displayName, bodyType: 'Tempo', capacity: opt.capacity, layout: opt.layout);
       }
     }
     return null;

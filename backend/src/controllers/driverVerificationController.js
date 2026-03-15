@@ -33,6 +33,12 @@ const submitVerification = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('You are already a verified driver');
   }
 
+  // Independent driver: max 32 seats (cap for seat layout and booking)
+  const MAX_SEATS = 32;
+  let capNum = vehicle_capacity != null ? parseInt(vehicle_capacity, 10) : null;
+  if (capNum != null && (Number.isNaN(capNum) || capNum < 1)) capNum = null;
+  if (capNum != null && capNum > MAX_SEATS) capNum = MAX_SEATS;
+
   // Upsert verification request (vehicle_model_id = catalog ID for exact seat layout)
   const params = [
     userId,
@@ -42,7 +48,7 @@ const submitVerification = asyncHandler(async (req, res) => {
     vehicle_type || null,
     vehicle_model || null,
     vehicle_model_id || null,
-    vehicle_capacity ? parseInt(vehicle_capacity) : null,
+    capNum,
     rc_document_url || null,
     permit_document_url || null,
     insurance_document_url || null,

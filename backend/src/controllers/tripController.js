@@ -62,8 +62,11 @@ const createTrip = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('Complete driver verification first. Go to Profile → Become a Driver.');
   }
 
+  const MAX_SEATS = 32; // Independent driver: max seat count for layout and booking
   const cap = verif.rows[0].vehicle_capacity;
-  const totalSeats = (cap != null && cap > 0) ? cap : 7;
+  let totalSeats = (cap != null && cap > 0) ? cap : 7;
+  if (totalSeats > MAX_SEATS) totalSeats = MAX_SEATS;
+  if (totalSeats < 1) totalSeats = 1;
   const vehicleNumber = (verif.rows[0].vehicle_registration || bodyVehicleNumber || '').toString().trim().slice(0, 20);
   let vehicleModelId = null;
   try {
@@ -276,6 +279,7 @@ const searchTrips = asyncHandler(async (req, res) => {
     available_seats: trip.available_seats ?? trip.total_capacity ?? 0,
     total_seats: trip.total_seats ?? trip.total_capacity ?? 0,
     vehicle_number: trip.vehicle_number,
+    vehicle_model_id: trip.vehicle_model_id ?? null,
     stops: trip.stops,
     status: trip.status,
     driver: {
@@ -568,6 +572,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
         available_seats: availableSeats,
         total_seats: totalSeats,
         vehicle_number: trip.vehicle_number,
+        vehicle_model_id: trip.vehicle_model_id ?? null,
         stops: trip.stops,
         status: trip.status,
         driver: {

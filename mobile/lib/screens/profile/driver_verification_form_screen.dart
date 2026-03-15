@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../models/vehicle_catalog.dart';
 import '../../services/driver_verification_service.dart';
 
 /// Form to submit driver verification documents.
-/// Vehicle and sub-brand are free text; seat capacity is +/- counter (max 50).
+/// Vehicle is selected from dropdown (fixed layout + seat count); no manual seat entry.
 class DriverVerificationFormScreen extends StatefulWidget {
   const DriverVerificationFormScreen({super.key});
 
@@ -15,39 +16,40 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   final _service = DriverVerificationService();
   final _licenseController = TextEditingController();
   final _vehicleRegController = TextEditingController();
-  final _vehicleController = TextEditingController();
-  final _vehicleSubBrandController = TextEditingController();
   bool _isLoading = false;
-  int _seatCapacity = 4;
-  static const int _minSeats = 1;
-  static const int _maxSeats = 50;
+  VehicleDropdownOption? _selectedVehicle;
 
   @override
   void dispose() {
     _licenseController.dispose();
     _vehicleRegController.dispose();
-    _vehicleController.dispose();
-    _vehicleSubBrandController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedVehicle == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your vehicle'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
-    final vehicleType = _vehicleController.text.trim();
-    final vehicleModel = _vehicleSubBrandController.text.trim().isNotEmpty
-        ? _vehicleSubBrandController.text.trim()
-        : vehicleType;
+    final v = _selectedVehicle!;
+    final vehicleType = v.displayName.contains(' ')
+        ? v.displayName.split(' ').first
+        : v.displayName;
+    final vehicleModel = v.displayName;
 
     final result = await _service.submitVerification(
       drivingLicenseNumber: _licenseController.text.trim(),
       vehicleRegistration: _vehicleRegController.text.trim(),
       vehicleType: vehicleType,
       vehicleModel: vehicleModel,
-      vehicleModelId: null,
-      vehicleCapacity: _seatCapacity,
+      vehicleModelId: v.id,
+      vehicleCapacity: v.capacity,
     );
 
     setState(() => _isLoading = false);
@@ -121,27 +123,46 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                 ),
                 validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _vehicleController,
-                decoration: InputDecoration(
-                  labelText: 'Vehicle (brand / name)',
-                  hintText: 'e.g. Mahindra, Tata, Toyota',
-                  prefixIcon: const Icon(Icons.directions_car),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+              const SizedBox(height: 20),
+              // Kaunsi gadi hai aapko? — dropdown fixes seat count & layout (RTO-style)
+              const Text(
+                'Kaunsi gadi hai aapko?',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _vehicleSubBrandController,
+              const SizedBox(height: 8),
+              DropdownButtonFormField<VehicleDropdownOption>(
+                value: _selectedVehicle,
                 decoration: InputDecoration(
-                  labelText: 'Sub-brand / model (optional)',
-                  hintText: 'e.g. Bolero, Innova, Ertiga',
-                  prefixIcon: const Icon(Icons.directions_car),
+                  prefixIcon: const Icon(Icons.event_seat),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                 ),
+                hint: const Text('Select vehicle (seats as per RTO)'),
+                isExpanded: true,
+                items: VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
+                  return DropdownMenuItem<VehicleDropdownOption>(
+                    value: opt,
+                    child: Text(opt.displayName, overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+                onChanged: (opt) => setState(() => _selectedVehicle = opt),
+                validator: (v) => v == null ? 'Select your vehicle' : null,
               ),
+              if (_selectedVehicle != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 18, color: Colors.green[700]),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '${_selectedVehicle!.capacity} seats — same layout will show for passengers when they book.',
+                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,

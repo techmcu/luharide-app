@@ -592,14 +592,23 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Driver-created trips (bookable with seat selection)
+                          // Independent driver trips (book on app, seat selection)
                           if (_searchResults.isNotEmpty) ...[
+                            Text(
+                              'Independent driver rides',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                             ..._searchResults.map(
                               (trip) => _buildTripCard(trip, key: ValueKey(trip.id)),
                             ),
                             const SizedBox(height: 16),
                           ],
-                          // Union-managed schedules (poster-style)
+                          // Union-managed schedules (call only, no seat booking)
                           if (_unionSearchResults.isNotEmpty) ...[
                             Text(
                               'Union scheduled rides',
@@ -659,23 +668,26 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Union name badge
-          if (unionName.isNotEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF7ED),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
-              ),
-              child: Row(children: [
-                const Icon(Icons.business_rounded, size: 15, color: Colors.orange),
-                const SizedBox(width: 6),
-                Expanded(child: Text(unionName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.orange), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              ]),
+          // Union ride label + union name
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF7ED),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
             ),
+            child: Row(children: [
+              const Icon(Icons.business_rounded, size: 15, color: Colors.orange),
+              const SizedBox(width: 6),
+              Text('Union ride', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[800])),
+              if (unionName.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Expanded(child: Text(unionName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.orange), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ],
+            ]),
+          ),
           Padding(
-            padding: EdgeInsets.fromLTRB(14, unionName.isNotEmpty ? 12 : 14, 14, 14),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -796,6 +808,24 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Independent driver label (book on app, seat selection)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.blue[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue[200]!),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_pin_car_rounded, size: 16, color: Colors.blue[700]),
+                  const SizedBox(width: 6),
+                  Text('Independent driver • Book on app', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue[800])),
+                ],
+              ),
+            ),
             // Route
             Row(
               children: [
@@ -860,7 +890,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                     const Icon(Icons.event_seat, size: 18, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      '${trip.availableSeats} seats',
+                      '${trip.availableSeats} / ${trip.totalSeats} seats',
                       style: TextStyle(
                         fontSize: 14,
                         color: trip.availableSeats > 0 ? Colors.green : Colors.red,
@@ -910,33 +940,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             
             const SizedBox(height: 14),
 
-            // Call + WhatsApp row
-            Row(
-              children: [
-                if ((trip.driver?.phone ?? '').isNotEmpty) ...[
-                  Expanded(
-                    child: _contactBtn(
-                      Icons.call_rounded,
-                      'Call',
-                      const Color(0xFF16A34A),
-                      () => _launchPhone(trip.driver!.phone!),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                if ((trip.driver?.whatsappNumber ?? trip.driver?.phone ?? '').isNotEmpty)
-                  Expanded(
-                    child: _contactBtn(
-                      Icons.chat_rounded,
-                      'WhatsApp',
-                      const Color(0xFF25D366),
-                      () => _launchWhatsApp(trip.driver!.whatsappNumber ?? trip.driver!.phone ?? ''),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Book button full width (separate row for mobile-friendly layout)
+            // Independent driver: only Book (seat selection on trip details)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(

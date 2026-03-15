@@ -22,6 +22,8 @@ class SeatSelectionScreen extends StatefulWidget {
 }
 
 class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
+  static const int _maxSeats = 32; // Independent driver max; layout must match driver's capacity
+
   final _tripService = TripService();
   final Set<int> _selectedSeats = {};
   late List<bool> _seatStatus; // true = booked or pending or driver, false = available
@@ -33,6 +35,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   late SeatLayoutConfig _layout;
   late Set<int> _driverSeatIndices; // 0-based indices where type == 'driver' (same as verification)
   late List<int> _logicalSeatNumber; // seat index -> API seat number (driver = 1, others = 2..N)
+  late int _effectiveTotalSeats; // min(totalSeats, 32) for layout
 
   @override
   void initState() {
@@ -42,11 +45,12 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   void _initLayout() {
-    final totalSeats = widget.trip.totalSeats;
+    // Use driver's selected vehicle layout (fixed at verification) — same top-view for passenger
     final vehicleModel = widget.trip.vehicleModelId != null
         ? VehicleCatalog.findModelById(widget.trip.vehicleModelId!)
         : null;
-    _layout = vehicleModel?.layout ?? VehicleCatalog.layoutForCapacity(totalSeats);
+    _layout = vehicleModel?.layout ?? VehicleCatalog.layoutForCapacity(widget.trip.totalSeats.clamp(1, _maxSeats));
+    _effectiveTotalSeats = (vehicleModel?.layout.seats.length ?? widget.trip.totalSeats).clamp(1, _maxSeats);
     _driverSeatIndices = _layout.seats
         .asMap()
         .entries
@@ -54,9 +58,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         .map((e) => e.key)
         .toSet();
     // API convention: seat 1 = driver (reserved). Others = 2, 3, ..., N.
-    _logicalSeatNumber = List.filled(totalSeats, 0);
+    _logicalSeatNumber = List.filled(_effectiveTotalSeats, 0);
     var next = 2;
-    for (var i = 0; i < totalSeats; i++) {
+    for (var i = 0; i < _effectiveTotalSeats; i++) {
       if (_driverSeatIndices.contains(i)) {
         _logicalSeatNumber[i] = 1;
       } else {
@@ -66,7 +70,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   void _applySeatData(Set<int> booked, Set<int> pending) {
-    final totalSeats = widget.trip.totalSeats;
+    final totalSeats = _effectiveTotalSeats;
     // Backend sends seat 1 as driver; ensure driver is always in booked for UI
     _bookedSeats = Set<int>.from(booked)
       ..addAll(_driverSeatIndices.map((i) => _logicalSeatNumber[i]));
@@ -84,7 +88,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       _loadError = null;
     });
 
-    final totalSeats = widget.trip.totalSeats;
+    final totalSeats = _effectiveTotalSeats;
 
     // Use initial data immediately so colors show right away
     final initBooked = widget.initialBookedSeats ?? [];
@@ -108,7 +112,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       // _availableCount already set in _applySeatData (includes driver seat as reserved)
     } else if (initBooked.isEmpty && initPending.isEmpty) {
       _loadError = result['message']?.toString();
-      final bookedCount = totalSeats - widget.trip.availableSeats;
+      final bookedCount = totalSeats - widget.trip.availableSeats.clamp(0, totalSeats);
       _bookedSeats = Set.from(_driverSeatIndices.map((i) => _logicalSeatNumber[i]));
       _pendingSeats = {};
       _seatStatus = List.generate(totalSeats, (index) =>
@@ -287,7 +291,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final totalSeats = widget.trip.totalSeats;
+    final totalSeats = _effectiveTotalSeats;
     // Use EXACT same layout as driver verification (set in initState)
     final layout = _layout;
     final seatPositions = layout.seats;
