@@ -560,6 +560,22 @@ const getTripDetails = asyncHandler(async (req, res) => {
   const totalSeats = trip.total_seats ?? trip.total_capacity ?? 0;
   const availableSeats = Math.max(0, totalSeats - allTakenSet.size);
 
+  // Check current user's booking status for this trip (if logged in and not the driver)
+  let userBookingStatus = null;
+  const isDriver = req.user && req.user.id === trip.driver_id;
+  if (req.user && !isDriver) {
+    const userBookingRes = await pool.query(
+      `SELECT status FROM bookings
+       WHERE trip_id = $1 AND passenger_id = $2
+       ORDER BY created_at DESC LIMIT 1`,
+      [id, req.user.id]
+    );
+    userBookingStatus = userBookingRes.rows.length > 0 ? userBookingRes.rows[0].status : null;
+  }
+
+  // Only reveal driver contact if the requesting user has a confirmed booking (or is the driver)
+  const contactVisible = isDriver || userBookingStatus === 'confirmed';
+
   ApiResponse.success(
     {
       trip: {
@@ -579,8 +595,9 @@ const getTripDetails = asyncHandler(async (req, res) => {
           id: trip.driver_id,
           name: trip.driver_name,
           email: trip.driver_email,
-          phone: trip.driver_phone,
-          whatsapp_number: trip.driver_whatsapp ?? null,
+          // Phone & WhatsApp only revealed after confirmed booking
+          phone: contactVisible ? (trip.driver_phone ?? null) : null,
+          whatsapp_number: contactVisible ? (trip.driver_whatsapp ?? null) : null,
           isVerified: trip.driver_verified === 'approved',
           bio: trip.driver_bio ?? null,
           luggage_allowance_per_passenger: trip.driver_luggage_allowance ?? null
@@ -588,6 +605,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
       },
       booked_seats: [...bookedSet].sort((a, b) => a - b),
       pending_seats: [...pendingSet].sort((a, b) => a - b),
+      user_booking_status: userBookingStatus,
     },
     'Trip details'
   ).send(res);

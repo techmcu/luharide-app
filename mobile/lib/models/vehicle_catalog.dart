@@ -44,6 +44,13 @@ class VehicleDropdownOption {
     required this.capacity,
     required this.layout,
   });
+
+  /// Required so Flutter DropdownButtonFormField can compare selected value with items list.
+  @override
+  bool operator ==(Object other) => other is VehicleDropdownOption && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
 
 /// All layouts: RHD (driver right in top-view). rowCols = real car proportions (front 2, middle 3, rear 2 etc).

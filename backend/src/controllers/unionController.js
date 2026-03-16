@@ -745,41 +745,25 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   // ─── Top accent stripe ─────────────────────────────────────────────────────
   _rect(doc, 0, 0, W, 5, '#212121');
 
-  // ─── Header band ───────────────────────────────────────────────────────────
-  const headerH = posterHeader ? 148 : 120;
-  // Taxi‑style warm yellow/orange header
+  // ─── Header band (only union name — nothing else at top) ──────────────────
+  const headerH = 120;
   _rect(doc, 0, 5, W, headerH, '#FFC107');
 
-  let y = 16;
+  let y = 22;
 
-  // Custom blessing / deity line
-  if (posterHeader) {
-    // Decorative dots left & right
-    const dotTxt = '  * ';
-    doc.fillColor('#212121')
-       .font('Helvetica-Oblique')
-       .fontSize(15)
-       .text(`${dotTxt}${posterHeader}${dotTxt}`, 0, y, { width: W, align: 'center' });
-    y += 24;
-    // Thin white separator line
-    _hRule(doc, ML + 30, y, CW - 60, 'rgba(255,255,255,0.35)', 0.7);
-    y += 10;
-  } else {
-    y = 22;
-  }
-
-  // Union name
+  // Union name — big, centered, primary focus
+  const unFontSize = unionName.length > 22 ? 24 : 32;
   doc.fillColor('#212121')
      .font('Helvetica-Bold')
-     .fontSize(unionName.length > 22 ? 22 : 28)
+     .fontSize(unFontSize)
      .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
-  y += (unionName.length > 22 ? 22 : 28) + 6;
+  y += unFontSize + 8;
 
-  // Sub label - simple daily timings line
+  // Sub label
   doc.fillColor('#424242')
      .font('Helvetica')
      .fontSize(10)
-     .text('DAILY TAXI TIMINGS', 0, y, {
+     .text('रोज़ाना टैक्सी समय', 0, y, {
        width: W, align: 'center', characterSpacing: 1.0
      });
   y += 18;
@@ -791,14 +775,14 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   y = 5 + headerH + 14;
 
-  // ─── "TODAY'S RIDE" pill label ─────────────────────────────────────────────
+  // ─── Today pill label (Hindi) ─────────────────────────────────────────────
   const pillW = 130;
   const pillX = (W - pillW) / 2;
   _roundedRect(doc, pillX, y, pillW, 22, 11, '#212121');
   doc.fillColor('#FFC107')
      .font('Helvetica-Bold')
      .fontSize(9)
-     .text("TODAY'S RIDE", pillX, y + 6, {
+     .text('आज की सवारी', pillX, y + 6, {
        width: pillW, align: 'center', characterSpacing: 1.5
      });
   y += 36;
@@ -811,17 +795,17 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   const half = (CW - 20) / 2;
 
-  // FROM label
+  // FROM label (Hindi)
   doc.fillColor('#F57F17')
      .font('Helvetica-Bold')
      .fontSize(9)
-     .text('FROM', ML + 14, y + 14, { width: half, align: 'left', characterSpacing: 1.2 });
+     .text('से', ML + 14, y + 14, { width: half, align: 'left', characterSpacing: 1.2 });
 
-  // TO label (right side, aligned right of center arrow)
+  // TO label (right side, aligned right of center arrow) (Hindi)
   doc.fillColor('#F57F17')
      .font('Helvetica-Bold')
      .fontSize(9)
-     .text('TO', ML + CW / 2 + 6, y + 14, { width: half - 6, align: 'left', characterSpacing: 1.2 });
+     .text('तक', ML + CW / 2 + 6, y + 14, { width: half - 6, align: 'left', characterSpacing: 1.2 });
 
   // FROM city name
   const fromFontSize = from.length > 12 ? 20 : (from.length > 8 ? 24 : 28);
@@ -860,12 +844,12 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const dtBoxH = 76;
   const dtW    = (CW - 10) / 2;
 
-  // Date box (soft blue)
+  // Date box (soft blue) - label in Hindi
   _roundedRect(doc, ML, y, dtW, dtBoxH, 12, '#E3F2FD');
   _roundedRect(doc, ML, y, dtW, 5, 3, '#1565C0');
   doc.fillColor('#1565C0')
      .font('Helvetica').fontSize(9)
-     .text('DATE', ML, y + 14, { width: dtW, align: 'center', characterSpacing: 1.5 });
+     .text('तारीख', ML, y + 14, { width: dtW, align: 'center', characterSpacing: 1.5 });
   doc.fillColor('#0D47A1')
      .font('Helvetica-Bold').fontSize(18)
      .text(dateStr, ML, y + 30, { width: dtW, align: 'center' });
@@ -875,51 +859,40 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
        .text(dayStr, ML, y + 54, { width: dtW, align: 'center' });
   }
 
-  // Time box (soft green)
+  // Time box (soft green) - label in Hindi
   const tx = ML + dtW + 10;
   _roundedRect(doc, tx, y, dtW, dtBoxH, 12, '#E8F5E9');
   _roundedRect(doc, tx, y, dtW, 5, 3, '#2E7D32');
   doc.fillColor('#2E7D32')
      .font('Helvetica').fontSize(9)
-     .text('DEPARTURE TIME', tx, y + 14, { width: dtW, align: 'center', characterSpacing: 1.2 });
+     .text('रवाना होने का समय', tx, y + 14, { width: dtW, align: 'center', characterSpacing: 1.2 });
   doc.fillColor('#1B5E20')
      .font('Helvetica-Bold').fontSize(22)
      .text(timeStr, tx, y + 28, { width: dtW, align: 'center' });
 
   y += dtBoxH + 16;
 
-  // ─── Driver details card ───────────────────────────────────────────────────
-  const drvBoxH = vehicleNum ? 88 : 68;
-  _roundedRect(doc, ML, y, CW, drvBoxH, 12, '#FFFDE7');
-  _roundedRect(doc, ML, y, 6, drvBoxH, 3, '#212121');
-
-  doc.fillColor('#757575')
-     .font('Helvetica-Bold').fontSize(9)
-     .text('DRIVER', ML + 16, y + 14, { characterSpacing: 1.5 });
-
-  doc.fillColor('#212121')
-     .font('Helvetica-Bold').fontSize(20)
-     .text(driverName || '—', ML + 16, y + 28, { width: CW - 30 });
-
+  // ─── Driver details card (name removed; vehicle only) ───────────────────────
   if (vehicleNum) {
-    // Grey vehicle pill
-    const pillVW = Math.min(180, vehicleNum.length * 11 + 40);
-    _roundedRect(doc, ML + 16, y + 58, pillVW, 20, 5, '#FFF3CD');
+    const drvBoxH = 50;
+    _roundedRect(doc, ML, y, CW, drvBoxH, 12, '#FFFDE7');
+    _roundedRect(doc, ML, y, 6, drvBoxH, 3, '#212121');
+    const pillVW = Math.min(200, vehicleNum.length * 11 + 40);
+    _roundedRect(doc, ML + 16, y + 14, pillVW, 20, 5, '#FFF3CD');
     doc.fillColor('#424242')
        .font('Helvetica-Bold').fontSize(11)
-       .text(`  Vehicle: ${vehicleNum}`, ML + 16, y + 63, { width: pillVW });
+       .text(`  Vehicle: ${vehicleNum}`, ML + 16, y + 19, { width: pillVW });
+    y += drvBoxH + 16;
   }
 
-  y += drvBoxH + 16;
-
-  // ─── How to book box ───────────────────────────────────────────────────────
+  // ─── How to book box (Hindi heading, domain English) ──────────────────────
   const bookH = driverPhone ? 62 : 50;
   _roundedRect(doc, ML, y, CW, bookH, 12, '#EDE7F6');
   _roundedRect(doc, ML, y, 6, bookH, 3, '#4527A0');
 
   doc.fillColor('#4527A0')
      .font('Helvetica-Bold').fontSize(9)
-     .text('BOOK THIS RIDE', ML + 16, y + 12, { characterSpacing: 1.5 });
+     .text('इस सवारी को बुक करें', ML + 16, y + 12, { characterSpacing: 1.5 });
 
   doc.fillColor('#311B92')
      .font('Helvetica-Bold').fontSize(13)
@@ -933,17 +906,17 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   y += bookH + 16;
 
-  // ─── Info note ─────────────────────────────────────────────────────────────
+  // ─── Info note (Hindi, simple, luharide.in correct spelling) ──────────────
   _hRule(doc, ML, y, CW, '#E0E0E0');
   y += 12;
   doc.fillColor('#888888')
      .font('Helvetica').fontSize(9)
      .text(
-       'Share this poster on WhatsApp, Facebook or any local group so passengers can see today\'s taxi timing.',
+       'सवारी बुक करने के लिए luharide.in पर जाएं। यह पोस्टर WhatsApp या लोकल ग्रुप में शेयर करें।',
        ML, y, { width: CW, align: 'center' }
      );
 
-  // ─── Footer band ───────────────────────────────────────────────────────────
+  // ─── Footer band (Hindi + domain) ──────────────────────────────────────────
   const footerH  = 64;
   const footerY  = H - footerH;
   _rect(doc, 0, footerY, W, footerH, '#212121');
@@ -951,7 +924,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   doc.fillColor('#FFFFFF')
      .font('Helvetica-Bold').fontSize(12)
-     .text('Book or find rides online at luharide.in', 0, footerY + 20, {
+     .text('सवारी बुक करने या खोजने के लिए luharide.in पर जाएं', 0, footerY + 20, {
        width: W, align: 'center'
      });
 
@@ -1098,30 +1071,21 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // ── Top accent ─────────────────────────────────────────────────────────────
   _fillRect(doc, 0, 0, W, 5, '#212121');
 
-  // ── Header band ────────────────────────────────────────────────────────────
-  const headerH = posterHdr ? 128 : 100;
+  // ── Header band (only union name at top) ────────────────────────────────────
+  const headerH = 100;
   _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
-  let y = 16;
-  if (posterHdr) {
-    doc.fillColor('#212121').font('Helvetica-Oblique').fontSize(13)
-      .text(`  *  ${posterHdr}  *`, 0, y, { width: W, align: 'center' });
-    y += 22;
-    _hLine(doc, ML + 40, y, CW - 80, 'rgba(255,255,255,0.3)');
-    y += 8;
-  } else {
-    y = 20;
-  }
+  let y = 20;
 
-  // Union name
-  const unFontSize = unionName.length > 26 ? 20 : (unionName.length > 18 ? 24 : 28);
+  // Union name — only big element at top
+  const unFontSize = unionName.length > 26 ? 22 : (unionName.length > 18 ? 26 : 32);
   doc.fillColor('#212121').font('Helvetica-Bold').fontSize(unFontSize)
     .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += unFontSize + 5;
 
-  // Date + subtitle
+  // Date + subtitle (Hindi line + English date)
   doc.fillColor('#424242').font('Helvetica').fontSize(10)
-    .text(`DAILY RIDE SCHEDULE  —  ${dateLabel.toUpperCase()}`, 0, y,
+    .text(`दैनिक सवारी समय सारणी  —  ${dateLabel.toUpperCase()}`, 0, y,
       { width: W, align: 'center', characterSpacing: 0.8 });
 
   y = 5 + headerH + 16;

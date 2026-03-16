@@ -32,6 +32,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   List<int> _bookedSeats = [];
   List<int> _pendingSeats = [];
   bool _isLoading = true;
+  /// null = not booked, 'pending' = waiting, 'confirmed' = confirmed
+  String? _userBookingStatus;
 
   TripModel? get _displayTrip => _trip ?? widget.initialTrip;
 
@@ -60,6 +62,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           _trip = result['trip'];
           _bookedSeats = List<int>.from(result['booked_seats'] ?? []);
           _pendingSeats = List<int>.from(result['pending_seats'] ?? []);
+          _userBookingStatus = result['user_booking_status'] as String?;
         }
         // Never clear _trip when we have initialTrip - API fail = keep showing search result
         if (_trip == null && widget.initialTrip != null) {
@@ -333,7 +336,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       driverId: _displayTrip!.driver!.id,
                       driverName: _displayTrip!.driver!.name,
                     ),
-                    if (_displayTrip!.driver!.contactNumber != null &&
+                    // Contact only visible after confirmed booking
+                    if (_userBookingStatus == 'confirmed' &&
+                        _displayTrip!.driver!.contactNumber != null &&
                         _displayTrip!.driver!.contactNumber!.trim().isNotEmpty) ...[
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
@@ -343,6 +348,28 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.green[700],
                           side: BorderSide(color: Colors.green[700]!),
+                        ),
+                      ),
+                    ] else if (_userBookingStatus == 'pending') ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.orange[200]!),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.lock_clock, size: 16, color: Colors.orange[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Booking pending — driver contact will be shared once confirmed.',
+                                style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
