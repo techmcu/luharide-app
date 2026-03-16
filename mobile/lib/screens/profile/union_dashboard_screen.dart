@@ -37,15 +37,17 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
     final service = UnionService();
 
+    // Call getMyUnion FIRST — backend self-heals role to union_admin if union is approved.
+    // Only after that call the dashboard (which requires union_admin role).
+    final unionResult = await service.getMyUnion();
+
     final results = await Future.wait([
       service.getDashboard(),
       service.getDrivers(),
-      service.getMyUnion(),
     ]);
 
     final dashboardResult = results[0];
     final driversResult   = results[1];
-    final unionResult     = results[2];
 
     Map<String, dynamic>? stats;
     String? error;

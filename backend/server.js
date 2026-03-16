@@ -123,14 +123,39 @@ app.use((req, res) => {
   });
 });
 
+// Repair: ensure all users linked to an approved union have union_admin role.
+// Fixes data inconsistency from older approval paths (run once on every start).
+async function repairUnionAdminRoles() {
+  try {
+    const res = await pool.query(
+      `UPDATE users
+       SET role = 'union_admin'
+       WHERE id IN (
+         SELECT ua.user_id
+         FROM union_admins ua
+         JOIN unions u ON u.id = ua.union_id
+         WHERE u.status = 'approved'
+       )
+       AND role <> 'union_admin'
+       RETURNING id, name, email`
+    );
+    if (res.rowCount > 0) {
+      logger.info(`🔧 Repaired union_admin role for ${res.rowCount} user(s): ${res.rows.map(r => r.email).join(', ')}`);
+    }
+  } catch (err) {
+    logger.error('⚠️  Failed to repair union_admin roles on startup:', err.message);
+  }
+}
+
 // Start server
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 API: http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
+  await repairUnionAdminRoles();
   rateNotificationJob.start();
   rideCleanupJob.start();
 });

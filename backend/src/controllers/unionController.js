@@ -36,6 +36,16 @@ const getMyUnion = asyncHandler(async (req, res) => {
   const union = result.rows[0] || null;
   const status = union?.status || 'none';
 
+  // Self-heal: if union is approved but user role wasn't updated, fix it now.
+  // This repairs data inconsistencies from older approval paths.
+  if (status === 'approved' && req.user.role !== 'union_admin') {
+    await pool.query(
+      `UPDATE users SET role = 'union_admin' WHERE id = $1 AND role <> 'union_admin'`,
+      [userId]
+    );
+    logger.info(`Auto-fixed role to union_admin for user ${userId} (union ${union.id} is approved)`);
+  }
+
   ApiResponse.success(
     { union, status },
     'Union status retrieved'
