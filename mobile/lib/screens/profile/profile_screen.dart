@@ -18,6 +18,7 @@ import 'help_screen.dart';
 import 'terms_screen.dart';
 import 'union_registration_screen.dart';
 import 'union_dashboard_screen.dart';
+import '../../services/union_service.dart';
 import '../../services/review_service.dart';
 
 /// User Profile - BlaBlaCar style, simple & easy
@@ -196,12 +197,7 @@ class ProfileScreen extends StatelessWidget {
               icon: Icons.business_rounded,
               title: 'Add your union',
               subtitle: 'List your union on LuhaRide',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UnionRegistrationScreen()),
-                );
-              },
+              onTap: () => _openUnionSection(context, authProvider),
             ),
           const SizedBox(height: 28),
 
@@ -478,6 +474,56 @@ class ProfileScreen extends StatelessWidget {
         onTap: onTap,
       ),
     );
+  }
+
+  /// Called when user taps "Add your union".
+  /// Does a single server check — if already approved, refresh auth + open dashboard.
+  /// No polling: one call only.
+  Future<void> _openUnionSection(BuildContext context, AuthProvider authProvider) async {
+    // Show brief loading indicator
+    final snack = ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            SizedBox(width: 12),
+            Text('Checking union status…'),
+          ],
+        ),
+        duration: Duration(seconds: 5),
+      ),
+    );
+
+    try {
+      final result = await UnionService().getMyUnion();
+      if (!context.mounted) return;
+      snack.close();
+
+      final status = (result['status'] ?? 'none').toString();
+
+      if (status == 'approved') {
+        // Refresh local user model so role = union_admin everywhere
+        await authProvider.refreshUser();
+        if (!context.mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
+        );
+      } else {
+        // Not yet approved — open registration/status screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UnionRegistrationScreen()),
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      snack.close();
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const UnionRegistrationScreen()),
+      );
+    }
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {

@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/union_service.dart';
+import 'union_dashboard_screen.dart';
 
 class UnionRegistrationScreen extends StatefulWidget {
   const UnionRegistrationScreen({super.key});
@@ -22,10 +21,10 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   final _emailController = TextEditingController();
   bool _isSubmitting = false;
   bool _loadingStatus = true;
+  bool _checkingStatus = false; // for manual check button
   String? _statusError;
   String _status = 'none';
   Map<String, dynamic>? _union;
-  Timer? _statusTimer;
 
   @override
   void initState() {
@@ -35,7 +34,6 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
 
   @override
   void dispose() {
-    _statusTimer?.cancel();
     _nameController.dispose();
     _locationController.dispose();
     _phoneController.dispose();
@@ -43,11 +41,13 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     super.dispose();
   }
 
-  Future<void> _loadStatus() async {
-    setState(() {
-      _loadingStatus = true;
-      _statusError = null;
-    });
+  Future<void> _loadStatus({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loadingStatus = true;
+        _statusError = null;
+      });
+    }
 
     final service = UnionService();
     final result = await service.getMyUnion();
@@ -55,42 +55,38 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     if (!mounted) return;
 
     if (result['success'] == true) {
+      final newStatus = (result['status'] ?? 'none').toString();
       setState(() {
-        _status = (result['status'] ?? 'none').toString();
+        _status = newStatus;
         _union = result['union'] as Map<String, dynamic>?;
         _loadingStatus = false;
+        _checkingStatus = false;
       });
-      _configureAutoRefresh();
+
+      // If approved, refresh auth user so role updates everywhere (profile, home)
+      if (newStatus == 'approved') {
+        await context.read<AuthProvider>().refreshUser();
+        if (!mounted) return;
+        // Navigate directly to Union Dashboard (replace this screen)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
+        );
+      }
     } else {
       setState(() {
         _statusError = result['message']?.toString();
         _loadingStatus = false;
+        _checkingStatus = false;
       });
     }
   }
 
-  void _configureAutoRefresh() {
-    // Auto-poll while request is pending so that as soon as
-    // admin approves, screen updates without app restart.
-    if (_status == 'pending') {
-      _statusTimer ??= Timer.periodic(const Duration(seconds: 10), (timer) {
-        if (!mounted) {
-          timer.cancel();
-          _statusTimer = null;
-          return;
-        }
-        // Only poll while still pending; stops automatically once approved/rejected.
-        if (_status == 'pending') {
-          _loadStatus();
-        } else {
-          timer.cancel();
-          _statusTimer = null;
-        }
-      });
-    } else {
-      _statusTimer?.cancel();
-      _statusTimer = null;
-    }
+  /// Manual check — single server call, no polling loop.
+  Future<void> _checkStatus() async {
+    if (_checkingStatus) return;
+    setState(() => _checkingStatus = true);
+    await _loadStatus(silent: true);
   }
 
   Future<void> _submit() async {
@@ -151,123 +147,81 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   }
 
   Widget _buildBody() {
-    // If there is a pending or approved union, show status instead of form
+    // Pending — show status card + manual check button (no auto-polling)
     if (_status == 'pending' && _union != null) {
       final name = (_union!['name'] ?? '').toString();
       final location = (_union!['address'] ?? _union!['location'] ?? '').toString();
       return Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Card(
               color: Colors.orange[50],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Request submitted',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.hourglass_empty, color: Colors.orange[700], size: 22),
+                        const SizedBox(width: 10),
+                        const Text(
+                          'Waiting for approval',
+                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
                       name.isNotEmpty ? name : 'Your taxi union',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     if (location.isNotEmpty) ...[
                       const SizedBox(height: 4),
-                      Text(
-                        location,
-                        style: const TextStyle(fontSize: 14),
-                      ),
+                      Text(location, style: const TextStyle(fontSize: 14)),
                     ],
                     const SizedBox(height: 12),
-                    const Text(
-                      'Your union registration is pending.\n'
-                      'App admin will review and approve/cancel this request.',
-                      style: TextStyle(fontSize: 14),
+                    Text(
+                      'Your union request has been submitted. App admin will review it.\n'
+                      'Tap "Check status" after some time to see if it was approved.',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: _loadStatus,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Check again'),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _checkingStatus ? null : _checkStatus,
+              icon: _checkingStatus
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.refresh),
+              label: Text(_checkingStatus ? 'Checking...' : 'Check status'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
             ),
           ],
         ),
       );
     }
 
-    if (_status == 'approved' && _union != null) {
-      final name = (_union!['name'] ?? '').toString();
-      final location = (_union!['address'] ?? _union!['location'] ?? '').toString();
-      return Padding(
-        padding: const EdgeInsets.all(16),
+    // Approved — auto-navigates to dashboard via _loadStatus; show loading state here
+    if (_status == 'approved') {
+      return const Center(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Card(
-              color: Colors.green[50],
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Union approved',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      name.isNotEmpty ? name : 'Your taxi union',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (location.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        location,
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Your union is approved.\n'
-                      'You can use the Union Dashboard from your profile.',
-                      style: TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Back to profile'),
-            ),
+            CircularProgressIndicator(color: Colors.green),
+            SizedBox(height: 16),
+            Text('Union approved! Opening dashboard...', style: TextStyle(fontSize: 15)),
           ],
         ),
       );
