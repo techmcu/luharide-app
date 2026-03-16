@@ -83,23 +83,25 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     _availableCount = totalSeats - _bookedSeats.length - _pendingSeats.length;
   }
 
-  Future<void> _loadSeatStatus() async {
+  Future<void> _loadSeatStatus({bool forceRefresh = false}) async {
     setState(() {
       _isLoadingSeats = true;
       _loadError = null;
     });
 
     final totalSeats = _effectiveTotalSeats;
-
-    // Use initial data immediately so colors show right away
     final initBooked = widget.initialBookedSeats ?? [];
     final initPending = widget.initialPendingSeats ?? [];
-    if (initBooked.isNotEmpty || initPending.isNotEmpty) {
-      _applySeatData(
-        Set<int>.from(initBooked),
-        Set<int>.from(initPending),
-      );
+    final hasInitialData = initBooked.isNotEmpty || initPending.isNotEmpty;
+
+    if (hasInitialData) {
+      _applySeatData(Set<int>.from(initBooked), Set<int>.from(initPending));
       setState(() => _isLoadingSeats = false);
+    }
+
+    // Skip API call when we have fresh data from trip details — backend validates on booking.
+    if (hasInitialData && !forceRefresh) {
+      return;
     }
 
     final result = await _tripService.getTripBookedSeats(widget.trip.id);
@@ -110,8 +112,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       final booked = Set<int>.from((result['booked'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0));
       final pending = Set<int>.from((result['pending'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0));
       _applySeatData(booked, pending);
-      // _availableCount already set in _applySeatData (includes driver seat as reserved)
-    } else if (initBooked.isEmpty && initPending.isEmpty) {
+    } else if (!hasInitialData) {
       _loadError = result['message']?.toString();
       final bookedCount = totalSeats - widget.trip.availableSeats.clamp(0, totalSeats);
       _bookedSeats = Set.from(_driverSeatIndices.map((i) => _logicalSeatNumber[i]));
@@ -240,8 +241,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           duration: const Duration(seconds: 4),
         ),
       );
-      // Reload seat status so UI shows updated booked seats
-      _loadSeatStatus();
+            // Reload seat status so UI shows updated booked seats
+            _loadSeatStatus(forceRefresh: true);
     }
   }
 
@@ -438,7 +439,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             child: _isLoadingSeats
                 ? const Center(child: CircularProgressIndicator())
                 : RefreshIndicator(
-                    onRefresh: _loadSeatStatus,
+                    onRefresh: () => _loadSeatStatus(forceRefresh: true),
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: Padding(

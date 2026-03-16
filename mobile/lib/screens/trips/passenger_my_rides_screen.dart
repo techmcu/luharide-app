@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -16,7 +15,6 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
   List<dynamic> _bookings = [];
   bool _isLoading = true;
   String? _loadError;
-  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -24,12 +22,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     _loadBookings();
   }
 
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
-
+  /// Single API call — no polling. Use pull-to-refresh to check for status updates.
   Future<void> _loadBookings() async {
     setState(() {
       _isLoading = _bookings.isEmpty;
@@ -38,17 +31,11 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     final result = await _tripService.getMyBookings();
     if (!mounted) return;
     final newBookings = result['bookings'] ?? [];
-    final hasPending = newBookings.any((b) => (b['status']?.toString() ?? '') == 'pending');
     setState(() {
       _isLoading = false;
       _bookings = newBookings;
       _loadError = result['success'] == false ? (result['message'] ?? 'Failed to load') : null;
     });
-    // Auto-refresh every 10s when there are pending bookings (approval status updates)
-    _refreshTimer?.cancel();
-    if (hasPending) {
-      _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) => _loadBookings());
-    }
   }
 
   Color _statusColor(String status) {

@@ -199,13 +199,10 @@ const searchTrips = asyncHandler(async (req, res) => {
   const fromPat  = `%${fromNorm}%`;
   const toPat    = `%${toNorm}%`;
 
-  // Strict: only the selected date (UTC day range). Time filtering (past vs future) is handled on mobile side.
-  // Date range: [date 00:00:00 UTC, date+1 00:00:00 UTC) so 22nd selection shows only 22nd, never 23rd.
-  let result;
-  try {
+  // Run trips and union queries in parallel — faster search, no speed compromise.
+  const runTripsQuery = async () => {
     if (routeId) {
-      // Canonical route-based search: ignores free-text from/to and uses route_id + date window.
-      result = await pool.query(
+      return pool.query(
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
                 u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
                 u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
@@ -221,10 +218,8 @@ const searchTrips = asyncHandler(async (req, res) => {
         [routeId, dateStr, limit]
       );
     } else {
-      // Fast path: uses indexed generated columns (migration 023).
-      // Falls back to inline regexp_replace if columns not yet created (pre-migration window).
       try {
-        result = await pool.query(
+        return pool.query(
           `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
                   u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
                   u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
@@ -242,8 +237,7 @@ const searchTrips = asyncHandler(async (req, res) => {
         );
       } catch (colErr) {
         if (colErr.code === '42703') {
-          // Normalized columns not yet present — run migration 023 to fix this
-          result = await pool.query(
+          return pool.query(
             `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
                     u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
                     u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
@@ -255,19 +249,60 @@ const searchTrips = asyncHandler(async (req, res) => {
                AND regexp_replace(LOWER(TRIM(t.to_location)),   '\s+', '', 'g') LIKE $2
                AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
                AND (t.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
-               AND t.status = 'scheduled'
-               AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+             AND t.status = 'scheduled'
+             AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
              ORDER BY t.departure_time ASC LIMIT $4`,
             [fromPat, toPat, dateStr, limit]
           );
-        } else {
-          throw colErr;
         }
+        throw colErr;
       }
     }
-  } catch (err) {
-    throw err;
-  }
+  };
+
+  const runUnionQuery = async () => {
+    try {
+      return pool.query(
+        `SELECT s.id, s.from_location, s.to_location, s.departure_time, s.status,
+                d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number, u.name AS union_name
+         FROM union_schedules s
+         JOIN union_drivers d ON d.id = s.union_driver_id
+         JOIN unions u ON u.id = s.union_id
+         WHERE s.status = 'scheduled'
+           AND s.from_location_norm LIKE $1 AND s.to_location_norm LIKE $2
+           AND s.departure_time >= ($3::date)::timestamp
+           AND s.departure_time <  ($3::date)::timestamp + interval '1 day'
+         ORDER BY s.departure_time ASC LIMIT $4`,
+        [fromPat, toPat, dateStr, limit]
+      );
+    } catch (err) {
+      if (err.code === '42P01') return { rows: [] };
+      if (err.code === '42703') {
+        try {
+          return pool.query(
+            `SELECT s.id, s.from_location, s.to_location, s.departure_time, s.status,
+                    d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number, u.name AS union_name
+             FROM union_schedules s
+             JOIN union_drivers d ON d.id = s.union_driver_id
+             JOIN unions u ON u.id = s.union_id
+             WHERE s.status = 'scheduled'
+               AND COALESCE(TRIM(s.from_location), '') <> '' AND COALESCE(TRIM(s.to_location), '') <> ''
+               AND regexp_replace(LOWER(TRIM(s.from_location)), '\s+', '', 'g') LIKE $1
+               AND regexp_replace(LOWER(TRIM(s.to_location)),   '\s+', '', 'g') LIKE $2
+               AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
+               AND (s.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+             ORDER BY s.departure_time ASC LIMIT $4`,
+            [fromPat, toPat, dateStr, limit]
+          );
+        } catch (_) {
+          return { rows: [] };
+        }
+      }
+      throw err;
+    }
+  };
+
+  const [result, unionResult] = await Promise.all([runTripsQuery(), runUnionQuery()]);
 
   const trips = result.rows.map(trip => ({
     id: trip.id,
@@ -293,67 +328,6 @@ const searchTrips = asyncHandler(async (req, res) => {
       luggage_allowance_per_passenger: trip.driver_luggage_allowance ?? null
     }
   }));
-
-  // Also fetch union-managed rides for same from/to/date (direction-specific, but flexible spelling)
-  let unionResult;
-  try {
-    // Fast path using indexed generated columns (migration 023)
-    unionResult = await pool.query(
-      `SELECT 
-         s.id,
-         s.from_location,
-         s.to_location,
-         s.departure_time,
-         s.status,
-         d.name AS driver_name,
-         d.vehicle_number,
-         d.phone,
-         d.whatsapp_number,
-         u.name AS union_name
-       FROM union_schedules s
-       JOIN union_drivers d ON d.id = s.union_driver_id
-       JOIN unions u ON u.id = s.union_id
-       WHERE s.status = 'scheduled'
-         AND s.from_location_norm LIKE $1
-         AND s.to_location_norm   LIKE $2
-         AND s.departure_time >= ($3::date)::timestamp
-         AND s.departure_time <  ($3::date)::timestamp + interval '1 day'
-       ORDER BY s.departure_time ASC
-       LIMIT $4`,
-      [fromPat, toPat, dateStr, limit]
-    );
-  } catch (err) {
-    if (err.code === '42P01') {
-      // union_schedules/union_drivers/unions not yet created (very old DB)
-      unionResult = { rows: [] };
-    } else if (err.code === '42703') {
-      // Normalized columns not yet present — fallback to regexp (run migration 023)
-      try {
-        unionResult = await pool.query(
-          `SELECT 
-             s.id, s.from_location, s.to_location, s.departure_time, s.status,
-             d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number,
-             u.name AS union_name
-           FROM union_schedules s
-           JOIN union_drivers d ON d.id = s.union_driver_id
-           JOIN unions u ON u.id = s.union_id
-           WHERE s.status = 'scheduled'
-             AND COALESCE(TRIM(s.from_location), '') <> ''
-             AND COALESCE(TRIM(s.to_location), '') <> ''
-             AND regexp_replace(LOWER(TRIM(s.from_location)), '\s+', '', 'g') LIKE $1
-             AND regexp_replace(LOWER(TRIM(s.to_location)),   '\s+', '', 'g') LIKE $2
-             AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
-             AND (s.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
-           ORDER BY s.departure_time ASC LIMIT $4`,
-          [fromPat, toPat, dateStr, limit]
-        );
-      } catch (_) {
-        unionResult = { rows: [] };
-      }
-    } else {
-      throw err;
-    }
-  }
 
   const unionRides = unionResult.rows.map(row => ({
     id: row.id,
@@ -648,10 +622,13 @@ const getMyTrips = asyncHandler(async (req, res) => {
   params.push(limit, offset);
 
   const result = await pool.query(
-    `SELECT t.*,
-       (SELECT COUNT(*) FROM bookings b
-        WHERE b.trip_id = t.id AND b.status = 'pending') AS pending_requests_count
+    `SELECT t.*, COALESCE(b.pending_count, 0) AS pending_requests_count
      FROM trips t
+     LEFT JOIN (
+       SELECT trip_id, COUNT(*)::int AS pending_count
+       FROM bookings WHERE status = 'pending'
+       GROUP BY trip_id
+     ) b ON b.trip_id = t.id
      ${whereClauses}
      ORDER BY pending_requests_count DESC, t.departure_time DESC
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -923,14 +900,18 @@ const cancelTrip = asyncHandler(async (req, res) => {
     [tripId]
   );
 
-  for (const row of confirmedBookings.rows) {
+  if (confirmedBookings.rows.length > 0) {
+    const placeholders = confirmedBookings.rows
+      .map((_, i) => `($${i + 1}, 'trip_cancelled', 'Ride cancelled', 'The driver cancelled this ride. You are not charged.')`)
+      .join(', ');
+    const flatParams = confirmedBookings.rows.map(r => r.passenger_id);
     try {
       await pool.query(
-        `INSERT INTO notifications (user_id, type, title, body) VALUES ($1, 'trip_cancelled', 'Ride cancelled', 'The driver cancelled this ride. You are not charged.')`,
-        [row.passenger_id]
+        `INSERT INTO notifications (user_id, type, title, body) VALUES ${placeholders}`,
+        flatParams
       );
     } catch (e) {
-      logger.warn('Passenger cancel notification failed:', e.message);
+      logger.warn('Batch passenger cancel notification failed:', e.message);
     }
   }
 

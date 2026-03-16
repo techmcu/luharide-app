@@ -1,6 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
+const compression = require('compression');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -26,6 +27,7 @@ const reviewRoutes = require('./src/routes/reviews');
 
 // Import middleware
 const { errorConverter, errorHandler } = require('./src/middleware/errorHandler');
+const { apiLimiter } = require('./src/middleware/rateLimiter');
 const logger = require('./src/config/logger');
 
 // Import socket handlers
@@ -44,6 +46,7 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(helmet());
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -67,7 +70,8 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API Routes
+// API Routes — rate limit all /api (100 req/15min per IP); auth routes have stricter limits
+app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/simple-auth', simpleAuthRoutes);
 app.use('/api/bookings', bookingRoutes);
@@ -123,39 +127,14 @@ app.use((req, res) => {
   });
 });
 
-// Repair: ensure all users linked to an approved union have union_admin role.
-// Fixes data inconsistency from older approval paths (run once on every start).
-async function repairUnionAdminRoles() {
-  try {
-    const res = await pool.query(
-      `UPDATE users
-       SET role = 'union_admin'
-       WHERE id IN (
-         SELECT ua.user_id
-         FROM union_admins ua
-         JOIN unions u ON u.id = ua.union_id
-         WHERE u.status = 'approved'
-       )
-       AND role <> 'union_admin'
-       RETURNING id, name, email`
-    );
-    if (res.rowCount > 0) {
-      logger.info(`🔧 Repaired union_admin role for ${res.rowCount} user(s): ${res.rows.map(r => r.email).join(', ')}`);
-    }
-  } catch (err) {
-    logger.error('⚠️  Failed to repair union_admin roles on startup:', err.message);
-  }
-}
-
 // Start server
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, async () => {
+server.listen(PORT, () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 API: http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
-  await repairUnionAdminRoles();
   rateNotificationJob.start();
   rideCleanupJob.start();
 });

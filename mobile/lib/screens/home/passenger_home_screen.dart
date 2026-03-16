@@ -47,47 +47,38 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkVerificationNotification());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadUnreadNotifications());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadNotificationsOnce());
   }
 
-  /// Show "Verification approved!" when admin has approved driver
-  Future<void> _checkVerificationNotification() async {
+  /// Single API call for both verification snackbar and unread badge — no duplicate requests.
+  Future<void> _loadNotificationsOnce() async {
     final user = context.read<AuthProvider>().user;
     final role = (user?.role ?? '').toString().toLowerCase();
-    if (role == 'union_admin' || role == 'admin') return; // Admin doesn't need this
     final result = await _notificationService.getNotifications();
     if (!result['success'] || !mounted) return;
     final list = result['notifications'] as List? ?? [];
-    final unread = list.where((n) =>
-      n is Map && (n['is_read'] != true) && (n['type'] == 'verification_approved')).toList();
-    if (unread.isEmpty || !mounted) return;
-    context.read<AuthProvider>().refreshUser();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Expanded(child: Text('Verification approved! You can now create rides.')),
-          ],
-        ),
-        backgroundColor: Colors.green[600],
-        duration: const Duration(seconds: 5),
-      ),
-    );
-  }
-
-  Future<void> _loadUnreadNotifications() async {
-    final result = await _notificationService.getNotifications();
-    if (!result['success'] || !mounted) return;
-    final list = result['notifications'] as List? ?? [];
-    final unread = list.where((n) =>
-        n is Map && (n['is_read'] != true)).length;
+    final unreadList = list.where((n) => n is Map && (n['is_read'] != true)).toList();
+    final unreadCount = unreadList.length;
     if (!mounted) return;
-    setState(() {
-      _unreadNotificationCount = unread;
-    });
+    setState(() => _unreadNotificationCount = unreadCount);
+    if (role == 'union_admin' || role == 'admin') return;
+    final verificationApproved = unreadList.any((n) => n is Map && n['type'] == 'verification_approved');
+    if (verificationApproved && mounted) {
+      context.read<AuthProvider>().refreshUser();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Verification approved! You can now create rides.')),
+            ],
+          ),
+          backgroundColor: Colors.green[600],
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
   }
 
   @override

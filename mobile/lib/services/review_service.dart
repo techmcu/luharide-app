@@ -5,6 +5,15 @@ import '../core/constants/api_constants.dart';
 class ReviewService {
   final ApiService _apiService = ApiService();
 
+  /// In-memory cache for rating summary (per userId) — avoids repeated API calls on rebuild.
+  static final Map<String, _CachedRating> _ratingCache = {};
+  static const _cacheDuration = Duration(minutes: 5);
+
+  static void _pruneExpiredCache() {
+    final now = DateTime.now();
+    _ratingCache.removeWhere((_, v) => now.difference(v.at).compareTo(_cacheDuration) > 0);
+  }
+
   /// Submit rating for a booking (passenger rates driver, or driver rates passenger)
   /// Comment max 20 words (enforced in UI and backend)
   Future<Map<String, dynamic>> submitRating({
@@ -86,18 +95,30 @@ class ReviewService {
     }
   }
 
-  /// Get rating summary for a user (for profile)
+  /// Get rating summary for a user (for profile) — cached 5 min to reduce server load.
   Future<Map<String, dynamic>> getUserRatingSummary(String userId) async {
+    _pruneExpiredCache();
+    final cached = _ratingCache[userId];
+    if (cached != null) return cached.data;
+
     try {
       final response = await _apiService.get(ApiConstants.userRatingSummary(userId));
       final data = response.data['data'];
-      return {
+      final result = {
         'success': true,
         'total_ratings': data?['total_ratings'] ?? 0,
         'average_rating': (data?['average_rating'] ?? 0.0).toDouble(),
       };
+      _ratingCache[userId] = _CachedRating(data: result, at: DateTime.now());
+      return result;
     } catch (e) {
       return {'success': false, 'total_ratings': 0, 'average_rating': 0.0};
     }
   }
+}
+
+class _CachedRating {
+  final Map<String, dynamic> data;
+  final DateTime at;
+  _CachedRating({required this.data, required this.at});
 }

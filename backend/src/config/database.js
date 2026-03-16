@@ -14,9 +14,10 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'luharide',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || '',
+  min: 2,
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000, // Increased to 10 seconds
+  connectionTimeoutMillis: 10000,
 });
 
 // Test connection
