@@ -247,7 +247,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   builder: (_) => const NotificationsScreen(),
                 ),
               );
-              _loadUnreadNotifications();
+              _loadNotificationsOnce();
             },
           ),
           IconButton(
