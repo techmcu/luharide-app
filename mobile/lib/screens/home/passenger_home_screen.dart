@@ -820,7 +820,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.person_pin_car_rounded, size: 16, color: Colors.blue[700]),
+                  Icon(Icons.directions_car_rounded, size: 16, color: Colors.blue[700]),
                   const SizedBox(width: 6),
                   Text('Independent driver • Book on app', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue[800])),
                 ],
