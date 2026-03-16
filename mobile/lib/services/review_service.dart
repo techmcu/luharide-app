@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'api_service.dart';
 import '../core/constants/api_constants.dart';
 
@@ -23,24 +24,25 @@ class ReviewService {
         'success': true,
         'message': response.data['message'] ?? 'Thank you for your rating',
       };
-    } catch (e) {
-      final message = e.toString().contains('400') || e.toString().contains('message')
-          ? _extractMessage(e)
-          : 'Failed to submit rating';
-      return {'success': false, 'message': message};
-    }
-  }
-
-  String _extractMessage(dynamic e) {
-    try {
-      if (e is Exception && e.toString().contains('message')) {
-        final str = e.toString();
-        final start = str.indexOf('"message":"') + 11;
-        final end = str.indexOf('"', start);
-        if (start > 10 && end > start) return str.substring(start, end);
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      final serverMsg = e.response?.data is Map
+          ? (e.response!.data['message'] as String?) ?? ''
+          : '';
+      String message;
+      if (status == 404) {
+        message = 'Booking not found. It may have been cancelled or expired.';
+      } else if (status == 400 && serverMsg.isNotEmpty) {
+        message = serverMsg;
+      } else if (status == 403) {
+        message = 'You can only rate your own ride.';
+      } else {
+        message = serverMsg.isNotEmpty ? serverMsg : 'Failed to submit rating. Please try again.';
       }
-    } catch (_) {}
-    return 'Failed to submit rating';
+      return {'success': false, 'message': message};
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to submit rating. Please try again.'};
+    }
   }
 
   /// Get my received ratings (paginated). page 1-based, limit default 20.

@@ -28,6 +28,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   final Set<int> _selectedSeats = {};
   late List<bool> _seatStatus; // true = booked or pending or driver, false = available
   bool _isLoadingSeats = true;
+  bool _isSubmitting = false; // guard against double-tap
   Set<int> _bookedSeats = {};
   Set<int> _pendingSeats = {}; // for UI: show booked vs pending
   int _availableCount = 0;
@@ -189,6 +190,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   Future<void> _doBooking(double totalFare) async {
+    if (_isSubmitting) return; // prevent double-tap
+    setState(() => _isSubmitting = true);
+
     // Send logical seat numbers (driver = 1 is never sent)
     final seatNumbers = _selectedSeats.map((s) => _logicalSeatNumber[s]).toList()..sort();
 
@@ -212,12 +216,10 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
     // Close loading dialog
     Navigator.pop(context);
+    setState(() => _isSubmitting = false);
 
     if (result['success']) {
-      // Close seat selection screen and return success flag
-      Navigator.pop(context, true); // true = booking successful
-      
-      // Show success message
+      Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result['message'] ?? 'Booking confirmed!'),
@@ -226,14 +228,20 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         ),
       );
     } else {
-      // Show error message, stay on screen
+      final msg = result['message'] ?? 'Booking failed';
+      // Special message for already-booked case
+      final isAlreadyBooked = msg.toLowerCase().contains('already') ||
+          msg.toLowerCase().contains('conflict') ||
+          msg.toLowerCase().contains('pending');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] ?? 'Booking failed'),
-          backgroundColor: Colors.red,
+          content: Text(isAlreadyBooked ? 'You already have a booking for this trip.' : msg),
+          backgroundColor: isAlreadyBooked ? Colors.orange : Colors.red,
           duration: const Duration(seconds: 4),
         ),
       );
+      // Reload seat status so UI shows updated booked seats
+      _loadSeatStatus();
     }
   }
 
