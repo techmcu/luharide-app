@@ -1,5 +1,10 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
 
@@ -53,15 +58,112 @@ class ApiService {
             print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.path}');
             // ignore: avoid_print
             print('Error message: ${error.message}');
-            if (error.response?.statusCode == 401) {
-              // ignore: avoid_print
-              print('❌ Authentication failed - Token might be invalid or expired');
-            }
           }
-          return handler.next(error);
+          // Global 401 handler: try refresh once, then logout on failure.
+          if (error.response?.statusCode == 401 &&
+              error.requestOptions.extra['__retriable__'] != false &&
+              !_isAuthRefreshPath(error.requestOptions.path)) {
+            _handleUnauthorized(error, handler);
+          } else {
+            return handler.next(error);
+          }
         },
       ),
     );
+  }
+
+  bool _isAuthRefreshPath(String path) {
+    return path.contains(ApiConstants.refreshToken) || path.contains(ApiConstants.logout);
+  }
+
+  // Centralized 401 handling: refresh token once and retry original request.
+  Future<void> _handleUnauthorized(DioException error, ErrorInterceptorHandler handler) async {
+    try {
+      final refreshed = await _refreshAccessToken();
+      if (!refreshed) {
+        // Logout-like behavior: clear token so app can redirect user.
+        clearAuthToken();
+        return handler.next(error);
+      }
+
+      final req = error.requestOptions;
+      final opts = Options(
+        method: req.method,
+        headers: req.headers,
+        responseType: req.responseType,
+        contentType: req.contentType,
+        followRedirects: req.followRedirects,
+        validateStatus: req.validateStatus,
+        receiveDataWhenStatusError: req.receiveDataWhenStatusError,
+      );
+      // Mark as non-retriable to avoid infinite loop.
+      req.extra['__retriable__'] = false;
+
+      final cloneResponse = await _dio.request<dynamic>(
+        req.path,
+        data: req.data,
+        queryParameters: req.queryParameters,
+        options: opts,
+      );
+      return handler.resolve(cloneResponse);
+    } catch (_) {
+      clearAuthToken();
+      return handler.next(error);
+    }
+  }
+
+  Future<bool> _refreshAccessToken() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final refreshToken = prefs.getString('refresh_token');
+      if (refreshToken == null || refreshToken.isEmpty) {
+        return false;
+      }
+
+      final response = await _dio.post(
+        ApiConstants.refreshToken,
+        data: {
+          'refreshToken': refreshToken,
+          'platform': 'mobile',
+        },
+        options: Options(
+          // Avoid recursive interceptor on this call
+          extra: {'__retriable__': false},
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        final tokens = data['tokens'] as Map<String, dynamic>? ?? {};
+        final access = tokens['accessToken']?.toString();
+        final refresh = tokens['refreshToken']?.toString();
+        if (access == null || access.isEmpty) return false;
+
+        await prefs.setString('access_token', access);
+        if (refresh != null && refresh.isNotEmpty) {
+          await prefs.setString('refresh_token', refresh);
+        }
+        setAuthToken(access);
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('🔄 Token refreshed via interceptor');
+        }
+        return true;
+      }
+      return false;
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('⚠️  Refresh token failed: ${e.message}');
+      }
+      return false;
+    } on SocketException {
+      return false;
+    } on TimeoutException {
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 
   // GET request

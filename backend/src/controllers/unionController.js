@@ -151,7 +151,16 @@ const rejectUnionRequest = asyncHandler(async (req, res) => {
  */
 const registerUnion = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { name, location, contact_phone, contact_email } = req.body;
+  const {
+    name,
+    location,
+    contact_phone,
+    contact_email,
+    owner_name,
+    owner_aadhaar_url,
+    office_photo_url,
+    owner_vehicle_rc_url,
+  } = req.body;
 
   if (!name || String(name).trim().length < 3) {
     throw ApiError.badRequest('Union name must be at least 3 characters');
@@ -170,10 +179,30 @@ const registerUnion = asyncHandler(async (req, res) => {
   }
 
   const insertRes = await pool.query(
-    `INSERT INTO unions (name, address, contact_phone, contact_email, is_active, status)
-     VALUES ($1, $2, $3, $4, FALSE, 'pending')
+    `INSERT INTO unions (
+       name,
+       address,
+       contact_phone,
+       contact_email,
+       is_active,
+       status,
+       owner_name,
+       owner_aadhaar_url,
+       office_photo_url,
+       owner_vehicle_rc_url
+     )
+     VALUES ($1, $2, $3, $4, FALSE, 'pending', $5, $6, $7, $8)
      RETURNING *`,
-    [String(name).trim(), location || null, contact_phone || null, contact_email || null]
+    [
+      String(name).trim(),
+      location || null,
+      contact_phone || null,
+      contact_email || null,
+      owner_name ? String(owner_name).trim() : null,
+      owner_aadhaar_url || null,
+      office_photo_url || null,
+      owner_vehicle_rc_url || null,
+    ]
   );
 
   const union = insertRes.rows[0];

@@ -191,6 +191,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   Future<void> _doBooking(double totalFare) async {
+    // Always refresh latest seat status just before booking to reduce stale UI risk.
+    await _loadSeatStatus(forceRefresh: true);
+
     if (_isSubmitting) return; // prevent double-tap
     setState(() => _isSubmitting = true);
 

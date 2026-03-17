@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/union_service.dart';
+import '../../services/upload_service.dart';
 import 'union_dashboard_screen.dart';
 
 class UnionRegistrationScreen extends StatefulWidget {
@@ -19,12 +23,17 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   final _locationController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
+  final _ownerNameController = TextEditingController();
   bool _isSubmitting = false;
   bool _loadingStatus = true;
   bool _checkingStatus = false; // for manual check button
   String? _statusError;
   String _status = 'none';
   Map<String, dynamic>? _union;
+  final _uploadService = UploadService();
+  File? _ownerAadhaarFile;
+  File? _officePhotoFile;
+  File? _ownerRcFile;
 
   @override
   void initState() {
@@ -38,6 +47,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     _locationController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
+    _ownerNameController.dispose();
     super.dispose();
   }
 
@@ -94,12 +104,42 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
 
     setState(() => _isSubmitting = true);
 
+    String? ownerAadhaarUrl;
+    String? officePhotoUrl;
+    String? ownerRcUrl;
+
+    try {
+      if (_ownerAadhaarFile != null) {
+        ownerAadhaarUrl = await _uploadService.uploadUnionDocument(_ownerAadhaarFile!);
+      }
+      if (_officePhotoFile != null) {
+        officePhotoUrl = await _uploadService.uploadUnionDocument(_officePhotoFile!);
+      }
+      if (_ownerRcFile != null) {
+        ownerRcUrl = await _uploadService.uploadUnionDocument(_ownerRcFile!);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final service = UnionService();
     final result = await service.registerUnion(
       name: _nameController.text.trim(),
       location: _locationController.text.trim(),
       contactPhone: _phoneController.text.trim(),
       contactEmail: _emailController.text.trim(),
+      ownerName: _ownerNameController.text.trim(),
+      ownerAadhaarUrl: ownerAadhaarUrl,
+      officePhotoUrl: officePhotoUrl,
+      ownerVehicleRcUrl: ownerRcUrl,
     );
 
     if (!mounted) return;
@@ -186,8 +226,10 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                     ],
                     const SizedBox(height: 12),
                     Text(
-                      'Your union request has been submitted. App admin will review it.\n'
-                      'Tap "Check status" after some time to see if it was approved.',
+                      'Your union request has been submitted. App admin usually reviews within 24–48 hours.\n'
+                      'Tap \"Check status\" after some time to see if it was approved.\n\n'
+                      'Agar isse zyada delay ho jaye, to aap supportluharide@gmail.com par politely email karke '
+                      'apni union request ka status pooch sakte hain (subject mein union ka naam aur apna phone number likh kar).',
                       style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                     ),
                   ],
@@ -233,6 +275,29 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            color: Colors.orange[50],
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Yeh form sirf adhikarik taxi union ke representative ke liye hai.\n\n'
+                      'Agar aap union manage nahi karte aur galat jankari ke saath form submit karte hain, '
+                      'to aapka account block ya limit kiya ja sakta hai.\n\n'
+                      'Kripya form sirf tabhi bharein jab aap iske liye yogya hon.',
+                      style: TextStyle(fontSize: 13, color: Colors.orange[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           if (_statusError != null) ...[
             Text(
               _statusError!,
@@ -243,6 +308,20 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           const Text(
             'Union Details',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _ownerNameController,
+            decoration: const InputDecoration(
+              labelText: 'Union head name',
+              border: OutlineInputBorder(),
+            ),
+            validator: (v) {
+              final value = v?.trim() ?? '';
+              if (value.isEmpty) return 'Please enter union head name';
+              if (value.length < 2) return 'Name must be at least 2 characters';
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -272,6 +351,54 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             },
           ),
           const SizedBox(height: 16),
+          const Text(
+            'Upload documents (photos)',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _DocChip(
+                label: 'Head Aadhaar',
+                selected: _ownerAadhaarFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _ownerAadhaarFile = File(img.path));
+                      },
+              ),
+              _DocChip(
+                label: 'Office photo',
+                selected: _officePhotoFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _officePhotoFile = File(img.path));
+                      },
+              ),
+              _DocChip(
+                label: 'Any cab RC',
+                selected: _ownerRcFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _ownerRcFile = File(img.path));
+                      },
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
           TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
@@ -325,4 +452,44 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     );
   }
 }
+
+class _DocChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  const _DocChip({
+    required this.label,
+    required this.selected,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? Colors.green[50] : Colors.grey[100],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? Colors.green : Colors.grey[300]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected ? Icons.check_circle : Icons.upload_file,
+              size: 16,
+              color: selected ? Colors.green[700] : Colors.grey[700],
+            ),
+            const SizedBox(width: 6),
+            Text(label, style: const TextStyle(fontSize: 12)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 

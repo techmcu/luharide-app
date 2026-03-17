@@ -300,7 +300,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
-                        // TODO: Real rating - after ride complete, user rates. Pending: email 5 min after ride start.
+                        // Rating reminder is handled by backend job (pending_rate_notifications + notifications table).
                         Row(
                           children: [
                             Icon(Icons.star_outline_rounded, color: Colors.grey[500], size: 16),
@@ -739,7 +739,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         _searchTrips(); // Refresh after creating
       });
     } else if (status == 'pending') {
-      _showVerifyPopup(context, 'Your driver verification is pending. Admin will review shortly.');
+      _showVerifyPopup(
+        context,
+        'Your driver verification is pending. Admin usually reviews within 24–48 hours.\n\n'
+        'Agar isse zyada delay ho jaye, to aap supportluharide@gmail.com par politely email karke '
+        'apni request ka status pooch sakte hain (subject mein apna naam aur phone number likh kar).',
+      );
     } else {
       _showVerifyPopup(context, 'Please verify your documents first to create rides.');
     }

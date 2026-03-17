@@ -99,10 +99,13 @@ const errorHandler = (err, req, res, next) => {
     });
   }
   
-  // Ensure 500 responses always expose real error message for debugging (app shows response.data.message)
-  const finalMessage = (statusCode === 500 && err.message && err.message !== 'Internal Server Error')
-    ? err.message
-    : message;
+  const isProd = process.env.NODE_ENV === 'production';
+  // In production, hide internal 5xx details from clients.
+  const finalMessage = (statusCode >= 500 && isProd)
+    ? 'Something went wrong. Please try again later.'
+    : ((statusCode === 500 && err.message && err.message !== 'Internal Server Error')
+        ? err.message
+        : message);
 
   // Send error response
   const response = {

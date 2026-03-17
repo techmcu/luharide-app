@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/config/env_config.dart';
 import 'core/app_navigator.dart';
+import 'core/localization/app_localizations.dart';
 import 'providers/auth_provider.dart';
+import 'providers/app_language_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'screens/auth/simple_login_screen.dart';
@@ -36,33 +38,47 @@ class LuhaRideApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AuthProvider(authService),
         ),
-      ],
-      child: MaterialApp(
-        navigatorKey: navigatorKey,
-        title: 'LuhaRide',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.light,
-        home: Consumer<AuthProvider>(
-          builder: (context, authProvider, _) {
-            // Show loading while checking auth status
-            if (authProvider.status == AuthStatus.initial) {
-              return const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
-
-            // Navigate based on auth status
-            if (authProvider.isAuthenticated) {
-              return const HomeScreen();
-            }
-
-            return const LandingScreen();
-          },
+        ChangeNotifierProvider(
+          create: (_) => AppLanguageProvider(),
         ),
+      ],
+      child: Consumer<AppLanguageProvider>(
+        builder: (context, langProvider, _) {
+          final locale = langProvider.locale;
+          return MaterialApp(
+            navigatorKey: navigatorKey,
+            title: 'LuhaRide',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.light,
+            locale: locale,
+            supportedLocales: const [
+              Locale('en'),
+              Locale('hi'),
+            ],
+            home: Consumer<AuthProvider>(
+              builder: (context, authProvider, _) {
+                // Show loading while checking auth status
+                if (authProvider.status == AuthStatus.initial ||
+                    !langProvider.isInitialized) {
+                  return const Scaffold(
+                    body: Center(
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+
+                // Navigate based on auth status
+                if (authProvider.isAuthenticated) {
+                  return const HomeScreen();
+                }
+
+                return const LandingScreen();
+              },
+            ),
+          );
+        },
       ),
     );
   }

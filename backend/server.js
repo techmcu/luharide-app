@@ -24,6 +24,7 @@ const unionRoutes = require('./src/routes/union');
 const paymentRoutes = require('./src/routes/payments');
 const notificationRoutes = require('./src/routes/notifications');
 const reviewRoutes = require('./src/routes/reviews');
+const uploadRoutes = require('./src/routes/uploads');
 
 // Import middleware
 const { errorConverter, errorHandler } = require('./src/middleware/errorHandler');
@@ -51,6 +52,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+// Static assets for uploaded documents
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -85,6 +88,7 @@ app.use('/api/union', unionRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

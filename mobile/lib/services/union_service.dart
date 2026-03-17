@@ -12,6 +12,10 @@ class UnionService {
     required String location,
     String? contactPhone,
     String? contactEmail,
+    String? ownerName,
+    String? ownerAadhaarUrl,
+    String? officePhotoUrl,
+    String? ownerVehicleRcUrl,
   }) async {
     try {
       final response = await _api.post(
@@ -23,6 +27,14 @@ class UnionService {
             'contact_phone': contactPhone,
           if (contactEmail != null && contactEmail.isNotEmpty)
             'contact_email': contactEmail,
+          if (ownerName != null && ownerName.isNotEmpty)
+            'owner_name': ownerName,
+          if (ownerAadhaarUrl != null && ownerAadhaarUrl.isNotEmpty)
+            'owner_aadhaar_url': ownerAadhaarUrl,
+          if (officePhotoUrl != null && officePhotoUrl.isNotEmpty)
+            'office_photo_url': officePhotoUrl,
+          if (ownerVehicleRcUrl != null && ownerVehicleRcUrl.isNotEmpty)
+            'owner_vehicle_rc_url': ownerVehicleRcUrl,
         },
       );
 

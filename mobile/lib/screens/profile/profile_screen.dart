@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/app_language_provider.dart';
 import '../../core/app_navigator.dart';
+import '../../core/localization/app_localizations.dart';
 import '../landing/landing_screen.dart';
 import '../trips/passenger_my_rides_screen.dart';
 import '../trips/my_rides_screen.dart';
@@ -51,10 +53,15 @@ class ProfileScreen extends StatelessWidget {
     final driverStatus = user?.driverVerificationStatus ?? 'none';
     final driverCode = user?.driverCode;
     final isUnionAdmin = user?.role == 'union_admin';
+    final bool hasPhone = (user?.phone ?? '').trim().isNotEmpty;
+    final bool hasEmail = (user?.email ?? '').trim().isNotEmpty;
+    final bool hasProfilePic = (user?.profileImage ?? '').trim().isNotEmpty;
+
+    final loc = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(loc.t('app.profile.title')),
         backgroundColor: isDriver ? Colors.green : Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -176,7 +183,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 28),
 
           // ── Section: Taxi union (so union admins see their option first) ──
-          _sectionLabel('For taxi union (admins)'),
+          _sectionLabel(loc.t('profile.section.union')),
           const SizedBox(height: 8),
           if (isUnionAdmin)
             _buildMenuItem(
@@ -235,7 +242,7 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 28),
 
           // ── Section: Independent taxi driver (create & manage rides) ──
-          _sectionLabel('For independent taxi driver'),
+          _sectionLabel(loc.t('profile.section.driver')),
           const SizedBox(height: 8),
           if (driverStatus == 'approved') ...[
             _buildMenuItem(
@@ -349,6 +356,14 @@ class ProfileScreen extends StatelessWidget {
             color: Colors.red,
             onTap: () => _showLogoutDialog(context, authProvider),
           ),
+          const SizedBox(height: 8),
+          _buildMenuItem(
+            context,
+            icon: Icons.language,
+            title: loc.t('app.menu.language'),
+            subtitle: loc.t('app.menu.language.subtitle'),
+            onTap: () => _openLanguageSheet(context),
+          ),
         ],
       ),
     );
@@ -372,13 +387,34 @@ class ProfileScreen extends StatelessWidget {
   void _onShareRideTap(BuildContext context, AuthProvider authProvider) {
     final user = authProvider.user;
     final status = user?.driverVerificationStatus ?? 'none';
+    final hasPhone = (user?.phone ?? '').trim().isNotEmpty;
+    final hasEmail = (user?.email ?? '').trim().isNotEmpty;
+    final hasProfilePic = (user?.profileImage ?? '').trim().isNotEmpty;
+
+    if (!hasPhone || !hasEmail || !hasProfilePic) {
+      _showProfilePrereqDialog(
+        context,
+        title: 'Complete profile first',
+        message:
+            'Independent driver verification is only for real taxi owners.\n\n'
+            'Please add your profile photo, email address and make sure your phone number is correct before submitting documents. '
+            'Fake / misuse submissions may lead to your account being blocked.',
+      );
+      return;
+    }
     if (status == 'approved') {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const CreateTripScreen()),
       ).then((_) => authProvider.refreshUser());
     } else if (status == 'pending') {
-      _showVerifyDialog(context, authProvider, 'Your driver verification is pending. Admin will review shortly.');
+      _showVerifyDialog(
+        context,
+        authProvider,
+        'Your driver verification is pending. Admin usually reviews within 24–48 hours.\n\n'
+        'Agar isse zyada delay ho jaye, to aap supportluharide@gmail.com par politely email karke '
+        'apni request ka status pooch sakte hain (subject mein apna naam aur phone number likh kar).',
+      );
     } else {
       _showVerifyDialog(context, authProvider, 'Please verify your documents first to create rides.');
     }
@@ -409,6 +445,140 @@ class ProfileScreen extends StatelessWidget {
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
             child: const Text('Verify Documents'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openLanguageSheet(BuildContext context) {
+    final langProvider = context.read<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
+    final current = langProvider.language;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ListTile(
+                title: Text(loc.t('app.language.english')),
+                leading: Radio<AppLanguageCode>(
+                  value: AppLanguageCode.en,
+                  groupValue: current,
+                  onChanged: (v) async {
+                    if (v == null) return;
+                    await langProvider.setLanguage(v);
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(loc.t('app.language.saved'))),
+                      );
+                    }
+                  },
+                ),
+                onTap: () async {
+                  await langProvider.setLanguage(AppLanguageCode.en);
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(loc.t('app.language.saved'))),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                title: Text(loc.t('app.language.hindi')),
+                leading: Radio<AppLanguageCode>(
+                  value: AppLanguageCode.hi,
+                  groupValue: current,
+                  onChanged: (v) async {
+                    if (v == null) return;
+                    await langProvider.setLanguage(v);
+                    if (context.mounted) {
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(loc.t('app.language.saved'))),
+                      );
+                    }
+                  },
+                ),
+                onTap: () async {
+                  await langProvider.setLanguage(AppLanguageCode.hi);
+                  if (context.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(loc.t('app.language.saved'))),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showProfilePrereqDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+  }) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange[700], size: 26),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Complete profile'),
           ),
         ],
       ),
@@ -480,6 +650,22 @@ class ProfileScreen extends StatelessWidget {
   /// Does a single server check — if already approved, refresh auth + open dashboard.
   /// No polling: one call only.
   Future<void> _openUnionSection(BuildContext context, AuthProvider authProvider) async {
+    final user = authProvider.user;
+    final hasPhone = (user?.phone ?? '').trim().isNotEmpty;
+    final hasEmail = (user?.email ?? '').trim().isNotEmpty;
+    final hasProfilePic = (user?.profileImage ?? '').trim().isNotEmpty;
+
+    if (!hasPhone || !hasEmail || !hasProfilePic) {
+      _showProfilePrereqDialog(
+        context,
+        title: 'Complete profile before union request',
+        message:
+            'Taxi union registration is only for authorised union representatives.\n\n'
+            'Please complete your profile (photo, email, correct phone number) before filling this form. '
+            'Misuse or fake union requests can lead to your account being blocked.',
+      );
+      return;
+    }
     // Show brief loading indicator
     final snack = ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

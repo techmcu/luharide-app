@@ -37,6 +37,10 @@ class ApiConstants {
   static const String adminDriverRequests = '/admin/driver-requests';
   static const String adminUnionRequests = '/admin/union-requests';
 
+  // Uploads
+  static const String uploadDriverDoc = '/uploads/driver-doc';
+  static const String uploadUnionDoc = '/uploads/union-doc';
+
   // Notifications
   // Use leading slash so final URL is: {baseUrl}/notifications
   static const String notifications = '/notifications';
