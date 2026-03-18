@@ -100,12 +100,12 @@ const createBooking = asyncHandler(async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Schedule rate notifications 3 min after confirm; fallback to immediate if table missing
+    // Schedule rate notifications 4 hours after confirm; fallback to immediate if table missing
     if (bookingStatus === 'confirmed') {
       try {
         await pool.query(
           `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-           VALUES ($1, $2, $3, NOW() + INTERVAL '3 minutes')`,
+           VALUES ($1, $2, $3, NOW() + INTERVAL '4 hours')`,
           [booking.id, passengerId, trip.driver_id]
         );
       } catch (err) {

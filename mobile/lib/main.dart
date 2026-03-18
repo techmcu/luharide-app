@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/config/env_config.dart';
@@ -56,6 +57,11 @@ class LuhaRideApp extends StatelessWidget {
             supportedLocales: const [
               Locale('en'),
               Locale('hi'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
             ],
             home: Consumer<AuthProvider>(
               builder: (context, authProvider, _) {

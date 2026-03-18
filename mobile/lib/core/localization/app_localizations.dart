@@ -10,7 +10,9 @@ class AppLocalizations {
   AppLocalizations(this.code);
 
   static AppLocalizations of(BuildContext context) {
-    final lang = context.watch<AppLanguageProvider>().language;
+    // Use listen: false so we can safely call from event handlers (onTap, etc.).
+    // MaterialApp already rebuilds on language change via AppLanguageProvider.
+    final lang = Provider.of<AppLanguageProvider>(context, listen: false).language;
     return AppLocalizations(lang);
   }
 
