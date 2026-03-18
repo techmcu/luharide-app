@@ -272,7 +272,13 @@ class VehicleCatalog {
       id: 'mahindra',
       name: 'Mahindra',
       models: [
-        VehicleModelConfig(id: 'mahindra_bolero_jeep', name: 'Bolero / Commander Jeep (Hill Taxi)', bodyType: 'Jeep', capacity: 10, layout: _layoutJeep10),
+        VehicleModelConfig(
+          id: 'mahindra_bolero_jeep',
+          name: 'Bolero / Commander Jeep (Hill 10)',
+          bodyType: 'Jeep',
+          capacity: 10,
+          layout: _layoutJeep10,
+        ),
         VehicleModelConfig(id: 'mahindra_bolero_suv', name: 'Bolero 7-Seater', bodyType: 'SUV', capacity: 7, layout: _layout7),
         VehicleModelConfig(id: 'mahindra_bolero_ne', name: 'Bolero Neo', bodyType: 'SUV', capacity: 7, layout: _layout7),
         VehicleModelConfig(id: 'mahindra_thar', name: 'Thar', bodyType: 'SUV', capacity: 5, layout: _layout5),

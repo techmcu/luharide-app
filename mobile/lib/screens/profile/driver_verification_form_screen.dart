@@ -26,8 +26,6 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   VehicleDropdownOption? _selectedVehicle;
   File? _aadhaarFile;
   File? _rcFile;
-  File? _permitFile;
-  File? _insuranceFile;
   File? _licenseFile;
 
   @override
@@ -57,8 +55,6 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
 
     String? aadhaarUrl;
     String? rcUrl;
-    String? permitUrl;
-    String? insuranceUrl;
     String? licenseUrl;
 
     try {
@@ -67,12 +63,6 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
       }
       if (_rcFile != null) {
         rcUrl = await _uploadService.uploadDriverDocument(_rcFile!);
-      }
-      if (_permitFile != null) {
-        permitUrl = await _uploadService.uploadDriverDocument(_permitFile!);
-      }
-      if (_insuranceFile != null) {
-        insuranceUrl = await _uploadService.uploadDriverDocument(_insuranceFile!);
       }
       if (_licenseFile != null) {
         licenseUrl = await _uploadService.uploadDriverDocument(_licenseFile!);
@@ -105,8 +95,8 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
       vehicleModelId: v.id,
       vehicleCapacity: v.capacity,
       rcDocumentUrl: rcUrl,
-      permitDocumentUrl: permitUrl,
-      insuranceDocumentUrl: insuranceUrl,
+      permitDocumentUrl: null,
+      insuranceDocumentUrl: null,
       aadhaarDocumentUrl: aadhaarUrl,
     );
 
@@ -173,7 +163,7 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
               ),
               const SizedBox(height: 16),
               const Text(
-                'Upload documents (photos)',
+                'Upload documents (photos) — sirf basic zaruri docs',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
@@ -192,17 +182,7 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                     onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _rcFile = f)),
                   ),
                   _DocChip(
-                    label: 'Permit',
-                    selected: _permitFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _permitFile = f)),
-                  ),
-                  _DocChip(
-                    label: 'Insurance',
-                    selected: _insuranceFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _insuranceFile = f)),
-                  ),
-                  _DocChip(
-                    label: 'License photo',
+                    label: 'License photo (optional)',
                     selected: _licenseFile != null,
                     onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _licenseFile = f)),
                   ),
