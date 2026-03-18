@@ -10,17 +10,17 @@ class EnvConfig {
   // Defaults: production domain (HTTPS). Local debug ke liye dart-define se override karo.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    // Example: https://api.luharide.in/api
+    // VPS default (can be overridden via dart-define)
     defaultValue: _envUseLocalApi
         ? 'http://10.0.2.2:3000/api'
-        : 'https://api.luharide.in/api',
+        : 'http://76.13.243.157:3000/api',
   );
   static const String socketUrl = String.fromEnvironment(
     'SOCKET_URL',
-    // Example: https://api.luharide.in
+    // VPS default (can be overridden via dart-define)
     defaultValue: _envUseLocalApi
         ? 'http://10.0.2.2:3000'
-        : 'https://api.luharide.in',
+        : 'http://76.13.243.157:3000',
   );
   
   // Google Maps API Key
