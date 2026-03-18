@@ -61,9 +61,9 @@ const getPendingUnionRequests = asyncHandler(async (req, res) => {
     `SELECT 
        u.*,
        ua.user_id,
-       usr.name   AS owner_name,
-       usr.email  AS owner_email,
-       usr.phone  AS owner_phone
+       usr.name   AS applicant_name,
+       usr.email  AS applicant_email,
+       usr.phone  AS applicant_phone
      FROM unions u
      LEFT JOIN union_admins ua ON ua.union_id = u.id
      LEFT JOIN users usr ON usr.id = ua.user_id

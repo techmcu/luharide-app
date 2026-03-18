@@ -4,6 +4,7 @@ import 'api_service.dart';
 
 class AdminService {
   final ApiService _apiService = ApiService();
+  static const String _approvePasswordHeader = 'x-approve-password';
 
   /// Union admin dashboard stats: total_trips, total_bookings, drivers_verified
   Future<Map<String, dynamic>> getUnionDashboardStats() async {
@@ -80,9 +81,12 @@ class AdminService {
   }
 
   /// Approve driver request
-  Future<Map<String, dynamic>> approveDriver(String requestId) async {
+  Future<Map<String, dynamic>> approveDriver(String requestId, {required String password}) async {
     try {
-      await _apiService.post('${ApiConstants.adminDriverRequests}/$requestId/approve');
+      await _apiService.post(
+        '${ApiConstants.adminDriverRequests}/$requestId/approve',
+        options: Options(headers: {_approvePasswordHeader: password}),
+      );
       return {'success': true, 'message': 'Driver approved'};
     } on DioException catch (e) {
       return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
@@ -107,9 +111,12 @@ class AdminService {
   }
 
   /// Approve union request
-  Future<Map<String, dynamic>> approveUnion(String unionId) async {
+  Future<Map<String, dynamic>> approveUnion(String unionId, {required String password}) async {
     try {
-      await _apiService.post('${ApiConstants.adminUnionRequests}/$unionId/approve');
+      await _apiService.post(
+        '${ApiConstants.adminUnionRequests}/$unionId/approve',
+        options: Options(headers: {_approvePasswordHeader: password}),
+      );
       return {'success': true, 'message': 'Union approved'};
     } on DioException catch (e) {
       return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};

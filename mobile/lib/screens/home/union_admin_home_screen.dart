@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/config/env_config.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
 import '../../core/app_navigator.dart';
@@ -22,6 +23,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   int _totalTrips = 0;
   int _totalBookings = 0;
   int _driversVerified = 0;
+  static const String _approvePasswordHint = 'Enter admin approve password';
 
   @override
   void initState() {
@@ -67,7 +69,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   }
 
   Future<void> _approve(String id) async {
-    final result = await _adminService.approveDriver(id);
+    final password = await _askApprovePassword();
+    if (password == null) return;
+    final result = await _adminService.approveDriver(id, password: password);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -80,7 +84,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   }
 
   Future<void> _approveUnion(String id) async {
-    final result = await _adminService.approveUnion(id);
+    final password = await _askApprovePassword();
+    if (password == null) return;
+    final result = await _adminService.approveUnion(id, password: password);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -345,9 +351,14 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     final id = r['id']?.toString() ?? '';
     final name = (r['name'] ?? '').toString();
     final location = (r['address'] ?? '').toString();
-    final ownerName = (r['owner_name'] ?? '').toString();
-    final ownerEmail = (r['owner_email'] ?? '').toString();
-    final ownerPhone = (r['owner_phone'] ?? '').toString();
+    final unionHeadName = (r['owner_name'] ?? '').toString();
+    final applicantName = (r['applicant_name'] ?? '').toString();
+    final applicantEmail = (r['applicant_email'] ?? '').toString();
+    final applicantPhone = (r['applicant_phone'] ?? '').toString();
+
+    final ownerAadhaarUrl = r['owner_aadhaar_url']?.toString();
+    final officePhotoUrl = r['office_photo_url']?.toString();
+    final ownerVehicleRcUrl = r['owner_vehicle_rc_url']?.toString();
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -389,21 +400,36 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             const SizedBox(height: 4),
-            if (ownerName.isNotEmpty)
+            if (unionHeadName.isNotEmpty)
               Text(
-                ownerName,
+                unionHeadName,
                 style: const TextStyle(fontSize: 13),
               ),
-            if (ownerEmail.isNotEmpty)
+            if (applicantName.isNotEmpty || applicantEmail.isNotEmpty || applicantPhone.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Applicant (account)',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              if (applicantName.isNotEmpty) Text(applicantName, style: const TextStyle(fontSize: 13)),
+            ],
+            if (applicantEmail.isNotEmpty)
               Text(
-                ownerEmail,
+                applicantEmail,
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
-            if (ownerPhone.isNotEmpty)
+            if (applicantPhone.isNotEmpty)
               Text(
-                ownerPhone,
+                applicantPhone,
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
+            const Divider(height: 24),
+            const Text('Documents', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 8),
+            if (ownerAadhaarUrl != null && ownerAadhaarUrl.isNotEmpty) _linkRow('Owner Aadhaar doc', ownerAadhaarUrl),
+            if (officePhotoUrl != null && officePhotoUrl.isNotEmpty) _linkRow('Office photo', officePhotoUrl),
+            if (ownerVehicleRcUrl != null && ownerVehicleRcUrl.isNotEmpty) _linkRow('Owner vehicle RC doc', ownerVehicleRcUrl),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -451,9 +477,17 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
         onTap: () async {
-          final uri = Uri.tryParse(url);
+          final resolved = _resolveDocUrl(url);
+          final uri = Uri.tryParse(resolved);
           if (uri != null && await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Unable to open: $resolved'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         },
         child: Row(
@@ -465,6 +499,38 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
         ),
       ),
     );
+  }
+
+  String _resolveDocUrl(String url) {
+    final raw = url.trim();
+    if (raw.isEmpty) return raw;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    if (raw.startsWith('/')) return '${EnvConfig.socketUrl}$raw';
+    return '${EnvConfig.socketUrl}/$raw';
+  }
+
+  Future<String?> _askApprovePassword() async {
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final c = TextEditingController();
+        return AlertDialog(
+          title: const Text('Admin approval password'),
+          content: TextField(
+            controller: c,
+            obscureText: true,
+            decoration: const InputDecoration(hintText: _approvePasswordHint),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, c.text.trim()),
+              child: const Text('Continue'),
+            ),
+          ],
+        );
+      },
+    ).then((value) => (value == null || value.isEmpty) ? null : value);
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
