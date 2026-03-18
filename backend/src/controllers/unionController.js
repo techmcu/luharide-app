@@ -17,6 +17,36 @@ function ensurePlatformAdmin(user) {
 }
 
 /**
+ * Clean union display name for posters so garbage tokens (like "@$by>")
+ * or control characters do not appear. Keeps words that contain at least
+ * one English or Hindi letter and normalizes spaces.
+ */
+function cleanUnionName(raw) {
+  if (!raw) return 'Taxi Union';
+  let name = String(raw).trim();
+  if (!name) return 'Taxi Union';
+
+  // Remove control characters
+  name = name.replace(/[\x00-\x1F\x7F]/g, '');
+
+  // Drop tokens that have no letters (English or Devanagari) – e.g. "@$by>"
+  const tokens = name
+    .split(/\s+/)
+    .filter((t) => /[A-Za-z\u0900-\u097F]/.test(t));
+  if (tokens.length > 0) {
+    name = tokens.join(' ');
+  }
+
+  // Collapse multiple spaces
+  name = name.replace(/\s+/g, ' ').trim();
+
+  // Fallback if everything got stripped
+  if (!name) return 'Taxi Union';
+
+  return name;
+}
+
+/**
  * Get current user's union + status.
  * GET /api/union/me
  */
@@ -738,15 +768,15 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
     throw ApiError.notFound('Schedule not found');
   }
 
-  const s             = schedRes.rows[0];
-  const from          = (s.from_location   || '').toString().toUpperCase();
-  const to            = (s.to_location     || '').toString().toUpperCase();
-  const driverName    = (s.driver_name     || '').toString();
-  const vehicleNum    = (s.vehicle_number  || '').toString();
-  const driverPhone   = (s.driver_phone    || '').toString();
-  let unionName     = (s.union_name      || 'Taxi Union').toString().trim();
-  if (unionName.toLowerCase() === 'techmcu') unionName = 'Taxi Union';
-  const posterHeader  = (s.poster_header   || '').toString().trim();
+  const s           = schedRes.rows[0];
+  const from        = (s.from_location   || '').toString().toUpperCase();
+  const to          = (s.to_location     || '').toString().toUpperCase();
+  const driverName  = (s.driver_name     || '').toString();
+  const vehicleNum  = (s.vehicle_number  || '').toString();
+  const driverPhone = (s.driver_phone    || '').toString();
+  let unionNameRaw  = (s.union_name      || 'Taxi Union').toString().trim();
+  if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
+  const unionName   = cleanUnionName(unionNameRaw);
 
   const pad  = (n) => String(n).padStart(2, '0');
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -791,7 +821,8 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   let y = 22;
 
   // Union name — big, centered, primary focus
-  const unFontSize = unionName.length > 22 ? 24 : 32;
+  const unLen = unionName.length;
+  const unFontSize = unLen > 26 ? 22 : (unLen > 18 ? 26 : 30);
   doc.fillColor('#212121')
      .font('Helvetica-Bold')
      .fontSize(unFontSize)
@@ -1069,10 +1100,10 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
   if (schedRes.rows.length === 0) throw ApiError.notFound('No schedules found');
 
-  const rows        = schedRes.rows;
-  let unionName     = (rows[0].union_name || 'Taxi Union').toString().trim();
-  if (unionName.toLowerCase() === 'techmcu') unionName = 'Taxi Union';
-  const posterHdr   = (rows[0].poster_header || '').toString().trim();
+  const rows      = schedRes.rows;
+  let unionNameRaw = (rows[0].union_name || 'Taxi Union').toString().trim();
+  if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
+  const unionName  = cleanUnionName(unionNameRaw);
 
   // Determine date label from first schedule
   const pad  = n => String(n).padStart(2, '0');
@@ -1117,7 +1148,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   let y = 20;
 
   // Union name — only big element at top
-  const unFontSize = unionName.length > 26 ? 22 : (unionName.length > 18 ? 26 : 32);
+  const unLen = unionName.length;
+  const unFontSize = unLen > 26 ? 22 : (unLen > 18 ? 24 : 28);
   doc.fillColor('#212121').font('Helvetica-Bold').fontSize(unFontSize)
     .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += unFontSize + 5;
