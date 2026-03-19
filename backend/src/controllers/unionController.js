@@ -1154,10 +1154,13 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
     .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += unFontSize + 5;
 
-  // Date + subtitle (Hindi line + English date)
+  // Date + subtitle (ASCII only so no garbage glyphs)
   doc.fillColor('#424242').font('Helvetica').fontSize(10)
-    .text(`दैनिक सवारी समय सारणी  —  ${dateLabel.toUpperCase()}`, 0, y,
-      { width: W, align: 'center', characterSpacing: 0.8 });
+    .text(`Daily taxi schedule  —  ${dateLabel.toUpperCase()}`, 0, y, {
+      width: W,
+      align: 'center',
+      characterSpacing: 0.8,
+    });
 
   y = 5 + headerH + 16;
 
