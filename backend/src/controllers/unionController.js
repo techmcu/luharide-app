@@ -1221,25 +1221,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
       characterSpacing: 0.8,
     });
 
-  y = 5 + headerH + 16;
-
-  // ── Simple count badge ──────────────────────────────────────────────────────
-  const badgeTxt = `${rows.length} ride${rows.length > 1 ? 's' : ''}  •  ${groups.size} section${groups.size > 1 ? 's' : ''}`;
-  const badgeW   = 220;
-  _fillRounded(doc, (W - badgeW) / 2, y, badgeW, 22, 11, '#212121');
-  doc.fillColor('#FFC107').font('Helvetica-Bold').fontSize(9)
-    .text(badgeTxt, (W - badgeW) / 2, y + 6, { width: badgeW, align: 'center' });
-  y += 36;
-
-  // ── Date section (range) ──────────────────────────────────────────────────
-  const datePillW = 260;
-  _fillRounded(doc, (W - datePillW) / 2, y, datePillW, 22, 11, '#212121');
-  doc.fillColor('#FFC107').font('Helvetica-Bold').fontSize(9)
-    .text(`Dates: ${dateRangeShort.toUpperCase()}`, (W - datePillW) / 2, y + 6, {
-      width: datePillW,
-      align: 'center',
-    });
-  y += 30;
+  // Start details right after header so real table content doesn't get pushed down.
+  y = 5 + headerH + 10;
 
   // ── Column definitions (simple & passenger‑friendly) ───────────────────────
   const COL_DATE  = { label: 'Date',        w: 95,  align: 'center' };
@@ -1253,9 +1236,9 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   };
   const COLS      = [COL_DATE, COL_TIME, COL_DRV, COL_VEH, COL_PHONE];
   const TOTAL_W  = COLS.reduce((s, c) => s + c.w, 0);
-  // Slightly shrink row height when there are many rides so most schedules fit on one page.
-  const ROW_H    = rows.length > 20 ? 20 : 24;
-  const HDR_H    = 22;
+  // Compact spacing so many rides fit on one page.
+  const ROW_H    = rows.length > 40 ? 18 : (rows.length > 20 ? 20 : 22);
+  const HDR_H    = 20;
 
   // Route color palette (softer, taxi‑inspired)
   const ROUTE_COLORS = ['#FFC107','#FFB300','#F9A825','#F57F17','#0288D1','#43A047'];
@@ -1263,7 +1246,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
   // ── For each route group, draw a section ───────────────────────────────────
   for (const [routeKey, schedules] of groups) {
-    const sectionH = HDR_H + 8 + ROW_H + schedules.length * ROW_H + 20;
+    const sectionH = HDR_H + 4 + schedules.length * ROW_H + 14;
     // Page break if needed
     if (y + sectionH > H - FOOTER_H - 20) {
       doc.addPage({ size: 'A4', margin: 0 });
@@ -1328,7 +1311,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
       _vLine(doc, divX, tableStartY, ROW_H + schedules.length * ROW_H, '#F0D0C0', 0.5);
     }
 
-    y += 16;
+    y += 10;
   }
 
   // ── Footer band ─────────────────────────────────────────────────────────────
