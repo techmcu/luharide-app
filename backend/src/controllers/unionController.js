@@ -1142,8 +1142,22 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   const pad  = n => String(n).padStart(2, '0');
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const firstDt = rows[0].departure_time ? new Date(rows[0].departure_time) : new Date();
-  const dateLabel = `${DAYS[firstDt.getDay()]}, ${pad(firstDt.getDate())} ${MONTHS[firstDt.getMonth()]} ${firstDt.getFullYear()}`;
+  const formatDateShort = (dt) => `${pad(dt.getDate())} ${MONTHS[dt.getMonth()]}`;
+  const formatDateFull  = (dt) => `${DAYS[dt.getDay()]}, ${pad(dt.getDate())} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
+
+  const departureDates = rows
+    .map((r) => (r.departure_time ? new Date(r.departure_time) : null))
+    .filter(Boolean);
+
+  departureDates.sort((a, b) => a.getTime() - b.getTime());
+  const firstDt = departureDates.length ? departureDates[0] : new Date();
+  const lastDt  = departureDates.length ? departureDates[departureDates.length - 1] : firstDt;
+
+  const dateRangeShort = formatDateShort(firstDt) === formatDateShort(lastDt)
+    ? formatDateShort(firstDt)
+    : `${formatDateShort(firstDt)} - ${formatDateShort(lastDt)}`;
+
+  const dateLabel = formatDateFull(firstDt);
 
   // Group schedules by route key "FROM → TO"
   const groups = new Map();
@@ -1201,7 +1215,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
   // Date + subtitle (ASCII only so no garbage glyphs)
   doc.fillColor('#424242').font('Helvetica').fontSize(10)
-    .text(`Daily taxi schedule  —  ${dateLabel.toUpperCase()}`, 0, y, {
+    .text(`Daily taxi schedule  —  ${dateRangeShort.toUpperCase()}`, 0, y, {
       width: W,
       align: 'center',
       characterSpacing: 0.8,
@@ -1217,16 +1231,27 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
     .text(badgeTxt, (W - badgeW) / 2, y + 6, { width: badgeW, align: 'center' });
   y += 36;
 
+  // ── Date section (range) ──────────────────────────────────────────────────
+  const datePillW = 260;
+  _fillRounded(doc, (W - datePillW) / 2, y, datePillW, 22, 11, '#212121');
+  doc.fillColor('#FFC107').font('Helvetica-Bold').fontSize(9)
+    .text(`Dates: ${dateRangeShort.toUpperCase()}`, (W - datePillW) / 2, y + 6, {
+      width: datePillW,
+      align: 'center',
+    });
+  y += 30;
+
   // ── Column definitions (simple & passenger‑friendly) ───────────────────────
-  const COL_TIME  = { label: 'Time',        w: 80,  align: 'center' };
-  const COL_DRV   = { label: 'Driver name', w: 210, align: 'left'   };
-  const COL_VEH   = { label: 'Cab number',  w: 110, align: 'center' };
+  const COL_DATE  = { label: 'Date',        w: 95,  align: 'center' };
+  const COL_TIME  = { label: 'Time',        w: 70,  align: 'center' };
+  const COL_DRV   = { label: 'Driver name', w: 185, align: 'left'   };
+  const COL_VEH   = { label: 'Cab number',  w: 95, align: 'center' };
   const COL_PHONE = {
     label: 'Phone',
-    w: CW - 80 - 210 - 110,
+    w: CW - 95 - 70 - 185 - 95,
     align: 'center',
   };
-  const COLS      = [COL_TIME, COL_DRV, COL_VEH, COL_PHONE];
+  const COLS      = [COL_DATE, COL_TIME, COL_DRV, COL_VEH, COL_PHONE];
   const TOTAL_W  = COLS.reduce((s, c) => s + c.w, 0);
   // Slightly shrink row height when there are many rides so most schedules fit on one page.
   const ROW_H    = rows.length > 20 ? 20 : 24;
@@ -1270,6 +1295,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
     for (let i = 0; i < schedules.length; i++) {
       const s   = schedules[i];
       const dt  = s.departure_time ? new Date(s.departure_time) : null;
+      const dateStr = dt ? formatDateShort(dt) : '—';
       const rawH = dt ? dt.getHours() : 0;
       const ampm = rawH >= 12 ? 'PM' : 'AM';
       const hr12 = rawH % 12 || 12;
@@ -1281,6 +1307,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
         y,
         COLS,
         [
+          dateStr,
           timeStr,
           s.driver_name || '—',
           s.vehicle_number || '—',

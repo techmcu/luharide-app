@@ -355,7 +355,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       if (dt == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Please set time for all selected drivers (or a default time)'),
+            content: Text('Please set time for all selected drivers'),
             backgroundColor: Colors.red,
           ),
         );
@@ -606,82 +606,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // ── Step 1: Default time ──────────────────────────────────────────
-          _stepHeader('1', 'Set a default departure time'),
-          const SizedBox(height: 10),
-          GestureDetector(
-            onTap: _pickDateTime,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _selectedDateTime != null
-                    ? const Color(0xFFE8F5E9)
-                    : Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: _selectedDateTime != null
-                      ? Colors.green.shade300
-                      : Colors.orange.shade200,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _selectedDateTime != null
-                          ? Colors.green.withOpacity(0.15)
-                          : Colors.orange.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.calendar_month_rounded,
-                      color: _selectedDateTime != null
-                          ? Colors.green.shade700
-                          : Colors.orange,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _selectedDateTime == null
-                              ? 'Tap to set date & time'
-                              : _fmtDt(_selectedDateTime!),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: _selectedDateTime != null
-                                ? Colors.green.shade800
-                                : Colors.orange.shade800,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          'This time will apply to all drivers by default.\nYou can override per driver below.',
-                          style: TextStyle(fontSize: 12, color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.edit_rounded,
-                    color: _selectedDateTime != null
-                        ? Colors.green.shade600
-                        : Colors.orange,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // ── Step 2: Select drivers ────────────────────────────────────────
-          _stepHeader('2', 'Select drivers & set their route / time'),
+          // ── Step 1: Select drivers ────────────────────────────────────────
+          _stepHeader('1', 'Select drivers & set their route / time'),
           const SizedBox(height: 10),
 
           if (_drivers.isEmpty)
