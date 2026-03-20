@@ -1378,40 +1378,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
             ),
           ),
 
-          // ── Action row ─────────────────────────────────────────────────────
-          if (canCancel)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: OutlinedButton.icon(
-                  onPressed: !canCancel || isCancelling || scheduleId.isEmpty
-                      ? null
-                      : () => _cancelSchedule(scheduleId),
-                  icon: isCancelling
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2.5),
-                        )
-                      : const Icon(Icons.cancel_outlined, size: 16),
-                  label: isCancelling
-                      ? const Text('Cancelling...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))
-                      : const Text(
-                          'Cancel Ride',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.redAccent),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  ),
-                ),
-              ),
-            )
-          else
-            const SizedBox(height: 12),
+          // Cancel is disabled as requested.
+          const SizedBox(height: 12),
         ],
       ),
     );
