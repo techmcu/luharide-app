@@ -1005,6 +1005,48 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 TextField(
                   controller: ctrl,
                   maxLength: 60,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) async {
+                    if (saving) return;
+                    setSheet(() => saving = true);
+
+                    final result = await UnionService().updateBranding(
+                      posterHeader: ctrl.text.trim(),
+                    );
+
+                    setSheet(() => saving = false);
+                    if (!mounted) return;
+
+                    if (result['success'] == true) {
+                      setState(() => _posterHeader = ctrl.text.trim());
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Row(children: [
+                            Icon(Icons.check_circle_rounded,
+                                color: Colors.white, size: 18),
+                            SizedBox(width: 8),
+                            Text('Poster branding saved'),
+                          ]),
+                          backgroundColor: _purple,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                              result['message']?.toString() ?? 'Failed to save'),
+                          backgroundColor: Colors.red,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      );
+                    }
+                  },
                   decoration: InputDecoration(
                     labelText: 'Custom header text (optional)',
                     hintText: 'e.g. Jai Mata Di',

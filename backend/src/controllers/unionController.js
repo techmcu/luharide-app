@@ -47,6 +47,22 @@ function cleanUnionName(raw) {
 }
 
 /**
+ * Clean poster header for drawing on PDFs.
+ * - removes control chars
+ * - trims extra spaces
+ * Keeps normal Hindi/English text intact.
+ */
+function cleanPosterHeader(raw) {
+  if (!raw) return '';
+  let text = String(raw);
+  // Remove control characters that can break PDF rendering
+  text = text.replace(/[\x00-\x1F\x7F]/g, '');
+  // Normalize whitespace (TextField is usually single-line anyway)
+  text = text.replace(/\s+/g, ' ').trim();
+  return text;
+}
+
+/**
  * Get current user's union + status.
  * GET /api/union/me
  */
@@ -774,6 +790,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const driverName  = (s.driver_name     || '').toString();
   const vehicleNum  = (s.vehicle_number  || '').toString();
   const driverPhone = (s.driver_phone    || '').toString();
+  const posterHeader = cleanPosterHeader(s.poster_header);
   let unionNameRaw  = (s.union_name      || 'Taxi Union').toString().trim();
   if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
   const unionName   = cleanUnionName(unionNameRaw);
@@ -814,11 +831,21 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   // ─── Top accent stripe ─────────────────────────────────────────────────────
   _rect(doc, 0, 0, W, 5, '#212121');
 
-  // ─── Header band (only union name — nothing else at top) ──────────────────
-  const headerH = 120;
+  // ─── Header band (poster header + union name) ─────────────────────────────
+  const headerH = posterHeader ? 150 : 120;
   _rect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 22;
+
+  // Custom poster header line at the very top (if provided)
+  if (posterHeader) {
+    const phFontSize = posterHeader.length > 26 ? 16 : 18;
+    doc.fillColor('#212121')
+      .font('Helvetica-Bold')
+      .fontSize(phFontSize)
+      .text(posterHeader, 0, 14, { width: W, align: 'center' });
+    y = 14 + phFontSize + 10;
+  }
 
   // Union name — big, centered, primary focus
   const unLen = unionName.length;
@@ -1104,6 +1131,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   let unionNameRaw = (rows[0].union_name || 'Taxi Union').toString().trim();
   if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
   const unionName  = cleanUnionName(unionNameRaw);
+  const posterHeader = cleanPosterHeader(rows[0].poster_header);
 
   // Determine date label from first schedule
   const pad  = n => String(n).padStart(2, '0');
@@ -1141,11 +1169,21 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // ── Top accent ─────────────────────────────────────────────────────────────
   _fillRect(doc, 0, 0, W, 5, '#212121');
 
-  // ── Header band (only union name at top) ────────────────────────────────────
-  const headerH = 100;
+  // ── Header band (poster header + union name) ──────────────────────────────
+  const headerH = posterHeader ? 120 : 100;
   _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 20;
+
+  // Custom poster header line at the very top (if provided)
+  if (posterHeader) {
+    const phFontSize = posterHeader.length > 26 ? 16 : 18;
+    doc.fillColor('#212121')
+      .font('Helvetica-Bold')
+      .fontSize(phFontSize)
+      .text(posterHeader, 0, 14, { width: W, align: 'center' });
+    y = 14 + phFontSize + 6;
+  }
 
   // Union name — only big element at top
   const unLen = unionName.length;
