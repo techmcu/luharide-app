@@ -1189,7 +1189,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   _fillRect(doc, 0, 0, W, 5, '#212121');
 
   // ── Header band (poster header + union name) ──────────────────────────────
-  const headerH = posterHeader ? 220 : 100;
+  // Reduce yellow header band height (previously too tall -> large empty gap).
+  const headerH = posterHeader ? 165 : 90;
   _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 20;
@@ -1203,7 +1204,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
       .fontSize(phFontSize)
       .text(posterHeader, 0, phY, { width: W, align: 'center' });
     // Fixed spacing for robust top placement
-    y = phY + phFontSize + 20;
+    // Smaller spacing so union name starts closer to the poster header line.
+    y = phY + phFontSize + 14;
   }
 
   // Union name — only big element at top
@@ -1221,8 +1223,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
       characterSpacing: 0.8,
     });
 
-  // Start details right after header so real table content doesn't get pushed down.
-  y = 5 + headerH + 10;
+  // Start details right after yellow band with minimal padding.
+  y = 5 + headerH + 4;
 
   // ── Column definitions (simple & passenger‑friendly) ───────────────────────
   const COL_DATE  = { label: 'Date',        w: 95,  align: 'center' };
