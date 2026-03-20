@@ -46,8 +46,24 @@ const otpLimiter = rateLimit({
   }
 });
 
+/**
+ * Cancel ride/schedule spam protection.
+ * This endpoint can be hit repeatedly by accidental double taps / poor networks.
+ */
+const cancelScheduleLimiter = rateLimit({
+  windowMs: 10 * 1000, // 10 seconds
+  max: 5, // allow small burst only
+  message: 'Too many cancel requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    throw ApiError.tooManyRequests('Too many cancel requests. Please try again in a few seconds.');
+  }
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
-  otpLimiter
+  otpLimiter,
+  cancelScheduleLimiter
 };

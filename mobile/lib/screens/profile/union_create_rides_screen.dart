@@ -31,6 +31,9 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   List<dynamic> _currentSchedules = const [];
   List<dynamic> _recentSchedules = const [];
 
+  // Prevent spamming cancel endpoint (avoid rapid duplicate requests).
+  final Set<String> _cancelLoadingIds = <String>{};
+
   late TabController _tabController;
 
   @override
@@ -449,8 +452,14 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   }
 
   Future<void> _cancelSchedule(String id) async {
+    if (id.isEmpty) return;
+    if (_cancelLoadingIds.contains(id)) return;
+
+    setState(() => _cancelLoadingIds.add(id));
     final res = await _service.cancelSchedule(id);
     if (!mounted) return;
+
+    setState(() => _cancelLoadingIds.remove(id));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(res['message']?.toString() ?? ''),
@@ -1190,6 +1199,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     final vehicle    = (s['vehicle_number'] ?? '').toString();
     final status     = (s['status'] ?? '').toString();
     final canCancel  = s['can_cancel'] == true && allowCancel;
+    final scheduleId = s['id']?.toString() ?? '';
+    final isCancelling = scheduleId.isNotEmpty && _cancelLoadingIds.contains(scheduleId);
 
     DateTime? dt;
     final dtRaw = s['departure_time'];
@@ -1374,12 +1385,22 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
               child: Align(
                 alignment: Alignment.centerRight,
                 child: OutlinedButton.icon(
-                  onPressed: () => _cancelSchedule(s['id']?.toString() ?? ''),
-                  icon: const Icon(Icons.cancel_outlined, size: 16),
-                  label: const Text(
-                    'Cancel Ride',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
+                  onPressed: !canCancel || isCancelling || scheduleId.isEmpty
+                      ? null
+                      : () => _cancelSchedule(scheduleId),
+                  icon: isCancelling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      : const Icon(Icons.cancel_outlined, size: 16),
+                  label: isCancelling
+                      ? const Text('Cancelling...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))
+                      : const Text(
+                          'Cancel Ride',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.redAccent),

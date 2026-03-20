@@ -25,6 +25,7 @@ const {
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
+const { cancelScheduleLimiter } = require('../middleware/rateLimiter');
 
 // Validation schema for creating trip for driver
 const createTripForDriverSchema = Joi.object({
@@ -143,6 +144,7 @@ router.delete(
   '/schedules/:id',
   authenticate,
   authorize('union_admin'),
+  cancelScheduleLimiter,
   cancelUnionSchedule
 );
 

@@ -655,33 +655,41 @@ const cancelUnionSchedule = asyncHandler(async (req, res) => {
   }
   const unionId = resUnion.rows[0].union_id;
 
+  // Single fetch: status + time eligibility
   const schedRes = await pool.query(
-    `SELECT *
+    `SELECT
+       status,
+       departure_time,
+       (departure_time - NOW() > INTERVAL '5 minutes') AS can_cancel
      FROM union_schedules
      WHERE id = $1 AND union_id = $2`,
     [id, unionId]
   );
-  if (schedRes.rows.length === 0) {
-    throw ApiError.notFound('Schedule not found');
+  if (schedRes.rows.length === 0) throw ApiError.notFound('Schedule not found');
+
+  const currentStatus = schedRes.rows[0].status;
+  const canCancel = !!schedRes.rows[0].can_cancel;
+
+  // Idempotency: if already cancelled, treat repeated requests as success.
+  if (currentStatus === 'cancelled') {
+    return ApiResponse.success({ id, status: 'cancelled' }, 'Ride already cancelled').send(res);
   }
 
-  const canCancelRes = await pool.query(
-    `SELECT (departure_time - NOW() > INTERVAL '5 minutes') AS can_cancel
-     FROM union_schedules
-     WHERE id = $1`,
-    [id]
-  );
-  const canCancel = canCancelRes.rows[0]?.can_cancel;
-  if (!canCancel) {
-    throw ApiError.badRequest('Ride cannot be cancelled now (time too close)');
-  }
+  if (!canCancel) throw ApiError.badRequest('Ride cannot be cancelled now (time too close)');
 
-  await pool.query(
+  // Conditional update protects against races (parallel cancels).
+  const updRes = await pool.query(
     `UPDATE union_schedules
      SET status = 'cancelled'
-     WHERE id = $1`,
-    [id]
+     WHERE id = $1 AND union_id = $2 AND status = 'scheduled'
+     RETURNING id`,
+    [id, unionId]
   );
+
+  // If another cancel request won the race, updRes can be 0. Still return success.
+  if (updRes.rowCount === 0) {
+    return ApiResponse.success({ id, status: 'cancelled' }, 'Ride already cancelled').send(res);
+  }
 
   logger.info(`Union schedule cancelled ${id} for union ${unionId} by admin ${req.user.id}`);
 
