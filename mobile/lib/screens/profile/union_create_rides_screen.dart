@@ -52,7 +52,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     final driversResult = await _service.getDrivers();
     final routesResult = await _service.getRoutes();
     final currentResult = await _service.getSchedules(scope: 'current');
-    final recentResult = await _service.getSchedules(scope: 'recent');
 
     if (!mounted) return;
 
@@ -61,10 +60,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       error = driversResult['message']?.toString() ?? 'Failed to load drivers';
     } else if (routesResult['success'] != true) {
       error = routesResult['message']?.toString() ?? 'Failed to load routes';
-    } else if (currentResult['success'] != true ||
-        recentResult['success'] != true) {
+    } else if (currentResult['success'] != true) {
       error = currentResult['message']?.toString() ??
-          recentResult['message']?.toString() ??
           'Failed to load schedules';
     }
 
@@ -92,10 +89,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         _currentSchedules =
             currentResult['schedules'] as List<dynamic>? ?? const [];
       }
-      if (recentResult['success'] == true) {
-        _recentSchedules =
-            recentResult['schedules'] as List<dynamic>? ?? const [];
-      }
+      _recentSchedules = const [];
     });
   }
 
@@ -1042,7 +1036,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
   Widget _buildViewTab(ThemeData theme) {
     final totalUpcoming = _currentSchedules.length;
-    final totalHistory  = _recentSchedules.length;
 
     // Collect IDs for combined poster
     final upcomingIds = _currentSchedules
@@ -1098,24 +1091,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                 .toList(),
 
           const SizedBox(height: 20),
-
-          // ── History section ───────────────────────────────────────────────
-          _sectionHeader(
-            icon: Icons.history_rounded,
-            color: const Color(0xFF3949AB),
-            title: 'Last 10 Days History',
-            count: totalHistory,
-          ),
-          const SizedBox(height: 10),
-          if (_recentSchedules.isEmpty)
-            _emptySection(
-              icon: Icons.history_outlined,
-              message: 'No rides in the last 10 days.',
-            )
-          else
-            ..._recentSchedules
-                .map((s) => _buildScheduleCard(s as Map<String, dynamic>, false))
-                .toList(),
         ],
       ),
     );
@@ -1378,8 +1353,40 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
             ),
           ),
 
-          // Cancel is disabled as requested.
-          const SizedBox(height: 12),
+          // ── Action row ─────────────────────────────────────────────────────
+          if (canCancel)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton.icon(
+                  onPressed: !canCancel || isCancelling || scheduleId.isEmpty
+                      ? null
+                      : () => _cancelSchedule(scheduleId),
+                  icon: isCancelling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      : const Icon(Icons.cancel_outlined, size: 16),
+                  label: isCancelling
+                      ? const Text('Cancelling...', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))
+                      : const Text(
+                          'Cancel Ride',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.redAccent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  ),
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 12),
         ],
       ),
     );

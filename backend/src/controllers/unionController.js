@@ -599,54 +599,52 @@ const getUnionSchedules = asyncHandler(async (req, res) => {
   // Note: expired union_schedules are cleaned up globally by rideCleanupJob (midnight cron).
   // No lazy per-request cleanup needed here.
 
-  // NOTE:
-  // - For upcoming list: show only next 10 days (queue behavior).
-  // - If ride time already passed, show status as "completed" (even if DB still says "scheduled").
-  // - For cancel button logic: can_cancel true only for rides more than 5 minutes away (future scheduled rides).
-  let query = `
+  // Queue policy:
+  // - show only rides for "today + next 10 days" (10 calendar days total)
+  // - if departure_time has passed, show as "completed" in the UI
+  // - cancel is allowed only within 1 hour of creation and before departure_time
+  //   (backend returns `can_cancel` boolean for UI)
+  if (scope === 'recent') {
+    // UI will no longer display a separate history section; keep endpoint safe.
+    return ApiResponse.success({ schedules: [], count: 0 }, 'Union schedules retrieved').send(res);
+  }
+
+  const result = await pool.query(
+    `
     SELECT
+      -- UI status (computed)
+      CASE
+        WHEN s.status = 'scheduled' AND s.departure_time <= NOW()
+          THEN 'completed'
+        ELSE s.status
+      END AS status,
       s.id,
       s.union_id,
       s.union_driver_id,
       s.from_location,
       s.to_location,
       s.departure_time,
-      CASE
-        WHEN s.status = 'cancelled' THEN 'cancelled'
-        WHEN s.departure_time <= NOW() THEN 'completed'
-        ELSE 'scheduled'
-      END AS status,
       s.created_at,
       d.name AS driver_name,
       d.vehicle_number,
-      d.phone,
+      d.phone AS driver_phone,
       d.whatsapp_number,
+      -- UI cancel eligibility
       (
         s.status = 'scheduled'
-        AND (s.departure_time - NOW() > INTERVAL '5 minutes')
+        AND s.departure_time > NOW()
+        AND s.created_at >= NOW() - INTERVAL '1 hour'
       ) AS can_cancel
     FROM union_schedules s
     JOIN union_drivers d ON d.id = s.union_driver_id
     WHERE s.union_id = $1
-  `;
-  const params = [unionId];
-
-  if (scope === 'recent') {
-    query += `
-      AND s.departure_time >= NOW() - INTERVAL '10 days'
-      ORDER BY s.departure_time DESC
-      LIMIT 100
-    `;
-  } else {
-    // current / upcoming
-    query += `
       AND s.departure_time >= CURRENT_DATE::timestamp
-      AND s.departure_time < NOW() + INTERVAL '10 days'
-      ORDER BY s.departure_time ASC
-    `;
-  }
-
-  const result = await pool.query(query, params);
+      AND s.departure_time < (CURRENT_DATE::timestamp + INTERVAL '10 days')
+      AND s.status IN ('scheduled','completed')
+    ORDER BY s.departure_time ASC
+    `,
+    [unionId]
+  );
 
   ApiResponse.success(
     { schedules: result.rows, count: result.rows.length },
@@ -679,35 +677,44 @@ const cancelUnionSchedule = asyncHandler(async (req, res) => {
     `SELECT
        status,
        departure_time,
-       (departure_time - NOW() > INTERVAL '5 minutes') AS can_cancel
+       created_at,
+       (
+         status = 'scheduled'
+         AND departure_time > NOW()
+         AND created_at >= NOW() - INTERVAL '1 hour'
+       ) AS can_cancel
      FROM union_schedules
      WHERE id = $1 AND union_id = $2`,
     [id, unionId]
   );
-  if (schedRes.rows.length === 0) throw ApiError.notFound('Schedule not found');
+  // Idempotency: if already deleted/removed, treat as success.
+  if (schedRes.rows.length === 0) {
+    return ApiResponse.success({ id, status: 'cancelled' }, 'Ride already removed').send(res);
+  }
 
   const currentStatus = schedRes.rows[0].status;
   const canCancel = !!schedRes.rows[0].can_cancel;
 
-  // Idempotency: if already cancelled, treat repeated requests as success.
-  if (currentStatus === 'cancelled') {
-    return ApiResponse.success({ id, status: 'cancelled' }, 'Ride already cancelled').send(res);
+  if (!canCancel) {
+    // Don’t leak exact policy details; keep message user-friendly.
+    throw ApiError.badRequest('This ride can be cancelled only within 1 hour of creation and before departure time');
   }
 
-  if (!canCancel) throw ApiError.badRequest('Ride cannot be cancelled now (time too close)');
-
-  // Conditional update protects against races (parallel cancels).
-  const updRes = await pool.query(
-    `UPDATE union_schedules
-     SET status = 'cancelled'
-     WHERE id = $1 AND union_id = $2 AND status = 'scheduled'
+  // DELETE (hard remove) to satisfy "remove from database" requirement.
+  const delRes = await pool.query(
+    `DELETE FROM union_schedules
+     WHERE id = $1
+       AND union_id = $2
+       AND status = 'scheduled'
+       AND departure_time > NOW()
+       AND created_at >= NOW() - INTERVAL '1 hour'
      RETURNING id`,
     [id, unionId]
   );
 
-  // If another cancel request won the race, updRes can be 0. Still return success.
-  if (updRes.rowCount === 0) {
-    return ApiResponse.success({ id, status: 'cancelled' }, 'Ride already cancelled').send(res);
+  if (delRes.rowCount === 0) {
+    // Race: eligibility might have changed between SELECT and DELETE.
+    throw ApiError.badRequest('This ride can no longer be cancelled');
   }
 
   logger.info(`Union schedule cancelled ${id} for union ${unionId} by admin ${req.user.id}`);
@@ -1216,8 +1223,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   _fillRect(doc, 0, 0, W, 5, '#212121');
 
   // ── Header band (poster header + union name) ──────────────────────────────
-  // Reduce yellow header band height so table starts much earlier.
-  const headerH = posterHeader ? 135 : 85;
+  // Reduce yellow header band height (previously too tall -> large empty gap).
+  const headerH = posterHeader ? 165 : 90;
   _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 20;
@@ -1232,7 +1239,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
       .text(posterHeader, 0, phY, { width: W, align: 'center' });
     // Fixed spacing for robust top placement
     // Smaller spacing so union name starts closer to the poster header line.
-    y = phY + phFontSize + 10;
+    y = phY + phFontSize + 14;
   }
 
   // Union name — only big element at top
@@ -1240,7 +1247,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   const unFontSize = unLen > 26 ? 22 : (unLen > 18 ? 24 : 28);
   doc.fillColor('#212121').font('Helvetica-Bold').fontSize(unFontSize)
     .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
-  y += unFontSize + 3;
+  y += unFontSize + 5;
 
   // Date + subtitle (ASCII only so no garbage glyphs)
   doc.fillColor('#424242').font('Helvetica').fontSize(10)
@@ -1251,7 +1258,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
     });
 
   // Start details right after yellow band with minimal padding.
-  y = 5 + headerH + 2;
+  y = 5 + headerH + 4;
 
   // ── Column definitions (simple & passenger‑friendly) ───────────────────────
   const COL_DATE  = { label: 'Date',        w: 95,  align: 'center' };
