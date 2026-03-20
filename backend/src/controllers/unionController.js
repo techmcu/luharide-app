@@ -791,6 +791,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const vehicleNum  = (s.vehicle_number  || '').toString();
   const driverPhone = (s.driver_phone    || '').toString();
   const posterHeader = cleanPosterHeader(s.poster_header);
+  logger.info(`PDF posterHeader length=${posterHeader.length} value="${posterHeader.slice(0, 80)}"`);
   let unionNameRaw  = (s.union_name      || 'Taxi Union').toString().trim();
   if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
   const unionName   = cleanUnionName(unionNameRaw);
@@ -832,7 +833,8 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   _rect(doc, 0, 0, W, 5, '#212121');
 
   // ─── Header band (poster header + union name) ─────────────────────────────
-  const headerH = posterHeader ? 150 : 120;
+  // Make it a bit taller so even wrapped header text doesn't overlap.
+  const headerH = posterHeader ? 220 : 120;
   _rect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 22;
@@ -840,11 +842,13 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   // Custom poster header line at the very top (if provided)
   if (posterHeader) {
     const phFontSize = posterHeader.length > 26 ? 16 : 18;
+    const phY = 16;
     doc.fillColor('#212121')
       .font('Helvetica-Bold')
       .fontSize(phFontSize)
-      .text(posterHeader, 0, 14, { width: W, align: 'center' });
-    y = 14 + phFontSize + 10;
+      .text(posterHeader, 0, phY, { width: W, align: 'center' });
+    // Use fixed spacing: unicode height metrics can vary across PDFKit versions.
+    y = phY + phFontSize + 28;
   }
 
   // Union name — big, centered, primary focus
@@ -1132,6 +1136,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
   const unionName  = cleanUnionName(unionNameRaw);
   const posterHeader = cleanPosterHeader(rows[0].poster_header);
+  logger.info(`Combined PDF posterHeader length=${posterHeader.length} value="${posterHeader.slice(0, 80)}"`);
 
   // Determine date label from first schedule
   const pad  = n => String(n).padStart(2, '0');
@@ -1170,7 +1175,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   _fillRect(doc, 0, 0, W, 5, '#212121');
 
   // ── Header band (poster header + union name) ──────────────────────────────
-  const headerH = posterHeader ? 120 : 100;
+  const headerH = posterHeader ? 220 : 100;
   _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 20;
@@ -1178,11 +1183,13 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // Custom poster header line at the very top (if provided)
   if (posterHeader) {
     const phFontSize = posterHeader.length > 26 ? 16 : 18;
+    const phY = 14;
     doc.fillColor('#212121')
       .font('Helvetica-Bold')
       .fontSize(phFontSize)
-      .text(posterHeader, 0, 14, { width: W, align: 'center' });
-    y = 14 + phFontSize + 6;
+      .text(posterHeader, 0, phY, { width: W, align: 'center' });
+    // Fixed spacing for robust top placement
+    y = phY + phFontSize + 20;
   }
 
   // Union name — only big element at top
