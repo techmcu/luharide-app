@@ -97,20 +97,42 @@ const createTrip = asyncHandler(async (req, res) => {
 
   // DB schema: trips may have vehicle_id/route_id NOT NULL until migration 003 or 017 is run.
   try {
-    result = await runInsert(
-      `INSERT INTO trips (
-        driver_id, from_location, to_location, departure_time, arrival_time,
-        fare_per_seat, total_capacity, available_seats,
-        vehicle_number, vehicle_model_id, stops, status, require_approval, route_id
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING *`,
-      [
-        driverId, from_location, to_location, departureStr, arrivalStr,
-        fare_per_seat, totalSeats, totalSeats,
-        vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId
-      ]
-    );
+    try {
+      result = await runInsert(
+        `INSERT INTO trips (
+          driver_id, from_location, to_location, departure_time, arrival_time,
+          fare_per_seat, total_capacity, available_seats,
+          vehicle_number, vehicle_model_id, stops, status, require_approval, route_id, created_source
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        RETURNING *`,
+        [
+          driverId, from_location, to_location, departureStr, arrivalStr,
+          fare_per_seat, totalSeats, totalSeats,
+          vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+          'independent_driver',
+        ]
+      );
+    } catch (eCreated) {
+      if (eCreated.code === '42703' && (eCreated.message || '').includes('created_source')) {
+        result = await runInsert(
+          `INSERT INTO trips (
+            driver_id, from_location, to_location, departure_time, arrival_time,
+            fare_per_seat, total_capacity, available_seats,
+            vehicle_number, vehicle_model_id, stops, status, require_approval, route_id
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          RETURNING *`,
+          [
+            driverId, from_location, to_location, departureStr, arrivalStr,
+            fare_per_seat, totalSeats, totalSeats,
+            vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+          ]
+        );
+      } else {
+        throw eCreated;
+      }
+    }
   } catch (err) {
     if (err.code === '42703' || (err.message && (err.message.includes('require_approval') || err.message.includes('vehicle_model_id')))) {
       try {

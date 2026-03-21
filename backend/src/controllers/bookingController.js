@@ -100,14 +100,23 @@ const createBooking = asyncHandler(async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Schedule rate notifications 4 hours after confirm; fallback to immediate if table missing
+    // Rate reminders: union/legacy = 4h after confirm. Independent driver trips = trip departure_time + 4h (after scheduled ride start).
     if (bookingStatus === 'confirmed') {
       try {
-        await pool.query(
-          `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-           VALUES ($1, $2, $3, NOW() + INTERVAL '4 hours')`,
-          [booking.id, passengerId, trip.driver_id]
-        );
+        const independent = trip.created_source === 'independent_driver' && trip.departure_time;
+        if (independent) {
+          await pool.query(
+            `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+             VALUES ($1, $2, $3, $4::timestamp + INTERVAL '4 hours')`,
+            [booking.id, passengerId, trip.driver_id, trip.departure_time]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+             VALUES ($1, $2, $3, NOW() + INTERVAL '4 hours')`,
+            [booking.id, passengerId, trip.driver_id]
+          );
+        }
       } catch (err) {
         if (err.code === '42P01') {
           const dataJson = JSON.stringify({ booking_id: booking.id });
@@ -161,13 +170,28 @@ const respondToBooking = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('action must be accept or reject');
   }
 
-  const bookingResult = await pool.query(
-    `SELECT b.*, t.driver_id, t.available_seats
-     FROM bookings b
-     JOIN trips t ON b.trip_id = t.id
-     WHERE b.id = $1`,
-    [bookingId]
-  );
+  let bookingResult;
+  try {
+    bookingResult = await pool.query(
+      `SELECT b.*, t.driver_id, t.available_seats, t.departure_time, t.created_source
+       FROM bookings b
+       JOIN trips t ON b.trip_id = t.id
+       WHERE b.id = $1`,
+      [bookingId]
+    );
+  } catch (qErr) {
+    if (qErr.code === '42703' && (qErr.message || '').includes('created_source')) {
+      bookingResult = await pool.query(
+        `SELECT b.*, t.driver_id, t.available_seats, t.departure_time
+         FROM bookings b
+         JOIN trips t ON b.trip_id = t.id
+         WHERE b.id = $1`,
+        [bookingId]
+      );
+    } else {
+      throw qErr;
+    }
+  }
 
   if (bookingResult.rows.length === 0) {
     throw ApiError.notFound('Booking not found');
@@ -253,13 +277,22 @@ const respondToBooking = asyncHandler(async (req, res) => {
     }
   }
 
-  // Schedule rate notifications 3 min after accept; fallback to immediate if table missing
+  // Independent driver trips: rate reminder at scheduled departure + 4h. Union/legacy: 3 min after accept.
   try {
-    await pool.query(
-      `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-       VALUES ($1, $2, $3, NOW() + INTERVAL '3 minutes')`,
-      [bookingId, booking.passenger_id, booking.driver_id]
-    );
+    const independent = booking.created_source === 'independent_driver' && booking.departure_time;
+    if (independent) {
+      await pool.query(
+        `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+         VALUES ($1, $2, $3, $4::timestamp + INTERVAL '4 hours')`,
+        [bookingId, booking.passenger_id, booking.driver_id, booking.departure_time]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+         VALUES ($1, $2, $3, NOW() + INTERVAL '3 minutes')`,
+        [bookingId, booking.passenger_id, booking.driver_id]
+      );
+    }
   } catch (err) {
     if (err.code === '42P01') {
       const dataJson = JSON.stringify({ booking_id: bookingId });

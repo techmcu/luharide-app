@@ -11,4 +11,4 @@ CREATE TABLE IF NOT EXISTS pending_rate_notifications (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pending_rate_send_after ON pending_rate_notifications(send_after);
-COMMENT ON TABLE pending_rate_notifications IS 'Rate-your-ride notifications sent 1 min after booking confirm';
+COMMENT ON TABLE pending_rate_notifications IS 'Rate-your-ride notifications; send_after set by booking flow (see SYSTEM_DESIGN.md)';

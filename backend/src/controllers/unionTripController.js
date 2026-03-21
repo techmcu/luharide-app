@@ -55,8 +55,44 @@ const createTripForDriver = asyncHandler(async (req, res) => {
   const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
 
   // Create trip (DB uses total_capacity, not total_seats)
-  const result = await pool.query(
-    `INSERT INTO trips (
+  let result;
+  try {
+    result = await pool.query(
+      `INSERT INTO trips (
+      driver_id, 
+      from_location, 
+      to_location, 
+      departure_time, 
+      arrival_time,
+      fare_per_seat,
+      total_capacity,
+      available_seats,
+      vehicle_number,
+      stops,
+      status,
+      created_source
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    RETURNING *`,
+      [
+        driver_id,
+        from_location,
+        to_location,
+        departureStr,
+        arrivalStr,
+        fare_per_seat,
+        total_seats,
+        total_seats,
+        vehicle_number,
+        JSON.stringify(stops),
+        'scheduled',
+        'union_admin',
+      ]
+    );
+  } catch (err) {
+    if (err.code === '42703' && (err.message || '').includes('created_source')) {
+      result = await pool.query(
+        `INSERT INTO trips (
       driver_id, 
       from_location, 
       to_location, 
@@ -71,20 +107,24 @@ const createTripForDriver = asyncHandler(async (req, res) => {
     )
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING *`,
-    [
-      driver_id,
-      from_location,
-      to_location,
-      departureStr,
-      arrivalStr,
-      fare_per_seat,
-      total_seats,
-      total_seats,
-      vehicle_number,
-      JSON.stringify(stops),
-      'scheduled'
-    ]
-  );
+        [
+          driver_id,
+          from_location,
+          to_location,
+          departureStr,
+          arrivalStr,
+          fare_per_seat,
+          total_seats,
+          total_seats,
+          vehicle_number,
+          JSON.stringify(stops),
+          'scheduled',
+        ]
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const trip = result.rows[0];
 
