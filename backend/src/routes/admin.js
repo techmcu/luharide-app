@@ -11,7 +11,6 @@ const {
   rejectUnionRequest,
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
-const { requireApprovePassword } = require('../middleware/approvePassword');
 
 /**
  * @route   GET /api/admin/driver-requests
@@ -34,7 +33,6 @@ router.post(
   '/driver-requests/:id/approve',
   authenticate,
   authorize('union_admin'),
-  requireApprovePassword,
   approveRequest
 );
 
@@ -71,7 +69,6 @@ router.post(
   '/union-requests/:id/approve',
   authenticate,
   authorize('union_admin'),
-  requireApprovePassword,
   approveUnionRequest
 );
 

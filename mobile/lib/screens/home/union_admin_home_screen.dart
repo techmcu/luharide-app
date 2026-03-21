@@ -23,7 +23,6 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   int _totalTrips = 0;
   int _totalBookings = 0;
   int _driversVerified = 0;
-  static const String _approvePasswordHint = 'Enter admin approve password';
 
   @override
   void initState() {
@@ -69,9 +68,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   }
 
   Future<void> _approve(String id) async {
-    final password = await _askApprovePassword();
-    if (password == null) return;
-    final result = await _adminService.approveDriver(id, password: password);
+    final result = await _adminService.approveDriver(id);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -84,9 +81,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   }
 
   Future<void> _approveUnion(String id) async {
-    final password = await _askApprovePassword();
-    if (password == null) return;
-    final result = await _adminService.approveUnion(id, password: password);
+    final result = await _adminService.approveUnion(id);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -507,30 +502,6 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
     if (raw.startsWith('/')) return '${EnvConfig.socketUrl}$raw';
     return '${EnvConfig.socketUrl}/$raw';
-  }
-
-  Future<String?> _askApprovePassword() async {
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        final c = TextEditingController();
-        return AlertDialog(
-          title: const Text('Admin approval password'),
-          content: TextField(
-            controller: c,
-            obscureText: true,
-            decoration: const InputDecoration(hintText: _approvePasswordHint),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, c.text.trim()),
-              child: const Text('Continue'),
-            ),
-          ],
-        );
-      },
-    ).then((value) => (value == null || value.isEmpty) ? null : value);
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
