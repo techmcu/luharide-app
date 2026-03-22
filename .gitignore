@@ -32,6 +32,7 @@ mobile/pubspec.lock
 *.swo
 *~
 .DS_Store
+*.lnk
 
 # Backend
 backend/logs/
