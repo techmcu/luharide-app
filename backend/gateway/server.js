@@ -139,22 +139,33 @@ const proxyOpts = (target) => ({
   },
 });
 
+/**
+ * http-proxy-middleware v3 + Express: app.use('/api/foo', proxy) strips req.url to the
+ * suffix only, so upstream receives /ping instead of /api/foo/ping → 404 on microservices.
+ * Use pathFilter at app root so req.url stays the full client path (see HPM + Express #4854).
+ */
+const apiProxy = (target, pathFilter) =>
+  createProxyMiddleware({
+    pathFilter,
+    ...proxyOpts(target),
+  });
+
 // Global rate limit for /api (same behaviour as monolith)
 app.use('/api', apiLimiter);
 
-// Order: longest / most specific prefixes first where paths could overlap
-app.use('/api/simple-auth', createProxyMiddleware({ ...proxyOpts(AUTH_URL) }));
-app.use('/api/auth', createProxyMiddleware({ ...proxyOpts(AUTH_URL) }));
-app.use('/api/union', createProxyMiddleware({ ...proxyOpts(UNION_URL) }));
-app.use('/api/admin', createProxyMiddleware({ ...proxyOpts(PLATFORM_URL) }));
-app.use('/api/payments', createProxyMiddleware({ ...proxyOpts(PLATFORM_URL) }));
-app.use('/api/notifications', createProxyMiddleware({ ...proxyOpts(PLATFORM_URL) }));
-app.use('/api/reviews', createProxyMiddleware({ ...proxyOpts(PLATFORM_URL) }));
-app.use('/api/uploads', createProxyMiddleware({ ...proxyOpts(PLATFORM_URL) }));
-app.use('/api/bookings', createProxyMiddleware({ ...proxyOpts(CORE_URL) }));
-app.use('/api/trips', createProxyMiddleware({ ...proxyOpts(CORE_URL) }));
-app.use('/api/drivers', createProxyMiddleware({ ...proxyOpts(CORE_URL) }));
-app.use('/api/driver-verification', createProxyMiddleware({ ...proxyOpts(CORE_URL) }));
+// Order: longest / most specific pathFilter first where prefixes could overlap
+app.use(apiProxy(AUTH_URL, '/api/simple-auth'));
+app.use(apiProxy(AUTH_URL, '/api/auth'));
+app.use(apiProxy(UNION_URL, '/api/union'));
+app.use(apiProxy(PLATFORM_URL, '/api/admin'));
+app.use(apiProxy(PLATFORM_URL, '/api/payments'));
+app.use(apiProxy(PLATFORM_URL, '/api/notifications'));
+app.use(apiProxy(PLATFORM_URL, '/api/reviews'));
+app.use(apiProxy(PLATFORM_URL, '/api/uploads'));
+app.use(apiProxy(CORE_URL, '/api/bookings'));
+app.use(apiProxy(CORE_URL, '/api/trips'));
+app.use(apiProxy(CORE_URL, '/api/drivers'));
+app.use(apiProxy(CORE_URL, '/api/driver-verification'));
 
 const server = http.createServer(app);
 const io = socketIo(server, {
