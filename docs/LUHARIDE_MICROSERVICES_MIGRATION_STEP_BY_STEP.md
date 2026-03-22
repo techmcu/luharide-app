@@ -17,8 +17,8 @@ Pure **100%** microservices = long journey. Yeh document **Phase 0 → 8** + **a
 | Health check script | `backend/scripts/verify-luharide-microservices-health-endpoints.js` |
 | Docker: gateway + services + Redis | `infra/docker-compose-luharide-backend-microservices-redis-stack.yml` |
 | Nginx example → port 3000 | `infra/nginx-reverse-proxy-luharide-api-gateway.example.conf` |
-| Start all 5 Node apps locally | `npm run develop:luharide-microservices-local-five-services` |
-| Verify all `/health` | `npm run verify:luharide-microservices-health-endpoints` |
+| Start all 5 Node apps locally | `npm run develop:luharide-microservices-local-five-services` (alias: `npm run dev:stack`) |
+| Verify all `/health` | `npm run verify:luharide-microservices-health-endpoints` (alias: `npm run check:ms`) |
 
 ---
 
