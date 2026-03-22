@@ -1,5 +1,11 @@
 # VPS par `/api/...` 404
 
+**Quick deploy steps:** [`VPS_DEPLOY_QUICK.md`](./VPS_DEPLOY_QUICK.md)
+
+---
+
+## Details
+
 Client URL sahi hai (e.g. `http://YOUR_VPS:3000/api/simple-auth/login`). **404** ka matlab HTTP server ne jawab diya lekin **Express route match nahi hua**.
 
 ## Turant check (browser ya curl)

@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+
+import '../core/utils/api_error_messages.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../core/constants/api_constants.dart';
@@ -438,6 +440,9 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Login failed');
       }
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw Exception(userMessageFromDio(e));
+      }
       if (e.response?.statusCode == 429) {
         throw Exception(
           e.message ?? 'Too many requests. Please wait 1–2 minutes and try again.',
@@ -496,8 +501,18 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Signup failed');
       }
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        throw Exception(userMessageFromDio(e));
+      }
+      if (e.response?.statusCode == 429) {
+        throw Exception(
+          e.message ?? 'Too many requests. Please wait 1–2 minutes and try again.',
+        );
+      }
       if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Signup failed');
+        final data = e.response!.data;
+        final msg = data is Map ? data['message'] : null;
+        throw Exception(msg?.toString() ?? 'Signup failed');
       }
       throw Exception('Network error. Please check your connection.');
     }

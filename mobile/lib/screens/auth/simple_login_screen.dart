@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -5,6 +6,7 @@ import '../../core/app_navigator.dart';
 import '../home/home_screen.dart';
 import 'forgot_password_screen.dart';
 import 'simple_signup_screen.dart';
+import '../../core/config/env_config.dart';
 
 class SimpleLoginScreen extends StatefulWidget {
   const SimpleLoginScreen({super.key});
@@ -61,11 +63,18 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
     } else if (mounted) {
       final err = authProvider.error ?? 'Login failed';
       final isInvalidCreds = err.toLowerCase().contains('invalid') || err.toLowerCase().contains('password');
+      final is404 = err.contains('404') || err.contains('nahi mila');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isInvalidCreds ? 'Invalid email or password.' : err),
+          content: Text(
+            isInvalidCreds
+                ? 'Invalid email or password.'
+                : (is404
+                    ? '$err${kDebugMode ? '\n\nAPI: ${EnvConfig.apiBaseUrl}' : ''}'
+                    : err),
+          ),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
+          duration: Duration(seconds: is404 ? 8 : 4),
         ),
       );
     }

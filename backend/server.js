@@ -131,7 +131,14 @@ app.get('/api', (req, res) => {
     message: 'LuhaRide API is running',
     version: '1.0.0',
     search: 'GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23',
-    endpoints: { trips: '/api/trips', search: '/api/trips/search', auth: '/api/auth', health: '/api/health' }
+    endpoints: {
+      trips: '/api/trips',
+      search: '/api/trips/search',
+      auth: '/api/auth',
+      simpleAuth: '/api/simple-auth',
+      simpleAuthPing: 'GET /api/simple-auth/ping',
+      health: '/api/health',
+    },
   });
 });
 app.get('/api/health', (req, res) => {
