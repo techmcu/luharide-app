@@ -10,7 +10,8 @@
 | Union | `backend/microservices/unionService.js` | `/api/union` → 3003 |
 | Platform | `backend/microservices/platformService.js` | Admin, payments, notifications, reviews, uploads → 3004 |
 
-- **Run:** [`docs/MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md) — `npm run dev:stack`, Docker, PM2 (`ecosystem.microservices.config.cjs`).
+- **Run:** [`docs/MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md) — `npm run dev:stack`, `npm run check:ms`, Docker, PM2 (`ecosystem.microservices.config.cjs`).
+- **Full migration phases:** [`docs/MICROSERVICES_FULL_MIGRATION.md`](./MICROSERVICES_FULL_MIGRATION.md).
 - **Data:** Abhi **ek PostgreSQL** shared (practical step; DB-per-service baad mein).
 
 ---

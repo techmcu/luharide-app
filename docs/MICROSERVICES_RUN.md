@@ -12,6 +12,8 @@
 
 **Mobile / Flutter:** `API_BASE_URL` = **gateway** URL only (e.g. `http://localhost:3000` or `https://api.yourdomain.com`) — paths **same** as monolith.
 
+**Phase 1 (local verify):** [`MICROSERVICES_FULL_MIGRATION.md`](./MICROSERVICES_FULL_MIGRATION.md) — `npm run dev:stack` then `npm run check:ms`.
+
 ---
 
 ## Option A — Monolith (simplest VPS)
