@@ -53,9 +53,6 @@ class ProfileScreen extends StatelessWidget {
     final driverStatus = user?.driverVerificationStatus ?? 'none';
     final driverCode = user?.driverCode;
     final isUnionAdmin = user?.role == 'union_admin';
-    final bool hasPhone = (user?.phone ?? '').trim().isNotEmpty;
-    final bool hasEmail = (user?.email ?? '').trim().isNotEmpty;
-    final bool hasProfilePic = (user?.profileImage ?? '').trim().isNotEmpty;
 
     final loc = AppLocalizations.of(context);
 
@@ -649,23 +646,10 @@ class ProfileScreen extends StatelessWidget {
   /// Called when user taps "Add your union".
   /// Does a single server check — if already approved, refresh auth + open dashboard.
   /// No polling: one call only.
+  /// Always opens the union registration form (or dashboard if already approved).
+  /// Profile completeness is shown *inside* the form — we no longer block here with a dialog
+  /// that only offered "Complete profile" → users thought "Add union" opened Edit profile.
   Future<void> _openUnionSection(BuildContext context, AuthProvider authProvider) async {
-    final user = authProvider.user;
-    final hasPhone = (user?.phone ?? '').trim().isNotEmpty;
-    final hasEmail = (user?.email ?? '').trim().isNotEmpty;
-    final hasProfilePic = (user?.profileImage ?? '').trim().isNotEmpty;
-
-    if (!hasPhone || !hasEmail || !hasProfilePic) {
-      _showProfilePrereqDialog(
-        context,
-        title: 'Complete profile before union request',
-        message:
-            'Taxi union registration is only for authorised union representatives.\n\n'
-            'Please complete your profile (photo, email, correct phone number) before filling this form. '
-            'Misuse or fake union requests can lead to your account being blocked.',
-      );
-      return;
-    }
     // Show brief loading indicator
     final snack = ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

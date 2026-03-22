@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/union_service.dart';
 import '../../services/upload_service.dart';
+import 'edit_profile_screen.dart';
 import 'union_dashboard_screen.dart';
 
 class UnionRegistrationScreen extends StatefulWidget {
@@ -104,6 +105,16 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_ownerAadhaarFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Union leader ka Aadhaar photo upload karna zaroori hai.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSubmitting = true);
 
     String? ownerAadhaarUrl;
@@ -186,6 +197,61 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       body: _loadingStatus
           ? const Center(child: CircularProgressIndicator())
           : _buildBody(),
+    );
+  }
+
+  /// Optional hint — profile incomplete does not block the form anymore.
+  Widget _buildProfileHintBanner(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final hasPhone = (user?.phone ?? '').trim().isNotEmpty;
+    final hasEmail = (user?.email ?? '').trim().isNotEmpty;
+    final hasPic = (user?.profileImage ?? '').trim().isNotEmpty;
+    if (hasPhone && hasEmail && hasPic) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      color: Colors.amber.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.amber.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.person_pin_circle_outlined, color: Colors.amber.shade900, size: 22),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Behtar hai: profile mein phone, email aur photo bharein taaki admin aap se contact kar sake. '
+                    'Form phir bhi yahin se bhar sakte hain.',
+                    style: TextStyle(fontSize: 13, color: Colors.amber.shade900, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  ).then((_) {
+                    if (mounted) context.read<AuthProvider>().refreshUser();
+                  });
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Profile edit'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -278,6 +344,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _buildProfileHintBanner(context),
           Card(
             color: Colors.orange[50],
             child: Padding(
@@ -358,13 +425,18 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             'Upload documents (photos)',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
+          const SizedBox(height: 4),
+          Text(
+            'Union leader Aadhaar — zaroori; office photo aur RC bhi upload karein.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
               _DocChip(
-                label: 'Head Aadhaar',
+                label: 'Leader Aadhaar *',
                 selected: _ownerAadhaarFile != null,
                 onTap: _isSubmitting
                     ? null
