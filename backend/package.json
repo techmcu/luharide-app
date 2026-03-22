@@ -12,6 +12,8 @@
     "start:ms:platform": "node microservices/platformService.js",
     "develop:luharide-microservices-local-five-services": "concurrently -k -n auth,core,union,plat,gw -c green,yellow,magenta,cyan,blue \"node microservices/authService.js\" \"node microservices/coreService.js\" \"node microservices/unionService.js\" \"node microservices/platformService.js\" \"node gateway/server.js\"",
     "verify:luharide-microservices-health-endpoints": "node scripts/verify-luharide-microservices-health-endpoints.js",
+    "check:ms": "npm run verify:luharide-microservices-health-endpoints",
+    "dev:stack": "npm run develop:luharide-microservices-local-five-services",
     "dev": "nodemon server.js",
     "migrate": "node migrations/run-migrations.js",
     "seed": "node seeders/run-seeders.js",
