@@ -5,7 +5,7 @@ class EnvConfig {
   static const bool _useLocalApiEnv =
       bool.fromEnvironment('USE_LOCAL_API', defaultValue: false);
 
-  /// Wins over everything: `--dart-define=API_BASE_URL=http://127.0.0.1:3000/api`
+  /// Wins over everything: `--dart-define=API_BASE_URL=http://localhost:3000/api`
   static const String _apiBaseUrlDefine = String.fromEnvironment('API_BASE_URL');
 
   /// Same for Socket.IO host (no `/api`).
@@ -20,7 +20,9 @@ class EnvConfig {
       return _trimEndSlashes(_apiBaseUrlDefine.trim());
     }
     if (kDebugMode && _useLocalApiEnv) {
-      return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:3000/api';
+      // Web: use `localhost` (same as Flutter dev server host) — avoids Chrome Private
+      // Network Access blocking `localhost` page → `127.0.0.1` API.
+      return 'http://${kIsWeb ? 'localhost' : '10.0.2.2'}:3000/api';
     }
     return 'http://76.13.243.157:3000/api';
   }
@@ -31,7 +33,7 @@ class EnvConfig {
       return _trimEndSlashes(_socketUrlDefine.trim());
     }
     if (kDebugMode && _useLocalApiEnv) {
-      return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:3000';
+      return 'http://${kIsWeb ? 'localhost' : '10.0.2.2'}:3000';
     }
     return 'http://76.13.243.157:3000';
   }

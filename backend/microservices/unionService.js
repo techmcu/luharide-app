@@ -13,6 +13,7 @@ app.use('/api/union', unionRoutes);
 attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.UNION_SERVICE_PORT || '3003', 10);
-app.listen(PORT, () => {
-  console.log(`[union-service] listening on ${PORT}`);
+const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
+app.listen(PORT, LISTEN_HOST, () => {
+  console.log(`[union-service] listening on ${LISTEN_HOST}:${PORT}`);
 });

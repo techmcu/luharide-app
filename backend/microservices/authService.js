@@ -15,6 +15,7 @@ app.use('/api/simple-auth', simpleAuthRoutes);
 attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.AUTH_SERVICE_PORT || '3001', 10);
-app.listen(PORT, () => {
-  console.log(`[auth-service] listening on ${PORT}`);
+const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
+app.listen(PORT, LISTEN_HOST, () => {
+  console.log(`[auth-service] listening on ${LISTEN_HOST}:${PORT}`);
 });

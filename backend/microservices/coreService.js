@@ -26,8 +26,9 @@ app.post('/api/driver-verification', authenticate, submitVerification);
 attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.CORE_SERVICE_PORT || '3002', 10);
-app.listen(PORT, () => {
-  logger.info(`[core-service] listening on ${PORT}`);
+const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
+app.listen(PORT, LISTEN_HOST, () => {
+  logger.info(`[core-service] listening on ${LISTEN_HOST}:${PORT}`);
   rateNotificationJob.start();
   rideCleanupJob.start();
 });

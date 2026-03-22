@@ -87,8 +87,9 @@ class ApiService {
             if (kIsWeb && error.type == DioExceptionType.connectionError) {
               // ignore: avoid_print
               print(
-                '💡 Web: Agar "XMLHttpRequest onError" hai — (1) backend `node server.js` port 3000 par chal raha hai? '
-                '(2) Backend restart karo (Helmet CORP fix). Chrome DevTools → Network tab check karo.',
+                '💡 Web: (1) Backend `node server.js` chal raha hai? `http://localhost:3000/health` browser me kholo. '
+                '(2) API URL `localhost` honi chahiye (127.0.0.1 Chrome PNA se block ho sakta tha). '
+                '(3) Backend restart — CORS + Access-Control-Allow-Private-Network fix.',
               );
             }
           }

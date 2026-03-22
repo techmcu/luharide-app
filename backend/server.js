@@ -3,8 +3,8 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-monolith';
 const express = require('express');
 const compression = require('compression');
-const cors = require('cors');
 const { createHelmetMiddleware } = require('./src/config/helmetConfig');
+const { applyLuhaCors } = require('./src/middleware/corsLuha');
 const morgan = require('morgan');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -72,7 +72,7 @@ attachSocketIoRedisAdapter(io);
 app.use(createHelmetMiddleware());
 app.use(requestContext);
 app.use(compression());
-app.use(cors());
+applyLuhaCors(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 morgan.token('reqId', (req) => req.id || '-');
@@ -156,11 +156,12 @@ app.use((req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
+const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
 
-server.listen(PORT, () => {
-  logger.info(`🚀 Server running on port ${PORT} (HTTP timeout ${httpTimeoutMs}ms)`);
+server.listen(PORT, LISTEN_HOST, () => {
+  logger.info(`🚀 Server on ${LISTEN_HOST}:${PORT} (HTTP timeout ${httpTimeoutMs}ms)`);
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`🔗 API: http://localhost:${PORT}/api`);
+  logger.info(`🔗 API: http://127.0.0.1:${PORT}/api  |  http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
   if (shouldWarnTrustProxyUnsetInProduction()) {
     logger.warn(

@@ -24,6 +24,7 @@ app.use('/api/uploads', uploadRoutes);
 attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.PLATFORM_SERVICE_PORT || '3004', 10);
-app.listen(PORT, () => {
-  console.log(`[platform-service] listening on ${PORT}`);
+const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
+app.listen(PORT, LISTEN_HOST, () => {
+  console.log(`[platform-service] listening on ${LISTEN_HOST}:${PORT}`);
 });

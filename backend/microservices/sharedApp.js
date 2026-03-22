@@ -3,8 +3,8 @@
  */
 const express = require('express');
 const compression = require('compression');
-const cors = require('cors');
 const { createHelmetMiddleware } = require('../src/config/helmetConfig');
+const { applyLuhaCors } = require('../src/middleware/corsLuha');
 const morgan = require('morgan');
 const { errorConverter, errorHandler } = require('../src/middleware/errorHandler');
 const { requestContext } = require('../src/middleware/requestContext');
@@ -16,7 +16,7 @@ function createBaseApp(serviceName) {
   app.use(createHelmetMiddleware());
   app.use(requestContext);
   app.use(compression());
-  app.use(cors());
+  applyLuhaCors(app);
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   morgan.token('reqId', (req) => req.id || '-');

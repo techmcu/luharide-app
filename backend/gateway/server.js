@@ -11,8 +11,8 @@ const path = require('path');
 const http = require('http');
 const express = require('express');
 const compression = require('compression');
-const cors = require('cors');
 const { createHelmetMiddleware } = require('../src/config/helmetConfig');
+const { applyLuhaCors } = require('../src/middleware/corsLuha');
 const morgan = require('morgan');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const socketIo = require('socket.io');
@@ -37,7 +37,7 @@ applyTrustProxy(app);
 app.use(createHelmetMiddleware());
 app.use(requestContext);
 app.use(compression());
-app.use(cors());
+applyLuhaCors(app);
 morgan.token('reqId', (req) => req.id || '-');
 app.use(morgan(':reqId :method :url :status :response-time ms'));
 
@@ -136,6 +136,7 @@ attachSocketHandlers(io);
 setIo(io);
 
 const PORT = parseInt(process.env.GATEWAY_PORT || process.env.PORT || '3000', 10);
+const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
@@ -148,8 +149,8 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
-server.listen(PORT, () => {
-  logger.info(`🚀 API Gateway on port ${PORT}`);
+server.listen(PORT, LISTEN_HOST, () => {
+  logger.info(`🚀 API Gateway on ${LISTEN_HOST}:${PORT}`);
   logger.info(`   → ${AUTH_URL} (auth)`);
   logger.info(`   → ${CORE_URL} (core)`);
   logger.info(`   → ${UNION_URL} (union)`);

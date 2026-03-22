@@ -32,8 +32,12 @@ If login still returns **404**, check the printed **full URI** — then verify t
 
 ## `XMLHttpRequest onError` / connection error (Chrome Web)
 
-The request URL is correct (e.g. `http://127.0.0.1:3000/api/...`) but the browser shows a **network layer** error and **no HTTP status**.
+Often **not a Dio bug**. Check in order:
 
-1. **Backend not running** — start from `backend`: `node server.js` (or your gateway stack). Confirm `http://127.0.0.1:3000/health` in the browser.
-2. **Helmet CORP** — older defaults sent `Cross-Origin-Resource-Policy: same-origin`, which blocks Flutter Web (different origin = different port) from reading the response. The repo sets **`crossOriginResourcePolicy: cross-origin`** in `backend/src/config/helmetConfig.js`. **Restart the Node server** after pulling.
-3. Chrome **DevTools → Network**: see if the request is **(failed)** or **blocked**; **Console** may show CORS/CORP messages.
+1. **Backend running** — `http://localhost:3000/health` must open in the same browser.
+2. **Use `localhost`, not `127.0.0.1`, for the API on Web** — Flutter dev server is `http://localhost:<port>`. Calling `http://127.0.0.1:3000` triggers Chrome **Private Network Access**; without the right preflight headers the request fails with no status. **`USE_LOCAL_API` now uses `localhost` on Web** (`EnvConfig`).
+3. **Server headers** — `backend/src/middleware/corsLuha.js` sets **`Access-Control-Allow-Private-Network: true`** when needed and **`cors({ origin: true })`**. Restart Node after pull.
+4. **Helmet CORP** — `backend/src/config/helmetConfig.js` uses **`crossOriginResourcePolicy: cross-origin`**.
+5. **Listen address** — servers default to **`0.0.0.0`** (`LISTEN_HOST`) so Windows/WSL/Docker can reach the port.
+
+Chrome **DevTools → Network** (failed / blocked) and **Console** for CORS / PNA messages.
