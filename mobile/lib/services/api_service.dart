@@ -35,10 +35,16 @@ class ApiService {
           if (kDebugMode) {
             // ignore: avoid_print
             print('🔵 REQUEST[${options.method}] => ${options.path}');
+            final p = options.path;
+            final isPublicAuth = p.contains('simple-auth/login') ||
+                p.contains('simple-auth/signup') ||
+                p.contains('simple-auth/forgot-password') ||
+                p.contains('simple-auth/reset-password');
             if (options.headers['Authorization'] != null) {
               // ignore: avoid_print
               print('🔑 Token: ${options.headers['Authorization'].toString().substring(0, 20)}...');
-            } else {
+            } else if (!isPublicAuth) {
+              // Login/signup etc. intentionally have no token — don't spam "no token"
               // ignore: avoid_print
               print('⚠️  No token found in request');
             }
@@ -58,6 +64,18 @@ class ApiService {
             print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.path}');
             // ignore: avoid_print
             print('Error message: ${error.message}');
+          }
+          // 429: rate limit — show clear message (not raw Dio validateStatus text)
+          if (error.response?.statusCode == 429) {
+            final friendly = DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: DioExceptionType.badResponse,
+              message:
+                  'Bahut saare requests — server limit. 1–2 minute baad dubara try karein. '
+                  '(Too many requests; please wait and try again.)',
+            );
+            return handler.next(friendly);
           }
           // Global 401 handler: try refresh once, then logout on failure.
           if (error.response?.statusCode == 401 &&

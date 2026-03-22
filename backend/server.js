@@ -37,6 +37,13 @@ const rateNotificationJob = require('./src/jobs/rateNotificationJob');
 const rideCleanupJob = require('./src/jobs/rideCleanupJob');
 
 const app = express();
+
+// If behind nginx / load balancer, set TRUST_PROXY=1 so express-rate-limit uses real client IP
+// (X-Forwarded-For). Without this, all traffic can look like one IP → shared limit → random 429s.
+if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {

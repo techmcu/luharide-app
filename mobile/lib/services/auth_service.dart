@@ -438,10 +438,17 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Login failed');
       }
     } on DioException catch (e) {
-      if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Login failed');
+      if (e.response?.statusCode == 429) {
+        throw Exception(
+          e.message ?? 'Too many requests. Please wait 1–2 minutes and try again.',
+        );
       }
-      throw Exception('Network error. Please check your connection.');
+      if (e.response != null) {
+        final data = e.response!.data;
+        final msg = data is Map ? data['message'] : null;
+        throw Exception(msg?.toString() ?? e.message ?? 'Login failed');
+      }
+      throw Exception(e.message ?? 'Network error. Please check your connection.');
     }
   }
 

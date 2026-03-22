@@ -15,21 +15,22 @@ const respondSchema = Joi.object({
   action: Joi.string().valid('accept', 'reject').required()
 });
 
-// Create booking / my-bookings / cancel: allow passenger and driver (driver can book seats on others' trips)
+// Create booking / my-bookings / cancel: passenger + driver + union_admin
+// (union_admin users are still passengers for booking other drivers' trips; role flips when union is approved)
 router.post(
   '/',
   authenticate,
-  authorize('passenger', 'driver'),
+  authorize('passenger', 'driver', 'union_admin'),
   validate(createBookingSchema),
   createBooking
 );
 
-router.get('/my-bookings', authenticate, authorize('passenger', 'driver'), getMyBookings);
+router.get('/my-bookings', authenticate, authorize('passenger', 'driver', 'union_admin'), getMyBookings);
 
 router.post(
   '/:id/cancel',
   authenticate,
-  authorize('passenger', 'driver'),
+  authorize('passenger', 'driver', 'union_admin'),
   cancelBooking
 );
 

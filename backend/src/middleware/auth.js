@@ -55,7 +55,8 @@ const authorize = (...roles) => {
       throw ApiError.unauthorized('Authentication required');
     }
 
-    const userRole = req.user.role;
+    // Trim so DB typos / trailing spaces don't break includes()
+    const userRole = String(req.user.role ?? '').trim();
     logger.info(`🔐 Authorization check:`);
     logger.info(`   User role: "${userRole}" (type: ${typeof userRole}, length: ${userRole.length})`);
     logger.info(`   Required roles: [${roles.join(', ')}]`);
