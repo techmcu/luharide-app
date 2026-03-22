@@ -9,7 +9,7 @@
 
 **Env:** `backend/.env.example` — `REDIS_ENABLED`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`.
 
-**Docker microservices:** `infra/docker-compose.microservices.yml` includes `redis:7-alpine` and sets `REDIS_ENABLED=true` + `REDIS_HOST=redis` for all app containers.
+**Docker microservices:** `infra/docker-compose-luharide-backend-microservices-redis-stack.yml` includes `redis:7-alpine` and sets `REDIS_ENABLED=true` + `REDIS_HOST=redis` for app containers.
 
 **Local:** Install Redis (Windows: WSL/Docker), then `REDIS_ENABLED=true` in `.env`.
 

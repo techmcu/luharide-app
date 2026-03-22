@@ -148,7 +148,7 @@
 
 ## 7. Docker & local ops
 
-- **`infra/docker-compose.microservices.yml`** — builds one image, runs five commands (gateway + four services).
+- **`infra/docker-compose-luharide-backend-microservices-redis-stack.yml`** — builds one image, runs five commands (gateway + four services + Redis).
 - **`backend/Dockerfile`** — production-oriented Node 20 image.
 - **Database:** Compose file assumes PostgreSQL is reachable via `DB_*` in `.env` (e.g. `host.docker.internal` or managed RDS URL).
 
@@ -241,4 +241,4 @@ This design is **correct for v1 decomposition** and **honest** about what **ente
 
 ---
 
-*Last updated: aligned with `backend/gateway/server.js`, `backend/microservices/*.js`, `backend/server.js`, and `infra/docker-compose.microservices.yml`.*
+*Last updated: aligned with `backend/gateway/server.js`, `backend/microservices/*.js`, `backend/server.js`, and `infra/docker-compose-luharide-backend-microservices-redis-stack.yml`.*

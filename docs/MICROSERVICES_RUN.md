@@ -12,7 +12,7 @@
 
 **Mobile / Flutter:** `API_BASE_URL` = **gateway** URL only (e.g. `http://localhost:3000` or `https://api.yourdomain.com`) — paths **same** as monolith.
 
-**Phase 1 (local verify):** [`MICROSERVICES_FULL_MIGRATION.md`](./MICROSERVICES_FULL_MIGRATION.md) — `npm run dev:stack` then `npm run check:ms`.
+**Phase 1 (local verify):** [`LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md`](./LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md) — `npm run develop:luharide-microservices-local-five-services` then `npm run verify:luharide-microservices-health-endpoints`. Status: [`LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md`](./LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md).
 
 ---
 
@@ -36,7 +36,7 @@ Terminal 1 se **saari** services:
 ```bash
 cd backend
 npm install
-npm run dev:stack
+npm run develop:luharide-microservices-local-five-services
 ```
 
 Ya alag terminals:
@@ -49,7 +49,7 @@ npm run start:ms:union
 npm run start:ms:platform
 ```
 
-Order: pehle 3001–3004, phir gateway `3000` (ya `dev:stack` sab ek saath).
+Order: pehle 3001–3004, phir gateway `3000` (ya `develop:luharide-microservices-local-five-services` sab ek saath).
 
 ---
 
@@ -58,7 +58,7 @@ Order: pehle 3001–3004, phir gateway `3000` (ya `dev:stack` sab ek saath).
 Repo root:
 
 ```bash
-docker compose -f infra/docker-compose.microservices.yml up --build
+docker compose -f infra/docker-compose-luharide-backend-microservices-redis-stack.yml up --build
 ```
 
 ---
@@ -67,7 +67,7 @@ docker compose -f infra/docker-compose.microservices.yml up --build
 
 - **Nginx** → sirf **gateway** `:3000` expose karo (ya unix socket).
 - Internal: `AUTH_URL=http://127.0.0.1:3001` … (localhost) — PM2 se 5 apps.
-- Sample: `backend/ecosystem.microservices.config.cjs` (PM2).
+- Sample: `backend/pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs` (PM2).
 
 **Dhyan:** Har service apna **DB pool** kholti hai — `PG_POOL_MAX` chhota rakho agar 5 processes hon (e.g. max 8–10 each).
 

@@ -61,7 +61,7 @@ Industry mein common checklist (samajh lo, har jagah 100% nahi hota):
 | Rule | Ideal | LuhaRide abhi |
 |------|--------|----------------|
 | **Bounded context** | Har service ka clear domain | Haan — Auth / Core / Union / Platform |
-| **Independent deploy** | Alag PM2 / Docker container | Haan — `ecosystem.microservices.config.cjs`, compose |
+| **Independent deploy** | Alag PM2 / Docker container | Haan — `pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs`, Docker compose file |
 | **Database per service** | Alag DB ya schema owner | **Abhi shared PostgreSQL** — pragmatic; baad mein split |
 | **No shared library mess** | Kam coupling | Code **shared** `src/` se — **trade-off**: velocity vs purity |
 | **API Gateway** | Ek public face | Haan — `gateway/server.js` |
@@ -103,7 +103,7 @@ Ye **layered architecture** — system design mein standard pattern.
 | Scenario | Use |
 |----------|-----|
 | Local debug / chhota VPS | `node server.js` |
-| Alag scale / team ownership chahiye | `npm run dev:stack` ya Docker / PM2 microservices |
+| Alag scale / team ownership chahiye | `npm run develop:luharide-microservices-local-five-services` ya Docker / PM2 microservices |
 | Production pehli baar | Monolith bhi **theek**; same codebase |
 
 ---
@@ -126,4 +126,4 @@ Ye **layered architecture** — system design mein standard pattern.
 
 ---
 
-*Related: [`ARCHITECTURE_MICROSERVICES_ROADMAP.md`](./ARCHITECTURE_MICROSERVICES_ROADMAP.md), [`MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md), [`VPS_DEPLOY_CHECKLIST.md`](./VPS_DEPLOY_CHECKLIST.md)*
+*Related: [`ARCHITECTURE_MICROSERVICES_ROADMAP.md`](./ARCHITECTURE_MICROSERVICES_ROADMAP.md), [`LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md`](./LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md), [`LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md`](./LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md), [`MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md), [`VPS_DEPLOY_CHECKLIST.md`](./VPS_DEPLOY_CHECKLIST.md)*

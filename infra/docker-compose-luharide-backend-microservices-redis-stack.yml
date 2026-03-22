@@ -1,11 +1,11 @@
-# LuhaRide — optional microservices stack (same repo, shared PostgreSQL)
-# Usage: from repo root
-#   docker compose -f infra/docker-compose.microservices.yml up --build
+# LuhaRide — Docker Compose: API gateway + 4 backend microservices + Redis
+# File name describes stack: backend services, Redis, shared PostgreSQL via host .env
 #
-# Set DB_* and JWT_* in .env next to backend/ or use env_file.
-# Flutter / mobile: point API_BASE_URL to http://localhost:3000 (gateway) in dev.
+# Usage (from repo root):
+#   docker compose -f infra/docker-compose-luharide-backend-microservices-redis-stack.yml up --build
 #
-# Redis: compose forces REDIS_ENABLED=true for shared rate limits + Socket.IO adapter.
+# Set DB_* and JWT_* in backend/.env or use env_file paths below.
+# Flutter: API_BASE_URL → http://localhost:3000 (gateway).
 
 services:
   redis:
@@ -14,7 +14,7 @@ services:
       - "6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
-      - luharide_redis:/data
+      - luharide_redis_data_volume:/data
 
   gateway:
     build:
@@ -113,4 +113,4 @@ services:
       - ../backend/uploads:/app/uploads
 
 volumes:
-  luharide_redis:
+  luharide_redis_data_volume:

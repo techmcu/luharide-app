@@ -65,7 +65,7 @@ pm2 save
 pm2 startup   # reboot par auto (instructions follow karo)
 ```
 
-**Microservices:** `ecosystem.microservices.config.cjs` — `pm2 start ecosystem.microservices.config.cjs`
+**Microservices:** `backend/pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs` — `pm2 start pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs` (run from `backend/`)
 
 ---
 

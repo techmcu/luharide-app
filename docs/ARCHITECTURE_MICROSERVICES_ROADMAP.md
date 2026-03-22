@@ -10,8 +10,9 @@
 | Union | `backend/microservices/unionService.js` | `/api/union` → 3003 |
 | Platform | `backend/microservices/platformService.js` | Admin, payments, notifications, reviews, uploads → 3004 |
 
-- **Run:** [`docs/MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md) — `npm run dev:stack`, `npm run check:ms`, Docker, PM2 (`ecosystem.microservices.config.cjs`).
-- **Full migration phases:** [`docs/MICROSERVICES_FULL_MIGRATION.md`](./MICROSERVICES_FULL_MIGRATION.md).
+- **Run:** [`docs/MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md) — `npm run develop:luharide-microservices-local-five-services`, `npm run verify:luharide-microservices-health-endpoints`, Docker, PM2 (`backend/pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs`).
+- **Step-by-step migration + file names:** [`LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md`](./LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md).
+- **Phase 1 status (repo vs your PC):** [`LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md`](./LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md).
 - **Data:** Abhi **ek PostgreSQL** shared (practical step; DB-per-service baad mein).
 
 ---

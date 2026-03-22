@@ -45,7 +45,7 @@ Nothing is “wrong” for a single VPS — a monolith is simpler to deploy. Mic
 
 1. `cd backend && npm install` (adds `http-proxy-middleware`).
 2. Set env: `AUTH_URL`, `CORE_URL`, `UNION_URL`, `PLATFORM_URL` (Docker internal hostnames) and `GATEWAY_PORT=3000`.
-3. Start **all five** processes (or `docker compose -f docker-compose.microservices.yml up`).
+3. Start **all five** processes (or `docker compose -f infra/docker-compose-luharide-backend-microservices-redis-stack.yml up`).
 4. Point Flutter `API_BASE_URL` / `SOCKET_URL` to **gateway** host/port only.
 5. **Never** run monolith `server.js` together with `coreService.js` (duplicate jobs).
 
