@@ -4,6 +4,7 @@
  * Phase 1 local acceptance: all endpoints must return HTTP 200 (and DB OK in JSON).
  *
  * Run from backend/: npm run verify:luharide-microservices-health-endpoints
+ * (npm sets GATEWAY_PORT=3010 so gateway does not conflict with monolith on 3000.)
  */
 const http = require('http');
 

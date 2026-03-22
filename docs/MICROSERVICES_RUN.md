@@ -10,7 +10,11 @@
 | **3. Union** | Union admin flows | `3003` | `/api/union` |
 | **4. Platform** | Admin, payments, notifications, reviews, uploads | `3004` | `/api/admin`, `/api/payments`, `/api/notifications`, `/api/reviews`, `/api/uploads` |
 
-**Mobile / Flutter:** `API_BASE_URL` = **gateway** URL only (e.g. `http://localhost:3000` or `https://api.yourdomain.com`) — paths **same** as monolith.
+**Mobile / Flutter:** `API_BASE_URL` = **gateway** URL only — paths **same** as monolith.
+
+- **Production / VPS:** `https://api.yourdomain.com` (gateway usually **port 3000** behind Nginx).
+- **Local monolith:** `http://localhost:3000`.
+- **Local 5-service dev** (`npm run develop:luharide-microservices-local-five-services`): gateway **`http://localhost:3010`** so it does **not** clash with monolith on **3000**.
 
 **Phase 1 (local verify):** [`LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md`](./LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md) — `npm run develop:luharide-microservices-local-five-services` then `npm run verify:luharide-microservices-health-endpoints`. Status: [`LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md`](./LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md).
 

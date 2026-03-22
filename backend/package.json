@@ -10,8 +10,8 @@
     "start:ms:core": "node microservices/coreService.js",
     "start:ms:union": "node microservices/unionService.js",
     "start:ms:platform": "node microservices/platformService.js",
-    "develop:luharide-microservices-local-five-services": "concurrently -k -n auth,core,union,plat,gw -c green,yellow,magenta,cyan,blue \"node microservices/authService.js\" \"node microservices/coreService.js\" \"node microservices/unionService.js\" \"node microservices/platformService.js\" \"node gateway/server.js\"",
-    "verify:luharide-microservices-health-endpoints": "node scripts/verify-luharide-microservices-health-endpoints.js",
+    "develop:luharide-microservices-local-five-services": "cross-env GATEWAY_PORT=3010 concurrently -k -n auth,core,union,plat,gw -c green,yellow,magenta,cyan,blue \"node microservices/authService.js\" \"node microservices/coreService.js\" \"node microservices/unionService.js\" \"node microservices/platformService.js\" \"node gateway/server.js\"",
+    "verify:luharide-microservices-health-endpoints": "cross-env GATEWAY_PORT=3010 node scripts/verify-luharide-microservices-health-endpoints.js",
     "check:ms": "npm run verify:luharide-microservices-health-endpoints",
     "dev:stack": "npm run develop:luharide-microservices-local-five-services",
     "dev": "nodemon server.js",
@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "supertest": "^6.3.4"

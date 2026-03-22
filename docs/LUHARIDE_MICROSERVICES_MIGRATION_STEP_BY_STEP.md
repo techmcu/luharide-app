@@ -65,7 +65,7 @@ npm run verify:luharide-microservices-health-endpoints
 
 **Pass:** exit code `0`, every line `OK`.
 
-**Optional:** browser `http://localhost:3000/health`, `http://localhost:3000/api/health`.
+**Optional:** browser `http://localhost:3010/health`, `http://localhost:3010/api/health` (dev stack uses **3010**; monolith stays free on **3000**).
 
 **Phase 1 complete** = verification script passes **on your machine** + optional API smoke test.  
 Repo-side work is tracked in `LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md`.

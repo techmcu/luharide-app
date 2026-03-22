@@ -121,6 +121,18 @@ attachSocketHandlers(io);
 setIo(io);
 
 const PORT = parseInt(process.env.GATEWAY_PORT || process.env.PORT || '3000', 10);
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    logger.error(
+      `Gateway: port ${PORT} is already in use (e.g. monolith \`node server.js\` on 3000). Stop it or set GATEWAY_PORT in .env. Local dev stack uses GATEWAY_PORT=3010 via npm script.`
+    );
+  } else {
+    logger.error({ msg: 'Gateway server error', error: err.message, code: err.code });
+  }
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   logger.info(`🚀 API Gateway on port ${PORT}`);
   logger.info(`   → ${AUTH_URL} (auth)`);
