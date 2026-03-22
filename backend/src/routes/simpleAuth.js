@@ -13,6 +13,13 @@ const {
 
 const { validate } = require('../middleware/validation');
 const { authenticate } = require('../middleware/auth');
+const {
+  simpleAuthLoginLimiter,
+  simpleAuthSignupLimiter,
+  simpleAuthForgotPasswordLimiter,
+  simpleAuthResetPasswordLimiter,
+  simpleAuthChangePasswordLimiter
+} = require('../middleware/rateLimiter');
 
 // Validation schemas
 const signupSchema = Joi.object({
@@ -47,14 +54,14 @@ const resetPasswordSchema = Joi.object({
  * @desc    Simple signup with email/password
  * @access  Public
  */
-router.post('/signup', validate(signupSchema), signup);
+router.post('/signup', simpleAuthSignupLimiter, validate(signupSchema), signup);
 
 /**
  * @route   POST /api/simple-auth/login
  * @desc    Simple login with email/password
  * @access  Public
  */
-router.post('/login', validate(loginSchema), login);
+router.post('/login', simpleAuthLoginLimiter, validate(loginSchema), login);
 
 /**
  * @route   POST /api/simple-auth/create-demo
@@ -70,20 +77,36 @@ if (process.env.NODE_ENV !== 'production') {
  * @desc    Change password for email/password users
  * @access  Private
  */
-router.post('/change-password', authenticate, validate(changePasswordSchema), changePassword);
+router.post(
+  '/change-password',
+  authenticate,
+  simpleAuthChangePasswordLimiter,
+  validate(changePasswordSchema),
+  changePassword
+);
 
 /**
  * @route   POST /api/simple-auth/forgot-password
  * @desc    Request password reset (send OTP to email)
  * @access  Public
  */
-router.post('/forgot-password', validate(forgotPasswordSchema), requestPasswordReset);
+router.post(
+  '/forgot-password',
+  simpleAuthForgotPasswordLimiter,
+  validate(forgotPasswordSchema),
+  requestPasswordReset
+);
 
 /**
  * @route   POST /api/simple-auth/reset-password
  * @desc    Reset password using email + OTP
  * @access  Public
  */
-router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
+router.post(
+  '/reset-password',
+  simpleAuthResetPasswordLimiter,
+  validate(resetPasswordSchema),
+  resetPassword
+);
 
 module.exports = router;

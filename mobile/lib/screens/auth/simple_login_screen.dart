@@ -33,6 +33,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
   }
 
   Future<void> _login() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) {
       return;
     }

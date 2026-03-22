@@ -91,7 +91,7 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API Routes — rate limit all /api (100 req/15min per IP); auth routes have stricter limits
+// API Routes — global /api limit + stricter limits on auth & simple-auth (see rateLimiter.js)
 app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/simple-auth', simpleAuthRoutes);
@@ -155,6 +155,15 @@ server.listen(PORT, () => {
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 API: http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.TRUST_PROXY !== '1' &&
+    process.env.TRUST_PROXY !== 'true'
+  ) {
+    logger.warn(
+      '⚠️  TRUST_PROXY not set — behind nginx/Cloudflare all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in .env'
+    );
+  }
   rateNotificationJob.start();
   rideCleanupJob.start();
 });

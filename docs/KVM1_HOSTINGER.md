@@ -2,6 +2,13 @@
 
 Single small box: **one Node process**, **one PostgreSQL**, no Redis required. Tune for **RAM ~1–2 GB** and low CPU.
 
+## Nginx / rate limits
+
+- **`TRUST_PROXY=1`** in `backend/.env` — required when nginx proxies to Node, or **every user shares one IP** in `express-rate-limit` → random **429**.
+- **`NODE_ENV=production`** — server logs a **warning** if `TRUST_PROXY` is missing.
+- **Simple-auth** (login/signup/forgot/reset) has **extra per-IP limits** beyond the global 500/15min — tune via **`SIMPLE_AUTH_*`** in `.env` (defaults in `backend/.env.example`).
+- After `git pull`, open **`backend/.env.example`** and **merge any new lines** into your real **`backend/.env`** on the VPS (`.env` is not in git).
+
 ## Process & pool
 
 - **PM2 / systemd**: run **one** API instance first (`max_memory_restart` optional). Scale to 2 instances only if CPU stays &lt;70% and Postgres `max_connections` allows it.

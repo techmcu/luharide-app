@@ -32,6 +32,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
   }
 
   Future<void> _sendOtp() async {
+    if (_isLoading) return;
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -74,6 +75,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
   }
 
   Future<void> _verifyAndSignup() async {
+    if (_isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();

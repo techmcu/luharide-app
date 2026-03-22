@@ -1,6 +1,14 @@
 const rateLimit = require('express-rate-limit');
 const ApiError = require('../utils/ApiError');
 
+function parseLimitEnv(name, defaultVal, min, max) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return defaultVal;
+  const v = parseInt(String(raw), 10);
+  if (!Number.isFinite(v)) return defaultVal;
+  return Math.min(max, Math.max(min, v));
+}
+
 /**
  * Global /api limit — counts ALL routes under /api (search, trips, login, etc.).
  * Default raised from 100→500 per 15min: 100 was easy to hit during normal app use
@@ -74,9 +82,89 @@ const cancelScheduleLimiter = rateLimit({
   }
 });
 
+/**
+ * POST /api/simple-auth/login — credential stuffing / brute force (per IP).
+ * Env: SIMPLE_AUTH_LOGIN_MAX (default 15 per 15 min). Only failed attempts count.
+ */
+const simpleAuthLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseLimitEnv('SIMPLE_AUTH_LOGIN_MAX', 15, 5, 60),
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    throw ApiError.tooManyRequests('Too many failed login attempts. Try again in 15 minutes.');
+  }
+});
+
+/**
+ * POST /api/simple-auth/signup — spam account creation (per IP).
+ * Env: SIMPLE_AUTH_SIGNUP_MAX (default 10 per hour)
+ */
+const simpleAuthSignupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: parseLimitEnv('SIMPLE_AUTH_SIGNUP_MAX', 10, 3, 100),
+  skipSuccessfulRequests: false,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    throw ApiError.tooManyRequests('Too many signup attempts from this network. Try again in 1 hour.');
+  }
+});
+
+/**
+ * POST /api/simple-auth/forgot-password — email / SMTP abuse (per IP).
+ * Env: SIMPLE_AUTH_FORGOT_MAX (default 5 per hour)
+ */
+const simpleAuthForgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: parseLimitEnv('SIMPLE_AUTH_FORGOT_MAX', 5, 2, 30),
+  skipSuccessfulRequests: false,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    throw ApiError.tooManyRequests('Too many password reset requests. Try again in 1 hour.');
+  }
+});
+
+/**
+ * POST /api/simple-auth/reset-password — OTP guess / spam (per IP).
+ * Env: SIMPLE_AUTH_RESET_MAX (default 12 per 15 min). Only failed attempts count.
+ */
+const simpleAuthResetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseLimitEnv('SIMPLE_AUTH_RESET_MAX', 12, 5, 60),
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    throw ApiError.tooManyRequests('Too many reset attempts. Try again in 15 minutes.');
+  }
+});
+
+/**
+ * POST /api/simple-auth/change-password (authenticated) — still cap abuse.
+ * Env: SIMPLE_AUTH_CHANGE_PASSWORD_MAX (default 10 per hour)
+ */
+const simpleAuthChangePasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: parseLimitEnv('SIMPLE_AUTH_CHANGE_PASSWORD_MAX', 10, 3, 50),
+  skipSuccessfulRequests: false,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    throw ApiError.tooManyRequests('Too many password change attempts. Try again in 1 hour.');
+  }
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
   otpLimiter,
-  cancelScheduleLimiter
+  cancelScheduleLimiter,
+  simpleAuthLoginLimiter,
+  simpleAuthSignupLimiter,
+  simpleAuthForgotPasswordLimiter,
+  simpleAuthResetPasswordLimiter,
+  simpleAuthChangePasswordLimiter
 };
