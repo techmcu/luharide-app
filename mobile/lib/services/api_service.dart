@@ -9,6 +9,20 @@ import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
 import 'realtime_socket_service.dart';
 
+/// Dio merges paths that start with `/` as **absolute from the host root**, which
+/// **drops** the `/api` segment from [baseUrl]. Paths must be relative to `baseUrl`
+/// (no leading slash), and `baseUrl` should end with `/` for correct joins.
+/// See: https://github.com/cfug/dio/issues/307 (and Dio `combine` / `resolve`).
+String dioRelativePath(String path) {
+  if (path.isEmpty) return path;
+  return path.startsWith('/') ? path.substring(1) : path;
+}
+
+String dioBaseUrl(String url) {
+  if (url.isEmpty) return url;
+  return url.endsWith('/') ? url : '$url/';
+}
+
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   late final Dio _dio;
@@ -20,7 +34,7 @@ class ApiService {
   ApiService._internal() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: EnvConfig.apiBaseUrl,
+        baseUrl: dioBaseUrl(EnvConfig.apiBaseUrl),
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: {
@@ -92,7 +106,9 @@ class ApiService {
   }
 
   bool _isAuthRefreshPath(String path) {
-    return path.contains(ApiConstants.refreshToken) || path.contains(ApiConstants.logout);
+    final r = dioRelativePath(ApiConstants.refreshToken);
+    final l = dioRelativePath(ApiConstants.logout);
+    return path.contains(r) || path.contains(l);
   }
 
   // Centralized 401 handling: refresh token once and retry original request.
@@ -119,7 +135,7 @@ class ApiService {
       req.extra['__retriable__'] = false;
 
       final cloneResponse = await _dio.request<dynamic>(
-        req.path,
+        dioRelativePath(req.path),
         data: req.data,
         queryParameters: req.queryParameters,
         options: opts,
@@ -140,7 +156,7 @@ class ApiService {
       }
 
       final response = await _dio.post(
-        ApiConstants.refreshToken,
+        dioRelativePath(ApiConstants.refreshToken),
         data: {
           'refreshToken': refreshToken,
           'platform': 'mobile',
@@ -194,7 +210,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.get(
-        path,
+        dioRelativePath(path),
         queryParameters: queryParameters,
         options: options,
       );
@@ -213,7 +229,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        path,
+        dioRelativePath(path),
         data: data,
         queryParameters: queryParameters,
         options: options,
@@ -233,7 +249,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.put(
-        path,
+        dioRelativePath(path),
         data: data,
         queryParameters: queryParameters,
         options: options,
@@ -253,7 +269,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.patch(
-        path,
+        dioRelativePath(path),
         data: data,
         queryParameters: queryParameters,
         options: options,
@@ -273,7 +289,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.delete(
-        path,
+        dioRelativePath(path),
         data: data,
         queryParameters: queryParameters,
         options: options,

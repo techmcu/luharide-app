@@ -7,10 +7,10 @@ class EnvConfig {
 
   static bool get _useLocalApi => kDebugMode && _envUseLocalApi;
 
-  // Defaults: production domain (HTTPS). Local debug ke liye dart-define se override karo.
+  // Defaults: .../api (gateway). No trailing slash — ApiService adds one for Dio path join.
+  // Local debug: dart-define API_BASE_URL=... or USE_LOCAL_API.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    // VPS default (can be overridden via dart-define)
     defaultValue: _envUseLocalApi
         ? 'http://10.0.2.2:3000/api'
         : 'http://76.13.243.157:3000/api',
