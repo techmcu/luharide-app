@@ -22,12 +22,73 @@ import 'union_registration_screen.dart';
 import 'union_dashboard_screen.dart';
 import '../../services/union_service.dart';
 import '../../services/review_service.dart';
+import '../../core/role_exclusivity.dart';
 
 /// User Profile - BlaBlaCar style, simple & easy
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final String? userRole;
 
   const ProfileScreen({super.key, this.userRole});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String _unionStatus = 'none'; // none | pending | approved | rejected
+  bool _unionStatusLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUnionStatus();
+  }
+
+  Future<void> _loadUnionStatus() async {
+    try {
+      final r = await UnionService().getMyUnion();
+      if (!mounted) return;
+      final st = (r['status'] ?? 'none').toString();
+      setState(() {
+        _unionStatus = st;
+        _unionStatusLoaded = true;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _unionStatus = 'none';
+          _unionStatusLoaded = true;
+        });
+      }
+    }
+  }
+
+  bool _blocksIndependent(AuthProvider auth) {
+    final u = auth.user;
+    if (u == null) return false;
+    return RoleExclusivity.blocksIndependentDriver(
+      user: u,
+      unionStatusFromApi: _unionStatusLoaded ? _unionStatus : null,
+    );
+  }
+
+  bool _blocksUnion(AuthProvider auth) {
+    return RoleExclusivity.blocksUnionRegistration(auth.user);
+  }
+
+  void _showExclusivityDialog(BuildContext context, {required String titleKey, required String bodyKey}) {
+    final loc = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.t(titleKey)),
+        content: Text(loc.t(bodyKey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.ok'))),
+        ],
+      ),
+    );
+  }
 
   ImageProvider? _buildProfileImage(user, bool isDriver) {
     final String? url = user?.profileImage;
@@ -46,9 +107,10 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
-    final role = userRole ?? user?.role ?? 'passenger';
+    final role = widget.userRole ?? user?.role ?? 'passenger';
     final isDriver = role == 'driver' || user?.isDriverVerified == true;
     final driverStatus = user?.driverVerificationStatus ?? 'none';
     final driverCode = user?.driverCode;
@@ -174,8 +236,14 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 16),
           ],
 
-          // Share your ride - compact button (for independent drivers only)
-          _buildShareRideButton(context, authProvider),
+          // Share your ride — hidden if union path is active
+          if (!_blocksIndependent(authProvider))
+            _buildShareRideButton(context, authProvider)
+          else
+            _buildExclusivePathNote(
+              context,
+              loc.t('exclusivity.driver_blocked.body'),
+            ),
 
           const SizedBox(height: 28),
 
@@ -194,6 +262,18 @@ class ProfileScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
                 );
               },
+            )
+          else if (_blocksUnion(authProvider))
+            _buildMenuItem(
+              context,
+              icon: Icons.business_rounded,
+              title: 'Add your union',
+              subtitle: loc.t('exclusivity.union_blocked.body'),
+              onTap: () => _showExclusivityDialog(
+                context,
+                titleKey: 'exclusivity.union_blocked.title',
+                bodyKey: 'exclusivity.union_blocked.body',
+              ),
             )
           else
             _buildMenuItem(
@@ -241,7 +321,19 @@ class ProfileScreen extends StatelessWidget {
           // ── Section: Independent taxi driver (create & manage rides) ──
           _sectionLabel(loc.t('profile.section.driver')),
           const SizedBox(height: 8),
-          if (driverStatus == 'approved') ...[
+          if (_blocksIndependent(authProvider)) ...[
+            _buildMenuItem(
+              context,
+              icon: Icons.info_outline,
+              title: loc.t('exclusivity.driver_blocked.title'),
+              subtitle: loc.t('exclusivity.driver_blocked.body'),
+              onTap: () => _showExclusivityDialog(
+                context,
+                titleKey: 'exclusivity.driver_blocked.title',
+                bodyKey: 'exclusivity.driver_blocked.body',
+              ),
+            ),
+          ] else if (driverStatus == 'approved') ...[
             _buildMenuItem(
               context,
               icon: Icons.add_road_rounded,
@@ -286,7 +378,10 @@ class ProfileScreen extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
-                      ).then((_) => authProvider.refreshUser());
+                      ).then((_) {
+                        authProvider.refreshUser();
+                        _loadUnionStatus();
+                      });
                     },
             ),
           ],
@@ -345,14 +440,7 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          _buildMenuItem(
-            context,
-            icon: Icons.logout,
-            title: 'Sign out',
-            subtitle: 'Log out of your account',
-            color: Colors.red,
-            onTap: () => _showLogoutDialog(context, authProvider),
-          ),
+          _sectionLabel(loc.t('app.menu.language')),
           const SizedBox(height: 8),
           _buildMenuItem(
             context,
@@ -361,7 +449,44 @@ class ProfileScreen extends StatelessWidget {
             subtitle: loc.t('app.menu.language.subtitle'),
             onTap: () => _openLanguageSheet(context),
           ),
+          const SizedBox(height: 24),
+
+          _buildMenuItem(
+            context,
+            icon: Icons.logout,
+            title: loc.t('profile.logout'),
+            subtitle: loc.t('profile.logout.subtitle'),
+            color: Colors.red,
+            onTap: () => _showLogoutDialog(context, authProvider),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildExclusivePathNote(BuildContext context, String message) {
+    return Card(
+      margin: EdgeInsets.zero,
+      color: Colors.blueGrey[50],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.blueGrey[200]!),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline, color: Colors.blueGrey[700], size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(fontSize: 13, color: Colors.blueGrey[900], height: 1.35),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -382,6 +507,14 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _onShareRideTap(BuildContext context, AuthProvider authProvider) {
+    if (_blocksIndependent(authProvider)) {
+      _showExclusivityDialog(
+        context,
+        titleKey: 'exclusivity.driver_blocked.title',
+        bodyKey: 'exclusivity.driver_blocked.body',
+      );
+      return;
+    }
     final user = authProvider.user;
     final status = user?.driverVerificationStatus ?? 'none';
     final hasPhone = (user?.phone ?? '').trim().isNotEmpty;
@@ -650,6 +783,14 @@ class ProfileScreen extends StatelessWidget {
   /// Profile completeness is shown *inside* the form — we no longer block here with a dialog
   /// that only offered "Complete profile" → users thought "Add union" opened Edit profile.
   Future<void> _openUnionSection(BuildContext context, AuthProvider authProvider) async {
+    if (_blocksUnion(authProvider)) {
+      _showExclusivityDialog(
+        context,
+        titleKey: 'exclusivity.union_blocked.title',
+        bodyKey: 'exclusivity.union_blocked.body',
+      );
+      return;
+    }
     // Show brief loading indicator
     final snack = ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(

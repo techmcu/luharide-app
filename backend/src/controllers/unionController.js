@@ -234,6 +234,17 @@ const registerUnion = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('You already manage or requested a taxi union');
   }
 
+  const userDv = await pool.query(
+    'SELECT driver_verification_status FROM users WHERE id = $1',
+    [userId]
+  );
+  const dvs = userDv.rows[0]?.driver_verification_status;
+  if (dvs === 'pending' || dvs === 'approved') {
+    throw ApiError.badRequest(
+      'Independent driver verification is already pending or approved. You cannot register a taxi union on this account.'
+    );
+  }
+
   const notesRaw = union_share_notes != null ? String(union_share_notes).trim() : '';
   const notesVal = notesRaw.length > 0 ? notesRaw.slice(0, 500) : null;
 

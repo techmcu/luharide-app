@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/vehicle_catalog.dart';
 import '../../services/driver_verification_service.dart';
 import '../../services/upload_service.dart';
+import '../../services/union_service.dart';
+import '../../providers/auth_provider.dart';
+import '../../core/role_exclusivity.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 
 /// Form to submit driver verification documents.
 /// Vehicle is selected from dropdown (fixed layout + seat count); no manual seat entry.
@@ -25,6 +31,41 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   XFile? _aadhaarFile;
   XFile? _rcFile;
   XFile? _licenseFile;
+  bool _checkingUnionPath = true;
+  bool _unionPathBlocksIndependent = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUnionExclusivity());
+  }
+
+  Future<void> _checkUnionExclusivity() async {
+    final auth = context.read<AuthProvider>();
+    try {
+      final r = await UnionService().getMyUnion();
+      if (!mounted) return;
+      final st = (r['status'] ?? 'none').toString();
+      final blocked = RoleExclusivity.blocksIndependentDriver(
+        user: auth.user,
+        unionStatusFromApi: st,
+      );
+      setState(() {
+        _unionPathBlocksIndependent = blocked;
+        _checkingUnionPath = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _unionPathBlocksIndependent = RoleExclusivity.blocksIndependentDriver(
+            user: auth.user,
+            unionStatusFromApi: 'none',
+          );
+          _checkingUnionPath = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -116,6 +157,50 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
+    if (_checkingUnionPath) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Become a Driver'),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_unionPathBlocksIndependent) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Become a Driver'),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.info_outline, size: 56, color: Colors.green[800]),
+                const SizedBox(height: 16),
+                Text(
+                  loc.t('exclusivity.driver_blocked.title'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  loc.t('exclusivity.driver_blocked.body'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: const Text('Become a Driver'),

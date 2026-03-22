@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/union_service.dart';
 import '../../services/upload_service.dart';
-import 'edit_profile_screen.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../core/role_exclusivity.dart';
+import '../../providers/app_language_provider.dart';
 import 'union_dashboard_screen.dart';
 
 class UnionRegistrationScreen extends StatefulWidget {
@@ -186,9 +188,11 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Add your union'),
+        title: Text(loc.t('union.register.title')),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
       ),
@@ -198,53 +202,39 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     );
   }
 
-  /// Optional hint — profile incomplete does not block the form anymore.
-  Widget _buildProfileHintBanner(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
-    final hasPhone = (user?.phone ?? '').trim().isNotEmpty;
-    final hasEmail = (user?.email ?? '').trim().isNotEmpty;
-    final hasPic = (user?.profileImage ?? '').trim().isNotEmpty;
-    if (hasPhone && hasEmail && hasPic) return const SizedBox.shrink();
-
+  Widget _buildUnionWarningCard(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Card(
-      margin: const EdgeInsets.only(bottom: 14),
-      color: Colors.amber.shade50,
+      color: Colors.orange[50],
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.amber.shade200),
+        side: BorderSide(color: Colors.orange.shade200),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
+        padding: const EdgeInsets.all(16),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.person_pin_circle_outlined, color: Colors.amber.shade900, size: 22),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Behtar hai: profile mein phone, email aur photo bharein taaki admin aap se contact kar sake. '
-                    'Form phir bhi yahin se bhar sakte hain.',
-                    style: TextStyle(fontSize: 13, color: Colors.amber.shade900, height: 1.35),
+            Icon(Icons.info_outline, color: Colors.orange[800], size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    loc.t('union.warning.title'),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.orange[900],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-                  ).then((_) {
-                    if (mounted) context.read<AuthProvider>().refreshUser();
-                  });
-                },
-                icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Profile edit'),
+                  const SizedBox(height: 8),
+                  Text(
+                    loc.t('union.warning.body'),
+                    style: TextStyle(fontSize: 13, color: Colors.orange[900], height: 1.4),
+                  ),
+                ],
               ),
             ),
           ],
@@ -336,35 +326,41 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       );
     }
 
+    final user = context.watch<AuthProvider>().user;
+    if (RoleExclusivity.blocksUnionRegistration(user)) {
+      final loc = AppLocalizations.of(context);
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.block, size: 56, color: Colors.orange[700]),
+              const SizedBox(height: 16),
+              Text(
+                loc.t('exclusivity.union_blocked.title'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                loc.t('exclusivity.union_blocked.body'),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     // Default: show registration form
     return Form(
       key: _formKey,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildProfileHintBanner(context),
-          Card(
-            color: Colors.orange[50],
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Yeh form sirf adhikarik taxi union ke representative ke liye hai.\n\n'
-                      'Agar aap union manage nahi karte aur galat jankari ke saath form submit karte hain, '
-                      'to aapka account block ya limit kiya ja sakta hai.\n\n'
-                      'Kripya form sirf tabhi bharein jab aap iske liye yogya hon.',
-                      style: TextStyle(fontSize: 13, color: Colors.orange[900]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildUnionWarningCard(context),
           const SizedBox(height: 16),
           if (_statusError != null) ...[
             Text(

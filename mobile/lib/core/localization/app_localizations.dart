@@ -51,6 +51,52 @@ class AppLocalizations {
       'en': 'For independent taxi driver',
       'hi': 'स्वतंत्र टैक्सी ड्राइवर के लिए',
     },
+    'union.register.title': {
+      'en': 'Add your union',
+      'hi': 'अपनी यूनियन जोड़ें',
+    },
+    'union.warning.title': {
+      'en': 'Important',
+      'hi': 'महत्वपूर्ण',
+    },
+    'union.warning.body': {
+      'en':
+          'This form is only for an authorised taxi union representative. False or misleading information may lead to your account being restricted. Submit only if you are eligible.',
+      'hi':
+          'यह फॉर्म केवल अधिकृत टैक्सी यूनियन प्रतिनिधि के लिए है। गलत या भ्रामक जानकारी पर आपके खाते पर प्रतिबंध लग सकता है। केवल तभी भरें जब आप योग्य हों।',
+    },
+    'exclusivity.union_blocked.title': {
+      'en': 'Not available',
+      'hi': 'उपलब्ध नहीं',
+    },
+    'exclusivity.union_blocked.body': {
+      'en':
+          'You already use the independent driver path (pending or approved). Union registration is not available on this account.',
+      'hi':
+          'आप पहले से स्वतंत्र ड्राइवर मार्ग का उपयोग कर रहे हैं (लंबित या स्वीकृत)। इस खाते पर यूनियन पंजीकरण उपलब्ध नहीं है।',
+    },
+    'exclusivity.driver_blocked.title': {
+      'en': 'Not available',
+      'hi': 'उपलब्ध नहीं',
+    },
+    'exclusivity.driver_blocked.body': {
+      'en':
+          'You already use the union path (pending or approved). Independent driver verification is not available on this account.',
+      'hi':
+          'आप पहले से यूनियन मार्ग का उपयोग कर रहे हैं (लंबित या स्वीकृत)। इस खाते पर स्वतंत्र ड्राइवर सत्यापन उपलब्ध नहीं है।',
+    },
+    'profile.logout': {
+      'en': 'Sign out',
+      'hi': 'साइन आउट',
+    },
+    'profile.logout.subtitle': {
+      'en': 'Log out of your account',
+      'hi': 'अपने खाते से बाहर निकलें',
+    },
+    'app.ok': {
+      'en': 'OK',
+      'hi': 'ठीक',
+    },
   };
 
   String t(String key) {

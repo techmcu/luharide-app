@@ -34,6 +34,27 @@ const submitVerification = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('You are already a verified driver');
   }
 
+  if (req.user.role === 'union_admin') {
+    throw ApiError.badRequest(
+      'Union admin accounts cannot submit independent driver verification.'
+    );
+  }
+
+  const unionRow = await pool.query(
+    `SELECT u.status FROM unions u
+     INNER JOIN union_admins ua ON ua.union_id = u.id
+     WHERE ua.user_id = $1`,
+    [userId]
+  );
+  if (unionRow.rows.length > 0) {
+    const st = unionRow.rows[0].status;
+    if (st === 'pending' || st === 'approved') {
+      throw ApiError.badRequest(
+        'Taxi union registration is active on this account. Independent driver verification is not available.'
+      );
+    }
+  }
+
   // Independent driver: max 32 seats (cap for seat layout and booking)
   const MAX_SEATS = 32;
   let capNum = vehicle_capacity != null ? parseInt(vehicle_capacity, 10) : null;
