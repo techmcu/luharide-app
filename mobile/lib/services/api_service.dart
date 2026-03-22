@@ -87,9 +87,9 @@ class ApiService {
             if (kIsWeb && error.type == DioExceptionType.connectionError) {
               // ignore: avoid_print
               print(
-                '💡 Web: (1) Backend `node server.js` chal raha hai? `http://localhost:3000/health` browser me kholo. '
-                '(2) API URL `localhost` honi chahiye (127.0.0.1 Chrome PNA se block ho sakta tha). '
-                '(3) Backend restart — CORS + Access-Control-Allow-Private-Network fix.',
+                '💡 Web: (1) `/health` same port par kholo (monolith 3000, microservices gateway 3010). '
+                '(2) `dev:stack` = port 3010 → `--dart-define=LOCAL_API_PORT=3010`. '
+                '(3) CORS/PNA fix ke liye backend restart.',
               );
             }
           }

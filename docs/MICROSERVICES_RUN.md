@@ -14,7 +14,10 @@
 
 - **Production / VPS:** `https://api.yourdomain.com` (gateway usually **port 3000** behind Nginx).
 - **Local monolith:** `http://localhost:3000`.
-- **Local 5-service dev** (`npm run develop:luharide-microservices-local-five-services`): gateway **`http://localhost:3010`** so it does **not** clash with monolith on **3000**.
+- **Local 5-service dev** (`npm run dev:stack`): gateway **`http://localhost:3010`** so it does **not** clash with monolith on **3000**.
+- **Flutter local** must use the **same port** as the process you run:
+  - Monolith `node server.js` → `http://localhost:3000/api` → `--dart-define=USE_LOCAL_API=true` only (default port 3000).
+  - Microservices stack → `http://localhost:3010/api` → `--dart-define=USE_LOCAL_API=true --dart-define=LOCAL_API_PORT=3010`.
 
 **Phase 1 (local verify):** [`LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md`](./LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md) — `npm run develop:luharide-microservices-local-five-services` then `npm run verify:luharide-microservices-health-endpoints`. Status: [`LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md`](./LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md).
 

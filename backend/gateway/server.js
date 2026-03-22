@@ -155,6 +155,13 @@ server.listen(PORT, LISTEN_HOST, () => {
   logger.info(`   → ${CORE_URL} (core)`);
   logger.info(`   → ${UNION_URL} (union)`);
   logger.info(`   → ${PLATFORM_URL} (platform)`);
+  if (PORT === 3010) {
+    logger.info(
+      '📱 Flutter (local microservices stack): gateway is on 3010 — use '
+      + '`--dart-define=USE_LOCAL_API=true --dart-define=LOCAL_API_PORT=3010` '
+      + '(monolith uses default port 3000, no LOCAL_API_PORT).'
+    );
+  }
   if (shouldWarnTrustProxyUnsetInProduction()) {
     logger.warn(
       '⚠️  TRUST_PROXY not set — behind nginx/HTTPS all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in backend/.env (see docs/TRUST_PROXY_AND_NGINX_A_TO_Z.md)'

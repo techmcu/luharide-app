@@ -1,16 +1,25 @@
-# luharide
+# luharide — Flutter app
 
-A new Flutter project.
+## Local API (important)
+
+REST paths are always under **`/api/...`**. The thing that must match your terminal is **host + port**, not the path string.
+
+| Backend you run | Port | Flutter (Chrome / emulator) |
+|-----------------|------|-------------------------------|
+| Monolith `node server.js` | **3000** | `--dart-define=USE_LOCAL_API=true` |
+| Microservices `npm run dev:stack` (gateway) | **3010** | `--dart-define=USE_LOCAL_API=true --dart-define=LOCAL_API_PORT=3010` |
+
+If the port is wrong, the browser shows **`XMLHttpRequest onError`** / **`ERROR[null]`** (nothing listening on that port).
+
+Full URLs are built in `lib/services/api_service.dart` (`buildApiUrl`). Override anything with `--dart-define=API_BASE_URL=...`.
+
+See also: `../docs/MICROSERVICES_RUN.md`, `../docs/MOBILE_DIO_API_BASE.md`.
+
+---
 
 ## Getting Started
 
 This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
 For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+[online documentation](https://docs.flutter.dev/).
