@@ -4,6 +4,7 @@
  * Socket.IO is NOT here when using gateway (gateway owns /socket.io).
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-core';
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 const { authenticate } = require('../src/middleware/auth');
 const { submitVerification, getMyStatus } = require('../src/controllers/driverVerificationController');

@@ -61,7 +61,8 @@ Tumhare `backend/src` routes se derive kiye gaye **logical** services (har ka ap
 - [ ] Load test (k6/Locust) on `/health`, login, trip list, booking
 - [ ] DB: slow queries, **indexes**, `EXPLAIN ANALYZE`
 - [ ] PM2 **cluster** ya multiple instances + nginx **sticky** for Socket.IO
-- [ ] Redis: sessions / rate limit / **Socket.IO adapter** (multi-instance ke liye)
+- [x] Redis (optional): **rate-limit store** + **Socket.IO Redis adapter** — [`PHASE_REDIS_AND_OBSERVABILITY.md`](./PHASE_REDIS_AND_OBSERVABILITY.md)
+- [x] Request **X-Request-Id** + **LUHA_SERVICE_NAME** in logs
 - [ ] Read replica sirf tab jab read-heavy proof ho
 
 ### Phase B — Modular monolith (code structure, same deploy)

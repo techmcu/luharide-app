@@ -3,6 +3,7 @@
  * Port: UNION_SERVICE_PORT (default 3003)
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-union';
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 
 const unionRoutes = require('../src/routes/union');

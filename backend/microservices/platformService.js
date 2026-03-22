@@ -3,6 +3,7 @@
  * Port: PLATFORM_SERVICE_PORT (default 3004)
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-platform';
 const path = require('path');
 const express = require('express');
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');

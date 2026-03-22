@@ -1,5 +1,12 @@
 const rateLimit = require('express-rate-limit');
 const ApiError = require('../utils/ApiError');
+const { createRateLimitRedisStore } = require('../config/redis');
+
+/** Optional Redis-backed store (multi-process / multi-node); else in-memory */
+function withStore(name, opts) {
+  const store = createRateLimitRedisStore(name);
+  return store ? { ...opts, store } : opts;
+}
 
 function parseLimitEnv(name, defaultVal, min, max) {
   const raw = process.env[name];
@@ -25,137 +32,155 @@ const _apiMax = parseInt(
   10
 );
 
-const apiLimiter = rateLimit({
-  windowMs: Number.isFinite(_apiWindow) && _apiWindow > 0 ? _apiWindow : 15 * 60 * 1000,
-  max: Number.isFinite(_apiMax) && _apiMax > 0 ? _apiMax : 500,
-  message: 'Too many requests from this IP, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => req.path === '/health' || req.path === '/api/health',
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many requests, please try again later');
-  }
-});
+const apiLimiter = rateLimit(
+  withStore('api', {
+    windowMs: Number.isFinite(_apiWindow) && _apiWindow > 0 ? _apiWindow : 15 * 60 * 1000,
+    max: Number.isFinite(_apiMax) && _apiMax > 0 ? _apiMax : 500,
+    message: 'Too many requests from this IP, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.path === '/health' || req.path === '/api/health',
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many requests, please try again later');
+    },
+  })
+);
 
 /**
  * Auth endpoints rate limiter (stricter)
  */
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
-  skipSuccessfulRequests: true,
-  message: 'Too many authentication attempts, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many login attempts, please try again after 15 minutes');
-  }
-});
+const authLimiter = rateLimit(
+  withStore('auth-legacy', {
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // Limit each IP to 5 requests per windowMs
+    skipSuccessfulRequests: true,
+    message: 'Too many authentication attempts, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many login attempts, please try again after 15 minutes');
+    },
+  })
+);
 
 /**
  * OTP rate limiter (very strict)
  */
-const otpLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // Limit each IP to 3 OTP requests per hour
-  skipSuccessfulRequests: false,
-  message: 'Too many OTP requests, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many OTP requests, please try again after 1 hour');
-  }
-});
+const otpLimiter = rateLimit(
+  withStore('otp', {
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 3, // Limit each IP to 3 OTP requests per hour
+    skipSuccessfulRequests: false,
+    message: 'Too many OTP requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many OTP requests, please try again after 1 hour');
+    },
+  })
+);
 
 /**
  * Cancel ride/schedule spam protection.
  * This endpoint can be hit repeatedly by accidental double taps / poor networks.
  */
-const cancelScheduleLimiter = rateLimit({
-  windowMs: 10 * 1000, // 10 seconds
-  max: 5, // allow small burst only
-  message: 'Too many cancel requests, please try again later',
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many cancel requests. Please try again in a few seconds.');
-  }
-});
+const cancelScheduleLimiter = rateLimit(
+  withStore('cancel-schedule', {
+    windowMs: 10 * 1000, // 10 seconds
+    max: 5, // allow small burst only
+    message: 'Too many cancel requests, please try again later',
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many cancel requests. Please try again in a few seconds.');
+    },
+  })
+);
 
 /**
  * POST /api/simple-auth/login — credential stuffing / brute force (per IP).
  * Env: SIMPLE_AUTH_LOGIN_MAX (default 15 per 15 min). Only failed attempts count.
  */
-const simpleAuthLoginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: parseLimitEnv('SIMPLE_AUTH_LOGIN_MAX', 15, 5, 60),
-  skipSuccessfulRequests: true,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many failed login attempts. Try again in 15 minutes.');
-  }
-});
+const simpleAuthLoginLimiter = rateLimit(
+  withStore('simple-login', {
+    windowMs: 15 * 60 * 1000,
+    max: parseLimitEnv('SIMPLE_AUTH_LOGIN_MAX', 15, 5, 60),
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many failed login attempts. Try again in 15 minutes.');
+    },
+  })
+);
 
 /**
  * POST /api/simple-auth/signup — spam account creation (per IP).
  * Env: SIMPLE_AUTH_SIGNUP_MAX (default 10 per hour)
  */
-const simpleAuthSignupLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: parseLimitEnv('SIMPLE_AUTH_SIGNUP_MAX', 10, 3, 100),
-  skipSuccessfulRequests: false,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many signup attempts from this network. Try again in 1 hour.');
-  }
-});
+const simpleAuthSignupLimiter = rateLimit(
+  withStore('simple-signup', {
+    windowMs: 60 * 60 * 1000,
+    max: parseLimitEnv('SIMPLE_AUTH_SIGNUP_MAX', 10, 3, 100),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many signup attempts from this network. Try again in 1 hour.');
+    },
+  })
+);
 
 /**
  * POST /api/simple-auth/forgot-password — email / SMTP abuse (per IP).
  * Env: SIMPLE_AUTH_FORGOT_MAX (default 5 per hour)
  */
-const simpleAuthForgotPasswordLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: parseLimitEnv('SIMPLE_AUTH_FORGOT_MAX', 5, 2, 30),
-  skipSuccessfulRequests: false,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many password reset requests. Try again in 1 hour.');
-  }
-});
+const simpleAuthForgotPasswordLimiter = rateLimit(
+  withStore('simple-forgot', {
+    windowMs: 60 * 60 * 1000,
+    max: parseLimitEnv('SIMPLE_AUTH_FORGOT_MAX', 5, 2, 30),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many password reset requests. Try again in 1 hour.');
+    },
+  })
+);
 
 /**
  * POST /api/simple-auth/reset-password — OTP guess / spam (per IP).
  * Env: SIMPLE_AUTH_RESET_MAX (default 12 per 15 min). Only failed attempts count.
  */
-const simpleAuthResetPasswordLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: parseLimitEnv('SIMPLE_AUTH_RESET_MAX', 12, 5, 60),
-  skipSuccessfulRequests: true,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many reset attempts. Try again in 15 minutes.');
-  }
-});
+const simpleAuthResetPasswordLimiter = rateLimit(
+  withStore('simple-reset', {
+    windowMs: 15 * 60 * 1000,
+    max: parseLimitEnv('SIMPLE_AUTH_RESET_MAX', 12, 5, 60),
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many reset attempts. Try again in 15 minutes.');
+    },
+  })
+);
 
 /**
  * POST /api/simple-auth/change-password (authenticated) — still cap abuse.
  * Env: SIMPLE_AUTH_CHANGE_PASSWORD_MAX (default 10 per hour)
  */
-const simpleAuthChangePasswordLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: parseLimitEnv('SIMPLE_AUTH_CHANGE_PASSWORD_MAX', 10, 3, 50),
-  skipSuccessfulRequests: false,
-  standardHeaders: true,
-  legacyHeaders: false,
-  handler: (req, res) => {
-    throw ApiError.tooManyRequests('Too many password change attempts. Try again in 1 hour.');
-  }
-});
+const simpleAuthChangePasswordLimiter = rateLimit(
+  withStore('simple-change-pw', {
+    windowMs: 60 * 60 * 1000,
+    max: parseLimitEnv('SIMPLE_AUTH_CHANGE_PASSWORD_MAX', 10, 3, 50),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many password change attempts. Try again in 1 hour.');
+    },
+  })
+);
 
 module.exports = {
   apiLimiter,

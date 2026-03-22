@@ -82,6 +82,7 @@ const errorHandler = (err, req, res, next) => {
     logger.warn({
       statusCode,
       message,
+      requestId: req.id,
       url: req.originalUrl,
       method: req.method,
       ip: req.ip,
@@ -92,6 +93,7 @@ const errorHandler = (err, req, res, next) => {
       statusCode,
       message,
       stack: err.stack,
+      requestId: req.id,
       url: req.originalUrl,
       method: req.method,
       ip: req.ip,

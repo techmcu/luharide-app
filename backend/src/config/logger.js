@@ -26,7 +26,7 @@ const consoleFormat = winston.format.combine(
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
-  defaultMeta: { service: 'luharide-api' },
+  defaultMeta: { service: process.env.LUHA_SERVICE_NAME || 'luharide-api' },
   transports: [
     // Write all logs to console
     new winston.transports.Console({

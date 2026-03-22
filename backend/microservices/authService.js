@@ -3,6 +3,7 @@
  * Port: AUTH_SERVICE_PORT (default 3001)
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-auth';
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 
 const authRoutes = require('../src/routes/auth');

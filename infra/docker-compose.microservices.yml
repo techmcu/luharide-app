@@ -4,8 +4,18 @@
 #
 # Set DB_* and JWT_* in .env next to backend/ or use env_file.
 # Flutter / mobile: point API_BASE_URL to http://localhost:3000 (gateway) in dev.
+#
+# Redis: compose forces REDIS_ENABLED=true for shared rate limits + Socket.IO adapter.
 
 services:
+  redis:
+    image: redis:7-alpine
+    expose:
+      - "6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - luharide_redis:/data
+
   gateway:
     build:
       context: ../backend
@@ -21,9 +31,13 @@ services:
       CORE_URL: http://core:3002
       UNION_URL: http://union:3003
       PLATFORM_URL: http://platform:3004
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     env_file:
       - ../backend/.env
     depends_on:
+      - redis
       - auth
       - core
       - union
@@ -52,8 +66,13 @@ services:
       - "3002"
     environment:
       CORE_SERVICE_PORT: "3002"
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     env_file:
       - ../backend/.env
+    depends_on:
+      - redis
     volumes:
       - ../backend/uploads:/app/uploads
 
@@ -66,8 +85,13 @@ services:
       - "3003"
     environment:
       UNION_SERVICE_PORT: "3003"
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     env_file:
       - ../backend/.env
+    depends_on:
+      - redis
 
   platform:
     build:
@@ -78,7 +102,15 @@ services:
       - "3004"
     environment:
       PLATFORM_SERVICE_PORT: "3004"
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
     env_file:
       - ../backend/.env
+    depends_on:
+      - redis
     volumes:
       - ../backend/uploads:/app/uploads
+
+volumes:
+  luharide_redis:

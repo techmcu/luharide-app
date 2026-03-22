@@ -1,5 +1,6 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-monolith';
 const express = require('express');
 const compression = require('compression');
 const cors = require('cors');
@@ -29,9 +30,11 @@ const uploadRoutes = require('./src/routes/uploads');
 // Import middleware
 const { errorConverter, errorHandler } = require('./src/middleware/errorHandler');
 const { apiLimiter } = require('./src/middleware/rateLimiter');
+const { requestContext } = require('./src/middleware/requestContext');
 const logger = require('./src/config/logger');
 
 // Import socket handlers
+const { attachSocketIoRedisAdapter } = require('./src/socket/socketRedisAdapter');
 const attachSocketHandlers = require('./src/socket/socketHandlers');
 const { setIo } = require('./src/socket/socketIoRegistry');
 const rateNotificationJob = require('./src/jobs/rateNotificationJob');
@@ -62,14 +65,17 @@ const io = socketIo(server, {
     methods: ['GET', 'POST']
   }
 });
+attachSocketIoRedisAdapter(io);
 
 // Middleware
 app.use(helmet());
+app.use(requestContext);
 app.use(compression());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
+morgan.token('reqId', (req) => req.id || '-');
+app.use(morgan(':reqId :method :url :status :response-time ms'));
 // Static assets for uploaded documents
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
