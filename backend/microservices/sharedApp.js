@@ -4,7 +4,7 @@
 const express = require('express');
 const compression = require('compression');
 const cors = require('cors');
-const helmet = require('helmet');
+const { createHelmetMiddleware } = require('../src/config/helmetConfig');
 const morgan = require('morgan');
 const { errorConverter, errorHandler } = require('../src/middleware/errorHandler');
 const { requestContext } = require('../src/middleware/requestContext');
@@ -13,7 +13,7 @@ const { applyTrustProxy } = require('../src/config/trustProxy');
 function createBaseApp(serviceName) {
   const app = express();
   applyTrustProxy(app);
-  app.use(helmet());
+  app.use(createHelmetMiddleware());
   app.use(requestContext);
   app.use(compression());
   app.use(cors());

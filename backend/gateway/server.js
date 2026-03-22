@@ -12,7 +12,7 @@ const http = require('http');
 const express = require('express');
 const compression = require('compression');
 const cors = require('cors');
-const helmet = require('helmet');
+const { createHelmetMiddleware } = require('../src/config/helmetConfig');
 const morgan = require('morgan');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const socketIo = require('socket.io');
@@ -34,7 +34,7 @@ const PLATFORM_URL = process.env.PLATFORM_URL || 'http://127.0.0.1:3004';
 const app = express();
 applyTrustProxy(app);
 
-app.use(helmet());
+app.use(createHelmetMiddleware());
 app.use(requestContext);
 app.use(compression());
 app.use(cors());

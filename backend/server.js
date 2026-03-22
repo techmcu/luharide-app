@@ -4,7 +4,7 @@ process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-monolith'
 const express = require('express');
 const compression = require('compression');
 const cors = require('cors');
-const helmet = require('helmet');
+const { createHelmetMiddleware } = require('./src/config/helmetConfig');
 const morgan = require('morgan');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -69,7 +69,7 @@ const io = socketIo(server, {
 attachSocketIoRedisAdapter(io);
 
 // Middleware
-app.use(helmet());
+app.use(createHelmetMiddleware());
 app.use(requestContext);
 app.use(compression());
 app.use(cors());

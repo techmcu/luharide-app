@@ -84,6 +84,13 @@ class ApiService {
             print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.uri}');
             // ignore: avoid_print
             print('Error message: ${error.message}');
+            if (kIsWeb && error.type == DioExceptionType.connectionError) {
+              // ignore: avoid_print
+              print(
+                '💡 Web: Agar "XMLHttpRequest onError" hai — (1) backend `node server.js` port 3000 par chal raha hai? '
+                '(2) Backend restart karo (Helmet CORP fix). Chrome DevTools → Network tab check karo.',
+              );
+            }
           }
           // 429: rate limit — show clear message (not raw Dio validateStatus text)
           if (error.response?.statusCode == 429) {
