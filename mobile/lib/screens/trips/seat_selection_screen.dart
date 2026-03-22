@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import '../../models/trip_model.dart';
@@ -28,6 +29,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   static const int _maxSeats = 32; // Independent driver max; layout must match driver's capacity
 
   final _tripService = TripService();
+  final Random _rand = Random.secure();
+
+  /// One key per booking attempt — duplicate POSTs / retries return same booking (server migration 030).
+  String _newIdempotencyKey() {
+    const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+    return List.generate(28, (_) => chars[_rand.nextInt(chars.length)]).join();
+  }
   final Set<int> _selectedSeats = {};
   late List<bool> _seatStatus; // true = booked or pending or driver, false = available
   bool _isLoadingSeats = true;
@@ -233,6 +241,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     final result = await _tripService.createBooking(
       tripId: widget.trip.id,
       seatNumbers: seatNumbers,
+      idempotencyKey: _newIdempotencyKey(),
     );
 
     if (!mounted) return;

@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const { pool, queryRead } = require('../config/database');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 
@@ -10,7 +10,7 @@ const getMyNotifications = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
   // Use body (001 schema); if your table has message instead, run migration 012 to add body.
-  const result = await pool.query(
+  const result = await queryRead(
     `SELECT id, type, title, 
             body AS message, 
             is_read, created_at,

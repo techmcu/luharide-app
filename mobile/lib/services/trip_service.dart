@@ -56,12 +56,14 @@ class TripService {
     }
   }
 
-  /// Search trips
+  /// Search trips ([limit] default 40, [offset] for paging — server caps for small VPS)
   Future<Map<String, dynamic>> searchTrips({
     required String from,
     required String to,
     required DateTime date,
     String? routeId,
+    int limit = 40,
+    int offset = 0,
   }) async {
     try {
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -71,6 +73,8 @@ class TripService {
         // even when we provide a canonical route_id for trips table.
         'from': from,
         'to': to,
+        'limit': limit,
+        'offset': offset,
       };
       if (routeId != null && routeId.isNotEmpty) {
         query['route_id'] = routeId;
@@ -217,18 +221,24 @@ class TripService {
     }
   }
 
-  /// Create booking (Passenger)
+  /// Create booking (Passenger). [idempotencyKey] avoids duplicate booking on double-submit / retry.
   Future<Map<String, dynamic>> createBooking({
     required String tripId,
     required List<int> seatNumbers,
+    String? idempotencyKey,
   }) async {
     try {
+      final key = idempotencyKey?.trim();
       final response = await _apiService.post(
         ApiConstants.createBooking,
         data: {
           'trip_id': tripId,
           'seat_numbers': seatNumbers,
+          if (key != null && key.isNotEmpty) 'idempotency_key': key,
         },
+        options: (key != null && key.isNotEmpty)
+            ? Options(headers: {'Idempotency-Key': key})
+            : null,
       );
 
       return {

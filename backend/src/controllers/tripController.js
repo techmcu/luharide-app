@@ -1,4 +1,4 @@
-const { pool } = require('../config/database');
+const { pool, queryRead } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -214,7 +214,14 @@ const searchTrips = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD (e.g. 2026-02-23).');
   }
 
-  const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
+  // KVM / small VPS: cap page size and offset so one search cannot scan huge result sets
+  const DEFAULT_SEARCH_LIMIT = 40;
+  const MAX_SEARCH_LIMIT = 80;
+  const MAX_SEARCH_OFFSET = 400;
+  const rawLimit = parseInt(q.limit, 10);
+  const rawOffset = parseInt(q.offset, 10);
+  const limit = Math.min(MAX_SEARCH_LIMIT, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : DEFAULT_SEARCH_LIMIT));
+  const offset = Math.min(MAX_SEARCH_OFFSET, Math.max(0, Number.isFinite(rawOffset) ? rawOffset : 0));
 
   // Normalize: lowercase; strip spaces, commas, dots, dashes, slashes so search matches more typos
   const normLoc = (s) => s.toLowerCase().replace(/[\s,.\-_:;/\\]+/g, '');
@@ -226,7 +233,7 @@ const searchTrips = asyncHandler(async (req, res) => {
   // Run trips and union queries in parallel — faster search, no speed compromise.
   const runTripsQuery = async () => {
     if (routeId) {
-      return pool.query(
+      return queryRead(
         `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
                 u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
                 u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
@@ -238,12 +245,12 @@ const searchTrips = asyncHandler(async (req, res) => {
            AND t.status = 'scheduled'
            AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
          ORDER BY t.departure_time ASC
-         LIMIT $3`,
-        [routeId, dateStr, limit]
+         OFFSET $3 LIMIT $4`,
+        [routeId, dateStr, offset, limit]
       );
     } else {
       try {
-        return pool.query(
+        return queryRead(
           `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
                   u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
                   u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
@@ -256,12 +263,12 @@ const searchTrips = asyncHandler(async (req, res) => {
              AND t.status = 'scheduled'
              AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
            ORDER BY t.departure_time ASC
-           LIMIT $4`,
-          [fromPat, toPat, dateStr, limit]
+           OFFSET $4 LIMIT $5`,
+          [fromPat, toPat, dateStr, offset, limit]
         );
       } catch (colErr) {
         if (colErr.code === '42703') {
-          return pool.query(
+          return queryRead(
             `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
                     u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
                     u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
@@ -275,8 +282,8 @@ const searchTrips = asyncHandler(async (req, res) => {
                AND (t.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
              AND t.status = 'scheduled'
              AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
-             ORDER BY t.departure_time ASC LIMIT $4`,
-            [fromPat, toPat, dateStr, limit]
+             ORDER BY t.departure_time ASC OFFSET $4 LIMIT $5`,
+            [fromPat, toPat, dateStr, offset, limit]
           );
         }
         throw colErr;
@@ -286,7 +293,7 @@ const searchTrips = asyncHandler(async (req, res) => {
 
   const runUnionQuery = async () => {
     try {
-      return pool.query(
+      return queryRead(
         `SELECT s.id, s.from_location, s.to_location, s.departure_time, s.status,
                 d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number, u.name AS union_name
          FROM union_schedules s
@@ -296,14 +303,14 @@ const searchTrips = asyncHandler(async (req, res) => {
            AND s.from_location_norm LIKE $1 AND s.to_location_norm LIKE $2
            AND s.departure_time >= ($3::date)::timestamp
            AND s.departure_time <  ($3::date)::timestamp + interval '1 day'
-         ORDER BY s.departure_time ASC LIMIT $4`,
-        [fromPat, toPat, dateStr, limit]
+         ORDER BY s.departure_time ASC OFFSET $4 LIMIT $5`,
+        [fromPat, toPat, dateStr, offset, limit]
       );
     } catch (err) {
       if (err.code === '42P01') return { rows: [] };
       if (err.code === '42703') {
         try {
-          return pool.query(
+          return queryRead(
             `SELECT s.id, s.from_location, s.to_location, s.departure_time, s.status,
                     d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number, u.name AS union_name
              FROM union_schedules s
@@ -315,8 +322,8 @@ const searchTrips = asyncHandler(async (req, res) => {
                AND regexp_replace(LOWER(TRIM(s.to_location)),   '\s+', '', 'g') LIKE $2
                AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
                AND (s.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
-             ORDER BY s.departure_time ASC LIMIT $4`,
-            [fromPat, toPat, dateStr, limit]
+             ORDER BY s.departure_time ASC OFFSET $4 LIMIT $5`,
+            [fromPat, toPat, dateStr, offset, limit]
           );
         } catch (_) {
           return { rows: [] };
@@ -367,7 +374,18 @@ const searchTrips = asyncHandler(async (req, res) => {
   }));
 
   ApiResponse.success(
-    { trips, count: trips.length, unionRides, union_count: unionRides.length },
+    {
+      trips,
+      count: trips.length,
+      unionRides,
+      union_count: unionRides.length,
+      pagination: {
+        limit,
+        offset,
+        max_limit: MAX_SEARCH_LIMIT,
+        max_offset: MAX_SEARCH_OFFSET
+      }
+    },
     'Trips found'
   ).send(res);
 });
@@ -528,16 +546,28 @@ const getTripDetails = asyncHandler(async (req, res) => {
 
   const trip = result.rows[0];
 
-  // Fetch booked & pending seats for seat selection
+  const isDriver = req.user && req.user.id === trip.driver_id;
+  const passengerId = req.user && !isDriver ? req.user.id : null;
+
+  // Single query: seat occupancy + passenger booking row (one DB round-trip vs two)
   const bookingsResult = await pool.query(
-    `SELECT seat_numbers, status FROM bookings 
-     WHERE trip_id = $1 AND status IN ('confirmed', 'pending')`,
-    [id]
+    `SELECT seat_numbers, status, passenger_id FROM bookings
+     WHERE trip_id = $1
+       AND (
+         status IN ('confirmed', 'pending')
+         OR ($2::uuid IS NOT NULL AND passenger_id = $2::uuid)
+       )`,
+    [id, passengerId]
   );
 
   const booked = [];
   const pending = [];
+  let userBookingStatus = null;
   for (const row of bookingsResult.rows) {
+    if (passengerId && row.passenger_id === passengerId) {
+      userBookingStatus = row.status;
+    }
+    if (row.status !== 'confirmed' && row.status !== 'pending') continue;
     const seats = row.seat_numbers || [];
     for (const s of seats) {
       const num = typeof s === 'number' ? s : parseInt(s, 10);
@@ -554,22 +584,9 @@ const getTripDetails = asyncHandler(async (req, res) => {
   const bookedSet = new Set(booked);
   bookedSet.add(1); // Seat 1 = driver (reserved, not bookable)
   const pendingSet = new Set(pending);
-  const allTakenSet = new Set([...bookedSet, ...pending]);
+  const allTakenSet = new Set([...bookedSet, ...pendingSet]);
   const totalSeats = trip.total_seats ?? trip.total_capacity ?? 0;
   const availableSeats = Math.max(0, totalSeats - allTakenSet.size);
-
-  // Check current user's booking status for this trip (if logged in and not the driver)
-  let userBookingStatus = null;
-  const isDriver = req.user && req.user.id === trip.driver_id;
-  if (req.user && !isDriver) {
-    const userBookingRes = await pool.query(
-      `SELECT status FROM bookings
-       WHERE trip_id = $1 AND passenger_id = $2
-       ORDER BY created_at DESC LIMIT 1`,
-      [id, req.user.id]
-    );
-    userBookingStatus = userBookingRes.rows.length > 0 ? userBookingRes.rows[0].status : null;
-  }
 
   // Only reveal driver contact if the requesting user has a confirmed booking (or is the driver)
   const contactVisible = isDriver || userBookingStatus === 'confirmed';

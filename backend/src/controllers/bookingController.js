@@ -5,14 +5,39 @@ const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitTripUpdated, emitNotificationToUser } = require('../socket/realtimeEmitter');
 
+function normalizeIdempotencyKey(key) {
+  if (key == null || typeof key !== 'string') return '';
+  return key.trim().slice(0, 128);
+}
+
+function sendBookingCreated(res, booking, message, statusCode = 201) {
+  const payload = {
+    booking: {
+      id: booking.id,
+      trip_id: booking.trip_id,
+      seat_numbers: booking.seat_numbers,
+      status: booking.status,
+      total_amount: parseFloat(booking.total_amount),
+      created_at: booking.created_at
+    }
+  };
+  if (statusCode === 201) {
+    ApiResponse.created(payload, message).send(res);
+  } else {
+    ApiResponse.success(payload, message).send(res);
+  }
+}
+
 /**
  * Create a booking (Passenger)
  * Uses transaction + row lock to prevent race: 2 users booking same seat at same time
  * POST /api/bookings
+ * Optional: Idempotency-Key header or body idempotency_key — duplicate safe retries (run migration 030).
  */
 const createBooking = asyncHandler(async (req, res) => {
   const { trip_id, seat_numbers } = req.body;
   const passengerId = req.user.id;
+  const idemKey = normalizeIdempotencyKey(req.headers['idempotency-key'] || req.body.idempotency_key);
 
   if (!trip_id || !seat_numbers || !Array.isArray(seat_numbers) || seat_numbers.length === 0) {
     throw ApiError.badRequest('trip_id and seat_numbers (array) are required');
@@ -22,6 +47,29 @@ const createBooking = asyncHandler(async (req, res) => {
 
   try {
     await client.query('BEGIN');
+
+    if (idemKey) {
+      const existing = await client.query(
+        'SELECT * FROM bookings WHERE passenger_id = $1 AND idempotency_key = $2',
+        [passengerId, idemKey]
+      );
+      if (existing.rows.length > 0) {
+        const row = existing.rows[0];
+        const sameTrip = String(row.trip_id) === String(trip_id);
+        const prevSeats = [...(row.seat_numbers || [])].sort((a, b) => a - b);
+        const reqSeats = [...new Set(seat_numbers.filter(s => Number.isInteger(s)))].sort((a, b) => a - b);
+        const seatsMatch = prevSeats.length === reqSeats.length && prevSeats.every((s, i) => s === reqSeats[i]);
+        if (sameTrip && seatsMatch) {
+          await client.query('COMMIT');
+          const msg = row.status === 'pending'
+            ? 'Booking request already sent.'
+            : 'Booking already confirmed.';
+          return sendBookingCreated(res, row, msg, 200);
+        }
+        await client.query('ROLLBACK');
+        throw ApiError.conflict('Idempotency key was already used with different trip or seats.');
+      }
+    }
 
     // Lock trip row to prevent race – first request wins
     const tripResult = await client.query(
@@ -79,12 +127,42 @@ const createBooking = asyncHandler(async (req, res) => {
     const totalAmount = uniqueSeats.length * farePerSeat;
     const bookingStatus = requireApproval ? 'pending' : 'confirmed';
 
-    const result = await client.query(
-      `INSERT INTO bookings (trip_id, passenger_id, seat_numbers, status, total_amount)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [trip_id, passengerId, uniqueSeats, bookingStatus, totalAmount]
-    );
+    let result;
+    try {
+      result = await client.query(
+        `INSERT INTO bookings (trip_id, passenger_id, seat_numbers, status, total_amount, idempotency_key)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [trip_id, passengerId, uniqueSeats, bookingStatus, totalAmount, idemKey || null]
+      );
+    } catch (insErr) {
+      if (
+        insErr.code === '42703' &&
+        (String(insErr.message || '').includes('idempotency_key') || insErr.column === 'idempotency_key')
+      ) {
+        result = await client.query(
+          `INSERT INTO bookings (trip_id, passenger_id, seat_numbers, status, total_amount)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING *`,
+          [trip_id, passengerId, uniqueSeats, bookingStatus, totalAmount]
+        );
+      } else if (insErr.code === '23505' && idemKey) {
+        await client.query('ROLLBACK');
+        const replay = await pool.query(
+          'SELECT * FROM bookings WHERE passenger_id = $1 AND idempotency_key = $2',
+          [passengerId, idemKey]
+        );
+        if (replay.rows.length > 0) {
+          const row = replay.rows[0];
+          const msg = row.status === 'pending'
+            ? 'Booking request already sent.'
+            : 'Booking already confirmed.';
+          return sendBookingCreated(res, row, msg, 200);
+        }
+        throw insErr;
+      }
+      throw insErr;
+    }
 
     const booking = result.rows[0];
 
@@ -145,19 +223,7 @@ const createBooking = asyncHandler(async (req, res) => {
       ? 'Booking request sent. Driver will approve shortly.'
       : 'Booking confirmed';
 
-    ApiResponse.created(
-      {
-        booking: {
-          id: booking.id,
-          trip_id: booking.trip_id,
-          seat_numbers: booking.seat_numbers,
-          status: booking.status,
-          total_amount: parseFloat(booking.total_amount),
-          created_at: booking.created_at
-        }
-      },
-      message
-    ).send(res);
+    sendBookingCreated(res, booking, message, 201);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;

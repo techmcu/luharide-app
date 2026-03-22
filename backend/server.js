@@ -46,6 +46,16 @@ if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
 }
 
 const server = http.createServer(app);
+
+// Basic VPS: drop stuck clients so pool/FDs don't pile up (nginx may also timeout)
+const httpTimeoutMs = Math.min(
+  600000,
+  Math.max(30000, parseInt(process.env.HTTP_SERVER_TIMEOUT_MS || '120000', 10) || 120000)
+);
+server.timeout = httpTimeoutMs;
+server.headersTimeout = httpTimeoutMs + 5000;
+server.keepAliveTimeout = 65000;
+
 const io = socketIo(server, {
   cors: {
     origin: process.env.CLIENT_URL || '*',
@@ -141,7 +151,7 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  logger.info(`🚀 Server running on port ${PORT}`);
+  logger.info(`🚀 Server running on port ${PORT} (HTTP timeout ${httpTimeoutMs}ms)`);
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 API: http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
