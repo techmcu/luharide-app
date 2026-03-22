@@ -4,6 +4,8 @@
 
 Pure **100%** microservices = long journey. Yeh document **Phase 0 → 8** + **artifacts list** hai.
 
+**Current status + radius verdict + next steps:** [`LUHARIDE_MICROSERVICES_STATUS_AND_NEXT_STEPS.md`](./LUHARIDE_MICROSERVICES_STATUS_AND_NEXT_STEPS.md)
+
 ---
 
 ## Meaningful names — repo artifacts (A→Z)
