@@ -1,5 +1,20 @@
 # LuhaRide: Monolith → Scalable architecture (roadmap)
 
+## Implemented in repo (4 services + gateway)
+
+| Piece | File | Role |
+|-------|------|------|
+| API Gateway | `backend/gateway/server.js` | Port 3000, proxies `/api/*`, Socket.IO, `/uploads`, global rate limit |
+| Auth | `backend/microservices/authService.js` | `/api/auth`, `/api/simple-auth` → 3001 |
+| Core | `backend/microservices/coreService.js` | Trips, bookings, drivers, verification, cron jobs → 3002 |
+| Union | `backend/microservices/unionService.js` | `/api/union` → 3003 |
+| Platform | `backend/microservices/platformService.js` | Admin, payments, notifications, reviews, uploads → 3004 |
+
+- **Run:** [`docs/MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md) — `npm run dev:stack`, Docker, PM2 (`ecosystem.microservices.config.cjs`).
+- **Data:** Abhi **ek PostgreSQL** shared (practical step; DB-per-service baad mein).
+
+---
+
 **Seedha point:** Microservices = alag-alag **deploy** hone wale services + alag **data ownership** + **network** pe baat (HTTP/events). Isse throughput badh sakti hai, lekin **complexity, cost, aur bugs** bhi badhte hain. Chhote/medium product ke liye aksar **pehle monolith ko strong** karna zyada sahi hota hai.
 
 **Abhi tumhara stack:** ek Express `server.js` + PostgreSQL + Socket.IO + cron jobs — ye **monolith** hai. Ye **galat nahi**; Instagram/Shopify jaisi teams ne bhi shuruat monolith se ki.

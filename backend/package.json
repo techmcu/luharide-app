@@ -10,6 +10,7 @@
     "start:ms:core": "node microservices/coreService.js",
     "start:ms:union": "node microservices/unionService.js",
     "start:ms:platform": "node microservices/platformService.js",
+    "dev:stack": "concurrently -k -n gw,auth,core,union,plat -c blue,green,yellow,magenta,cyan \"node gateway/server.js\" \"node microservices/authService.js\" \"node microservices/coreService.js\" \"node microservices/unionService.js\" \"node microservices/platformService.js\"",
     "dev": "nodemon server.js",
     "migrate": "node migrations/run-migrations.js",
     "seed": "node seeders/run-seeders.js",
@@ -53,6 +54,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "jest": "^29.7.0",
     "nodemon": "^3.0.2",
     "supertest": "^6.3.4"
