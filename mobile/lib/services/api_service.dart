@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
+import 'dio_adapter_config.dart'
+    if (dart.library.html) 'dio_adapter_config_web.dart';
 import 'realtime_socket_service.dart';
 
 /// Builds the **full request URL** so we never rely on Dio `baseUrl` + path merging
@@ -48,6 +49,7 @@ class ApiService {
         },
       ),
     );
+    configureDioHttpAdapter(_dio);
 
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -85,11 +87,21 @@ class ApiService {
             // ignore: avoid_print
             print('Error message: ${error.message}');
             if (kIsWeb && error.type == DioExceptionType.connectionError) {
+              final baseNoApi = EnvConfig.apiBaseUrl.replaceFirst(
+                RegExp(r'/api/?$'),
+                '',
+              );
               // ignore: avoid_print
               print(
-                '💡 Web: `cd backend && npm run check:local-ms` — sab services green? '
-                '(Gateway ke saath auth 3001+core 3002… bhi chalna zaroori.) '
-                'LOCAL_API_PORT=3010 + `npm run dev:stack`.',
+                '💡 Web: Backend chal raha hai? Browser: $baseNoApi/health — '
+                'Monolith :3000; microservices gateway :3010 (LOCAL_API_PORT).',
+              );
+            }
+            if (error.response?.statusCode == 404) {
+              // ignore: avoid_print
+              print(
+                '💡 404: VPS par latest `git pull` + `node server.js` / PM2? '
+                'Test: GET /api/simple-auth/ping (see backend simpleAuth routes).',
               );
             }
           }
@@ -206,8 +218,6 @@ class ApiService {
         // ignore: avoid_print
         print('⚠️  Refresh token failed: ${e.message}');
       }
-      return false;
-    } on SocketException {
       return false;
     } on TimeoutException {
       return false;

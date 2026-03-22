@@ -50,6 +50,19 @@ const resetPasswordSchema = Joi.object({
 });
 
 /**
+ * @route   GET /api/simple-auth/ping
+ * @desc    Health for this route mount (VPS/nginx debugging — if 404, old deploy or wrong proxy)
+ * @access  Public
+ */
+router.get('/ping', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'simple-auth',
+    time: new Date().toISOString()
+  });
+});
+
+/**
  * @route   POST /api/simple-auth/signup
  * @desc    Simple signup with email/password
  * @access  Public

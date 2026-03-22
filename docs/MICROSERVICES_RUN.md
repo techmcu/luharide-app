@@ -95,3 +95,11 @@ docker compose -f infra/docker-compose-luharide-backend-microservices-redis-stac
 ---
 
 *See also: `docs/ARCHITECTURE_MICROSERVICES_ROADMAP.md`*
+
+---
+
+## Related troubleshooting
+
+- VPS **404** on `/api/...`: [`VPS_API_404_TROUBLESHOOTING.md`](./VPS_API_404_TROUBLESHOOTING.md) — `GET /api/simple-auth/ping`.
+
+- Flutter Web **DevTools “Unknown method”** (hot restart): [`FLUTTER_WEB_DEVTOOLS_WARNINGS.md`](./FLUTTER_WEB_DEVTOOLS_WARNINGS.md) — harmless.

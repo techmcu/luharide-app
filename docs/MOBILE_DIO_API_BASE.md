@@ -9,7 +9,7 @@
 
 2. **`EnvConfig.apiBaseUrl` / `socketUrl`** are **getters** (not const):
    - **`API_BASE_URL`** / **`SOCKET_URL`** dart-define wins if set.
-   - Else **`USE_LOCAL_API=true`** + **`kDebugMode`**: Web → `localhost`, Android emulator → `10.0.2.2`, port from **`LOCAL_API_PORT`** (default **3000** monolith; **3010** for `npm run dev:stack`).
+   - Else **`USE_LOCAL_API=true`** + **`kDebugMode`**: Web → **`127.0.0.1`** (Windows: `localhost` → IPv6 ::1 vs Node IPv4 mismatch), Android emulator → `10.0.2.2`, port from **`LOCAL_API_PORT`** (default **3000** monolith; **3010** for `npm run dev:stack`).
    - Else production VPS defaults.
 
 3. Debug logs print **`options.uri`** so you can verify the exact URL in the console.
