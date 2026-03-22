@@ -9,18 +9,22 @@ import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
 import 'realtime_socket_service.dart';
 
-/// Dio merges paths that start with `/` as **absolute from the host root**, which
-/// **drops** the `/api` segment from [baseUrl]. Paths must be relative to `baseUrl`
-/// (no leading slash), and `baseUrl` should end with `/` for correct joins.
-/// See: https://github.com/cfug/dio/issues/307 (and Dio `combine` / `resolve`).
+/// Builds the **full request URL** so we never rely on Dio `baseUrl` + path merging
+/// (which can drop `/api` or behave differently per platform).
+String buildApiUrl(String path) {
+  final p = path.trim();
+  if (p.startsWith('http://') || p.startsWith('https://')) {
+    return p;
+  }
+  final base = EnvConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+  final rel = p.startsWith('/') ? p.substring(1) : p;
+  return '$base/$rel';
+}
+
+/// For matching refresh/logout paths when [RequestOptions.path] may be relative or absolute.
 String dioRelativePath(String path) {
   if (path.isEmpty) return path;
   return path.startsWith('/') ? path.substring(1) : path;
-}
-
-String dioBaseUrl(String url) {
-  if (url.isEmpty) return url;
-  return url.endsWith('/') ? url : '$url/';
 }
 
 class ApiService {
@@ -34,7 +38,8 @@ class ApiService {
   ApiService._internal() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: dioBaseUrl(EnvConfig.apiBaseUrl),
+        // Every call uses [buildApiUrl] — empty avoids any merge ambiguity.
+        baseUrl: '',
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 30),
         headers: {
@@ -49,8 +54,8 @@ class ApiService {
         onRequest: (options, handler) {
           if (kDebugMode) {
             // ignore: avoid_print
-            print('🔵 REQUEST[${options.method}] => ${options.path}');
-            final p = options.path;
+            print('🔵 REQUEST[${options.method}] => ${options.uri}');
+            final p = options.uri.toString();
             final isPublicAuth = p.contains('simple-auth/login') ||
                 p.contains('simple-auth/signup') ||
                 p.contains('simple-auth/forgot-password') ||
@@ -69,14 +74,14 @@ class ApiService {
         onResponse: (response, handler) {
           if (kDebugMode) {
             // ignore: avoid_print
-            print('🟢 RESPONSE[${response.statusCode}] => ${response.requestOptions.path}');
+            print('🟢 RESPONSE[${response.statusCode}] => ${response.requestOptions.uri}');
           }
           return handler.next(response);
         },
         onError: (error, handler) {
           if (kDebugMode) {
             // ignore: avoid_print
-            print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.path}');
+            print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.uri}');
             // ignore: avoid_print
             print('Error message: ${error.message}');
           }
@@ -95,7 +100,7 @@ class ApiService {
           // Global 401 handler: try refresh once, then logout on failure.
           if (error.response?.statusCode == 401 &&
               error.requestOptions.extra['__retriable__'] != false &&
-              !_isAuthRefreshPath(error.requestOptions.path)) {
+              !_isAuthRefreshPath(error.requestOptions)) {
             _handleUnauthorized(error, handler);
           } else {
             return handler.next(error);
@@ -105,10 +110,11 @@ class ApiService {
     );
   }
 
-  bool _isAuthRefreshPath(String path) {
+  bool _isAuthRefreshPath(RequestOptions o) {
+    final s = o.uri.toString();
     final r = dioRelativePath(ApiConstants.refreshToken);
     final l = dioRelativePath(ApiConstants.logout);
-    return path.contains(r) || path.contains(l);
+    return s.contains(r) || s.contains(l);
   }
 
   // Centralized 401 handling: refresh token once and retry original request.
@@ -135,7 +141,7 @@ class ApiService {
       req.extra['__retriable__'] = false;
 
       final cloneResponse = await _dio.request<dynamic>(
-        dioRelativePath(req.path),
+        req.uri.toString(),
         data: req.data,
         queryParameters: req.queryParameters,
         options: opts,
@@ -210,7 +216,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.get(
-        dioRelativePath(path),
+        buildApiUrl(path),
         queryParameters: queryParameters,
         options: options,
       );
@@ -229,7 +235,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        dioRelativePath(path),
+        buildApiUrl(path),
         data: data,
         queryParameters: queryParameters,
         options: options,
@@ -249,7 +255,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.put(
-        dioRelativePath(path),
+        buildApiUrl(path),
         data: data,
         queryParameters: queryParameters,
         options: options,
@@ -269,7 +275,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.patch(
-        dioRelativePath(path),
+        buildApiUrl(path),
         data: data,
         queryParameters: queryParameters,
         options: options,
@@ -289,7 +295,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.delete(
-        dioRelativePath(path),
+        buildApiUrl(path),
         data: data,
         queryParameters: queryParameters,
         options: options,
