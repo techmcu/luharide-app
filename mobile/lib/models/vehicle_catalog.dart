@@ -51,6 +51,9 @@ class VehicleDropdownOption {
 
   @override
   int get hashCode => id.hashCode;
+
+  /// Short subtitle for two-line dropdown (capacity only — name is on first line).
+  String get capacitySubtitle => '$capacity seats (RTO style)';
 }
 
 /// All layouts: RHD (driver right in top-view). rowCols = real car proportions (front 2, middle 3, rear 2 etc).
@@ -274,7 +277,7 @@ class VehicleCatalog {
       models: [
         VehicleModelConfig(
           id: 'mahindra_bolero_jeep',
-          name: 'Bolero / Commander Jeep (Hill 10)',
+          name: 'Bolero Jeep · 10 seat (Hill)',
           bodyType: 'Jeep',
           capacity: 10,
           layout: _layoutJeep10,
@@ -343,15 +346,15 @@ class VehicleCatalog {
   /// Tempo Traveller / bus options (RTO-style seat counts)
   static List<VehicleDropdownOption> _tempoOptions() {
     return [
-      VehicleDropdownOption(id: 'tempo_10', displayName: 'Tempo Traveller / 10 seater', capacity: 10, layout: _layoutJeep10),
-      VehicleDropdownOption(id: 'tempo_12', displayName: 'Tempo Traveller 12 seater', capacity: 12, layout: _layoutTempo12),
-      VehicleDropdownOption(id: 'tempo_16', displayName: 'Tempo Traveller 16 seater', capacity: 16, layout: _layoutTempo16),
-      VehicleDropdownOption(id: 'tempo_18', displayName: 'Tempo Traveller 18 seater', capacity: 18, layout: _layoutTempo18),
-      VehicleDropdownOption(id: 'tempo_20', displayName: 'Tempo Traveller 20 seater', capacity: 20, layout: _layoutTempo20),
-      VehicleDropdownOption(id: 'tempo_24', displayName: 'Tempo Traveller 24 seater', capacity: 24, layout: _layoutTempo24),
-      VehicleDropdownOption(id: 'tempo_26', displayName: 'Tempo Traveller 26 seater', capacity: 26, layout: _layoutTempo26),
-      VehicleDropdownOption(id: 'tempo_30', displayName: 'Tempo Traveller 30 seater', capacity: 30, layout: _layoutTempo30),
-      VehicleDropdownOption(id: 'tempo_32', displayName: 'Tempo Traveller 32 seater', capacity: 32, layout: _layoutTempo32),
+      VehicleDropdownOption(id: 'tempo_10', displayName: 'Tempo 10 seat', capacity: 10, layout: _layoutJeep10),
+      VehicleDropdownOption(id: 'tempo_12', displayName: 'Tempo 12 seat', capacity: 12, layout: _layoutTempo12),
+      VehicleDropdownOption(id: 'tempo_16', displayName: 'Tempo 16 seat', capacity: 16, layout: _layoutTempo16),
+      VehicleDropdownOption(id: 'tempo_18', displayName: 'Tempo 18 seat', capacity: 18, layout: _layoutTempo18),
+      VehicleDropdownOption(id: 'tempo_20', displayName: 'Tempo 20 seat', capacity: 20, layout: _layoutTempo20),
+      VehicleDropdownOption(id: 'tempo_24', displayName: 'Tempo 24 seat', capacity: 24, layout: _layoutTempo24),
+      VehicleDropdownOption(id: 'tempo_26', displayName: 'Tempo 26 seat', capacity: 26, layout: _layoutTempo26),
+      VehicleDropdownOption(id: 'tempo_30', displayName: 'Tempo 30 seat', capacity: 30, layout: _layoutTempo30),
+      VehicleDropdownOption(id: 'tempo_32', displayName: 'Tempo 32 seat', capacity: 32, layout: _layoutTempo32),
     ];
   }
 
@@ -361,16 +364,21 @@ class VehicleCatalog {
     final list = <VehicleDropdownOption>[];
     for (final brand in brands) {
       for (final model in brand.models) {
+        // One clean line: brand + model (capacity is subtitle in UI — avoids huge strings)
         list.add(VehicleDropdownOption(
           id: model.id,
-          displayName: '${brand.name} ${model.name} (${model.capacity} seater)',
+          displayName: '${brand.name} · ${model.name}',
           capacity: model.capacity,
           layout: model.layout,
         ));
       }
     }
     list.addAll(_tempoOptions());
-    list.sort((a, b) => a.capacity.compareTo(b.capacity));
+    list.sort((a, b) {
+      final byName = a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+      if (byName != 0) return byName;
+      return a.capacity.compareTo(b.capacity);
+    });
     return list;
   }
 

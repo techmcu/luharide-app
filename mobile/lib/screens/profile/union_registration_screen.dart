@@ -24,6 +24,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _ownerNameController = TextEditingController();
+  final _shareNotesController = TextEditingController();
   bool _isSubmitting = false;
   bool _loadingStatus = true;
   bool _checkingStatus = false; // for manual check button
@@ -48,6 +49,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _ownerNameController.dispose();
+    _shareNotesController.dispose();
     super.dispose();
   }
 
@@ -140,6 +142,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       ownerAadhaarUrl: ownerAadhaarUrl,
       officePhotoUrl: officePhotoUrl,
       ownerVehicleRcUrl: ownerRcUrl,
+      unionShareNotes: _shareNotesController.text.trim(),
     );
 
     if (!mounted) return;
@@ -399,6 +402,16 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             ],
           ),
           const SizedBox(height: 24),
+          TextFormField(
+            controller: _shareNotesController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Stand / share point details (optional)',
+              hintText: 'e.g. Near bus stand, morning timings, landmark',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
           TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,

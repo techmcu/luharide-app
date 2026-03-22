@@ -22,6 +22,7 @@ const {
   getUnionSchedulePoster,
   getUnionCombinedPoster,
   updateUnionBranding,
+  updateUnionDocuments,
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -58,12 +59,17 @@ const createSchedulesSchema = Joi.object({
   union_driver_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
 });
 
-// Union registration (any authenticated user) - goes into pending status
+// Union registration (any authenticated user) — must list all fields (stripUnknown removes the rest)
 const registerUnionSchema = Joi.object({
   name: Joi.string().min(3).max(200).required(),
   location: Joi.string().max(200).allow('', null),
   contact_phone: Joi.string().max(20).allow('', null),
   contact_email: Joi.string().email().allow('', null),
+  owner_name: Joi.string().max(100).allow('', null),
+  owner_aadhaar_url: Joi.string().max(2048).allow('', null),
+  office_photo_url: Joi.string().max(2048).allow('', null),
+  owner_vehicle_rc_url: Joi.string().max(2048).allow('', null),
+  union_share_notes: Joi.string().max(500).allow('', null),
 });
 
 router.post(
@@ -82,6 +88,14 @@ router.patch(
   authenticate,
   authorize('union_admin'),
   updateUnionBranding
+);
+
+// Union admin: update KYC document URLs + optional stand/share notes
+router.patch(
+  '/me/documents',
+  authenticate,
+  authorize('union_admin'),
+  updateUnionDocuments
 );
 
 // Platform admin: list / approve / reject unions

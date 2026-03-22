@@ -195,6 +195,15 @@ const rejectUnionRequest = asyncHandler(async (req, res) => {
  * Register a new union for the current user.
  * POST /api/union/register
  */
+/** Sanitize document URL: trim, length cap, http(s) only */
+function sanitizeDocumentUrl(raw) {
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim();
+  if (s.length > 2048) return null;
+  if (!/^https?:\/\//i.test(s)) return null;
+  return s;
+}
+
 const registerUnion = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const {
@@ -206,6 +215,7 @@ const registerUnion = asyncHandler(async (req, res) => {
     owner_aadhaar_url,
     office_photo_url,
     owner_vehicle_rc_url,
+    union_share_notes,
   } = req.body;
 
   if (!name || String(name).trim().length < 3) {
@@ -224,32 +234,71 @@ const registerUnion = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('You already manage or requested a taxi union');
   }
 
-  const insertRes = await pool.query(
-    `INSERT INTO unions (
-       name,
-       address,
-       contact_phone,
-       contact_email,
-       is_active,
-       status,
-       owner_name,
-       owner_aadhaar_url,
-       office_photo_url,
-       owner_vehicle_rc_url
-     )
-     VALUES ($1, $2, $3, $4, FALSE, 'pending', $5, $6, $7, $8)
-     RETURNING *`,
-    [
-      String(name).trim(),
-      location || null,
-      contact_phone || null,
-      contact_email || null,
-      owner_name ? String(owner_name).trim() : null,
-      owner_aadhaar_url || null,
-      office_photo_url || null,
-      owner_vehicle_rc_url || null,
-    ]
-  );
+  const notesRaw = union_share_notes != null ? String(union_share_notes).trim() : '';
+  const notesVal = notesRaw.length > 0 ? notesRaw.slice(0, 500) : null;
+
+  let insertRes;
+  try {
+    insertRes = await pool.query(
+      `INSERT INTO unions (
+         name,
+         address,
+         contact_phone,
+         contact_email,
+         is_active,
+         status,
+         owner_name,
+         owner_aadhaar_url,
+         office_photo_url,
+         owner_vehicle_rc_url,
+         union_share_notes
+       )
+       VALUES ($1, $2, $3, $4, FALSE, 'pending', $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [
+        String(name).trim(),
+        location || null,
+        contact_phone || null,
+        contact_email || null,
+        owner_name ? String(owner_name).trim() : null,
+        sanitizeDocumentUrl(owner_aadhaar_url),
+        sanitizeDocumentUrl(office_photo_url),
+        sanitizeDocumentUrl(owner_vehicle_rc_url),
+        notesVal,
+      ]
+    );
+  } catch (e) {
+    if (e.code === '42703' && (e.message || '').includes('union_share_notes')) {
+      insertRes = await pool.query(
+        `INSERT INTO unions (
+           name,
+           address,
+           contact_phone,
+           contact_email,
+           is_active,
+           status,
+           owner_name,
+           owner_aadhaar_url,
+           office_photo_url,
+           owner_vehicle_rc_url
+         )
+         VALUES ($1, $2, $3, $4, FALSE, 'pending', $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          String(name).trim(),
+          location || null,
+          contact_phone || null,
+          contact_email || null,
+          owner_name ? String(owner_name).trim() : null,
+          sanitizeDocumentUrl(owner_aadhaar_url),
+          sanitizeDocumentUrl(office_photo_url),
+          sanitizeDocumentUrl(owner_vehicle_rc_url),
+        ]
+      );
+    } else {
+      throw e;
+    }
+  }
 
   const union = insertRes.rows[0];
 
@@ -755,6 +804,73 @@ const updateUnionBranding = asyncHandler(async (req, res) => {
   ApiResponse.success({ poster_header: headerVal }, 'Poster branding updated').send(res);
 });
 
+/**
+ * Update union KYC documents / notes (approved union admin only).
+ * PATCH /api/union/me/documents
+ */
+const updateUnionDocuments = asyncHandler(async (req, res) => {
+  const {
+    owner_name,
+    owner_aadhaar_url,
+    office_photo_url,
+    owner_vehicle_rc_url,
+    union_share_notes,
+  } = req.body;
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+  const unionId = resUnion.rows[0].union_id;
+
+  const fields = [];
+  const values = [];
+  let p = 1;
+
+  if (owner_name !== undefined) {
+    const v = owner_name != null ? String(owner_name).trim().slice(0, 200) : null;
+    fields.push(`owner_name = $${p++}`);
+    values.push(v || null);
+  }
+  if (owner_aadhaar_url !== undefined) {
+    fields.push(`owner_aadhaar_url = $${p++}`);
+    values.push(sanitizeDocumentUrl(owner_aadhaar_url));
+  }
+  if (office_photo_url !== undefined) {
+    fields.push(`office_photo_url = $${p++}`);
+    values.push(sanitizeDocumentUrl(office_photo_url));
+  }
+  if (owner_vehicle_rc_url !== undefined) {
+    fields.push(`owner_vehicle_rc_url = $${p++}`);
+    values.push(sanitizeDocumentUrl(owner_vehicle_rc_url));
+  }
+  if (union_share_notes !== undefined) {
+    const n = union_share_notes != null ? String(union_share_notes).trim().slice(0, 500) : '';
+    fields.push(`union_share_notes = $${p++}`);
+    values.push(n.length ? n : null);
+  }
+
+  if (fields.length === 0) {
+    throw ApiError.badRequest('No fields to update');
+  }
+
+  fields.push('updated_at = NOW()');
+  values.push(unionId);
+
+  const out = await pool.query(
+    `UPDATE unions SET ${fields.join(', ')} WHERE id = $${p} RETURNING *`,
+    values
+  );
+  ApiResponse.success({ union: out.rows[0] }, 'Union documents updated').send(res);
+});
+
 // ─── Helpers for PDF drawing ──────────────────────────────────────────────────
 
 /** Draw a filled rounded rectangle (pdfkit helper). */
@@ -866,49 +982,46 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   // ─── Top accent stripe ─────────────────────────────────────────────────────
   _rect(doc, 0, 0, W, 5, '#212121');
 
-  // ─── Header band (poster header + union name) ─────────────────────────────
-  // Make it a bit taller so even wrapped header text doesn't overlap.
-  const headerH = posterHeader ? 220 : 120;
+  // ─── Header band (poster header + union name) — compact yellow area so route/data starts higher
+  const headerH = posterHeader ? 150 : 78;
   _rect(doc, 0, 5, W, headerH, '#FFC107');
 
-  let y = 22;
+  let y = 18;
 
   // Custom poster header line at the very top (if provided)
   if (posterHeader) {
-    const phFontSize = posterHeader.length > 26 ? 16 : 18;
-    const phY = 16;
+    const phFontSize = posterHeader.length > 26 ? 15 : 17;
+    const phY = 12;
     doc.fillColor('#212121')
       .font('Helvetica-Bold')
       .fontSize(phFontSize)
       .text(posterHeader, 0, phY, { width: W, align: 'center' });
-    // Use fixed spacing: unicode height metrics can vary across PDFKit versions.
-    y = phY + phFontSize + 28;
+    y = phY + phFontSize + 14;
   }
 
   // Union name — big, centered, primary focus
   const unLen = unionName.length;
-  const unFontSize = unLen > 26 ? 22 : (unLen > 18 ? 26 : 30);
+  const unFontSize = unLen > 26 ? 20 : (unLen > 18 ? 24 : 28);
   doc.fillColor('#212121')
      .font('Helvetica-Bold')
      .fontSize(unFontSize)
      .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
-  y += unFontSize + 8;
+  y += unFontSize + 6;
 
   // Sub label
   doc.fillColor('#424242')
      .font('Helvetica')
-     .fontSize(10)
+     .fontSize(9)
      .text('रोज़ाना टैक्सी समय', 0, y, {
        width: W, align: 'center', characterSpacing: 1.0
      });
-  y += 18;
+  y += 12;
 
   // Light wave bottom of header
-  _rect(doc, 0, 5 + headerH - 10, W, 10, '#FFFDF5');
-  // Overlay to make the bottom of header appear rounded
-  _roundedRect(doc, 0, 5 + headerH - 24, W, 30, 20, '#FFFDF5');
+  _rect(doc, 0, 5 + headerH - 8, W, 8, '#FFFDF5');
+  _roundedRect(doc, 0, 5 + headerH - 18, W, 22, 14, '#FFFDF5');
 
-  y = 5 + headerH + 14;
+  y = 5 + headerH + 6;
 
   // ─── Today pill label (Hindi) ─────────────────────────────────────────────
   const pillW = 130;
@@ -1225,41 +1338,39 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // ── Header band (poster header + union name) ──────────────────────────────
   // Reduce yellow header band height (previously too tall -> large empty gap).
   // Reduced to avoid large empty yellow gap before the table
-  const headerH = posterHeader ? 145 : 80;
+  const headerH = posterHeader ? 118 : 62;
   _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
-  let y = 20;
+  let y = 16;
 
   // Custom poster header line at the very top (if provided)
   if (posterHeader) {
-    const phFontSize = posterHeader.length > 26 ? 16 : 18;
-    const phY = 14;
+    const phFontSize = posterHeader.length > 26 ? 14 : 16;
+    const phY = 11;
     doc.fillColor('#212121')
       .font('Helvetica-Bold')
       .fontSize(phFontSize)
       .text(posterHeader, 0, phY, { width: W, align: 'center' });
-    // Fixed spacing for robust top placement
-    // Smaller spacing so union name starts closer to the poster header line.
-    y = phY + phFontSize + 10;
+    y = phY + phFontSize + 8;
   }
 
   // Union name — only big element at top
   const unLen = unionName.length;
-  const unFontSize = unLen > 26 ? 22 : (unLen > 18 ? 24 : 28);
+  const unFontSize = unLen > 26 ? 20 : (unLen > 18 ? 22 : 26);
   doc.fillColor('#212121').font('Helvetica-Bold').fontSize(unFontSize)
     .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
-  y += unFontSize + 5;
+  y += unFontSize + 4;
 
   // Date + subtitle (ASCII only so no garbage glyphs)
-  doc.fillColor('#424242').font('Helvetica').fontSize(10)
+  doc.fillColor('#424242').font('Helvetica').fontSize(9)
     .text(`Daily taxi schedule  —  ${dateRangeShort.toUpperCase()}`, 0, y, {
       width: W,
       align: 'center',
       characterSpacing: 0.8,
     });
 
-  // Start details right after yellow band with minimal padding.
-  y = 5 + headerH + 2;
+  // Start table immediately after yellow band
+  y = 5 + headerH + 4;
 
   // ── Column definitions (simple & passenger‑friendly) ───────────────────────
   const COL_DATE  = { label: 'Date',        w: 95,  align: 'center' };
@@ -1382,5 +1493,6 @@ module.exports = {
   getUnionSchedulePoster,
   getUnionCombinedPoster,
   updateUnionBranding,
+  updateUnionDocuments,
 };
 

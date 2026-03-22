@@ -211,14 +211,55 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.event_seat),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
                 hint: const Text('Select vehicle (seats as per RTO)'),
                 isExpanded: true,
+                itemHeight: 72,
+                selectedItemBuilder: (context) {
+                  return VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
+                    return Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            opt.displayName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          Text(
+                            opt.capacitySubtitle,
+                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList();
+                },
                 items: VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
                   return DropdownMenuItem<VehicleDropdownOption>(
                     value: opt,
-                    child: Text(opt.displayName, overflow: TextOverflow.ellipsis),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          opt.displayName,
+                          maxLines: 2,
+                          overflow: TextOverflow.visible,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          opt.capacitySubtitle,
+                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
                   );
                 }).toList(),
                 onChanged: (opt) => setState(() => _selectedVehicle = opt),

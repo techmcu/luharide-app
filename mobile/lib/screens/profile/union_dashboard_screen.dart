@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/config/env_config.dart';
 import '../../services/union_service.dart';
-import 'union_manage_drivers_screen.dart';
 import 'union_create_rides_screen.dart';
+import 'union_documents_screen.dart';
+import 'union_manage_drivers_screen.dart';
 import 'union_routes_screen.dart';
 
 class UnionDashboardScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   Map<String, dynamic>? _stats;
   List<dynamic> _drivers = const [];
   String _posterHeader = '';
+  Map<String, dynamic>? _union;
 
   static const _orange = Color(0xFFFF6B00);
   static const _orangeLight = Color(0xFFFFF3E0);
@@ -64,9 +68,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     }
 
     String posterHeader = '';
+    Map<String, dynamic>? unionMap;
     if (unionResult['success'] == true) {
-      final union = unionResult['union'] as Map<String, dynamic>?;
-      posterHeader = (union?['poster_header'] ?? '').toString();
+      unionMap = unionResult['union'] as Map<String, dynamic>?;
+      posterHeader = (unionMap?['poster_header'] ?? '').toString();
     }
 
     if (!mounted) return;
@@ -74,6 +79,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       _stats = stats;
       _drivers = drivers;
       _posterHeader = posterHeader;
+      _union = unionMap;
       _error = error;
       _loading = false;
     });
@@ -151,6 +157,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: _buildActionGrid(context),
+                      ),
+                      const SizedBox(height: 20),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildDocumentsCard(context),
                       ),
                       const SizedBox(height: 20),
                       Padding(
@@ -781,6 +792,146 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             ),
             const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
           ],
+        ),
+      ),
+    );
+  }
+
+  String _docFullUrl(String? u) {
+    if (u == null || u.isEmpty) return '';
+    if (u.startsWith('http://') || u.startsWith('https://')) return u;
+    final base = EnvConfig.socketUrl.replaceAll(RegExp(r'/+$'), '');
+    if (u.startsWith('/')) return '$base$u';
+    return '$base/$u';
+  }
+
+  /// KYC docs + stand notes — same data as registration; tap to edit (like independent driver flow).
+  Widget _buildDocumentsCard(BuildContext context) {
+    final u = _union;
+    final aadhaar = u?['owner_aadhaar_url']?.toString();
+    final office = u?['office_photo_url']?.toString();
+    final rc = u?['owner_vehicle_rc_url']?.toString();
+    final notes = (u?['union_share_notes'] ?? '').toString().trim();
+    final hasThumb = [aadhaar, office, rc].any((s) => s != null && s.isNotEmpty);
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const UnionDocumentsScreen()),
+      ).then((saved) {
+        if (saved == true) _load();
+      }),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasThumb ? _orange.withOpacity(0.35) : Colors.grey.shade200,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _orange.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.folder_shared_rounded, color: _orange, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Union documents',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    if (hasThumb)
+                      Row(
+                        children: [
+                          _docThumb(_docFullUrl(aadhaar)),
+                          const SizedBox(width: 6),
+                          _docThumb(_docFullUrl(office)),
+                          const SizedBox(width: 6),
+                          _docThumb(_docFullUrl(rc)),
+                        ],
+                      )
+                    else
+                      Text(
+                        'Aadhaar, office photo, RC — tap to add or update',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    if (notes.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        notes,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _orange.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'View / edit',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: _orange,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _docThumb(String full) {
+    if (full.isEmpty) {
+      return Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(Icons.image_not_supported_outlined, size: 20, color: Colors.grey[500]),
+      );
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: Image.network(
+        full,
+        width: 44,
+        height: 44,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          width: 44,
+          height: 44,
+          color: Colors.grey[200],
+          child: Icon(Icons.broken_image_outlined, size: 20, color: Colors.grey[600]),
         ),
       ),
     );

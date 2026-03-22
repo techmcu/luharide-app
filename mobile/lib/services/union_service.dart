@@ -16,6 +16,7 @@ class UnionService {
     String? ownerAadhaarUrl,
     String? officePhotoUrl,
     String? ownerVehicleRcUrl,
+    String? unionShareNotes,
   }) async {
     try {
       final response = await _api.post(
@@ -35,6 +36,8 @@ class UnionService {
             'office_photo_url': officePhotoUrl,
           if (ownerVehicleRcUrl != null && ownerVehicleRcUrl.isNotEmpty)
             'owner_vehicle_rc_url': ownerVehicleRcUrl,
+          if (unionShareNotes != null && unionShareNotes.trim().isNotEmpty)
+            'union_share_notes': unionShareNotes.trim(),
         },
       );
 
@@ -284,6 +287,40 @@ class UnionService {
         'success': false,
         'message': 'An unexpected error occurred',
       };
+    }
+  }
+
+  /// Update KYC document URLs and optional stand/share notes (approved union admin).
+  Future<Map<String, dynamic>> updateUnionDocuments({
+    String? ownerName,
+    String? ownerAadhaarUrl,
+    String? officePhotoUrl,
+    String? ownerVehicleRcUrl,
+    String? unionShareNotes,
+  }) async {
+    try {
+      final response = await _api.patch(
+        '/union/me/documents',
+        data: {
+          if (ownerName != null) 'owner_name': ownerName,
+          if (ownerAadhaarUrl != null) 'owner_aadhaar_url': ownerAadhaarUrl,
+          if (officePhotoUrl != null) 'office_photo_url': officePhotoUrl,
+          if (ownerVehicleRcUrl != null) 'owner_vehicle_rc_url': ownerVehicleRcUrl,
+          if (unionShareNotes != null) 'union_share_notes': unionShareNotes,
+        },
+      );
+      return {
+        'success': true,
+        'union': response.data['data']?['union'],
+        'message': response.data['message'] ?? 'Updated',
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to update documents',
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'An unexpected error occurred'};
     }
   }
 

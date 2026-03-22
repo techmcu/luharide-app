@@ -215,9 +215,10 @@ const searchTrips = asyncHandler(async (req, res) => {
 
   const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500);
 
-  // Normalize: remove ALL spaces + lowercase so "Deh ra dun" == "dehradun" == "DEHRADUN"
-  const fromNorm = from.toLowerCase().replace(/\s+/g, '');
-  const toNorm   = to.toLowerCase().replace(/\s+/g, '');
+  // Normalize: lowercase; strip spaces, commas, dots, dashes, slashes so search matches more typos
+  const normLoc = (s) => s.toLowerCase().replace(/[\s,.\-_:;/\\]+/g, '');
+  const fromNorm = normLoc(from);
+  const toNorm   = normLoc(to);
   const fromPat  = `%${fromNorm}%`;
   const toPat    = `%${toNorm}%`;
 
