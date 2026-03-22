@@ -110,9 +110,9 @@ Ye **layered architecture** — system design mein standard pattern.
 
 ## 6) Aage “proper” banane ke liye (priority order)
 
-1. **Metrics + logs** — har request `service` name tag (gateway vs auth vs core)  
-2. **Redis** — rate limit store + Socket.IO adapter (multi-instance)  
-3. **Queues** — email/SMS worker (Core/API block na kare)  
+1. **Metrics + logs** — `LUHA_SERVICE_NAME` + `X-Request-Id` (done) → baad mein OpenTelemetry  
+2. **Redis** — rate limit store + Socket.IO adapter (done, optional `REDIS_ENABLED`) — [`PHASE_REDIS_AND_OBSERVABILITY.md`](./PHASE_REDIS_AND_OBSERVABILITY.md)  
+3. **Queues** — email/SMS worker (Core/API block na kare) — next  
 4. **DB ownership** — pehle **schema** alag, phir DB alag (agar zaroorat ho)
 
 ---
@@ -126,4 +126,4 @@ Ye **layered architecture** — system design mein standard pattern.
 
 ---
 
-*Related: [`ARCHITECTURE_MICROSERVICES_ROADMAP.md`](./ARCHITECTURE_MICROSERVICES_ROADMAP.md), [`MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md)*
+*Related: [`ARCHITECTURE_MICROSERVICES_ROADMAP.md`](./ARCHITECTURE_MICROSERVICES_ROADMAP.md), [`MICROSERVICES_RUN.md`](./MICROSERVICES_RUN.md), [`VPS_DEPLOY_CHECKLIST.md`](./VPS_DEPLOY_CHECKLIST.md)*

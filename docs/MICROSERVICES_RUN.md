@@ -69,6 +69,8 @@ docker compose -f infra/docker-compose.microservices.yml up --build
 
 **Dhyan:** Har service apna **DB pool** kholti hai — `PG_POOL_MAX` chhota rakho agar 5 processes hon (e.g. max 8–10 each).
 
+**Redis:** VPS scale / Docker stack — [`PHASE_REDIS_AND_OBSERVABILITY.md`](./PHASE_REDIS_AND_OBSERVABILITY.md). Full steps: [`VPS_DEPLOY_CHECKLIST.md`](./VPS_DEPLOY_CHECKLIST.md).
+
 ---
 
 ## Kya abhi “pure” DB-per-service nahi hai?

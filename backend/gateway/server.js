@@ -6,6 +6,7 @@
  * Env: AUTH_URL, CORE_URL, UNION_URL, PLATFORM_URL (defaults below)
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-gateway';
 const path = require('path');
 const http = require('http');
 const express = require('express');
@@ -18,8 +19,10 @@ const socketIo = require('socket.io');
 
 const { pool } = require('../src/config/database');
 const { apiLimiter } = require('../src/middleware/rateLimiter');
+const { attachSocketIoRedisAdapter } = require('../src/socket/socketRedisAdapter');
 const attachSocketHandlers = require('../src/socket/socketHandlers');
 const { setIo } = require('../src/socket/socketIoRegistry');
+const { requestContext } = require('../src/middleware/requestContext');
 const logger = require('../src/config/logger');
 
 const AUTH_URL = process.env.AUTH_URL || 'http://127.0.0.1:3001';
@@ -33,9 +36,11 @@ if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
 }
 
 app.use(helmet());
+app.use(requestContext);
 app.use(compression());
 app.use(cors());
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+morgan.token('reqId', (req) => req.id || '-');
+app.use(morgan(':reqId :method :url :status :response-time ms'));
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
@@ -78,6 +83,12 @@ const proxyOpts = (target) => ({
   target,
   changeOrigin: true,
   logLevel: process.env.GATEWAY_PROXY_LOG === 'debug' ? 'debug' : 'warn',
+  // So microservices logs/errors can correlate with gateway access logs
+  on: {
+    proxyReq: (proxyReq, req) => {
+      if (req.id) proxyReq.setHeader('X-Request-Id', req.id);
+    },
+  },
 });
 
 // Global rate limit for /api (same behaviour as monolith)
@@ -104,6 +115,7 @@ const io = socketIo(server, {
     methods: ['GET', 'POST'],
   },
 });
+attachSocketIoRedisAdapter(io);
 
 attachSocketHandlers(io);
 setIo(io);
