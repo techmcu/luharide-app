@@ -61,7 +61,7 @@ Is narrow sense mein: **“Microservices cutover Phase 1–2 = complete.”**
 **Pehle (high value, low risk)**
 
 1. **GitHub auth on VPS** — `git pull` stable: **SSH key** ya **PAT** (password nahi).
-2. **`TRUST_PROXY=1`** (ya `true`) in `backend/.env` agar **Nginx** ke peeche ho — taaki **rate limit per real client IP** ho (`rateLimiter.js` comments).
+2. **`TRUST_PROXY=1`** (ya `true`) in `backend/.env` agar **Nginx** ke peeche ho — taaki **rate limit per real client IP** ho — **full guide:** [`TRUST_PROXY_AND_NGINX_A_TO_Z.md`](./TRUST_PROXY_AND_NGINX_A_TO_Z.md)
 3. **App smoke** — login, search, booking, driver flow — 1–2 din real usage.
 
 **Jab time mile (optional)**
