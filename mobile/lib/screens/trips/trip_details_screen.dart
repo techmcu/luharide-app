@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/realtime_socket_service.dart';
 import '../../services/trip_service.dart';
 import '../../services/review_service.dart';
 import '../../utils/launch_whatsapp.dart';
@@ -35,6 +38,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   /// null = not booked, 'pending' = waiting, 'confirmed' = confirmed
   String? _userBookingStatus;
 
+  StreamSubscription<Map<String, dynamic>>? _tripSocketSub;
+
   TripModel? get _displayTrip => _trip ?? widget.initialTrip;
 
   @override
@@ -45,6 +50,20 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       _isLoading = false;
     }
     _loadTripDetails();
+    RealtimeSocketService.instance.joinTrip(widget.tripId);
+    _tripSocketSub = RealtimeSocketService.instance.tripUpdatedStream.listen((e) {
+      final tid = e['tripId']?.toString();
+      if (tid == widget.tripId && mounted) {
+        _loadTripDetails();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tripSocketSub?.cancel();
+    RealtimeSocketService.instance.leaveTrip(widget.tripId);
+    super.dispose();
   }
 
   Future<void> _loadTripDetails() async {

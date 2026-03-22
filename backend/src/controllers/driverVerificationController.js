@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 
 /**
  * Submit driver verification request
@@ -219,11 +220,13 @@ const approveRequest = asyncHandler(async (req, res) => {
 
   // Notify driver: verification approved
   try {
-    await pool.query(
+    const n = await pool.query(
       `INSERT INTO notifications (user_id, type, title, body) 
-       VALUES ($1, 'verification_approved', 'Verification Approved', 'Your driver verification has been approved! You can now create rides.')`,
+       VALUES ($1, 'verification_approved', 'Verification Approved', 'Your driver verification has been approved! You can now create rides.')
+       RETURNING id, user_id, type, title, body, created_at, is_read`,
       [request.user_id]
     );
+    if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
   } catch (err) {
     logger.warn(
       `Notifications insert failed. Driver still approved. Error: ${err.message}`

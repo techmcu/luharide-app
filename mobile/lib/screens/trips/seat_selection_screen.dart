@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../models/trip_model.dart';
 import '../../models/seat_layout.dart';
+import '../../services/realtime_socket_service.dart';
 import '../../services/trip_service.dart';
 import '../../models/vehicle_catalog.dart';
 
@@ -33,6 +36,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   Set<int> _pendingSeats = {}; // for UI: show booked vs pending
   int _availableCount = 0;
   String? _loadError;
+  StreamSubscription<Map<String, dynamic>>? _tripSocketSub;
   late SeatLayoutConfig _layout;
   late Set<int> _driverSeatIndices; // 0-based indices where type == 'driver' (same as verification)
   late List<int> _logicalSeatNumber; // seat index -> API seat number (driver = 1, others = 2..N)
@@ -43,6 +47,21 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     super.initState();
     _initLayout();
     _loadSeatStatus();
+    final id = widget.trip.id;
+    RealtimeSocketService.instance.joinTrip(id);
+    _tripSocketSub = RealtimeSocketService.instance.tripUpdatedStream.listen((e) {
+      final tid = e['tripId']?.toString();
+      if (tid == id && mounted) {
+        _loadSeatStatus(forceRefresh: true);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tripSocketSub?.cancel();
+    RealtimeSocketService.instance.leaveTrip(widget.trip.id);
+    super.dispose();
   }
 
   void _initLayout() {

@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const { emitNotificationToUser, emitTripUpdated } = require('../socket/realtimeEmitter');
 
 /**
  * Create a new trip (Driver only)
@@ -929,14 +930,20 @@ const cancelTrip = asyncHandler(async (req, res) => {
       .join(', ');
     const flatParams = confirmedBookings.rows.map(r => r.passenger_id);
     try {
-      await pool.query(
-        `INSERT INTO notifications (user_id, type, title, body) VALUES ${placeholders}`,
+      const nIns = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body) VALUES ${placeholders}
+         RETURNING id, user_id, type, title, body, created_at, is_read`,
         flatParams
       );
+      for (const row of nIns.rows) {
+        emitNotificationToUser(row.user_id, row);
+      }
     } catch (e) {
       logger.warn('Batch passenger cancel notification failed:', e.message);
     }
   }
+
+  emitTripUpdated(tripId, { reason: 'driver_cancelled_trip' });
 
   logger.info(`Trip cancelled: ${tripId} by driver ${driverId}`);
 

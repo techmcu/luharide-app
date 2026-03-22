@@ -32,7 +32,8 @@ const { apiLimiter } = require('./src/middleware/rateLimiter');
 const logger = require('./src/config/logger');
 
 // Import socket handlers
-const socketHandlers = require('./src/socket/socketHandlers');
+const attachSocketHandlers = require('./src/socket/socketHandlers');
+const { setIo } = require('./src/socket/socketIoRegistry');
 const rateNotificationJob = require('./src/jobs/rateNotificationJob');
 const rideCleanupJob = require('./src/jobs/rideCleanupJob');
 
@@ -120,11 +121,9 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ ok: true, status: 'running' });
 });
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  logger.info(`New client connected: ${socket.id}`);
-  socketHandlers(io, socket);
-});
+// Socket.IO — rooms, JWT auth, realtime registry for controllers
+attachSocketHandlers(io);
+setIo(io);
 
 // Error handling middleware (must be last)
 app.use(errorConverter);

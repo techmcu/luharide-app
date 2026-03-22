@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
+import 'realtime_socket_service.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -162,6 +163,7 @@ class ApiService {
           await prefs.setString('refresh_token', refresh);
         }
         setAuthToken(access);
+        RealtimeSocketService.instance.connect();
         if (kDebugMode) {
           // ignore: avoid_print
           print('🔄 Token refreshed via interceptor');

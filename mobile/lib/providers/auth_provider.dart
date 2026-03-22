@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/realtime_socket_service.dart';
 
 enum AuthStatus {
   initial,
@@ -57,11 +58,14 @@ class AuthProvider with ChangeNotifier {
           }
         }
         notifyListeners();
+        await RealtimeSocketService.instance.connect();
       } else {
         _status = AuthStatus.unauthenticated;
+        await RealtimeSocketService.instance.disconnect();
       }
     } catch (e) {
       _status = AuthStatus.unauthenticated;
+      await RealtimeSocketService.instance.disconnect();
     } finally {
       _isCheckingAuth = false;
     }
@@ -106,7 +110,7 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
-      
+      await RealtimeSocketService.instance.connect();
       _setLoading(false);
       return true;
     } catch (e) {
@@ -155,6 +159,7 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
+      await RealtimeSocketService.instance.connect();
       _setLoading(false);
       return true;
     } catch (e) {
@@ -169,6 +174,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> logout() async {
     try {
       _setLoading(true);
+      await RealtimeSocketService.instance.disconnect();
       await _authService.logout();
       
       _user = null;
@@ -322,7 +328,7 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       _error = null;
-      
+      await RealtimeSocketService.instance.connect();
       _setLoading(false);
       notifyListeners(); // Ensure UI rebuilds
       return true;
@@ -366,7 +372,7 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       _error = null;
-      
+      await RealtimeSocketService.instance.connect();
       _setLoading(false);
       notifyListeners(); // Ensure UI rebuilds
       return true;

@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
+const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 
 const INTERVAL_MS = 60 * 1000; // 1 minute
 
@@ -22,12 +23,18 @@ function run() {
 
 function sendAndDelete(row) {
   const dataJson = JSON.stringify({ booking_id: row.booking_id });
-  return pool.query(
-    `INSERT INTO notifications (user_id, type, title, body, data)
-     VALUES ($1, 'rate_ride', 'Rate your driver', 'How was your ride? Tap to rate your driver.', $2::jsonb),
-            ($3, 'rate_ride', 'Rate your passenger', 'How was the trip? Tap to rate your passenger.', $2::jsonb)`,
-    [row.passenger_id, dataJson, row.driver_id]
-  ).then(() => pool.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]))
+  return pool
+    .query(
+      `INSERT INTO notifications (user_id, type, title, body, data)
+       VALUES ($1, 'rate_ride', 'Rate your driver', 'How was your ride? Tap to rate your driver.', $2::jsonb),
+              ($3, 'rate_ride', 'Rate your passenger', 'How was the trip? Tap to rate your passenger.', $2::jsonb)
+       RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+      [row.passenger_id, dataJson, row.driver_id]
+    )
+    .then((r) => {
+      for (const n of r.rows) emitNotificationToUser(n.user_id, n);
+      return pool.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]);
+    })
     .catch((err) => logger.warn('Rate notification send/delete failed:', err.message));
 }
 

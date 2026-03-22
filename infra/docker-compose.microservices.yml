@@ -1,0 +1,84 @@
+# LuhaRide — optional microservices stack (same repo, shared PostgreSQL)
+# Usage: from repo root
+#   docker compose -f infra/docker-compose.microservices.yml up --build
+#
+# Set DB_* and JWT_* in .env next to backend/ or use env_file.
+# Flutter / mobile: point API_BASE_URL to http://localhost:3000 (gateway) in dev.
+
+services:
+  gateway:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: node gateway/server.js
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: "1"
+      GATEWAY_PORT: "3000"
+      AUTH_URL: http://auth:3001
+      CORE_URL: http://core:3002
+      UNION_URL: http://union:3003
+      PLATFORM_URL: http://platform:3004
+    env_file:
+      - ../backend/.env
+    depends_on:
+      - auth
+      - core
+      - union
+      - platform
+    volumes:
+      - ../backend/uploads:/app/uploads
+
+  auth:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: node microservices/authService.js
+    expose:
+      - "3001"
+    environment:
+      AUTH_SERVICE_PORT: "3001"
+    env_file:
+      - ../backend/.env
+
+  core:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: node microservices/coreService.js
+    expose:
+      - "3002"
+    environment:
+      CORE_SERVICE_PORT: "3002"
+    env_file:
+      - ../backend/.env
+    volumes:
+      - ../backend/uploads:/app/uploads
+
+  union:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: node microservices/unionService.js
+    expose:
+      - "3003"
+    environment:
+      UNION_SERVICE_PORT: "3003"
+    env_file:
+      - ../backend/.env
+
+  platform:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: node microservices/platformService.js
+    expose:
+      - "3004"
+    environment:
+      PLATFORM_SERVICE_PORT: "3004"
+    env_file:
+      - ../backend/.env
+    volumes:
+      - ../backend/uploads:/app/uploads

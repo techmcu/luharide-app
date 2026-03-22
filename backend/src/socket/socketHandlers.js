@@ -1,38 +1,61 @@
 /**
- * Socket.IO event handlers.
- *
- * Room naming convention: 'trip:{tripId}'
- * Each passenger tracking a trip joins that room via 'join-trip'.
- * Driver location updates are broadcast only to that room — not globally.
- * This is O(room_subscribers) per emit instead of O(all_connected_sockets),
- * which keeps the system scalable under high concurrency.
+ * Socket.IO — rooms: trip:{tripId}, user:{userId}
+ * Handshake auth: client passes JWT in socket.handshake.auth.token (Flutter socket_io_client).
  */
-module.exports = (io, socket) => {
-  // Join a trip tracking room (called by passengers and drivers)
-  socket.on('join-trip', (tripId) => {
-    if (!tripId) return;
-    socket.join(`trip:${tripId}`);
-  });
+const { verifyAccessToken } = require('../services/tokenService');
+const logger = require('../config/logger');
 
-  // Leave a trip tracking room
-  socket.on('leave-trip', (tripId) => {
-    if (!tripId) return;
-    socket.leave(`trip:${tripId}`);
-  });
-
-  // Driver sends live location — broadcast only to passengers in that trip's room.
-  // Old code used socket.broadcast.emit() which sent to ALL connected clients globally.
-  socket.on('location-update', (data) => {
-    try {
-      const { tripId, lat, lng, speed } = data;
-      if (!tripId) return;
-      io.to(`trip:${tripId}`).emit('driver-location', { tripId, lat, lng, speed });
-    } catch (err) {
-      console.error('Socket location-update error:', err.message);
+/**
+ * @param {import('socket.io').Server} io
+ */
+function attachSocketHandlers(io) {
+  io.use((socket, next) => {
+    socket.userId = null;
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.query?.token ||
+      null;
+    if (token) {
+      try {
+        const decoded = verifyAccessToken(String(token));
+        socket.userId = decoded.userId;
+      } catch (_) {
+        // Allow connection for anonymous trip tracking; user room not joined
+        socket.authFailed = true;
+      }
     }
+    next();
   });
 
-  socket.on('disconnect', () => {
-    // Socket.IO automatically cleans up room memberships on disconnect
+  io.on('connection', (socket) => {
+    if (socket.userId) {
+      socket.join(`user:${socket.userId}`);
+    }
+
+    // Join a trip tracking room (passengers, drivers viewing trip)
+    socket.on('join-trip', (tripId) => {
+      if (!tripId) return;
+      socket.join(`trip:${tripId}`);
+    });
+
+    socket.on('leave-trip', (tripId) => {
+      if (!tripId) return;
+      socket.leave(`trip:${tripId}`);
+    });
+
+    // Driver live location → only subscribers of this trip room
+    socket.on('location-update', (data) => {
+      try {
+        const { tripId, lat, lng, speed } = data || {};
+        if (!tripId) return;
+        io.to(`trip:${tripId}`).emit('driver-location', { tripId, lat, lng, speed });
+      } catch (err) {
+        logger.warn('Socket location-update error:', err.message);
+      }
+    });
+
+    socket.on('disconnect', () => {});
   });
-};
+}
+
+module.exports = attachSocketHandlers;

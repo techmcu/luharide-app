@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const { emitTripUpdated, emitNotificationToUser } = require('../socket/realtimeEmitter');
 
 /**
  * Create a booking (Passenger)
@@ -100,6 +101,8 @@ const createBooking = asyncHandler(async (req, res) => {
 
     await client.query('COMMIT');
 
+    emitTripUpdated(trip_id, { bookingId: booking.id, status: bookingStatus, reason: 'booking_created' });
+
     // Rate reminders: union/legacy = 4h after confirm. Independent driver trips = trip departure_time + 4h (after scheduled ride start).
     if (bookingStatus === 'confirmed') {
       try {
@@ -120,12 +123,18 @@ const createBooking = asyncHandler(async (req, res) => {
       } catch (err) {
         if (err.code === '42P01') {
           const dataJson = JSON.stringify({ booking_id: booking.id });
-          await pool.query(
-            `INSERT INTO notifications (user_id, type, title, body, data)
-             VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. Rate your driver.', $2::jsonb),
-                    ($3, 'rate_ride', 'Rate your passenger', 'A passenger booked your ride. Rate them after the trip.', $2::jsonb)`,
-            [passengerId, dataJson, trip.driver_id]
-          ).catch((e) => logger.warn('Fallback rate notifications failed:', e.message));
+          try {
+            const fb = await pool.query(
+              `INSERT INTO notifications (user_id, type, title, body, data)
+               VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. Rate your driver.', $2::jsonb),
+                      ($3, 'rate_ride', 'Rate your passenger', 'A passenger booked your ride. Rate them after the trip.', $2::jsonb)
+               RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+              [passengerId, dataJson, trip.driver_id]
+            );
+            for (const row of fb.rows) emitNotificationToUser(row.user_id, row);
+          } catch (e) {
+            logger.warn('Fallback rate notifications failed:', e.message);
+          }
         } else {
           logger.warn('Pending rate notification insert failed:', err.message);
         }
@@ -216,6 +225,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
       'UPDATE bookings SET status = $1 WHERE id = $2',
       ['cancelled', bookingId]
     );
+    emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'booking_rejected' });
     return ApiResponse.success(
       { status: 'cancelled' },
       'Booking rejected'
@@ -296,16 +306,24 @@ const respondToBooking = asyncHandler(async (req, res) => {
   } catch (err) {
     if (err.code === '42P01') {
       const dataJson = JSON.stringify({ booking_id: bookingId });
-      await pool.query(
-        `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. You can rate 4 min after confirm.', $2::jsonb),
-                ($3, 'rate_ride', 'Rate your passenger', 'You accepted a booking. You can rate 4 min after confirm.', $2::jsonb)`,
-        [booking.passenger_id, dataJson, booking.driver_id]
-      ).catch((e) => logger.warn('Fallback rate notifications failed:', e.message));
+      try {
+        const fb = await pool.query(
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. You can rate 4 min after confirm.', $2::jsonb),
+                  ($3, 'rate_ride', 'Rate your passenger', 'You accepted a booking. You can rate 4 min after confirm.', $2::jsonb)
+           RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+          [booking.passenger_id, dataJson, booking.driver_id]
+        );
+        for (const row of fb.rows) emitNotificationToUser(row.user_id, row);
+      } catch (e) {
+        logger.warn('Fallback rate notifications failed:', e.message);
+      }
     } else {
       logger.warn('Pending rate notification insert failed:', err.message);
     }
   }
+
+  emitTripUpdated(booking.trip_id, { bookingId, status: 'confirmed', reason: 'booking_confirmed' });
 
   ApiResponse.success(
     { status: 'confirmed' },
@@ -464,14 +482,20 @@ const cancelBooking = asyncHandler(async (req, res) => {
   }
 
   try {
-    await pool.query(
+    const nRes = await pool.query(
       `INSERT INTO notifications (user_id, type, title, body)
-       VALUES ($1, 'booking_cancelled', 'Booking cancelled', $2)`,
+       VALUES ($1, 'booking_cancelled', 'Booking cancelled', $2)
+       RETURNING id, user_id, type, title, body, created_at, is_read`,
       [booking.driver_id, `A passenger cancelled their booking.${reason ? ` Reason: ${reason}` : ''}`]
     );
+    if (nRes.rows[0]) {
+      emitNotificationToUser(nRes.rows[0].user_id, nRes.rows[0]);
+    }
   } catch (e) {
     logger.warn('Driver cancel notification failed:', e.message);
   }
+
+  emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'passenger_cancelled' });
 
   ApiResponse.success(
     { status: 'cancelled' },
