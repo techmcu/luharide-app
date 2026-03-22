@@ -40,7 +40,11 @@ const apiLimiter = rateLimit(
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.path === '/health' || req.path === '/api/health',
+    skip: (req) =>
+      req.method === 'OPTIONS' ||
+      req.path === '/health' ||
+      req.path === '/api/health' ||
+      (typeof req.originalUrl === 'string' && req.originalUrl.split('?')[0].endsWith('/health')),
     handler: (req, res) => {
       throw ApiError.tooManyRequests('Too many requests, please try again later');
     },

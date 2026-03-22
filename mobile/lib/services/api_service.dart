@@ -87,9 +87,9 @@ class ApiService {
             if (kIsWeb && error.type == DioExceptionType.connectionError) {
               // ignore: avoid_print
               print(
-                '💡 Web: (1) `/health` same port par kholo (monolith 3000, microservices gateway 3010). '
-                '(2) `dev:stack` = port 3010 → `--dart-define=LOCAL_API_PORT=3010`. '
-                '(3) CORS/PNA fix ke liye backend restart.',
+                '💡 Web: `cd backend && npm run check:local-ms` — sab services green? '
+                '(Gateway ke saath auth 3001+core 3002… bhi chalna zaroori.) '
+                'LOCAL_API_PORT=3010 + `npm run dev:stack`.',
               );
             }
           }

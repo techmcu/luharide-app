@@ -12,7 +12,7 @@ const http = require('http');
 const express = require('express');
 const compression = require('compression');
 const { createHelmetMiddleware } = require('../src/config/helmetConfig');
-const { applyLuhaCors } = require('../src/middleware/corsLuha');
+const { applyLuhaCors, applyCorsHeadersOnError } = require('../src/middleware/corsLuha');
 const morgan = require('morgan');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const socketIo = require('socket.io');
@@ -78,9 +78,15 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({ ok: true, status: 'running', via: 'gateway' });
 });
 
+const _proxyTimeoutMs = Math.max(
+  5000,
+  parseInt(process.env.GATEWAY_PROXY_TIMEOUT_MS || '120000', 10) || 120000
+);
+
 const proxyOpts = (target) => ({
   target,
   changeOrigin: true,
+  timeout: _proxyTimeoutMs,
   logLevel: process.env.GATEWAY_PROXY_LOG === 'debug' ? 'debug' : 'warn',
   on: {
     proxyReq: (proxyReq, req) => {
@@ -102,6 +108,33 @@ const proxyOpts = (target) => ({
           }
         }
       }
+    },
+    /**
+     * Without CORS headers on this response, browsers hide the error from JS → Dio shows ERROR[null].
+     */
+    error: (err, req, res, proxyTarget) => {
+      logger.error({
+        msg: 'Gateway proxy upstream error',
+        target: proxyTarget || target,
+        code: err && err.code,
+        message: err && err.message,
+        path: req && req.originalUrl,
+      });
+      if (res.headersSent) {
+        return;
+      }
+      applyCorsHeadersOnError(req, res);
+      res.statusCode = 502;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(
+        JSON.stringify({
+          success: false,
+          message:
+            'Gateway could not reach an upstream microservice. Run all services: cd backend && npm run dev:stack (needs auth:3001, core:3002, union:3003, platform:3004).',
+          error: (err && err.code) || 'EPROXY',
+          upstream: String(target),
+        })
+      );
     },
   },
 });

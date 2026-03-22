@@ -19,6 +19,12 @@
   - Monolith `node server.js` → `http://localhost:3000/api` → `--dart-define=USE_LOCAL_API=true` only (default port 3000).
   - Microservices stack → `http://localhost:3010/api` → `--dart-define=USE_LOCAL_API=true --dart-define=LOCAL_API_PORT=3010`.
 
+**Flutter Web `ERROR[null]` / `XMLHttpRequest onError`?**
+
+1. Run **`cd backend && npm run check:local-ms`** — all five must be green. If auth/core/… fail, login & trips will fail (gateway alone is not enough).
+2. Restart backend after `git pull` (CORS / proxy error fixes).
+3. **Monolith** (`node server.js` only) is simpler for daily dev — no gateway, no 4 services.
+
 **Phase 1 (local verify):** [`LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md`](./LUHARIDE_MICROSERVICES_MIGRATION_STEP_BY_STEP.md) — `npm run develop:luharide-microservices-local-five-services` then `npm run verify:luharide-microservices-health-endpoints`. Status: [`LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md`](./LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_STATUS.md).
 
 ---

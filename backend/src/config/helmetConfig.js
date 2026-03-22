@@ -9,6 +9,8 @@ const helmet = require('helmet');
 function createHelmetMiddleware() {
   return helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    // JSON API — avoid default CSP header on responses (harmless for most clients; keeps dev simple).
+    contentSecurityPolicy: false,
   });
 }
 
