@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -33,9 +31,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   String _status = 'none';
   Map<String, dynamic>? _union;
   final _uploadService = UploadService();
-  File? _ownerAadhaarFile;
-  File? _officePhotoFile;
-  File? _ownerRcFile;
+  XFile? _ownerAadhaarFile;
+  XFile? _officePhotoFile;
+  XFile? _ownerRcFile;
 
   @override
   void initState() {
@@ -444,7 +442,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                         final picker = ImagePicker();
                         final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                         if (img == null) return;
-                        setState(() => _ownerAadhaarFile = File(img.path));
+                        setState(() => _ownerAadhaarFile = img);
                       },
               ),
               _DocChip(
@@ -456,7 +454,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                         final picker = ImagePicker();
                         final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                         if (img == null) return;
-                        setState(() => _officePhotoFile = File(img.path));
+                        setState(() => _officePhotoFile = img);
                       },
               ),
               _DocChip(
@@ -468,7 +466,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                         final picker = ImagePicker();
                         final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                         if (img == null) return;
-                        setState(() => _ownerRcFile = File(img.path));
+                        setState(() => _ownerRcFile = img);
                       },
               ),
             ],

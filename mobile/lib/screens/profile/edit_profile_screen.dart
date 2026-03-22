@@ -1,11 +1,10 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../models/user_model.dart';
 
 /// Edit Profile - Name, Email, Profile Picture
 class EditProfileScreen extends StatefulWidget {
@@ -24,7 +23,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _bioController;
   late TextEditingController _luggageController;
   bool _isLoading = false;
-  File? _localImageFile;
+  /// Picked image bytes (works on Web + mobile; avoids dart:io FileImage).
+  Uint8List? _localImageBytes;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -51,8 +51,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _pickImage() async {
     final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
     if (picked == null) return;
+    final bytes = await picked.readAsBytes();
     setState(() {
-      _localImageFile = File(picked.path);
+      _localImageBytes = bytes;
     });
   }
 
@@ -63,9 +64,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final authProvider = context.read<AuthProvider>();
 
     String? profileImageUrl;
-    if (_localImageFile != null) {
-      final bytes = await _localImageFile!.readAsBytes();
-      final b64 = base64Encode(bytes);
+    if (_localImageBytes != null) {
+      final b64 = base64Encode(_localImageBytes!);
       profileImageUrl = 'data:image/jpeg;base64,$b64';
     }
 
@@ -132,8 +132,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: (isDriver ? Colors.green : Colors.blue)[100],
-                    backgroundImage: _localImageFile != null
-                        ? FileImage(_localImageFile!)
+                    backgroundImage: _localImageBytes != null
+                        ? MemoryImage(_localImageBytes!)
                         : (user?.profileImage != null && user!.profileImage!.isNotEmpty
                             ? (user.profileImage!.startsWith('data:image')
                                 ? MemoryImage(
@@ -145,7 +145,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   )
                                 : NetworkImage(user.profileImage!) as ImageProvider)
                             : null),
-                    child: (user?.profileImage == null || user!.profileImage!.isEmpty) && _localImageFile == null
+                    child: (user?.profileImage == null || user!.profileImage!.isEmpty) && _localImageBytes == null
                         ? Text(
                             (user?.name ?? 'U')[0].toUpperCase(),
                             style: TextStyle(

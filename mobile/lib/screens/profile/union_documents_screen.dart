@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -70,7 +68,7 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
     if (img == null) return;
     setState(() => _saving = true);
     try {
-      final url = await _upload.uploadUnionDocument(File(img.path));
+      final url = await _upload.uploadUnionDocument(img);
       setUrl(url);
     } catch (e) {
       if (mounted) {

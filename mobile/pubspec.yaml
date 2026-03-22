@@ -45,6 +45,7 @@ dependencies:
   
   # Images & Files
   image_picker: ^1.0.7
+  cross_file: ^0.3.4
   cached_network_image: ^3.3.1
   
   # Notifications (temporarily disabled - will add later)

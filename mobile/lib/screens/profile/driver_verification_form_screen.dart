@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -24,9 +22,9 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   final _vehicleRegController = TextEditingController();
   bool _isLoading = false;
   VehicleDropdownOption? _selectedVehicle;
-  File? _aadhaarFile;
-  File? _rcFile;
-  File? _licenseFile;
+  XFile? _aadhaarFile;
+  XFile? _rcFile;
+  XFile? _licenseFile;
 
   @override
   void dispose() {
@@ -35,11 +33,11 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
     super.dispose();
   }
 
-  Future<void> _pickDocument(void Function(File) setter) async {
+  Future<void> _pickDocument(void Function(XFile) setter) async {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (img == null) return;
-    setter(File(img.path));
+    setter(img);
   }
 
   Future<void> _submit() async {
@@ -216,26 +214,16 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                 hint: const Text('Select vehicle (seats as per RTO)'),
                 isExpanded: true,
                 itemHeight: 72,
+                // Web / some themes give selected row only ~24px height — single line avoids overflow.
                 selectedItemBuilder: (context) {
                   return VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
                     return Align(
                       alignment: Alignment.centerLeft,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            opt.displayName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                          Text(
-                            opt.capacitySubtitle,
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                          ),
-                        ],
+                      child: Text(
+                        '${opt.displayName} · ${opt.capacitySubtitle}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13),
                       ),
                     );
                   }).toList();

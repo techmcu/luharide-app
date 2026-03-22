@@ -1,16 +1,25 @@
-import 'dart:io';
-
+import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
 
 import '../core/constants/api_constants.dart';
 import 'api_service.dart';
 
+/// Uses [XFile] + bytes so uploads work on **Web** (no dart:io / fromFile).
 class UploadService {
   final ApiService _api = ApiService();
 
-  Future<String> uploadDriverDocument(File file) async {
+  Future<MultipartFile> _filePart(XFile file) async {
+    final bytes = await file.readAsBytes();
+    final name = file.name;
+    return MultipartFile.fromBytes(
+      bytes,
+      filename: name.isNotEmpty ? name : 'upload.jpg',
+    );
+  }
+
+  Future<String> uploadDriverDocument(XFile file) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(file.path),
+      'file': await _filePart(file),
     });
     final response = await _api.post(
       ApiConstants.uploadDriverDoc,
@@ -23,9 +32,9 @@ class UploadService {
     throw Exception(response.data['message'] ?? 'Failed to upload document');
   }
 
-  Future<String> uploadUnionDocument(File file) async {
+  Future<String> uploadUnionDocument(XFile file) async {
     final formData = FormData.fromMap({
-      'file': await MultipartFile.fromFile(file.path),
+      'file': await _filePart(file),
     });
     final response = await _api.post(
       ApiConstants.uploadUnionDoc,
