@@ -32,6 +32,7 @@ const { errorConverter, errorHandler } = require('./src/middleware/errorHandler'
 const { apiLimiter } = require('./src/middleware/rateLimiter');
 const { requestContext } = require('./src/middleware/requestContext');
 const logger = require('./src/config/logger');
+const { applyTrustProxy, shouldWarnTrustProxyUnsetInProduction } = require('./src/config/trustProxy');
 
 // Import socket handlers
 const { attachSocketIoRedisAdapter } = require('./src/socket/socketRedisAdapter');
@@ -161,13 +162,9 @@ server.listen(PORT, () => {
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 API: http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
-  if (
-    process.env.NODE_ENV === 'production' &&
-    process.env.TRUST_PROXY !== '1' &&
-    process.env.TRUST_PROXY !== 'true'
-  ) {
+  if (shouldWarnTrustProxyUnsetInProduction()) {
     logger.warn(
-      '⚠️  TRUST_PROXY not set — behind nginx/Cloudflare all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in .env'
+      '⚠️  TRUST_PROXY not set — behind nginx/Cloudflare all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in .env (see docs/TRUST_PROXY_AND_NGINX_A_TO_Z.md)'
     );
   }
   rateNotificationJob.start();

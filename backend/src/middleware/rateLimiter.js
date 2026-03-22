@@ -1,3 +1,4 @@
+/** Per-IP limits use req.ip — enable real client IP via TRUST_PROXY (see src/config/trustProxy.js). */
 const rateLimit = require('express-rate-limit');
 const ApiError = require('../utils/ApiError');
 const { createRateLimitRedisStore } = require('../config/redis');

@@ -24,7 +24,10 @@ Woh setting Express mein **`trust proxy`** ke naam se hai; tumhari repo mein **`
 
 ## B) `TRUST_PROXY=1` actually kya karta hai?
 
-- **`backend/gateway/server.js`** (aur monolith **`server.js`**, microservices **`sharedApp.js`**) mein:
+- **`backend/src/config/trustProxy.js`** — sab jagah same parsing (`1`, `true`, `yes`, `on`, `2`…`32` hops, `0` = off).
+- **`backend/gateway/server.js`**, monolith **`server.js`**, microservices **`sharedApp.js`** → `applyTrustProxy(app)`.
+- **PM2 production ecosystem** → default **`TRUST_PROXY=1`** har process par (`.env` se override; dotenv existing env overwrite nahi karta — PM2 env pehle aata hai).
+- Gateway **proxy** upstream ko **`X-Forwarded-For` / `X-Real-IP`** forward karta hai taaki auth/core par **per-user** limit kaam kare.
 
   ```text
   TRUST_PROXY=1  →  app.set('trust proxy', 1)

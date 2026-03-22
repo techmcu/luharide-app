@@ -8,12 +8,11 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const { errorConverter, errorHandler } = require('../src/middleware/errorHandler');
 const { requestContext } = require('../src/middleware/requestContext');
+const { applyTrustProxy } = require('../src/config/trustProxy');
 
 function createBaseApp(serviceName) {
   const app = express();
-  if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
-    app.set('trust proxy', 1);
-  }
+  applyTrustProxy(app);
   app.use(helmet());
   app.use(requestContext);
   app.use(compression());

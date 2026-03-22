@@ -24,6 +24,7 @@ const attachSocketHandlers = require('../src/socket/socketHandlers');
 const { setIo } = require('../src/socket/socketIoRegistry');
 const { requestContext } = require('../src/middleware/requestContext');
 const logger = require('../src/config/logger');
+const { applyTrustProxy, shouldWarnTrustProxyUnsetInProduction } = require('../src/config/trustProxy');
 
 const AUTH_URL = process.env.AUTH_URL || 'http://127.0.0.1:3001';
 const CORE_URL = process.env.CORE_URL || 'http://127.0.0.1:3002';
@@ -31,9 +32,7 @@ const UNION_URL = process.env.UNION_URL || 'http://127.0.0.1:3003';
 const PLATFORM_URL = process.env.PLATFORM_URL || 'http://127.0.0.1:3004';
 
 const app = express();
-if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
-  app.set('trust proxy', 1);
-}
+applyTrustProxy(app);
 
 app.use(helmet());
 app.use(requestContext);
@@ -83,10 +82,26 @@ const proxyOpts = (target) => ({
   target,
   changeOrigin: true,
   logLevel: process.env.GATEWAY_PROXY_LOG === 'debug' ? 'debug' : 'warn',
-  // So microservices logs/errors can correlate with gateway access logs
   on: {
     proxyReq: (proxyReq, req) => {
       if (req.id) proxyReq.setHeader('X-Request-Id', req.id);
+      // Microservices apply rate limits per IP — forward real client (nginx) or direct peer.
+      const xff = req.headers['x-forwarded-for'];
+      if (xff) {
+        proxyReq.setHeader(
+          'X-Forwarded-For',
+          Array.isArray(xff) ? xff.join(', ') : String(xff)
+        );
+      } else {
+        const peer = req.socket?.remoteAddress;
+        if (peer) {
+          const ip = peer.replace(/^::ffff:/, '');
+          proxyReq.setHeader('X-Forwarded-For', ip);
+          if (!proxyReq.getHeader('x-real-ip')) {
+            proxyReq.setHeader('X-Real-IP', ip);
+          }
+        }
+      }
     },
   },
 });
@@ -139,6 +154,11 @@ server.listen(PORT, () => {
   logger.info(`   → ${CORE_URL} (core)`);
   logger.info(`   → ${UNION_URL} (union)`);
   logger.info(`   → ${PLATFORM_URL} (platform)`);
+  if (shouldWarnTrustProxyUnsetInProduction()) {
+    logger.warn(
+      '⚠️  TRUST_PROXY not set — behind nginx/HTTPS all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in backend/.env (see docs/TRUST_PROXY_AND_NGINX_A_TO_Z.md)'
+    );
+  }
 });
 
 module.exports = { app, server, io };

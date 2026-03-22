@@ -14,6 +14,12 @@ const internalUpstreamBaseUrls = {
   PLATFORM_URL: 'http://127.0.0.1:3004',
 };
 
+/**
+ * Nginx/HTTPS in front — TRUST_PROXY=1 for correct rate limits per user.
+ * To force off (direct :3000 only): remove TRUST_PROXY from prodBase or set TRUST_PROXY=0 in PM2 env.
+ */
+const prodBase = { NODE_ENV: 'production', TRUST_PROXY: '1' };
+
 module.exports = {
   apps: [
     {
@@ -22,7 +28,7 @@ module.exports = {
       cwd: __dirname,
       instances: 1,
       exec_mode: 'fork',
-      env: { NODE_ENV: 'production', AUTH_SERVICE_PORT: '3001' },
+      env: { ...prodBase, AUTH_SERVICE_PORT: '3001' },
     },
     {
       name: 'luharide-core-ride-service',
@@ -30,7 +36,7 @@ module.exports = {
       cwd: __dirname,
       instances: 1,
       exec_mode: 'fork',
-      env: { NODE_ENV: 'production', CORE_SERVICE_PORT: '3002' },
+      env: { ...prodBase, CORE_SERVICE_PORT: '3002' },
     },
     {
       name: 'luharide-union-admin-service',
@@ -38,7 +44,7 @@ module.exports = {
       cwd: __dirname,
       instances: 1,
       exec_mode: 'fork',
-      env: { NODE_ENV: 'production', UNION_SERVICE_PORT: '3003' },
+      env: { ...prodBase, UNION_SERVICE_PORT: '3003' },
     },
     {
       name: 'luharide-platform-admin-payments-service',
@@ -46,7 +52,7 @@ module.exports = {
       cwd: __dirname,
       instances: 1,
       exec_mode: 'fork',
-      env: { NODE_ENV: 'production', PLATFORM_SERVICE_PORT: '3004' },
+      env: { ...prodBase, PLATFORM_SERVICE_PORT: '3004' },
     },
     {
       name: 'luharide-api-gateway',
@@ -55,7 +61,7 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       env: {
-        NODE_ENV: 'production',
+        ...prodBase,
         GATEWAY_PORT: '3000',
         ...internalUpstreamBaseUrls,
       },
