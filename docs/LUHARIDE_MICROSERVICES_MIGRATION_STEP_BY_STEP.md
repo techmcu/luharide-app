@@ -74,6 +74,9 @@ Repo-side work is tracked in `LUHARIDE_MICROSERVICES_PHASE_ONE_IMPLEMENTATION_ST
 
 ## Phase 2 — VPS (monolith → five processes)
 
+**Full checklist:** `LUHARIDE_MICROSERVICES_PHASE_TWO_VPS_CUTOVER.md`  
+**Optional one-shot (Linux VPS):** `backend/scripts/vps-cutover-luharide-microservices.sh`
+
 ```bash
 cd /var/www/.../backend
 git pull && npm install && npm run migrate
