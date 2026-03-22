@@ -55,17 +55,16 @@ const authorize = (...roles) => {
       throw ApiError.unauthorized('Authentication required');
     }
 
-    // Trim so DB typos / trailing spaces don't break includes()
-    const userRole = String(req.user.role ?? '').trim();
+    // Trim + lowercase so "Passenger" / spacing mismatches don't break RBAC
+    const userRole = String(req.user.role ?? '').trim().toLowerCase();
+    const allowed = roles.map((r) => String(r).trim().toLowerCase());
     logger.info(`🔐 Authorization check:`);
     logger.info(`   User role: "${userRole}" (type: ${typeof userRole}, length: ${userRole.length})`);
-    logger.info(`   Required roles: [${roles.join(', ')}]`);
-    logger.info(`   roles array: ${JSON.stringify(roles)}`);
-    logger.info(`   roles.includes(userRole): ${roles.includes(userRole)}`);
+    logger.info(`   Required roles: [${allowed.join(', ')}]`);
 
-    if (!roles.includes(userRole)) {
+    if (!allowed.includes(userRole)) {
       logger.warn(`❌ Access denied for ${req.user.email}`);
-      logger.warn(`   User role "${userRole}" not in [${roles.join(', ')}]`);
+      logger.warn(`   User role "${userRole}" not in [${allowed.join(', ')}]`);
       throw ApiError.forbidden(`Access denied. Required roles: ${roles.join(', ')}`);
     }
 

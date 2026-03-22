@@ -3,7 +3,7 @@ const router = express.Router();
 const Joi = require('joi');
 const { createBooking, respondToBooking, getMyBookings, cancelBooking } = require('../controllers/bookingController');
 const { submitRating } = require('../controllers/reviewController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth'); // authorize used for driver-only respond
 const { validate } = require('../middleware/validation');
 
 const createBookingSchema = Joi.object({
@@ -15,22 +15,20 @@ const respondSchema = Joi.object({
   action: Joi.string().valid('accept', 'reject').required()
 });
 
-// Create booking / my-bookings / cancel: passenger + driver + union_admin
-// (union_admin users are still passengers for booking other drivers' trips; role flips when union is approved)
+// Booking is for any logged-in user (passenger / driver / union_admin / future roles).
+// Do not use authorize() here — strict role strings caused 403 when DB role didn't match exactly.
 router.post(
   '/',
   authenticate,
-  authorize('passenger', 'driver', 'union_admin'),
   validate(createBookingSchema),
   createBooking
 );
 
-router.get('/my-bookings', authenticate, authorize('passenger', 'driver', 'union_admin'), getMyBookings);
+router.get('/my-bookings', authenticate, getMyBookings);
 
 router.post(
   '/:id/cancel',
   authenticate,
-  authorize('passenger', 'driver', 'union_admin'),
   cancelBooking
 );
 
