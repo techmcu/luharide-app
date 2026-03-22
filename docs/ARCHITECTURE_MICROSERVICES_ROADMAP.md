@@ -17,7 +17,9 @@
 
 **Seedha point:** Microservices = alag-alag **deploy** hone wale services + alag **data ownership** + **network** pe baat (HTTP/events). Isse throughput badh sakti hai, lekin **complexity, cost, aur bugs** bhi badhte hain. Chhote/medium product ke liye aksar **pehle monolith ko strong** karna zyada sahi hota hai.
 
-**Abhi tumhara stack:** ek Express `server.js` + PostgreSQL + Socket.IO + cron jobs — ye **monolith** hai. Ye **galat nahi**; Instagram/Shopify jaisi teams ne bhi shuruat monolith se ki.
+**Run modes:** (1) **Monolith** — `node server.js` (sab ek process). (2) **Microservices** — `gateway/` + 4 services (same `src/` code). Dono supported.
+
+**Detail + methodology + references:** [`METHODOLOGY_AND_SYSTEM_DESIGN.md`](./METHODOLOGY_AND_SYSTEM_DESIGN.md).
 
 ---
 
@@ -98,11 +100,12 @@ Tumhare `backend/src` routes se derive kiye gaye **logical** services (har ka ap
 
 | Question | Answer |
 |----------|--------|
-| Kya ab microservices ho chuka? | **Nahi** — abhi **monolith** hai. |
-| Kya convert karna chahiye? | **Phase-wise**; pehle **scale + modular monolith**. |
-| “Best se best” ek din mein? | **Nahi** — architecture **evolve** hoti hai; yeh doc **map** hai. |
+| Kya microservices code hai? | **Haan** — gateway + 4 services (`backend/gateway`, `backend/microservices`). |
+| Kya hamesha microservices chalana zaroori? | **Nahi** — monolith `server.js` bhi valid (simple VPS). |
+| DB pure per-service? | **Abhi nahi** — shared PostgreSQL; roadmap se baad mein. |
+| Methodology / references? | [`METHODOLOGY_AND_SYSTEM_DESIGN.md`](./METHODOLOGY_AND_SYSTEM_DESIGN.md) |
 
-**Next concrete step:** Phase A checklist run karo; jab metrics dikha dein ki **ek bottleneck** clear hai (e.g. notifications blocking API), tab **Phase C** mein wahi extract karo.
+**Next concrete step:** Phase A checklist run karo; notifications/queues/redis jab add karo tab **scale + observability** next level.
 
 ---
 
