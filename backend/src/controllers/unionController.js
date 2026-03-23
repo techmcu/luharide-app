@@ -1058,9 +1058,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const posterTheme = getPosterTheme(s.poster_theme);
   const themeColors = getPosterThemeColors(posterTheme);
   logger.info(`PDF posterHeader length=${posterHeader.length} value="${posterHeader.slice(0, 80)}"`);
-  let unionNameRaw  = (s.union_name      || 'Taxi Union').toString().trim();
-  if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
-  const unionName   = cleanUnionName(unionNameRaw);
+  const posterTitle = posterHeader || 'DAILY RIDE SCHEDULE';
 
   const pad  = (n) => String(n).padStart(2, '0');
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1074,14 +1072,14 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   // ─── File name ─────────────────────────────────────────────────────────────
   const safe  = (s) => s.replace(/[^\w]+/g, '-').slice(0, 40);
-  const fname = `${safe(unionName)}-${safe(from)}-${safe(to)}-${dateStr.replace(/ /g,'-')}.pdf`;
+  const fname = `union-poster-${safe(from)}-${safe(to)}-${dateStr.replace(/ /g,'-')}.pdf`;
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${fname}"`);
 
   // ─── PDF canvas setup ──────────────────────────────────────────────────────
   const doc = new PDFDocument({ size: 'A4', margin: 0, info: {
-    Title: `Ride Poster — ${unionName}`,
+    Title: `Ride Poster — ${posterTitle}`,
     Author: 'LuhaRide',
   }});
   doc.pipe(res);
@@ -1098,30 +1096,19 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   // ─── Top accent stripe ─────────────────────────────────────────────────────
   _rect(doc, 0, 0, W, 5, themeColors.topStripe);
 
-  // ─── Header band (poster header + union name) — compact yellow area so route/data starts higher
+  // ─── Header band (manual poster title only) — compact area so route/data starts higher
   const compact = posterLayoutType === 'compact';
-  const headerH = posterHeader ? (compact ? 128 : 150) : (compact ? 64 : 78);
+  const headerH = compact ? 108 : 124;
   _rect(doc, 0, 5, W, headerH, themeColors.headerBg);
 
   let y = 18;
-  // Custom poster header line at the very top (if provided)
-  if (posterHeader) {
-    const phFontSize = posterHeader.length > 26 ? 15 : 17;
-    const phY = 12;
-    doc.fillColor(themeColors.text)
-      .font('Helvetica-Bold')
-      .fontSize(phFontSize)
-      .text(posterHeader, 0, phY, { width: W, align: 'center' });
-    y = phY + phFontSize + 14;
-  }
-
-  // Union name — big, centered, primary focus
-  const unLen = unionName.length;
+  // Manual poster title — only big element at top.
+  const unLen = posterTitle.length;
   const unFontSize = unLen > 26 ? 20 : (unLen > 18 ? 24 : 28);
   doc.fillColor(themeColors.text)
      .font('Helvetica-Bold')
      .fontSize(unFontSize)
-     .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
+     .text(posterTitle.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += unFontSize + 6;
 
   // Sub label
@@ -1138,17 +1125,11 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   _roundedRect(doc, 0, 5 + headerH - 18, W, 22, 14, '#FFFDF5');
 
   if (posterCustomText && posterCustomTextPosition === 'left') {
-    doc.save();
-    doc.rotate(-90, { origin: [12, H / 2] });
-    doc.fillColor('#616161').font('Helvetica').fontSize(8)
-      .text(posterCustomText, -H + 40, 8, { width: H - 80, align: 'center' });
-    doc.restore();
+    doc.fillColor('#424242').font('Helvetica').fontSize(9)
+      .text(posterCustomText, 14, 5 + (headerH / 2) - 5, { width: 170, align: 'left' });
   } else if (posterCustomText && posterCustomTextPosition === 'right') {
-    doc.save();
-    doc.rotate(90, { origin: [W - 12, H / 2] });
-    doc.fillColor('#616161').font('Helvetica').fontSize(8)
-      .text(posterCustomText, 40, -W + 4, { width: H - 80, align: 'center' });
-    doc.restore();
+    doc.fillColor('#424242').font('Helvetica').fontSize(9)
+      .text(posterCustomText, W - 184, 5 + (headerH / 2) - 5, { width: 170, align: 'right' });
   }
 
   y = 5 + headerH + 6;
@@ -1410,9 +1391,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   if (schedRes.rows.length === 0) throw ApiError.notFound('No schedules found');
 
   const rows      = schedRes.rows;
-  let unionNameRaw = (rows[0].union_name || 'Taxi Union').toString().trim();
-  if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
-  const unionName  = cleanUnionName(unionNameRaw);
+  const posterTitle = cleanPosterHeader(rows[0].poster_header) || 'DAILY RIDE SCHEDULE';
   const posterHeader = cleanPosterHeader(rows[0].poster_header);
   const posterCustomText = cleanPosterCustomText(rows[0].poster_custom_text);
   const posterCustomTextPosition = (rows[0].poster_custom_text_position || 'right').toString().toLowerCase();
@@ -1452,11 +1431,11 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
 
   // ─── PDF setup ─────────────────────────────────────────────────────────────
   const safe = s => s.replace(/[^\w]+/g,'-').slice(0,40);
-  const fname = `${safe(unionName)}-schedule-${dateLabel.replace(/[, ]+/g,'-')}.pdf`;
+  const fname = `union-schedule-${dateLabel.replace(/[, ]+/g,'-')}.pdf`;
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${fname}"`);
 
-  const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: `${unionName} - Daily Schedule`, Author: 'LuhaRide' } });
+  const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: `${posterTitle} - Daily Schedule`, Author: 'LuhaRide' } });
   doc.pipe(res);
 
   const W   = doc.page.width;
@@ -1471,30 +1450,17 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // ── Top accent ─────────────────────────────────────────────────────────────
   _fillRect(doc, 0, 0, W, 5, themeColors.topStripe);
 
-  // ── Header band (poster header + union name) ──────────────────────────────
-  // Reduce yellow header band height (previously too tall -> large empty gap).
-  // Reduced to avoid large empty yellow gap before the table
+  // ── Header band (manual poster title only) ──────────────────────────────
   const compact = posterLayoutType === 'compact';
-  const headerH = posterHeader ? (compact ? 102 : 118) : (compact ? 56 : 62);
+  const headerH = compact ? 90 : 104;
   _fillRect(doc, 0, 5, W, headerH, themeColors.headerBg);
 
   let y = 16;
-  // Custom poster header line at the very top (if provided)
-  if (posterHeader) {
-    const phFontSize = posterHeader.length > 26 ? 14 : 16;
-    const phY = 11;
-    doc.fillColor(themeColors.text)
-      .font('Helvetica-Bold')
-      .fontSize(phFontSize)
-      .text(posterHeader, 0, phY, { width: W, align: 'center' });
-    y = phY + phFontSize + 8;
-  }
-
-  // Union name — only big element at top
-  const unLen = unionName.length;
+  // Manual poster title — only big element at top.
+  const unLen = posterTitle.length;
   const unFontSize = unLen > 26 ? 20 : (unLen > 18 ? 22 : 26);
   doc.fillColor(themeColors.text).font('Helvetica-Bold').fontSize(unFontSize)
-    .text(unionName.toUpperCase(), 0, y, { width: W, align: 'center' });
+    .text(posterTitle.toUpperCase(), 0, y, { width: W, align: 'center' });
   y += unFontSize + 4;
 
   // Date + subtitle (ASCII only so no garbage glyphs)
@@ -1506,17 +1472,11 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
     });
 
   if (posterCustomText && posterCustomTextPosition === 'left') {
-    doc.save();
-    doc.rotate(-90, { origin: [12, H / 2] });
-    doc.fillColor('#616161').font('Helvetica').fontSize(8)
-      .text(posterCustomText, -H + 40, 8, { width: H - 80, align: 'center' });
-    doc.restore();
+    doc.fillColor('#424242').font('Helvetica').fontSize(9)
+      .text(posterCustomText, 14, 5 + (headerH / 2) - 5, { width: 170, align: 'left' });
   } else if (posterCustomText && posterCustomTextPosition === 'right') {
-    doc.save();
-    doc.rotate(90, { origin: [W - 12, H / 2] });
-    doc.fillColor('#616161').font('Helvetica').fontSize(8)
-      .text(posterCustomText, 40, -W + 4, { width: H - 80, align: 'center' });
-    doc.restore();
+    doc.fillColor('#424242').font('Helvetica').fontSize(9)
+      .text(posterCustomText, W - 184, 5 + (headerH / 2) - 5, { width: 170, align: 'right' });
   }
 
   // Start table immediately after yellow band

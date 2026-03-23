@@ -1053,12 +1053,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     bool saving = false;
     String selectedPosition = _posterCustomTextPosition;
     final positionLabels = <String, String>{
-      'top': 'Top',
       'left': 'Left',
       'right': 'Right',
     };
     final positionIcons = <String, IconData>{
-      'top': Icons.vertical_align_top_rounded,
       'left': Icons.vertical_align_center_rounded,
       'right': Icons.vertical_align_center_rounded,
     };
@@ -1069,6 +1067,32 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       'mint': 'Mint',
       'rose': 'Rose',
     };
+
+    Color previewBg(String key) {
+      switch (key) {
+        case 'sky':
+          return const Color(0xFFB3E5FC);
+        case 'mint':
+          return const Color(0xFFC8E6C9);
+        case 'rose':
+          return const Color(0xFFF8BBD0);
+        default:
+          return const Color(0xFFFFC107);
+      }
+    }
+
+    Color previewText(String key) {
+      switch (key) {
+        case 'sky':
+          return const Color(0xFF0F172A);
+        case 'mint':
+          return const Color(0xFF1B4332);
+        case 'rose':
+          return const Color(0xFF3F1D2E);
+        default:
+          return const Color(0xFF212121);
+      }
+    }
 
     await showModalBottomSheet<void>(
       context: context,
@@ -1146,7 +1170,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                               decoration: BoxDecoration(
-                                color: _orange,
+                                color: previewBg(selectedTheme),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Column(
@@ -1156,17 +1180,17 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                     header.isEmpty ? 'No custom header' : header,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: Colors.white,
                                       fontStyle: FontStyle.italic,
                                       fontSize: header.isEmpty ? 11 : 13,
                                       fontWeight: header.isEmpty ? FontWeight.w400 : FontWeight.w600,
+                                      color: previewText(selectedTheme),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'YOUR UNION NAME',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.92),
+                                      color: previewText(selectedTheme),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
                                     ),
