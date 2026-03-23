@@ -28,9 +28,12 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   final _vehicleRegController = TextEditingController();
   bool _isLoading = false;
   VehicleDropdownOption? _selectedVehicle;
-  XFile? _aadhaarFile;
-  XFile? _rcFile;
-  XFile? _licenseFile;
+  XFile? _aadhaarFrontFile;
+  XFile? _aadhaarBackFile;
+  XFile? _rcFrontFile;
+  XFile? _rcBackFile;
+  XFile? _licenseFrontFile;
+  XFile? _licenseBackFile;
   bool _checkingUnionPath = true;
   bool _unionPathBlocksIndependent = false;
 
@@ -92,20 +95,32 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
 
     setState(() => _isLoading = true);
 
-    String? aadhaarUrl;
-    String? rcUrl;
-    String? licenseUrl;
+    if (_aadhaarFrontFile == null ||
+        _aadhaarBackFile == null ||
+        _rcFrontFile == null ||
+        _rcBackFile == null ||
+        _licenseFrontFile == null ||
+        _licenseBackFile == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload Aadhaar, RC and License front/back photos'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    String? aadhaarFrontUrl;
+    String? aadhaarBackUrl;
+    String? rcFrontUrl;
+    String? rcBackUrl;
+    String? licenseFrontUrl;
+    String? licenseBackUrl;
 
     try {
-      if (_aadhaarFile != null) {
-        aadhaarUrl = await _uploadService.uploadDriverDocument(_aadhaarFile!);
-      }
-      if (_rcFile != null) {
-        rcUrl = await _uploadService.uploadDriverDocument(_rcFile!);
-      }
-      if (_licenseFile != null) {
-        licenseUrl = await _uploadService.uploadDriverDocument(_licenseFile!);
-      }
+      aadhaarFrontUrl = await _uploadService.uploadDriverDocument(_aadhaarFrontFile!);
+      aadhaarBackUrl = await _uploadService.uploadDriverDocument(_aadhaarBackFile!);
+      rcFrontUrl = await _uploadService.uploadDriverDocument(_rcFrontFile!);
+      rcBackUrl = await _uploadService.uploadDriverDocument(_rcBackFile!);
+      licenseFrontUrl = await _uploadService.uploadDriverDocument(_licenseFrontFile!);
+      licenseBackUrl = await _uploadService.uploadDriverDocument(_licenseBackFile!);
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -127,16 +142,22 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
 
     final result = await _service.submitVerification(
       drivingLicenseNumber: _licenseController.text.trim(),
-      drivingLicenseUrl: licenseUrl,
+      drivingLicenseUrl: licenseFrontUrl,
       vehicleRegistration: _vehicleRegController.text.trim(),
       vehicleType: vehicleType,
       vehicleModel: vehicleModel,
       vehicleModelId: v.id,
       vehicleCapacity: v.capacity,
-      rcDocumentUrl: rcUrl,
+      rcDocumentUrl: rcFrontUrl,
       permitDocumentUrl: null,
       insuranceDocumentUrl: null,
-      aadhaarDocumentUrl: aadhaarUrl,
+      aadhaarDocumentUrl: aadhaarFrontUrl,
+      aadhaarFrontUrl: aadhaarFrontUrl,
+      aadhaarBackUrl: aadhaarBackUrl,
+      rcFrontUrl: rcFrontUrl,
+      rcBackUrl: rcBackUrl,
+      drivingLicenseFrontUrl: licenseFrontUrl,
+      drivingLicenseBackUrl: licenseBackUrl,
     );
 
     setState(() => _isLoading = false);
@@ -273,19 +294,34 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                 runSpacing: 8,
                 children: [
                   _DocChip(
-                    label: 'Aadhaar',
-                    selected: _aadhaarFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _aadhaarFile = f)),
+                    label: 'Aadhaar front',
+                    selected: _aadhaarFrontFile != null,
+                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _aadhaarFrontFile = f)),
                   ),
                   _DocChip(
-                    label: 'RC',
-                    selected: _rcFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _rcFile = f)),
+                    label: 'Aadhaar back',
+                    selected: _aadhaarBackFile != null,
+                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _aadhaarBackFile = f)),
                   ),
                   _DocChip(
-                    label: 'License photo (optional)',
-                    selected: _licenseFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _licenseFile = f)),
+                    label: 'RC front',
+                    selected: _rcFrontFile != null,
+                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _rcFrontFile = f)),
+                  ),
+                  _DocChip(
+                    label: 'RC back',
+                    selected: _rcBackFile != null,
+                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _rcBackFile = f)),
+                  ),
+                  _DocChip(
+                    label: 'License front',
+                    selected: _licenseFrontFile != null,
+                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _licenseFrontFile = f)),
+                  ),
+                  _DocChip(
+                    label: 'License back',
+                    selected: _licenseBackFile != null,
+                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _licenseBackFile = f)),
                   ),
                 ],
               ),

@@ -22,7 +22,13 @@ const submitVerification = asyncHandler(async (req, res) => {
     rc_document_url,
     permit_document_url,
     insurance_document_url,
-    aadhaar_document_url
+    aadhaar_document_url,
+    aadhaar_front_url,
+    aadhaar_back_url,
+    rc_front_url,
+    rc_back_url,
+    driving_license_front_url,
+    driving_license_back_url,
   } = req.body;
 
   // Check if already approved
@@ -74,7 +80,13 @@ const submitVerification = asyncHandler(async (req, res) => {
     rc_document_url || null,
     permit_document_url || null,
     insurance_document_url || null,
-    aadhaar_document_url || null
+    aadhaar_document_url || null,
+    aadhaar_front_url || null,
+    aadhaar_back_url || null,
+    rc_front_url || null,
+    rc_back_url || null,
+    driving_license_front_url || null,
+    driving_license_back_url || null,
   ];
 
   let result;
@@ -84,8 +96,9 @@ const submitVerification = asyncHandler(async (req, res) => {
         user_id, driving_license_number, driving_license_url,
         vehicle_registration, vehicle_type, vehicle_model, vehicle_model_id, vehicle_capacity,
         rc_document_url, permit_document_url, insurance_document_url, aadhaar_document_url,
+        aadhaar_front_url, aadhaar_back_url, rc_front_url, rc_back_url, driving_license_front_url, driving_license_back_url,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'pending')
       ON CONFLICT (user_id) DO UPDATE SET
         driving_license_number = EXCLUDED.driving_license_number,
         driving_license_url = EXCLUDED.driving_license_url,
@@ -98,6 +111,12 @@ const submitVerification = asyncHandler(async (req, res) => {
         permit_document_url = EXCLUDED.permit_document_url,
         insurance_document_url = EXCLUDED.insurance_document_url,
         aadhaar_document_url = EXCLUDED.aadhaar_document_url,
+        aadhaar_front_url = EXCLUDED.aadhaar_front_url,
+        aadhaar_back_url = EXCLUDED.aadhaar_back_url,
+        rc_front_url = EXCLUDED.rc_front_url,
+        rc_back_url = EXCLUDED.rc_back_url,
+        driving_license_front_url = EXCLUDED.driving_license_front_url,
+        driving_license_back_url = EXCLUDED.driving_license_back_url,
         status = 'pending',
         rejection_reason = NULL,
         reviewed_by = NULL,
@@ -108,8 +127,8 @@ const submitVerification = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     // If vehicle_model_id column does not exist (migration 008 not run), retry without it
-    if (err.code === '42703' && err.message && err.message.includes('vehicle_model_id')) {
-      logger.warn('driver_verification_requests.vehicle_model_id missing - run migration 008. Inserting without it.');
+    if (err.code === '42703') {
+      logger.warn('driver_verification_requests schema outdated, inserting with legacy columns.');
       result = await pool.query(
         `INSERT INTO driver_verification_requests (
           user_id, driving_license_number, driving_license_url,

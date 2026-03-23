@@ -33,9 +33,14 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   String _status = 'none';
   Map<String, dynamic>? _union;
   final _uploadService = UploadService();
-  XFile? _ownerAadhaarFile;
+  XFile? _ownerAadhaarFrontFile;
+  XFile? _ownerAadhaarBackFile;
   XFile? _officePhotoFile;
-  XFile? _ownerRcFile;
+  XFile? _driverListPhotoFile;
+  XFile? _leaderDlFrontFile;
+  XFile? _leaderDlBackFile;
+  XFile? _ownerRcFrontFile;
+  XFile? _ownerRcBackFile;
 
   @override
   void initState() {
@@ -109,10 +114,10 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_ownerAadhaarFile == null) {
+    if (_ownerAadhaarFrontFile == null || _ownerAadhaarBackFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Union leader ka Aadhaar photo upload karna zaroori hai.'),
+          content: Text('Union leader ka Aadhaar front/back upload karna zaroori hai.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -121,19 +126,35 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
 
     setState(() => _isSubmitting = true);
 
-    String? ownerAadhaarUrl;
+    String? ownerAadhaarFrontUrl;
+    String? ownerAadhaarBackUrl;
     String? officePhotoUrl;
-    String? ownerRcUrl;
+    String? driverListPhotoUrl;
+    String? leaderDlFrontUrl;
+    String? leaderDlBackUrl;
+    String? ownerRcFrontUrl;
+    String? ownerRcBackUrl;
 
     try {
-      if (_ownerAadhaarFile != null) {
-        ownerAadhaarUrl = await _uploadService.uploadUnionDocument(_ownerAadhaarFile!);
-      }
+      ownerAadhaarFrontUrl = await _uploadService.uploadUnionDocument(_ownerAadhaarFrontFile!);
+      ownerAadhaarBackUrl = await _uploadService.uploadUnionDocument(_ownerAadhaarBackFile!);
       if (_officePhotoFile != null) {
         officePhotoUrl = await _uploadService.uploadUnionDocument(_officePhotoFile!);
       }
-      if (_ownerRcFile != null) {
-        ownerRcUrl = await _uploadService.uploadUnionDocument(_ownerRcFile!);
+      if (_driverListPhotoFile != null) {
+        driverListPhotoUrl = await _uploadService.uploadUnionDocument(_driverListPhotoFile!);
+      }
+      if (_leaderDlFrontFile != null) {
+        leaderDlFrontUrl = await _uploadService.uploadUnionDocument(_leaderDlFrontFile!);
+      }
+      if (_leaderDlBackFile != null) {
+        leaderDlBackUrl = await _uploadService.uploadUnionDocument(_leaderDlBackFile!);
+      }
+      if (_ownerRcFrontFile != null) {
+        ownerRcFrontUrl = await _uploadService.uploadUnionDocument(_ownerRcFrontFile!);
+      }
+      if (_ownerRcBackFile != null) {
+        ownerRcBackUrl = await _uploadService.uploadUnionDocument(_ownerRcBackFile!);
       }
     } catch (e) {
       if (!mounted) return;
@@ -154,9 +175,17 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       contactPhone: _phoneController.text.trim(),
       contactEmail: _emailController.text.trim(),
       ownerName: _ownerNameController.text.trim(),
-      ownerAadhaarUrl: ownerAadhaarUrl,
+      ownerAadhaarUrl: ownerAadhaarFrontUrl,
+      ownerAadhaarFrontUrl: ownerAadhaarFrontUrl,
+      ownerAadhaarBackUrl: ownerAadhaarBackUrl,
       officePhotoUrl: officePhotoUrl,
-      ownerVehicleRcUrl: ownerRcUrl,
+      unionPhotoUrl: officePhotoUrl,
+      unionDriverListPhotoUrl: driverListPhotoUrl,
+      leaderDrivingLicenseFrontUrl: leaderDlFrontUrl,
+      leaderDrivingLicenseBackUrl: leaderDlBackUrl,
+      ownerVehicleRcUrl: ownerRcFrontUrl,
+      ownerVehicleRcFrontUrl: ownerRcFrontUrl,
+      ownerVehicleRcBackUrl: ownerRcBackUrl,
       unionShareNotes: _shareNotesController.text.trim(),
     );
 
@@ -425,7 +454,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Union leader Aadhaar — zaroori; office photo aur RC bhi upload karein.',
+            'Required: Leader Aadhaar front/back. Optional: union photo, driver list photo, leader DL front/back, RC front/back.',
             style: TextStyle(fontSize: 12, color: Colors.grey[700]),
           ),
           const SizedBox(height: 8),
@@ -434,19 +463,31 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             runSpacing: 8,
             children: [
               _DocChip(
-                label: 'Leader Aadhaar *',
-                selected: _ownerAadhaarFile != null,
+                label: 'Leader Aadhaar front *',
+                selected: _ownerAadhaarFrontFile != null,
                 onTap: _isSubmitting
                     ? null
                     : () async {
                         final picker = ImagePicker();
                         final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                         if (img == null) return;
-                        setState(() => _ownerAadhaarFile = img);
+                        setState(() => _ownerAadhaarFrontFile = img);
                       },
               ),
               _DocChip(
-                label: 'Office photo',
+                label: 'Leader Aadhaar back *',
+                selected: _ownerAadhaarBackFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _ownerAadhaarBackFile = img);
+                      },
+              ),
+              _DocChip(
+                label: 'Union photo',
                 selected: _officePhotoFile != null,
                 onTap: _isSubmitting
                     ? null
@@ -458,15 +499,63 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                       },
               ),
               _DocChip(
-                label: 'Any cab RC',
-                selected: _ownerRcFile != null,
+                label: 'Driver list photo',
+                selected: _driverListPhotoFile != null,
                 onTap: _isSubmitting
                     ? null
                     : () async {
                         final picker = ImagePicker();
                         final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
                         if (img == null) return;
-                        setState(() => _ownerRcFile = img);
+                        setState(() => _driverListPhotoFile = img);
+                      },
+              ),
+              _DocChip(
+                label: 'Leader DL front',
+                selected: _leaderDlFrontFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _leaderDlFrontFile = img);
+                      },
+              ),
+              _DocChip(
+                label: 'Leader DL back',
+                selected: _leaderDlBackFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _leaderDlBackFile = img);
+                      },
+              ),
+              _DocChip(
+                label: 'Any cab RC front',
+                selected: _ownerRcFrontFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _ownerRcFrontFile = img);
+                      },
+              ),
+              _DocChip(
+                label: 'Any cab RC back',
+                selected: _ownerRcBackFile != null,
+                onTap: _isSubmitting
+                    ? null
+                    : () async {
+                        final picker = ImagePicker();
+                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        if (img == null) return;
+                        setState(() => _ownerRcBackFile = img);
                       },
               ),
             ],

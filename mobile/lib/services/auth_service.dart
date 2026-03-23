@@ -234,18 +234,26 @@ class AuthService {
     String? luggageAllowancePerPassenger,
   }) async {
     try {
-      final response = await _apiService.put(
-        ApiConstants.updateProfile,
-        data: {
-          if (name != null) 'name': name,
-          if (phone != null) 'phone': phone,
-          if (email != null) 'email': email,
-          if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
-          if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
-          if (bio != null) 'bio': bio,
-          if (luggageAllowancePerPassenger != null) 'luggage_allowance_per_passenger': luggageAllowancePerPassenger,
-        },
-      );
+      final payload = {
+        if (name != null) 'name': name,
+        if (phone != null) 'phone': phone,
+        if (email != null) 'email': email,
+        if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
+        if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
+        if (bio != null) 'bio': bio,
+        if (luggageAllowancePerPassenger != null) 'luggage_allowance_per_passenger': luggageAllowancePerPassenger,
+      };
+      Response response;
+      try {
+        response = await _apiService.put(ApiConstants.updateProfile, data: payload);
+      } on DioException catch (e) {
+        // Some older deployments may expose profile update on legacy endpoint.
+        if (e.response?.statusCode == 404) {
+          response = await _apiService.put(ApiConstants.userProfile, data: payload);
+        } else {
+          rethrow;
+        }
+      }
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final user = UserModel.fromJson(response.data['data']);

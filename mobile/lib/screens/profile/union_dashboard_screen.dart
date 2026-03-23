@@ -22,8 +22,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   List<dynamic> _drivers = const [];
   String _posterHeader = '';
   String _posterCustomText = '';
-  String _posterCustomTextPosition = 'bottom';
+  String _posterCustomTextPosition = 'right';
   String _posterLayoutType = 'classic';
+  String _posterTheme = 'saffron';
   Map<String, dynamic>? _union;
 
   static const _orange = Color(0xFFFF6B00);
@@ -72,15 +73,17 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
     String posterHeader = '';
     String posterCustomText = '';
-    String posterCustomTextPosition = 'bottom';
+    String posterCustomTextPosition = 'right';
     String posterLayoutType = 'classic';
+    String posterTheme = 'saffron';
     Map<String, dynamic>? unionMap;
     if (unionResult['success'] == true) {
       unionMap = unionResult['union'] as Map<String, dynamic>?;
       posterHeader = (unionMap?['poster_header'] ?? '').toString();
       posterCustomText = (unionMap?['poster_custom_text'] ?? '').toString();
-      posterCustomTextPosition = (unionMap?['poster_custom_text_position'] ?? 'bottom').toString();
+      posterCustomTextPosition = (unionMap?['poster_custom_text_position'] ?? 'right').toString();
       posterLayoutType = (unionMap?['poster_layout_type'] ?? 'classic').toString();
+      posterTheme = (unionMap?['poster_theme'] ?? 'saffron').toString();
     }
 
     if (!mounted) return;
@@ -91,6 +94,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       _posterCustomText = posterCustomText;
       _posterCustomTextPosition = posterCustomTextPosition;
       _posterLayoutType = posterLayoutType;
+      _posterTheme = posterTheme;
       _union = unionMap;
       _error = error;
       _loading = false;
@@ -1050,15 +1054,20 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     String selectedPosition = _posterCustomTextPosition;
     final positionLabels = <String, String>{
       'top': 'Top',
-      'bottom': 'Bottom',
       'left': 'Left',
       'right': 'Right',
     };
     final positionIcons = <String, IconData>{
       'top': Icons.vertical_align_top_rounded,
-      'bottom': Icons.vertical_align_bottom_rounded,
       'left': Icons.vertical_align_center_rounded,
       'right': Icons.vertical_align_center_rounded,
+    };
+    String selectedTheme = _posterTheme;
+    final themeLabels = <String, String>{
+      'saffron': 'Saffron',
+      'sky': 'Sky',
+      'mint': 'Mint',
+      'rose': 'Rose',
     };
 
     await showModalBottomSheet<void>(
@@ -1254,13 +1263,29 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
-                  children: ['top', 'bottom', 'left', 'right'].map((pos) {
+                  children: ['left', 'right'].map((pos) {
                     final active = selectedPosition == pos;
                     return ChoiceChip(
                       selected: active,
                       avatar: Icon(positionIcons[pos], size: 16, color: active ? Colors.white : Colors.black54),
                       label: Text(positionLabels[pos] ?? pos),
                       onSelected: (_) => setSheet(() => selectedPosition = pos),
+                      selectedColor: _purple,
+                      labelStyle: TextStyle(color: active ? Colors.white : Colors.black87),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 10),
+                const Text('Poster color', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: ['saffron', 'sky', 'mint', 'rose'].map((key) {
+                    final active = selectedTheme == key;
+                    return ChoiceChip(
+                      selected: active,
+                      label: Text(themeLabels[key] ?? key),
+                      onSelected: (_) => setSheet(() => selectedTheme = key),
                       selectedColor: _purple,
                       labelStyle: TextStyle(color: active ? Colors.white : Colors.black87),
                     );
@@ -1280,6 +1305,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                               posterCustomText: customCtrl.text.trim(),
                               posterCustomTextPosition: selectedPosition,
                               posterLayoutType: _posterLayoutType,
+                              posterTheme: selectedTheme,
                             );
                             setSheet(() => saving = false);
                             if (!mounted) return;
@@ -1288,6 +1314,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                 _posterHeader = ctrl.text.trim();
                                 _posterCustomText = customCtrl.text.trim();
                                 _posterCustomTextPosition = selectedPosition;
+                                _posterTheme = selectedTheme;
                               });
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(

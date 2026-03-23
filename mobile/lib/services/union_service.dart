@@ -14,8 +14,16 @@ class UnionService {
     String? contactEmail,
     String? ownerName,
     String? ownerAadhaarUrl,
+    String? ownerAadhaarFrontUrl,
+    String? ownerAadhaarBackUrl,
     String? officePhotoUrl,
+    String? unionPhotoUrl,
+    String? unionDriverListPhotoUrl,
+    String? leaderDrivingLicenseFrontUrl,
+    String? leaderDrivingLicenseBackUrl,
     String? ownerVehicleRcUrl,
+    String? ownerVehicleRcFrontUrl,
+    String? ownerVehicleRcBackUrl,
     String? unionShareNotes,
   }) async {
     try {
@@ -32,10 +40,26 @@ class UnionService {
             'owner_name': ownerName,
           if (ownerAadhaarUrl != null && ownerAadhaarUrl.isNotEmpty)
             'owner_aadhaar_url': ownerAadhaarUrl,
+          if (ownerAadhaarFrontUrl != null && ownerAadhaarFrontUrl.isNotEmpty)
+            'owner_aadhaar_front_url': ownerAadhaarFrontUrl,
+          if (ownerAadhaarBackUrl != null && ownerAadhaarBackUrl.isNotEmpty)
+            'owner_aadhaar_back_url': ownerAadhaarBackUrl,
           if (officePhotoUrl != null && officePhotoUrl.isNotEmpty)
             'office_photo_url': officePhotoUrl,
+          if (unionPhotoUrl != null && unionPhotoUrl.isNotEmpty)
+            'union_photo_url': unionPhotoUrl,
+          if (unionDriverListPhotoUrl != null && unionDriverListPhotoUrl.isNotEmpty)
+            'union_driver_list_photo_url': unionDriverListPhotoUrl,
+          if (leaderDrivingLicenseFrontUrl != null && leaderDrivingLicenseFrontUrl.isNotEmpty)
+            'leader_driving_license_front_url': leaderDrivingLicenseFrontUrl,
+          if (leaderDrivingLicenseBackUrl != null && leaderDrivingLicenseBackUrl.isNotEmpty)
+            'leader_driving_license_back_url': leaderDrivingLicenseBackUrl,
           if (ownerVehicleRcUrl != null && ownerVehicleRcUrl.isNotEmpty)
             'owner_vehicle_rc_url': ownerVehicleRcUrl,
+          if (ownerVehicleRcFrontUrl != null && ownerVehicleRcFrontUrl.isNotEmpty)
+            'owner_vehicle_rc_front_url': ownerVehicleRcFrontUrl,
+          if (ownerVehicleRcBackUrl != null && ownerVehicleRcBackUrl.isNotEmpty)
+            'owner_vehicle_rc_back_url': ownerVehicleRcBackUrl,
           if (unionShareNotes != null && unionShareNotes.trim().isNotEmpty)
             'union_share_notes': unionShareNotes.trim(),
         },
@@ -330,6 +354,7 @@ class UnionService {
     String? posterCustomText,
     String? posterCustomTextPosition,
     String? posterLayoutType,
+    String? posterTheme,
   }) async {
     try {
       final response = await _api.patch(
@@ -339,6 +364,7 @@ class UnionService {
           'poster_custom_text': posterCustomText,
           'poster_custom_text_position': posterCustomTextPosition,
           'poster_layout_type': posterLayoutType,
+          'poster_theme': posterTheme,
         },
       );
       return {
@@ -347,6 +373,7 @@ class UnionService {
         'poster_custom_text': response.data['data']?['poster_custom_text'],
         'poster_custom_text_position': response.data['data']?['poster_custom_text_position'],
         'poster_layout_type': response.data['data']?['poster_layout_type'],
+        'poster_theme': response.data['data']?['poster_theme'],
         'message': response.data['message'] ?? 'Branding updated',
       };
     } on DioException catch (e) {

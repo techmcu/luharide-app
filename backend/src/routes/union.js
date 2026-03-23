@@ -63,10 +63,12 @@ const updateBrandingSchema = Joi.object({
   poster_header: Joi.string().max(200).allow('', null),
   poster_custom_text: Joi.string().max(120).allow('', null),
   poster_custom_text_position: Joi.string()
-    .valid('top', 'bottom', 'left', 'right', 'none')
+    .valid('left', 'right', 'none')
     .allow('', null),
-  poster_layout_type: Joi.string()
-    .valid('classic', 'compact')
+  poster_layout_type: Joi.string().valid('classic', 'compact')
+    .allow('', null),
+  poster_theme: Joi.string()
+    .valid('saffron', 'sky', 'mint', 'rose')
     .allow('', null),
 });
 
@@ -78,8 +80,16 @@ const registerUnionSchema = Joi.object({
   contact_email: Joi.string().email().allow('', null),
   owner_name: Joi.string().max(100).allow('', null),
   owner_aadhaar_url: Joi.string().max(2048).allow('', null),
+  owner_aadhaar_front_url: Joi.string().max(2048).allow('', null),
+  owner_aadhaar_back_url: Joi.string().max(2048).allow('', null),
   office_photo_url: Joi.string().max(2048).allow('', null),
+  union_photo_url: Joi.string().max(2048).allow('', null),
+  union_driver_list_photo_url: Joi.string().max(2048).allow('', null),
+  leader_driving_license_front_url: Joi.string().max(2048).allow('', null),
+  leader_driving_license_back_url: Joi.string().max(2048).allow('', null),
   owner_vehicle_rc_url: Joi.string().max(2048).allow('', null),
+  owner_vehicle_rc_front_url: Joi.string().max(2048).allow('', null),
+  owner_vehicle_rc_back_url: Joi.string().max(2048).allow('', null),
   union_share_notes: Joi.string().max(500).allow('', null),
 });
 

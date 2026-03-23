@@ -39,6 +39,12 @@ class DriverVerificationService {
     String? permitDocumentUrl,
     String? insuranceDocumentUrl,
     String? aadhaarDocumentUrl,
+    String? aadhaarFrontUrl,
+    String? aadhaarBackUrl,
+    String? rcFrontUrl,
+    String? rcBackUrl,
+    String? drivingLicenseFrontUrl,
+    String? drivingLicenseBackUrl,
   }) async {
     try {
       final response = await _apiService.post(
@@ -55,6 +61,12 @@ class DriverVerificationService {
           if (permitDocumentUrl != null) 'permit_document_url': permitDocumentUrl,
           if (insuranceDocumentUrl != null) 'insurance_document_url': insuranceDocumentUrl,
           if (aadhaarDocumentUrl != null) 'aadhaar_document_url': aadhaarDocumentUrl,
+          if (aadhaarFrontUrl != null) 'aadhaar_front_url': aadhaarFrontUrl,
+          if (aadhaarBackUrl != null) 'aadhaar_back_url': aadhaarBackUrl,
+          if (rcFrontUrl != null) 'rc_front_url': rcFrontUrl,
+          if (rcBackUrl != null) 'rc_back_url': rcBackUrl,
+          if (drivingLicenseFrontUrl != null) 'driving_license_front_url': drivingLicenseFrontUrl,
+          if (drivingLicenseBackUrl != null) 'driving_license_back_url': drivingLicenseBackUrl,
         },
       );
       return {
