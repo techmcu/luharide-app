@@ -314,7 +314,7 @@ const registerUnion = asyncHandler(async (req, res) => {
          owner_vehicle_rc_back_url,
          union_share_notes
        )
-       VALUES ($1, $2, $3, $4, FALSE, 'pending', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      VALUES ($1, $2, $3, $4, FALSE, 'pending', $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
        RETURNING *`,
       [
         String(name).trim(),

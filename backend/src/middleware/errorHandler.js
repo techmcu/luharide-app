@@ -1,5 +1,6 @@
 const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
+const { applyCorsHeadersOnError } = require('./corsLuha');
 
 /**
  * Convert error to ApiError if needed (preserve PostgreSQL err.code for handler)
@@ -21,6 +22,9 @@ const errorConverter = (err, req, res, next) => {
  * Error handler middleware
  */
 const errorHandler = (err, req, res, next) => {
+  // Ensure CORS headers are present even on error responses.
+  applyCorsHeadersOnError(req, res);
+
   let { statusCode, message } = err;
   let errors = err.errors || null;
 

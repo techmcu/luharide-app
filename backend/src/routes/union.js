@@ -75,9 +75,9 @@ const updateBrandingSchema = Joi.object({
 // Union registration (any authenticated user) — must list all fields (stripUnknown removes the rest)
 const registerUnionSchema = Joi.object({
   name: Joi.string().min(3).max(200).required(),
-  location: Joi.string().max(200).allow('', null),
-  contact_phone: Joi.string().max(20).allow('', null),
-  contact_email: Joi.string().email().allow('', null),
+  location: Joi.string().min(3).max(200).required(),
+  contact_phone: Joi.string().min(8).max(20).required(),
+  contact_email: Joi.string().email().required(),
   owner_name: Joi.string().max(100).allow('', null),
   owner_aadhaar_url: Joi.string().max(2048).allow('', null),
   owner_aadhaar_front_url: Joi.string().max(2048).allow('', null),

@@ -575,18 +575,31 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              labelText: 'Contact phone (optional)',
+              labelText: 'Contact phone',
               border: OutlineInputBorder(),
             ),
+            validator: (v) {
+              final value = (v ?? '').trim();
+              if (value.isEmpty) return 'Please enter contact phone';
+              if (value.length < 8) return 'Phone must be at least 8 digits';
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Contact email (optional)',
+              labelText: 'Contact email',
               border: OutlineInputBorder(),
             ),
+            validator: (v) {
+              final value = (v ?? '').trim();
+              if (value.isEmpty) return 'Please enter contact email';
+              final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+              if (!ok) return 'Please enter a valid email';
+              return null;
+            },
           ),
           const SizedBox(height: 24),
           SizedBox(

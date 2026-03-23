@@ -22,6 +22,8 @@ function isProd() {
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
+  // Always allow localhost dev origins (Flutter web / Chrome debug).
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
   if (!allowedOriginList.length) return !isProd();
   return allowedOriginList.includes(origin);
 }
@@ -33,7 +35,7 @@ const corsOptions = {
   },
   credentials: false,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With', 'x-approve-password'],
   optionsSuccessStatus: 204,
 };
 
@@ -52,7 +54,7 @@ function applyCorsHeadersOnError(req, res) {
   );
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, Accept, X-Requested-With'
+    'Content-Type, Authorization, Accept, X-Requested-With, x-approve-password'
   );
 }
 
