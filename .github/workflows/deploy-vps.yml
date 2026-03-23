@@ -20,7 +20,12 @@ jobs:
 
       - name: Install backend dependencies
         working-directory: backend
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: JS syntax check
         run: git ls-files '*.js' | xargs -I{} node --check "{}"
@@ -88,7 +93,11 @@ jobs:
           git remote set-url origin https://github.com/techmcu/luharide-app.git
 
           cd backend
-          npm ci
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
           npm run migrate
           pm2 startOrReload pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs --update-env
           pm2 save
@@ -123,7 +132,11 @@ jobs:
           echo "Rolling back to: $ROLLBACK_COMMIT"
           git reset --hard "$ROLLBACK_COMMIT"
           cd backend
-          npm ci
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
           pm2 startOrReload pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs --update-env
           pm2 save
           EOF
