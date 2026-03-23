@@ -9,8 +9,23 @@ const logger = require('../config/logger');
  * @param {import('socket.io').Server} io
  */
 function attachSocketHandlers(io) {
+  const tripIdPattern = /^[a-zA-Z0-9-]{8,64}$/;
+
+  const isFiniteNumber = (n) => typeof n === 'number' && Number.isFinite(n);
+
+  const canTrackLocation = (lat, lng) =>
+    isFiniteNumber(lat) &&
+    isFiniteNumber(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180;
+
+  const nowMs = () => Date.now();
+
   io.use((socket, next) => {
     socket.userId = null;
+    socket._lastLocationAt = 0;
     const token =
       socket.handshake.auth?.token ||
       socket.handshake.query?.token ||
@@ -32,23 +47,42 @@ function attachSocketHandlers(io) {
       socket.join(`user:${socket.userId}`);
     }
 
-    // Join a trip tracking room (passengers, drivers viewing trip)
+    // Join a trip tracking room (authenticated users only).
     socket.on('join-trip', (tripId) => {
-      if (!tripId) return;
-      socket.join(`trip:${tripId}`);
+      if (!socket.userId) return;
+      if (!tripId || !tripIdPattern.test(String(tripId))) return;
+      socket.join(`trip:${String(tripId)}`);
     });
 
     socket.on('leave-trip', (tripId) => {
-      if (!tripId) return;
-      socket.leave(`trip:${tripId}`);
+      if (!tripId || !tripIdPattern.test(String(tripId))) return;
+      socket.leave(`trip:${String(tripId)}`);
     });
 
-    // Driver live location → only subscribers of this trip room
+    // Driver live location → only authenticated users + sanitized payload.
     socket.on('location-update', (data) => {
       try {
+        if (!socket.userId) return;
+        // Soft per-socket throttle (~5 updates/sec max).
+        const t = nowMs();
+        if (t - (socket._lastLocationAt || 0) < 200) return;
+        socket._lastLocationAt = t;
+
         const { tripId, lat, lng, speed } = data || {};
-        if (!tripId) return;
-        io.to(`trip:${tripId}`).emit('driver-location', { tripId, lat, lng, speed });
+        if (!tripId || !tripIdPattern.test(String(tripId))) return;
+
+        const latNum = typeof lat === 'string' ? Number(lat) : lat;
+        const lngNum = typeof lng === 'string' ? Number(lng) : lng;
+        const speedNum = typeof speed === 'string' ? Number(speed) : speed;
+        if (!canTrackLocation(latNum, lngNum)) return;
+
+        io.to(`trip:${String(tripId)}`).emit('driver-location', {
+          tripId: String(tripId),
+          lat: latNum,
+          lng: lngNum,
+          ...(isFiniteNumber(speedNum) ? { speed: speedNum } : {}),
+          ts: new Date().toISOString(),
+        });
       } catch (err) {
         logger.warn('Socket location-update error:', err.message);
       }

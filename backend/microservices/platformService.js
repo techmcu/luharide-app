@@ -17,7 +17,17 @@ const uploadRoutes = require('../src/routes/uploads');
 const app = createBaseApp('platform');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/admin', adminRoutes);
-app.use('/api/payments', paymentRoutes);
+if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {
+  app.use('/api/payments', paymentRoutes);
+} else {
+  app.use('/api/payments', (req, res) => {
+    return res.status(503).json({
+      success: false,
+      message: 'Online payment is temporarily disabled. Please pay offline to the driver.',
+      code: 'PAYMENTS_DISABLED',
+    });
+  });
+}
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/uploads', uploadRoutes);

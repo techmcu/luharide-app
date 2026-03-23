@@ -8,6 +8,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-gateway';
 const path = require('path');
+const os = require('os');
 const http = require('http');
 const express = require('express');
 const compression = require('compression');
@@ -34,10 +35,41 @@ const PLATFORM_URL = process.env.PLATFORM_URL || 'http://127.0.0.1:3004';
 const app = express();
 applyTrustProxy(app);
 
+const METRICS_WINDOW = 2000;
+const metrics = {
+  startedAt: Date.now(),
+  requests: 0,
+  status2xx: 0,
+  status4xx: 0,
+  status5xx: 0,
+  latenciesMs: [],
+};
+
+function percentile(sortedValues, p) {
+  if (!sortedValues.length) return 0;
+  const idx = Math.ceil((p / 100) * sortedValues.length) - 1;
+  return sortedValues[Math.max(0, Math.min(sortedValues.length - 1, idx))];
+}
+
 app.use(createHelmetMiddleware());
 app.use(requestContext);
 app.use(compression());
 applyLuhaCors(app);
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on('finish', () => {
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    metrics.requests += 1;
+    if (res.statusCode >= 500) metrics.status5xx += 1;
+    else if (res.statusCode >= 400) metrics.status4xx += 1;
+    else if (res.statusCode >= 200) metrics.status2xx += 1;
+    metrics.latenciesMs.push(ms);
+    if (metrics.latenciesMs.length > METRICS_WINDOW) {
+      metrics.latenciesMs.shift();
+    }
+  });
+  next();
+});
 morgan.token('reqId', (req) => req.id || '-');
 app.use(morgan(':reqId :method :url :status :response-time ms'));
 
@@ -76,6 +108,44 @@ app.get('/api', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ ok: true, status: 'running', via: 'gateway' });
+});
+
+app.get('/health/metrics', (req, res) => {
+  const sorted = [...metrics.latenciesMs].sort((a, b) => a - b);
+  const mem = process.memoryUsage();
+  const uptimeSec = Math.floor(process.uptime());
+  const total = metrics.requests || 1;
+  res.status(200).json({
+    ok: true,
+    service: 'gateway',
+    uptime_sec: uptimeSec,
+    requests_total: metrics.requests,
+    status_2xx: metrics.status2xx,
+    status_4xx: metrics.status4xx,
+    status_5xx: metrics.status5xx,
+    error_rate_5xx_pct: Number(((metrics.status5xx / total) * 100).toFixed(2)),
+    latency_ms: {
+      p50: Number(percentile(sorted, 50).toFixed(2)),
+      p95: Number(percentile(sorted, 95).toFixed(2)),
+      p99: Number(percentile(sorted, 99).toFixed(2)),
+      sample_size: sorted.length,
+    },
+    memory_mb: {
+      rss: Number((mem.rss / 1024 / 1024).toFixed(2)),
+      heap_used: Number((mem.heapUsed / 1024 / 1024).toFixed(2)),
+      heap_total: Number((mem.heapTotal / 1024 / 1024).toFixed(2)),
+    },
+    cpu: {
+      loadavg: os.loadavg(),
+      cores: os.cpus().length,
+    },
+    db_pool: {
+      total: pool.totalCount,
+      idle: pool.idleCount,
+      waiting: pool.waitingCount,
+    },
+    metrics_started_at: new Date(metrics.startedAt).toISOString(),
+  });
 });
 
 const _proxyTimeoutMs = Math.max(

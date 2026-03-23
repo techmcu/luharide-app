@@ -1,6 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-monolith';
+const os = require('os');
 const express = require('express');
 const compression = require('compression');
 const { createHelmetMiddleware } = require('./src/config/helmetConfig');
@@ -43,6 +44,22 @@ const rideCleanupJob = require('./src/jobs/rideCleanupJob');
 
 const app = express();
 
+const METRICS_WINDOW = 2000;
+const metrics = {
+  startedAt: Date.now(),
+  requests: 0,
+  status2xx: 0,
+  status4xx: 0,
+  status5xx: 0,
+  latenciesMs: [],
+};
+
+function percentile(sortedValues, p) {
+  if (!sortedValues.length) return 0;
+  const idx = Math.ceil((p / 100) * sortedValues.length) - 1;
+  return sortedValues[Math.max(0, Math.min(sortedValues.length - 1, idx))];
+}
+
 // If behind nginx / load balancer, set TRUST_PROXY=1 so express-rate-limit uses real client IP
 // (X-Forwarded-For). Without this, all traffic can look like one IP → shared limit → random 429s.
 if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
@@ -73,6 +90,21 @@ app.use(createHelmetMiddleware());
 app.use(requestContext);
 app.use(compression());
 applyLuhaCors(app);
+app.use((req, res, next) => {
+  const start = process.hrtime.bigint();
+  res.on('finish', () => {
+    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    metrics.requests += 1;
+    if (res.statusCode >= 500) metrics.status5xx += 1;
+    else if (res.statusCode >= 400) metrics.status4xx += 1;
+    else if (res.statusCode >= 200) metrics.status2xx += 1;
+    metrics.latenciesMs.push(ms);
+    if (metrics.latenciesMs.length > METRICS_WINDOW) {
+      metrics.latenciesMs.shift();
+    }
+  });
+  next();
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 morgan.token('reqId', (req) => req.id || '-');
@@ -110,7 +142,17 @@ app.get('/api/driver-verification', authenticate, getMyStatus);
 app.post('/api/driver-verification', authenticate, submitVerification);
 app.use('/api/admin', adminRoutes);
 app.use('/api/union', unionRoutes);
-app.use('/api/payments', paymentRoutes);
+if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {
+  app.use('/api/payments', paymentRoutes);
+} else {
+  app.use('/api/payments', (req, res) => {
+    return res.status(503).json({
+      success: false,
+      message: 'Online payment is temporarily disabled. Please pay offline to the driver.',
+      code: 'PAYMENTS_DISABLED',
+    });
+  });
+}
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/uploads', uploadRoutes);
@@ -143,6 +185,44 @@ app.get('/api', (req, res) => {
 });
 app.get('/api/health', (req, res) => {
   res.status(200).json({ ok: true, status: 'running' });
+});
+
+app.get('/health/metrics', (req, res) => {
+  const sorted = [...metrics.latenciesMs].sort((a, b) => a - b);
+  const mem = process.memoryUsage();
+  const uptimeSec = Math.floor(process.uptime());
+  const total = metrics.requests || 1;
+  res.status(200).json({
+    ok: true,
+    service: 'monolith',
+    uptime_sec: uptimeSec,
+    requests_total: metrics.requests,
+    status_2xx: metrics.status2xx,
+    status_4xx: metrics.status4xx,
+    status_5xx: metrics.status5xx,
+    error_rate_5xx_pct: Number(((metrics.status5xx / total) * 100).toFixed(2)),
+    latency_ms: {
+      p50: Number(percentile(sorted, 50).toFixed(2)),
+      p95: Number(percentile(sorted, 95).toFixed(2)),
+      p99: Number(percentile(sorted, 99).toFixed(2)),
+      sample_size: sorted.length,
+    },
+    memory_mb: {
+      rss: Number((mem.rss / 1024 / 1024).toFixed(2)),
+      heap_used: Number((mem.heapUsed / 1024 / 1024).toFixed(2)),
+      heap_total: Number((mem.heapTotal / 1024 / 1024).toFixed(2)),
+    },
+    cpu: {
+      loadavg: os.loadavg(),
+      cores: os.cpus().length,
+    },
+    db_pool: {
+      total: pool.totalCount,
+      idle: pool.idleCount,
+      waiting: pool.waitingCount,
+    },
+    metrics_started_at: new Date(metrics.startedAt).toISOString(),
+  });
 });
 
 // Socket.IO — rooms, JWT auth, realtime registry for controllers

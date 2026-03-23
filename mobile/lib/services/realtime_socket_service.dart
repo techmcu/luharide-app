@@ -14,6 +14,8 @@ class RealtimeSocketService {
 
   socket_io.Socket? _socket;
   final Set<String> _pendingTripJoins = {};
+  Timer? _reconnectBackoffTimer;
+  bool _isReconnectingManually = false;
 
   final _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
   final _notifications = StreamController<Map<String, dynamic>>.broadcast();
@@ -31,6 +33,7 @@ class RealtimeSocketService {
   bool get isConnected => _socket != null && _socket!.disconnected == false;
 
   Future<void> connect() async {
+    _reconnectBackoffTimer?.cancel();
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
     if (token == null || token.isEmpty) {
@@ -54,6 +57,7 @@ class RealtimeSocketService {
     );
 
     _socket!.on('connect', (_) {
+      _isReconnectingManually = false;
       if (kDebugMode) {
         // ignore: avoid_print
         print('🔌 Socket.IO connected');
@@ -73,6 +77,15 @@ class RealtimeSocketService {
         // ignore: avoid_print
         print('🔌 Socket.IO connect_error: $e');
       }
+      _scheduleManualReconnect();
+    });
+
+    _socket!.on('reconnect_failed', (_) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('🔌 Socket.IO reconnect_failed');
+      }
+      _scheduleManualReconnect();
     });
 
     _socket!.on('trip-updated', (dynamic data) {
@@ -93,6 +106,19 @@ class RealtimeSocketService {
     _socket!.on('driver-location', (dynamic data) {
       if (data is Map) {
         _driverLocation.add(Map<String, dynamic>.from(data));
+      }
+    });
+  }
+
+  void _scheduleManualReconnect() {
+    if (_isReconnectingManually) return;
+    _isReconnectingManually = true;
+    _reconnectBackoffTimer?.cancel();
+    _reconnectBackoffTimer = Timer(const Duration(seconds: 4), () async {
+      try {
+        await connect();
+      } finally {
+        _isReconnectingManually = false;
       }
     });
   }
@@ -136,7 +162,10 @@ class RealtimeSocketService {
   }
 
   Future<void> disconnect() async {
+    _reconnectBackoffTimer?.cancel();
+    _isReconnectingManually = false;
     try {
+      _socket?.disconnect();
       _socket?.dispose();
     } catch (_) {}
     _socket = null;

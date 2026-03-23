@@ -11,8 +11,26 @@ const cors = require('cors');
 
 // credentials: false — JWT is in Authorization header, not cookies. credentials:true
 // + browser can break CORS on some error responses (XHR shows ERROR[null] in Flutter).
+const allowedOriginList = (process.env.CORS_ALLOWED_ORIGINS || process.env.CLIENT_URL || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function isProd() {
+  return String(process.env.NODE_ENV || '').toLowerCase() === 'production';
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (!allowedOriginList.length) return !isProd();
+  return allowedOriginList.includes(origin);
+}
+
 const corsOptions = {
-  origin: true,
+  origin(origin, callback) {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error('CORS origin denied'));
+  },
   credentials: false,
   methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
@@ -22,10 +40,10 @@ const corsOptions = {
 /** Use when http-proxy (or similar) sends an error before normal cors() runs on the body. */
 function applyCorsHeadersOnError(req, res) {
   const origin = req.headers.origin;
-  if (origin) {
+  if (origin && isAllowedOrigin(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
-  } else {
+  } else if (!isProd()) {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
   res.setHeader(
