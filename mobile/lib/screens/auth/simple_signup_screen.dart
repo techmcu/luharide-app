@@ -6,7 +6,12 @@ import '../home/home_screen.dart';
 import 'simple_login_screen.dart';
 
 class SimpleSignupScreen extends StatefulWidget {
-  const SimpleSignupScreen({super.key});
+  final String userType;
+
+  const SimpleSignupScreen({
+    super.key,
+    this.userType = 'passenger',
+  });
 
   @override
   State<SimpleSignupScreen> createState() => _SimpleSignupScreenState();
@@ -97,7 +102,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
       otp: otp,
       name: name,
       password: password,
-      role: 'passenger',
+      role: widget.userType,
     );
     setState(() => _isLoading = false);
 
