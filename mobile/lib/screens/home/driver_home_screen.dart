@@ -290,12 +290,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             Expanded(
               child: _buildFooterItem(
                 context,
-                icon: Icons.chat_bubble_outline,
-                label: 'Chats',
-                iconColor: Colors.blue[700]!,
-                bgColor: Colors.blue[50]!,
+                icon: Icons.add_road,
+                label: 'Create',
+                iconColor: Colors.orange[700]!,
+                bgColor: Colors.orange[50]!,
                 isHighlight: true,
-                onTap: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chats - coming soon'))),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTripScreen())),
               ),
             ),
             const SizedBox(width: 8),

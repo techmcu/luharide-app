@@ -9,6 +9,15 @@ const asyncHandler = require('../utils/asyncHandler');
 const getMyNotifications = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
+  // Keep table light: remove already-read notifications older than 24h.
+  await pool.query(
+    `DELETE FROM notifications
+     WHERE user_id = $1
+       AND is_read = TRUE
+       AND created_at < (NOW() - INTERVAL '24 hours')`,
+    [userId]
+  );
+
   // Use body (001 schema); if your table has message instead, run migration 012 to add body.
   const result = await queryRead(
     `SELECT id, type, title, 
@@ -36,14 +45,29 @@ const markAsRead = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user.id;
 
+  const readResult = await pool.query(
+    `UPDATE notifications
+     SET is_read = TRUE
+     WHERE id = $1 AND user_id = $2
+     RETURNING id`,
+    [id, userId]
+  );
+  if (readResult.rows.length === 0) {
+    return ApiResponse.success(
+      { message: 'Notification already removed' },
+      'Notification not found'
+    ).send(res);
+  }
+
+  // Product requirement: once opened/read, remove immediately from DB.
   await pool.query(
-    'UPDATE notifications SET is_read = TRUE WHERE id = $1 AND user_id = $2',
+    'DELETE FROM notifications WHERE id = $1 AND user_id = $2',
     [id, userId]
   );
 
   ApiResponse.success(
-    { message: 'Notification marked as read' },
-    'Marked as read'
+    { message: 'Notification marked as read and removed' },
+    'Marked and removed'
   ).send(res);
 });
 
@@ -58,10 +82,14 @@ const markAllAsRead = asyncHandler(async (req, res) => {
     'UPDATE notifications SET is_read = TRUE WHERE user_id = $1',
     [userId]
   );
+  await pool.query(
+    'DELETE FROM notifications WHERE user_id = $1 AND is_read = TRUE',
+    [userId]
+  );
 
   ApiResponse.success(
-    { message: 'All notifications marked as read' },
-    'Marked all as read'
+    { message: 'All notifications marked as read and removed' },
+    'Marked and removed all'
   ).send(res);
 });
 

@@ -45,6 +45,7 @@ const refreshTokenSchema = Joi.object({
 
 const updateProfileSchema = Joi.object({
   name: Joi.string().min(2).max(100).optional(),
+  phone: Joi.string().pattern(/^[6-9]\d{9}$/).optional().allow('', null),
   email: schemas.email,
   profile_image_url: Joi.string().max(500).optional().allow('', null),
   whatsapp_number: Joi.string().max(20).optional().allow('', null),

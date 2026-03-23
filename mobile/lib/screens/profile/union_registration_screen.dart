@@ -40,6 +40,10 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   @override
   void initState() {
     super.initState();
+    final user = context.read<AuthProvider>().user;
+    _phoneController.text = (user?.phone ?? '').trim();
+    _emailController.text = (user?.email ?? '').trim();
+    _ownerNameController.text = (user?.name ?? '').trim();
     _loadStatus();
   }
 

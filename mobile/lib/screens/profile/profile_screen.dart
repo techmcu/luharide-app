@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/app_language_provider.dart';
 import '../../core/app_navigator.dart';
@@ -113,7 +112,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final role = widget.userRole ?? user?.role ?? 'passenger';
     final isDriver = role == 'driver' || user?.isDriverVerified == true;
     final driverStatus = user?.driverVerificationStatus ?? 'none';
-    final driverCode = user?.driverCode;
     final isUnionAdmin = user?.role == 'union_admin';
 
     final loc = AppLocalizations.of(context);
@@ -181,60 +179,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   user?.email ?? '',
                   style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                 ),
+                if ((user?.phone ?? '').trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    user!.phone!,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 20),
-
-          // Driver code (only when fully approved)
-          if (user?.isDriverVerified == true && driverCode != null && driverCode.isNotEmpty) ...[
-            Card(
-              color: Colors.green[50],
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Your driver code',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        SelectableText(
-                          driverCode,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          tooltip: 'Copy',
-                          icon: const Icon(Icons.copy, size: 20),
-                          onPressed: () {
-                            Clipboard.setData(ClipboardData(text: driverCode));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Driver code copied')),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Give this code to your union to get added as a driver.',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
 
           // Share your ride — hidden if union path is active
           if (!_blocksIndependent(authProvider))

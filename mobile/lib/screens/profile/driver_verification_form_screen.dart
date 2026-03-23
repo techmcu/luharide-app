@@ -214,6 +214,24 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Consumer<AuthProvider>(
+                builder: (_, auth, __) {
+                  final phone = (auth.user?.phone ?? '').trim();
+                  if (phone.isEmpty) return const SizedBox.shrink();
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      initialValue: phone,
+                      enabled: false,
+                      decoration: InputDecoration(
+                        labelText: 'Profile phone (used for contact)',
+                        prefixIcon: const Icon(Icons.phone_outlined),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  );
+                },
+              ),
               Card(
                 color: Colors.blue[50],
                 child: Padding(

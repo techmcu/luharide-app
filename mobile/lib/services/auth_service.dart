@@ -226,6 +226,7 @@ class AuthService {
   /// Update user profile
   Future<UserModel> updateProfile({
     String? name,
+    String? phone,
     String? email,
     String? whatsappNumber,
     String? profileImageUrl,
@@ -237,6 +238,7 @@ class AuthService {
         ApiConstants.updateProfile,
         data: {
           if (name != null) 'name': name,
+          if (phone != null) 'phone': phone,
           if (email != null) 'email': email,
           if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
           if (profileImageUrl != null) 'profile_image_url': profileImageUrl,

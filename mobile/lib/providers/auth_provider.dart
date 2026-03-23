@@ -195,6 +195,7 @@ class AuthProvider with ChangeNotifier {
   /// Update user profile
   Future<bool> updateProfile({
     String? name,
+    String? phone,
     String? email,
     String? whatsappNumber,
     String? profileImageUrl,
@@ -207,6 +208,7 @@ class AuthProvider with ChangeNotifier {
 
       _user = await _authService.updateProfile(
         name: name,
+        phone: phone,
         email: email,
         whatsappNumber: whatsappNumber,
         profileImageUrl: profileImageUrl,

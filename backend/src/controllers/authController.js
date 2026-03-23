@@ -292,7 +292,7 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
 const MAX_BIO_WORDS = 20;
 
 const updateProfileController = asyncHandler(async (req, res) => {
-  const { name, email, profile_image_url, whatsapp_number, bio, luggage_allowance_per_passenger } = req.body;
+  const { name, phone, email, profile_image_url, whatsapp_number, bio, luggage_allowance_per_passenger } = req.body;
   const userId = req.user.id;
 
   // Build update query dynamically
@@ -303,6 +303,26 @@ const updateProfileController = asyncHandler(async (req, res) => {
   if (name) {
     updates.push(`name = $${paramCount++}`);
     values.push(name);
+  }
+
+  if (phone !== undefined) {
+    const normalized = (phone === '' || phone === null)
+      ? null
+      : String(phone).replace(/\D/g, '');
+    if (normalized !== null && !/^[6-9]\d{9}$/.test(normalized)) {
+      throw ApiError.badRequest('Phone must be a valid 10-digit Indian mobile number');
+    }
+    if (normalized !== null) {
+      const dup = await pool.query(
+        'SELECT id FROM users WHERE phone = $1 AND id <> $2 LIMIT 1',
+        [normalized, userId]
+      );
+      if (dup.rows.length > 0) {
+        throw ApiError.conflict('This phone number is already used by another account');
+      }
+    }
+    updates.push(`phone = $${paramCount++}`);
+    values.push(normalized);
   }
 
   if (email !== undefined) {

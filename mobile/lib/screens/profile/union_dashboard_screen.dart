@@ -986,7 +986,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     const SizedBox(height: 3),
                     Text(
                       hasHeader
-                          ? 'Header: "$_posterHeader"'
+                          ? 'Header: $_posterHeader'
                           : 'Tap to set a custom header for your ride posters\n(e.g. blessing, deity name)',
                       style: TextStyle(
                         fontSize: 12,
@@ -1100,7 +1100,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         valueListenable: ctrl,
                         builder: (_, v, __) => v.text.isNotEmpty
                             ? Text(
-                                '*  ${v.text}  *',
+                                v.text.trim(),
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontStyle: FontStyle.italic,
@@ -1147,7 +1147,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     'Shri Ganeshaye Namah',
                   ].map((example) => ActionChip(
                     label: Text(example, style: const TextStyle(fontSize: 12)),
-                    onPressed: () => ctrl.text = example,
+                    onPressed: () {
+                      ctrl.text = example;
+                      ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
+                    },
                     backgroundColor: _purple.withOpacity(0.08),
                     labelStyle: TextStyle(color: _purple),
                   )).toList(),

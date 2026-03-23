@@ -1024,7 +1024,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               child: _buildFooterItem(
                 context,
                 icon: Icons.book_online,
-                label: 'My Booking',
+                label: 'My bookings',
                 iconColor: Colors.orange[700]!,
                 bgColor: Colors.orange[50]!,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PassengerMyRidesScreen())),

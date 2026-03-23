@@ -19,6 +19,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
+  late TextEditingController _phoneController;
   late TextEditingController _whatsappController;
   late TextEditingController _bioController;
   late TextEditingController _luggageController;
@@ -33,6 +34,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = context.read<AuthProvider>().user;
     _nameController = TextEditingController(text: user?.name ?? '');
     _emailController = TextEditingController(text: user?.email ?? '');
+    _phoneController = TextEditingController(text: user?.phone ?? '');
     _whatsappController = TextEditingController(text: user?.whatsappNumber ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
     _luggageController = TextEditingController(text: user?.luggageAllowancePerPassenger ?? '');
@@ -42,6 +44,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _whatsappController.dispose();
     _bioController.dispose();
     _luggageController.dispose();
@@ -71,6 +74,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final success = await authProvider.updateProfile(
       name: _nameController.text.trim(),
+      phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       whatsappNumber: _whatsappController.text.trim().isEmpty ? null : _whatsappController.text.trim(),
       profileImageUrl: profileImageUrl,
@@ -222,17 +226,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Phone (read-only)
-            if (user?.phone != null)
-              TextFormField(
-                initialValue: user!.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                  border: OutlineInputBorder(),
-                ),
-                enabled: false,
+            // Phone (editable for all users)
+            TextFormField(
+              controller: _phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Phone',
+                hintText: '10-digit mobile number',
+                prefixIcon: Icon(Icons.phone_outlined),
+                border: OutlineInputBorder(),
               ),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                final digits = v.replaceAll(RegExp(r'[^\d]'), '');
+                if (!RegExp(r'^[6-9]\d{9}$').hasMatch(digits)) {
+                  return 'Enter valid 10-digit Indian number';
+                }
+                return null;
+              },
+            ),
             const SizedBox(height: 20),
             // WhatsApp (for Chat redirect after ride approval)
             TextFormField(
