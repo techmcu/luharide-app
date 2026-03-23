@@ -252,7 +252,7 @@ class _TripCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.person_pin_car_rounded, size: 18, color: _kBlue),
+                Icon(Icons.directions_car_filled_rounded, size: 18, color: _kBlue),
                 const SizedBox(width: 8),
                 Text('Independent driver • Book on app', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kBlue)),
               ],
