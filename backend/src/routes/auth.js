@@ -45,9 +45,11 @@ const refreshTokenSchema = Joi.object({
 
 const updateProfileSchema = Joi.object({
   name: Joi.string().min(2).max(100).optional(),
-  phone: Joi.string().pattern(/^[6-9]\d{9}$/).optional().allow('', null),
+  // Accept flexible user input (+91, spaces, dashes). Controller normalizes and validates.
+  phone: Joi.string().max(30).optional().allow('', null),
   email: schemas.email,
-  profile_image_url: Joi.string().max(500).optional().allow('', null),
+  // Data URLs can be long for base64 images from Flutter web/mobile.
+  profile_image_url: Joi.string().max(6000000).optional().allow('', null),
   whatsapp_number: Joi.string().max(20).optional().allow('', null),
   bio: Joi.string().max(500).optional().allow('', null),
   luggage_allowance_per_passenger: Joi.string().max(100).optional().allow('', null)

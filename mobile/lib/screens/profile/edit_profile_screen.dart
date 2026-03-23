@@ -65,6 +65,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = true);
     
     final authProvider = context.read<AuthProvider>();
+    final normalizedPhone = _phoneController.text.replaceAll(RegExp(r'[^\d]'), '');
 
     String? profileImageUrl;
     if (_localImageBytes != null) {
@@ -74,7 +75,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     final success = await authProvider.updateProfile(
       name: _nameController.text.trim(),
-      phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      phone: normalizedPhone.isEmpty ? null : normalizedPhone,
       email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
       whatsappNumber: _whatsappController.text.trim().isEmpty ? null : _whatsappController.text.trim(),
       profileImageUrl: profileImageUrl,

@@ -290,6 +290,7 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
  * PUT /api/auth/profile
  */
 const MAX_BIO_WORDS = 20;
+const MAX_PROFILE_IMAGE_CHARS = 6000000; // ~4.5MB binary after base64 overhead
 
 const updateProfileController = asyncHandler(async (req, res) => {
   const { name, phone, email, profile_image_url, whatsapp_number, bio, luggage_allowance_per_passenger } = req.body;
@@ -331,8 +332,15 @@ const updateProfileController = asyncHandler(async (req, res) => {
   }
 
   if (profile_image_url !== undefined) {
+    const profileImageVal =
+      profile_image_url === '' || profile_image_url === null
+        ? null
+        : String(profile_image_url).trim();
+    if (profileImageVal && profileImageVal.length > MAX_PROFILE_IMAGE_CHARS) {
+      throw ApiError.badRequest('Profile image is too large. Please choose a smaller image.');
+    }
     updates.push(`profile_image_url = $${paramCount++}`);
-    values.push(profile_image_url === '' || profile_image_url === null ? null : profile_image_url);
+    values.push(profileImageVal);
   }
 
   if (whatsapp_number !== undefined) {
