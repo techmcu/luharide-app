@@ -59,6 +59,17 @@ const createSchedulesSchema = Joi.object({
   union_driver_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
 });
 
+const updateBrandingSchema = Joi.object({
+  poster_header: Joi.string().max(200).allow('', null),
+  poster_custom_text: Joi.string().max(120).allow('', null),
+  poster_custom_text_position: Joi.string()
+    .valid('top', 'bottom', 'left', 'right', 'none')
+    .allow('', null),
+  poster_layout_type: Joi.string()
+    .valid('classic', 'compact')
+    .allow('', null),
+});
+
 // Union registration (any authenticated user) — must list all fields (stripUnknown removes the rest)
 const registerUnionSchema = Joi.object({
   name: Joi.string().min(3).max(200).required(),
@@ -87,6 +98,7 @@ router.patch(
   '/branding',
   authenticate,
   authorize('union_admin'),
+  validate(updateBrandingSchema),
   updateUnionBranding
 );
 

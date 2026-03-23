@@ -63,6 +63,18 @@ function cleanPosterHeader(raw) {
 }
 
 /**
+ * Optional small custom text for poster corners/sides.
+ */
+function cleanPosterCustomText(raw) {
+  if (!raw) return '';
+  return String(raw)
+    .replace(/[\x00-\x1F\x7F]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
+/**
  * Get current user's union + status.
  * GET /api/union/me
  */
@@ -790,7 +802,12 @@ const cancelUnionSchedule = asyncHandler(async (req, res) => {
  * PATCH /api/union/branding
  */
 const updateUnionBranding = asyncHandler(async (req, res) => {
-  const { poster_header } = req.body;
+  const {
+    poster_header,
+    poster_custom_text,
+    poster_custom_text_position,
+    poster_layout_type,
+  } = req.body;
 
   const resUnion = await pool.query(
     `SELECT ua.union_id
@@ -805,14 +822,41 @@ const updateUnionBranding = asyncHandler(async (req, res) => {
   }
   const unionId = resUnion.rows[0].union_id;
 
-  const headerVal = (poster_header || '').toString().trim().slice(0, 200) || null;
+  const headerVal = cleanPosterHeader(poster_header).slice(0, 200) || null;
+  const customTextVal = cleanPosterCustomText(poster_custom_text) || null;
+  const positionRaw = (poster_custom_text_position || '').toString().trim().toLowerCase();
+  const layoutRaw = (poster_layout_type || '').toString().trim().toLowerCase();
+
+  const allowedPositions = new Set(['top', 'bottom', 'left', 'right']);
+  const allowedLayouts = new Set(['classic', 'compact']);
+  const customTextPosition =
+    allowedPositions.has(positionRaw)
+      ? positionRaw
+      : customTextVal
+        ? 'bottom'
+        : null;
+  const layoutType = allowedLayouts.has(layoutRaw) ? layoutRaw : 'classic';
 
   await pool.query(
-    `UPDATE unions SET poster_header = $1, updated_at = NOW() WHERE id = $2`,
-    [headerVal, unionId]
+    `UPDATE unions
+     SET poster_header = $1,
+         poster_custom_text = $2,
+         poster_custom_text_position = $3,
+         poster_layout_type = $4,
+         updated_at = NOW()
+     WHERE id = $5`,
+    [headerVal, customTextVal, customTextPosition, layoutType, unionId]
   );
 
-  ApiResponse.success({ poster_header: headerVal }, 'Poster branding updated').send(res);
+  ApiResponse.success(
+    {
+      poster_header: headerVal,
+      poster_custom_text: customTextVal,
+      poster_custom_text_position: customTextPosition,
+      poster_layout_type: layoutType,
+    },
+    'Poster branding updated'
+  ).send(res);
 });
 
 /**
@@ -926,7 +970,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   }
   const unionId = resUnion.rows[0].union_id;
 
-  // Load schedule + driver + union details (including poster_header)
+  // Load schedule + driver + union details (poster settings included)
   const schedRes = await pool.query(
     `SELECT
        s.*,
@@ -934,7 +978,10 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
        d.vehicle_number,
        d.phone         AS driver_phone,
        u.name          AS union_name,
-       u.poster_header AS poster_header
+       u.poster_header AS poster_header,
+       u.poster_custom_text AS poster_custom_text,
+       u.poster_custom_text_position AS poster_custom_text_position,
+       u.poster_layout_type AS poster_layout_type
      FROM union_schedules s
      JOIN union_drivers d  ON d.id = s.union_driver_id
      JOIN unions u         ON u.id = s.union_id
@@ -952,6 +999,9 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   const vehicleNum  = (s.vehicle_number  || '').toString();
   const driverPhone = (s.driver_phone    || '').toString();
   const posterHeader = cleanPosterHeader(s.poster_header);
+  const posterCustomText = cleanPosterCustomText(s.poster_custom_text);
+  const posterCustomTextPosition = (s.poster_custom_text_position || 'bottom').toString().toLowerCase();
+  const posterLayoutType = (s.poster_layout_type || 'classic').toString().toLowerCase();
   logger.info(`PDF posterHeader length=${posterHeader.length} value="${posterHeader.slice(0, 80)}"`);
   let unionNameRaw  = (s.union_name      || 'Taxi Union').toString().trim();
   if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
@@ -994,10 +1044,17 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   _rect(doc, 0, 0, W, 5, '#212121');
 
   // ─── Header band (poster header + union name) — compact yellow area so route/data starts higher
-  const headerH = posterHeader ? 150 : 78;
+  const compact = posterLayoutType === 'compact';
+  const headerH = posterHeader ? (compact ? 128 : 150) : (compact ? 64 : 78);
   _rect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 18;
+  if (posterCustomText && posterCustomTextPosition === 'top') {
+    doc.fillColor('#424242')
+      .font('Helvetica')
+      .fontSize(8)
+      .text(posterCustomText, 0, 8, { width: W, align: 'center' });
+  }
 
   // Custom poster header line at the very top (if provided)
   if (posterHeader) {
@@ -1031,6 +1088,23 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   // Light wave bottom of header
   _rect(doc, 0, 5 + headerH - 8, W, 8, '#FFFDF5');
   _roundedRect(doc, 0, 5 + headerH - 18, W, 22, 14, '#FFFDF5');
+
+  if (posterCustomText && posterCustomTextPosition === 'left') {
+    doc.save();
+    doc.rotate(-90, { origin: [12, H / 2] });
+    doc.fillColor('#616161').font('Helvetica').fontSize(8)
+      .text(posterCustomText, -H + 40, 8, { width: H - 80, align: 'center' });
+    doc.restore();
+  } else if (posterCustomText && posterCustomTextPosition === 'right') {
+    doc.save();
+    doc.rotate(90, { origin: [W - 12, H / 2] });
+    doc.fillColor('#616161').font('Helvetica').fontSize(8)
+      .text(posterCustomText, 40, -W + 4, { width: H - 80, align: 'center' });
+    doc.restore();
+  } else if (posterCustomText && posterCustomTextPosition === 'bottom') {
+    doc.fillColor('#616161').font('Helvetica').fontSize(8)
+      .text(posterCustomText, 0, H - 18, { width: W, align: 'center' });
+  }
 
   y = 5 + headerH + 6;
 
@@ -1272,13 +1346,14 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   if (resUnion.rows.length === 0) throw ApiError.forbidden('No approved union');
   const unionId = resUnion.rows[0].union_id;
 
-  // Load all requested schedules + union branding
+  // Load all requested schedules + union branding/settings
   const placeholders = ids.map((_, i) => `$${i + 2}`).join(',');
   const schedRes = await pool.query(
     `SELECT
        s.id, s.from_location, s.to_location, s.departure_time, s.status,
        d.name AS driver_name, d.vehicle_number, d.phone AS driver_phone,
-       u.name AS union_name, u.poster_header
+       u.name AS union_name, u.poster_header,
+       u.poster_custom_text, u.poster_custom_text_position, u.poster_layout_type
      FROM union_schedules s
      JOIN union_drivers d ON d.id = s.union_driver_id
      JOIN unions u        ON u.id = s.union_id
@@ -1294,6 +1369,9 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   if (unionNameRaw.toLowerCase() === 'techmcu') unionNameRaw = 'Taxi Union';
   const unionName  = cleanUnionName(unionNameRaw);
   const posterHeader = cleanPosterHeader(rows[0].poster_header);
+  const posterCustomText = cleanPosterCustomText(rows[0].poster_custom_text);
+  const posterCustomTextPosition = (rows[0].poster_custom_text_position || 'bottom').toString().toLowerCase();
+  const posterLayoutType = (rows[0].poster_layout_type || 'classic').toString().toLowerCase();
   logger.info(`Combined PDF posterHeader length=${posterHeader.length} value="${posterHeader.slice(0, 80)}"`);
 
   // Determine date label from first schedule
@@ -1349,10 +1427,15 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // ── Header band (poster header + union name) ──────────────────────────────
   // Reduce yellow header band height (previously too tall -> large empty gap).
   // Reduced to avoid large empty yellow gap before the table
-  const headerH = posterHeader ? 118 : 62;
+  const compact = posterLayoutType === 'compact';
+  const headerH = posterHeader ? (compact ? 102 : 118) : (compact ? 56 : 62);
   _fillRect(doc, 0, 5, W, headerH, '#FFC107');
 
   let y = 16;
+  if (posterCustomText && posterCustomTextPosition === 'top') {
+    doc.fillColor('#424242').font('Helvetica').fontSize(8)
+      .text(posterCustomText, 0, 8, { width: W, align: 'center' });
+  }
 
   // Custom poster header line at the very top (if provided)
   if (posterHeader) {
@@ -1379,6 +1462,23 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
       align: 'center',
       characterSpacing: 0.8,
     });
+
+  if (posterCustomText && posterCustomTextPosition === 'left') {
+    doc.save();
+    doc.rotate(-90, { origin: [12, H / 2] });
+    doc.fillColor('#616161').font('Helvetica').fontSize(8)
+      .text(posterCustomText, -H + 40, 8, { width: H - 80, align: 'center' });
+    doc.restore();
+  } else if (posterCustomText && posterCustomTextPosition === 'right') {
+    doc.save();
+    doc.rotate(90, { origin: [W - 12, H / 2] });
+    doc.fillColor('#616161').font('Helvetica').fontSize(8)
+      .text(posterCustomText, 40, -W + 4, { width: H - 80, align: 'center' });
+    doc.restore();
+  } else if (posterCustomText && posterCustomTextPosition === 'bottom') {
+    doc.fillColor('#616161').font('Helvetica').fontSize(8)
+      .text(posterCustomText, 0, H - 18, { width: W, align: 'center' });
+  }
 
   // Start table immediately after yellow band
   y = 5 + headerH + 4;

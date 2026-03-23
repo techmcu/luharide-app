@@ -324,16 +324,29 @@ class UnionService {
     }
   }
 
-  /// Update the poster branding (custom header line) for this union.
-  Future<Map<String, dynamic>> updateBranding({required String posterHeader}) async {
+  /// Update poster branding/settings for this union.
+  Future<Map<String, dynamic>> updateBranding({
+    required String posterHeader,
+    String? posterCustomText,
+    String? posterCustomTextPosition,
+    String? posterLayoutType,
+  }) async {
     try {
       final response = await _api.patch(
         '/union/branding',
-        data: {'poster_header': posterHeader},
+        data: {
+          'poster_header': posterHeader,
+          'poster_custom_text': posterCustomText,
+          'poster_custom_text_position': posterCustomTextPosition,
+          'poster_layout_type': posterLayoutType,
+        },
       );
       return {
         'success': true,
         'poster_header': response.data['data']?['poster_header'],
+        'poster_custom_text': response.data['data']?['poster_custom_text'],
+        'poster_custom_text_position': response.data['data']?['poster_custom_text_position'],
+        'poster_layout_type': response.data['data']?['poster_layout_type'],
         'message': response.data['message'] ?? 'Branding updated',
       };
     } on DioException catch (e) {

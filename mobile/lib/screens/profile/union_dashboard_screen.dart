@@ -21,6 +21,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   Map<String, dynamic>? _stats;
   List<dynamic> _drivers = const [];
   String _posterHeader = '';
+  String _posterCustomText = '';
+  String _posterCustomTextPosition = 'bottom';
+  String _posterLayoutType = 'classic';
   Map<String, dynamic>? _union;
 
   static const _orange = Color(0xFFFF6B00);
@@ -68,10 +71,16 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     }
 
     String posterHeader = '';
+    String posterCustomText = '';
+    String posterCustomTextPosition = 'bottom';
+    String posterLayoutType = 'classic';
     Map<String, dynamic>? unionMap;
     if (unionResult['success'] == true) {
       unionMap = unionResult['union'] as Map<String, dynamic>?;
       posterHeader = (unionMap?['poster_header'] ?? '').toString();
+      posterCustomText = (unionMap?['poster_custom_text'] ?? '').toString();
+      posterCustomTextPosition = (unionMap?['poster_custom_text_position'] ?? 'bottom').toString();
+      posterLayoutType = (unionMap?['poster_layout_type'] ?? 'classic').toString();
     }
 
     if (!mounted) return;
@@ -79,6 +88,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       _stats = stats;
       _drivers = drivers;
       _posterHeader = posterHeader;
+      _posterCustomText = posterCustomText;
+      _posterCustomTextPosition = posterCustomTextPosition;
+      _posterLayoutType = posterLayoutType;
       _union = unionMap;
       _error = error;
       _loading = false;
@@ -994,6 +1006,17 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         fontStyle: hasHeader ? FontStyle.italic : FontStyle.normal,
                       ),
                     ),
+                    if (_posterCustomText.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Small text (${_posterCustomTextPosition.toUpperCase()}): ${_posterCustomText.trim()}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -1022,7 +1045,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
   Future<void> _showBrandingSheet(BuildContext context) async {
     final ctrl    = TextEditingController(text: _posterHeader);
+    final customCtrl = TextEditingController(text: _posterCustomText);
     bool saving   = false;
+    String selectedPosition = _posterCustomTextPosition;
+    String selectedLayout = _posterLayoutType;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -1098,7 +1124,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     children: [
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: ctrl,
-                        builder: (_, v, __) => v.text.isNotEmpty
+                        builder: (_, v, __) => v.text.trim().isNotEmpty
                             ? Text(
                                 v.text.trim(),
                                 style: const TextStyle(
@@ -1108,7 +1134,14 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                 ),
                                 textAlign: TextAlign.center,
                               )
-                            : const SizedBox.shrink(),
+                            : const Text(
+                                'NO CUSTOM HEADER',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1126,6 +1159,21 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                           fontSize: 9,
                           letterSpacing: 1,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: customCtrl,
+                        builder: (_, v, __) => v.text.trim().isNotEmpty
+                            ? Text(
+                                '[${selectedPosition.toUpperCase()}] ${v.text.trim()}',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.85),
+                                  fontSize: 10,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                textAlign: TextAlign.center,
+                              )
+                            : const SizedBox.shrink(),
                       ),
                     ],
                   ),
@@ -1157,6 +1205,60 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 ),
                 const SizedBox(height: 14),
                 TextField(
+                  controller: customCtrl,
+                  maxLength: 60,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Small custom text (optional)',
+                    hintText: 'e.g. Helpline: 98xxxxxx',
+                    prefixIcon: const Icon(Icons.edit_note_rounded, size: 20),
+                    helperText: 'Will appear in small style on selected position',
+                    filled: true,
+                    fillColor: const Color(0xFFF8F8F8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _purple, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text('Small text position', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: ['top', 'bottom', 'left', 'right'].map((pos) {
+                    final active = selectedPosition == pos;
+                    return ChoiceChip(
+                      selected: active,
+                      label: Text(pos.toUpperCase()),
+                      onSelected: (_) => setSheet(() => selectedPosition = pos),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 10),
+                const Text('Layout type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: ['classic', 'compact'].map((layout) {
+                    final active = selectedLayout == layout;
+                    return ChoiceChip(
+                      selected: active,
+                      label: Text(layout.toUpperCase()),
+                      onSelected: (_) => setSheet(() => selectedLayout = layout),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
                   controller: ctrl,
                   maxLength: 60,
                   textInputAction: TextInputAction.done,
@@ -1166,13 +1268,21 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
                     final result = await UnionService().updateBranding(
                       posterHeader: ctrl.text.trim(),
+                      posterCustomText: customCtrl.text.trim(),
+                      posterCustomTextPosition: selectedPosition,
+                      posterLayoutType: selectedLayout,
                     );
 
                     setSheet(() => saving = false);
                     if (!mounted) return;
 
                     if (result['success'] == true) {
-                      setState(() => _posterHeader = ctrl.text.trim());
+                      setState(() {
+                        _posterHeader = ctrl.text.trim();
+                        _posterCustomText = customCtrl.text.trim();
+                        _posterCustomTextPosition = selectedPosition;
+                        _posterLayoutType = selectedLayout;
+                      });
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -1233,11 +1343,19 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                             setSheet(() => saving = true);
                             final result = await UnionService().updateBranding(
                               posterHeader: ctrl.text.trim(),
+                              posterCustomText: customCtrl.text.trim(),
+                              posterCustomTextPosition: selectedPosition,
+                              posterLayoutType: selectedLayout,
                             );
                             setSheet(() => saving = false);
                             if (!mounted) return;
                             if (result['success'] == true) {
-                              setState(() => _posterHeader = ctrl.text.trim());
+                              setState(() {
+                                _posterHeader = ctrl.text.trim();
+                                _posterCustomText = customCtrl.text.trim();
+                                _posterCustomTextPosition = selectedPosition;
+                                _posterLayoutType = selectedLayout;
+                              });
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
