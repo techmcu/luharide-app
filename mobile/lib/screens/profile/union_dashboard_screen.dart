@@ -1044,11 +1044,22 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   }
 
   Future<void> _showBrandingSheet(BuildContext context) async {
-    final ctrl    = TextEditingController(text: _posterHeader);
+    final ctrl = TextEditingController(text: _posterHeader);
     final customCtrl = TextEditingController(text: _posterCustomText);
-    bool saving   = false;
+    bool saving = false;
     String selectedPosition = _posterCustomTextPosition;
-    String selectedLayout = _posterLayoutType;
+    final positionLabels = <String, String>{
+      'top': 'Top',
+      'bottom': 'Bottom',
+      'left': 'Left',
+      'right': 'Right',
+    };
+    final positionIcons = <String, IconData>{
+      'top': Icons.vertical_align_top_rounded,
+      'bottom': Icons.vertical_align_bottom_rounded,
+      'left': Icons.vertical_align_center_rounded,
+      'right': Icons.vertical_align_center_rounded,
+    };
 
     await showModalBottomSheet<void>(
       context: context,
@@ -1082,109 +1093,92 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     ),
                   ),
                 ),
-                // Header row
-                Row(
+                const Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _purple.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.picture_as_pdf_rounded, color: _purple, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Poster header',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'This line appears at the very top of every ride poster',
-                            style: TextStyle(fontSize: 12, color: Colors.black54),
-                          ),
-                        ],
-                      ),
+                    Icon(Icons.picture_as_pdf_rounded, color: _purple, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Simple poster settings',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                // Preview box
+                const SizedBox(height: 4),
+                Text(
+                  'Only this saved text will be used in poster',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 14),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFF6B00),
                     borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFFFFF8F3),
+                    border: Border.all(color: _orange.withOpacity(0.25)),
                   ),
-                  child: Column(
-                    children: [
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: ctrl,
-                        builder: (_, v, __) => v.text.trim().isNotEmpty
-                            ? Text(
-                                v.text.trim(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontStyle: FontStyle.italic,
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              )
-                            : const Text(
-                                'NO CUSTOM HEADER',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                  fontStyle: FontStyle.italic,
-                                ),
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: ctrl,
+                    builder: (_, headerVal, __) => ValueListenableBuilder<TextEditingValue>(
+                      valueListenable: customCtrl,
+                      builder: (_, customVal, __) {
+                        final header = headerVal.text.trim();
+                        final small = customVal.text.trim();
+                        final pos = positionLabels[selectedPosition] ?? 'Bottom';
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Mini preview',
+                              style: TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: _orange,
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'YOUR UNION NAME',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'TAXI UNION  -  DAILY RIDE SCHEDULE',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 9,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: customCtrl,
-                        builder: (_, v, __) => v.text.trim().isNotEmpty
-                            ? Text(
-                                '[${selectedPosition.toUpperCase()}] ${v.text.trim()}',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.85),
-                                  fontSize: 10,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                                textAlign: TextAlign.center,
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    header.isEmpty ? 'No custom header' : header,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontStyle: FontStyle.italic,
+                                      fontSize: header.isEmpty ? 11 : 13,
+                                      fontWeight: header.isEmpty ? FontWeight.w400 : FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'YOUR UNION NAME',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.92),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (small.isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Text(
+                                'Small text ($pos): $small',
+                                style: const TextStyle(fontSize: 12, color: Colors.black87),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Live preview of your poster header above',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 // Examples row
                 Wrap(
                   spacing: 8,
@@ -1204,6 +1198,32 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   )).toList(),
                 ),
                 const SizedBox(height: 14),
+                TextField(
+                  controller: ctrl,
+                  maxLength: 60,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: 'Header text (optional)',
+                    hintText: 'e.g. Jai Mata Di',
+                    prefixIcon: const Icon(Icons.format_quote_rounded, size: 20),
+                    helperText: 'This line appears on top of poster',
+                    filled: true,
+                    fillColor: const Color(0xFFF8F8F8),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _purple, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextField(
                   controller: customCtrl,
                   maxLength: 60,
@@ -1238,101 +1258,15 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     final active = selectedPosition == pos;
                     return ChoiceChip(
                       selected: active,
-                      label: Text(pos.toUpperCase()),
+                      avatar: Icon(positionIcons[pos], size: 16, color: active ? Colors.white : Colors.black54),
+                      label: Text(positionLabels[pos] ?? pos),
                       onSelected: (_) => setSheet(() => selectedPosition = pos),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 10),
-                const Text('Layout type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: ['classic', 'compact'].map((layout) {
-                    final active = selectedLayout == layout;
-                    return ChoiceChip(
-                      selected: active,
-                      label: Text(layout.toUpperCase()),
-                      onSelected: (_) => setSheet(() => selectedLayout = layout),
+                      selectedColor: _purple,
+                      labelStyle: TextStyle(color: active ? Colors.white : Colors.black87),
                     );
                   }).toList(),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: ctrl,
-                  maxLength: 60,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) async {
-                    if (saving) return;
-                    setSheet(() => saving = true);
-
-                    final result = await UnionService().updateBranding(
-                      posterHeader: ctrl.text.trim(),
-                      posterCustomText: customCtrl.text.trim(),
-                      posterCustomTextPosition: selectedPosition,
-                      posterLayoutType: selectedLayout,
-                    );
-
-                    setSheet(() => saving = false);
-                    if (!mounted) return;
-
-                    if (result['success'] == true) {
-                      setState(() {
-                        _posterHeader = ctrl.text.trim();
-                        _posterCustomText = customCtrl.text.trim();
-                        _posterCustomTextPosition = selectedPosition;
-                        _posterLayoutType = selectedLayout;
-                      });
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Row(children: [
-                            Icon(Icons.check_circle_rounded,
-                                color: Colors.white, size: 18),
-                            SizedBox(width: 8),
-                            Text('Poster branding saved'),
-                          ]),
-                          backgroundColor: _purple,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              result['message']?.toString() ?? 'Failed to save'),
-                          backgroundColor: Colors.red,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10)),
-                        ),
-                      );
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Custom header text (optional)',
-                    hintText: 'e.g. Jai Mata Di',
-                    prefixIcon: const Icon(Icons.format_quote_rounded, size: 20),
-                    helperText: 'Leave blank to remove the header line from posters',
-                    filled: true,
-                    fillColor: const Color(0xFFF8F8F8),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: Colors.grey.shade200),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _purple, width: 1.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   height: 50,
@@ -1345,7 +1279,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                               posterHeader: ctrl.text.trim(),
                               posterCustomText: customCtrl.text.trim(),
                               posterCustomTextPosition: selectedPosition,
-                              posterLayoutType: selectedLayout,
+                              posterLayoutType: _posterLayoutType,
                             );
                             setSheet(() => saving = false);
                             if (!mounted) return;
@@ -1354,7 +1288,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                 _posterHeader = ctrl.text.trim();
                                 _posterCustomText = customCtrl.text.trim();
                                 _posterCustomTextPosition = selectedPosition;
-                                _posterLayoutType = selectedLayout;
                               });
                               Navigator.pop(ctx);
                               ScaffoldMessenger.of(context).showSnackBar(
