@@ -19,6 +19,9 @@ if [[ ! -f "pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs" ]];
   exit 1
 fi
 
+echo ">>> preflight dry-run"
+bash scripts/vps-gateway-first-dry-run.sh
+
 echo ">>> git pull (skip with SKIP_GIT_PULL=1)"
 if [[ "${SKIP_GIT_PULL:-0}" != "1" ]]; then
   git pull

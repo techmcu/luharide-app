@@ -32,6 +32,40 @@ const CORE_URL = process.env.CORE_URL || 'http://127.0.0.1:3002';
 const UNION_URL = process.env.UNION_URL || 'http://127.0.0.1:3003';
 const PLATFORM_URL = process.env.PLATFORM_URL || 'http://127.0.0.1:3004';
 
+function checkUpstreamHealth(baseUrl, timeoutMs = 2500) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (payload) => {
+      if (settled) return;
+      settled = true;
+      resolve(payload);
+    };
+
+    try {
+      const target = new URL('/health', baseUrl);
+      const req = http.get(target, (resp) => {
+        let body = '';
+        resp.on('data', (chunk) => {
+          body += chunk;
+        });
+        resp.on('end', () => {
+          done({
+            ok: resp.statusCode >= 200 && resp.statusCode < 300,
+            status: resp.statusCode,
+            body: body.slice(0, 300),
+          });
+        });
+      });
+      req.on('error', (e) => done({ ok: false, error: e.message }));
+      req.setTimeout(timeoutMs, () => {
+        req.destroy(new Error('timeout'));
+      });
+    } catch (e) {
+      done({ ok: false, error: e.message });
+    }
+  });
+}
+
 const app = express();
 applyTrustProxy(app);
 
@@ -108,6 +142,28 @@ app.get('/api', (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({ ok: true, status: 'running', via: 'gateway' });
+});
+
+app.get('/api/health/upstreams', async (req, res) => {
+  const checks = await Promise.all([
+    checkUpstreamHealth(AUTH_URL),
+    checkUpstreamHealth(CORE_URL),
+    checkUpstreamHealth(UNION_URL),
+    checkUpstreamHealth(PLATFORM_URL),
+  ]);
+
+  const data = {
+    auth: { target: AUTH_URL, ...checks[0] },
+    core: { target: CORE_URL, ...checks[1] },
+    union: { target: UNION_URL, ...checks[2] },
+    platform: { target: PLATFORM_URL, ...checks[3] },
+  };
+  const allOk = checks.every((c) => c.ok);
+  res.status(allOk ? 200 : 503).json({
+    ok: allOk,
+    via: 'gateway',
+    upstreams: data,
+  });
 });
 
 app.get('/health/metrics', (req, res) => {
