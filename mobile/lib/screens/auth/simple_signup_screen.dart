@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_navigator.dart';
+import '../../core/localization/app_localizations.dart';
 import '../home/home_screen.dart';
 import 'simple_login_screen.dart';
 
@@ -136,6 +137,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
   }
 
   Widget _buildStep1() {
+    final t = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -165,8 +167,8 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(
-            labelText: 'Email',
-            hintText: 'john@example.com',
+            labelText: t.t('input.email.label'),
+            hintText: t.t('input.email.placeholder'),
             prefixIcon: const Icon(Icons.email),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
           ),

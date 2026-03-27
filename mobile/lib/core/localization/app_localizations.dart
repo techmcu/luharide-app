@@ -19,6 +19,30 @@ class AppLocalizations {
   String get _lang => code == AppLanguageCode.hi ? 'hi' : 'en';
 
   static const Map<String, Map<String, String>> _values = {
+    'input.email.label': {
+      'en': 'Email',
+      'hi': 'ईमेल',
+    },
+    'input.email.placeholder': {
+      'en': 'Enter your email',
+      'hi': 'अपना ईमेल दर्ज करें',
+    },
+    'ride.from.label': {
+      'en': 'From',
+      'hi': 'कहाँ से',
+    },
+    'ride.to.label': {
+      'en': 'To',
+      'hi': 'कहाँ तक',
+    },
+    'ride.from.placeholder': {
+      'en': 'Enter starting location',
+      'hi': 'कहाँ से चलना है',
+    },
+    'ride.to.placeholder': {
+      'en': 'Enter destination',
+      'hi': 'कहाँ तक जाना है',
+    },
     'app.profile.title': {
       'en': 'Profile',
       'hi': 'प्रोफ़ाइल',

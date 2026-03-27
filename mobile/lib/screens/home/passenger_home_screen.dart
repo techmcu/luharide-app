@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
 import '../../services/notification_service.dart';
@@ -193,6 +194,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
+    final t = AppLocalizations.of(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -344,8 +346,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                             onChanged: _onFromChanged,
                             onTap: () => setState(() {}),
                             decoration: InputDecoration(
-                              labelText: 'From',
-                              hintText: 'e.g. Dehradun',
+                              labelText: t.t('ride.from.label'),
+                              hintText: t.t('ride.from.placeholder'),
                               prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
@@ -399,8 +401,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                             onChanged: _onToChanged,
                             onTap: () => setState(() {}),
                             decoration: InputDecoration(
-                              labelText: 'To',
-                              hintText: 'e.g. Purola',
+                              labelText: t.t('ride.to.label'),
+                              hintText: t.t('ride.to.placeholder'),
                               prefixIcon: const Icon(Icons.location_on, color: Colors.red),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),

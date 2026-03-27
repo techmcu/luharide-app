@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
@@ -578,6 +579,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: _kBg,
       appBar: AppBar(
@@ -588,7 +590,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       ),
       body: Column(
         children: [
-          _buildSearchForm(),
+          _buildSearchForm(t),
           Expanded(child: _buildResults()),
         ],
       ),
@@ -596,7 +598,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   }
 
   // ── Search form ──────────────────────────────────────────────────────────
-  Widget _buildSearchForm() {
+  Widget _buildSearchForm(AppLocalizations t) {
     return Container(
       color: _kBlue,
       child: Container(
@@ -611,8 +613,8 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
             // From
             _LocationField(
               controller: _fromCtrl,
-              label: 'From',
-              hint: 'e.g. Dehradun',
+              label: t.t('ride.from.label'),
+              hint: t.t('ride.from.placeholder'),
               icon: Icons.trip_origin,
               iconColor: _kGreen,
             ),
@@ -620,8 +622,8 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
             // To
             _LocationField(
               controller: _toCtrl,
-              label: 'To',
-              hint: 'e.g. Purola',
+              label: t.t('ride.to.label'),
+              hint: t.t('ride.to.placeholder'),
               icon: Icons.location_on,
               iconColor: _kRed,
             ),

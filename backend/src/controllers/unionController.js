@@ -1404,7 +1404,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   const pad  = n => String(n).padStart(2, '0');
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const formatDateShort = (dt) => `${pad(dt.getDate())} ${MONTHS[dt.getMonth()]}`;
+  // Show year everywhere so posters don't look stale when forwarded later.
+  const formatDateShort = (dt) => `${pad(dt.getDate())} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
   const formatDateFull  = (dt) => `${DAYS[dt.getDay()]}, ${pad(dt.getDate())} ${MONTHS[dt.getMonth()]} ${dt.getFullYear()}`;
 
   const departureDates = rows
@@ -1424,7 +1425,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   // Group schedules by route key "FROM → TO"
   const groups = new Map();
   for (const r of rows) {
-    const key = `${(r.from_location||'').toUpperCase()} → ${(r.to_location||'').toUpperCase()}`;
+    const key = `${(r.from_location||'').toUpperCase()} -> ${(r.to_location||'').toUpperCase()}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(r);
   }
@@ -1498,8 +1499,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   const ROW_H    = rows.length > 40 ? 18 : (rows.length > 20 ? 20 : 22);
   const HDR_H    = 20;
 
-  // Route color palette (softer, taxi‑inspired)
-  const ROUTE_COLORS = ['#FFC107','#FFB300','#F9A825','#F57F17','#0288D1','#43A047'];
+  // Route color palette: softer accents (avoid harsh yellows on eyes).
+  const ROUTE_COLORS = ['#E3B341', '#DDA15E', '#CFA36A', '#C97B63', '#4EA8DE', '#52B788'];
   let colorIdx = 0;
 
   // ── For each route group, draw a section ───────────────────────────────────
