@@ -12,7 +12,7 @@
 
 **Mobile / Flutter:** `API_BASE_URL` = **gateway** URL only — paths **same** as monolith.
 
-- **Production / VPS:** `https://api.yourdomain.com` (gateway usually **port 3000** behind Nginx).
+- **Production / VPS (Phase 4 default):** PM2 **gateway + 4 microservices** — not `node server.js`. Public URL = gateway (e.g. `https://api.yourdomain.com`, port **3000** behind Nginx).
 - **Local monolith:** `http://localhost:3000`.
 - **Local 5-service dev** (`npm run dev:stack`): gateway **`http://localhost:3010`** so it does **not** clash with monolith on **3000**.
 - **Flutter local** must use the **same port** as the process you run:
@@ -29,7 +29,9 @@
 
 ---
 
-## Option A — Monolith (simplest VPS)
+## Option A — Monolith (local / emergency only)
+
+**VPS production:** use **Option B–style PM2 ecosystem** (see `pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs`), not monolith.
 
 ```bash
 cd backend
@@ -38,7 +40,7 @@ cp .env.example .env   # fill secrets
 node server.js
 ```
 
-Ek process: API + Socket.IO + jobs.
+Ek process: API + Socket.IO + jobs. Good for **quick local** work; **do not** replace the production PM2 stack unless debugging / rollback.
 
 ---
 

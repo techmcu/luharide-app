@@ -1,5 +1,13 @@
 # Deploy, Monitoring, and Rollback
 
+## Phase 4 — Production standard (microservices + gateway)
+
+- **Default runtime on VPS:** PM2 ecosystem `backend/pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs` (gateway `:3000` + auth/core/union/platform `:3001–3004`). GitHub Actions deploy already uses this.
+- **Monolith** (`node server.js`): **not** the production default — keep for **local dev** or **rare emergency rollback** only; never run monolith and gateway both bound to `3000`.
+- **Smoke check (VPS, from `backend/`):**
+  - `npm run verify:phase2-env` — env / JWT / DB rules
+  - `npm run phase4:verify:stack` — `GET /api/health` + `GET /api/health/upstreams` (all upstreams `ok`)
+
 ## What is now automated
 
 - GitHub Actions runs quality gates before deploy:
@@ -9,6 +17,7 @@
 - After deploy, workflow checks:
   - `GET /health`
   - `GET /api/health`
+  - `npm run phase4:verify:stack` (all upstream microservices)
 - If health checks fail, workflow triggers automatic rollback to previous commit via git reflog and reloads PM2 ecosystem.
 
 ## Payment feature toggle

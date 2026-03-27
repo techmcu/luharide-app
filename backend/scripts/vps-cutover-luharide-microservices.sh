@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LuhaRide Phase 2 — VPS: stop monolith PM2 app, start gateway + 4 microservices.
+# LuhaRide Phase 4 — VPS: stop legacy monolith PM2 app (`luharide-api`), start gateway + 4 microservices.
 # Run from repo root OR set BACKEND_DIR. Example:
 #   BACKEND_DIR=/var/www/luharide-backend/backend bash backend/scripts/vps-cutover-luharide-microservices.sh
 

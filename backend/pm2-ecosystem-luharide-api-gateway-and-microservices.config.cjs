@@ -1,10 +1,11 @@
 /**
- * PM2 ecosystem — LuhaRide: 4 domain microservices + 1 API gateway (5 Node processes).
+ * PM2 ecosystem — Phase 4 production default: 4 domain microservices + 1 API gateway (5 processes).
  * Gateway starts LAST so upstream services on ports 3001–3004 accept traffic before proxy.
  *
  * Usage (from backend/):
  *   pm2 start pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs
  *
+ * Verify after deploy: npm run phase4:verify:stack
  * Mobile / Flutter: public URL = gateway only (default port 3000).
  */
 const internalUpstreamBaseUrls = {

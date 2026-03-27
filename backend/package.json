@@ -14,6 +14,7 @@
     "verify:luharide-microservices-health-endpoints": "cross-env GATEWAY_PORT=3010 node scripts/verify-luharide-microservices-health-endpoints.js",
     "phase1:dryrun:vps": "bash scripts/vps-gateway-first-dry-run.sh",
     "verify:phase2-env": "node scripts/verify-phase2-env.js",
+    "phase4:verify:stack": "node scripts/verify-phase4-production-stack.js",
     "check:ms": "npm run verify:luharide-microservices-health-endpoints",
     "check:local-ms": "node scripts/check-local-microservices.js",
     "dev:stack": "npm run develop:luharide-microservices-local-five-services",
