@@ -23,11 +23,18 @@
  *
  * Schedule: runs at midnight IST (18:30 UTC) + 06:00 IST safety net.
  * Also runs once on server startup to process any missed window.
+ *
+ * Phase 5: runs under PostgreSQL advisory lock so duplicate core instances cannot double-run.
  */
 
 const cron = require('node-cron');
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
+const {
+  withPgAdvisoryTryLock,
+  JOB_NS,
+  JOB_RIDE_CLEANUP,
+} = require('./pgAdvisoryTryLock');
 
 // How long to keep completed/cancelled trip records (bookings cascade-delete with them)
 const TRIP_RETENTION_DAYS = 60;
@@ -39,71 +46,69 @@ async function runCleanup() {
   let totalPurged = 0;
 
   try {
-    // ── Stage 1: union_schedules — delete past rides ────────────────────────
-    const unionDel = await pool.query(
-      `DELETE FROM union_schedules
-       WHERE departure_time < CURRENT_DATE::timestamp
-       RETURNING id`
-    );
-    totalDeleted = unionDel.rowCount;
+    const ran = await withPgAdvisoryTryLock(pool, JOB_NS, JOB_RIDE_CLEANUP, async (client) => {
+      const unionDel = await client.query(
+        `DELETE FROM union_schedules
+         WHERE departure_time < CURRENT_DATE::timestamp
+         RETURNING id`
+      );
+      totalDeleted = unionDel.rowCount;
 
-    // ── Stage 2: trips — auto-complete overdue scheduled rides ──────────────
-    const tripsDone = await pool.query(
-      `UPDATE trips
-       SET status = 'completed', updated_at = NOW()
-       WHERE status = 'scheduled'
-         AND departure_time < NOW() - INTERVAL '1 hour'
-       RETURNING id`
-    );
-    totalCompleted = tripsDone.rowCount;
+      const tripsDone = await client.query(
+        `UPDATE trips
+         SET status = 'completed', updated_at = NOW()
+         WHERE status = 'scheduled'
+           AND departure_time < NOW() - INTERVAL '1 hour'
+         RETURNING id`
+      );
+      totalCompleted = tripsDone.rowCount;
 
-    // ── Stage 3: trips — hard purge after 90-day retention ──────────────────
-    // Only deletes completed or cancelled trips — never 'scheduled' or 'in_progress'.
-    // ON DELETE CASCADE in schema handles: bookings, ride_ratings,
-    // pending_rate_notifications automatically.
-    const tripsPurge = await pool.query(
-      `DELETE FROM trips
-       WHERE status IN ('completed', 'cancelled')
-         AND departure_time < NOW() - INTERVAL '${TRIP_RETENTION_DAYS} days'
-       RETURNING id`
-    );
-    totalPurged = tripsPurge.rowCount;
+      const tripsPurge = await client.query(
+        `DELETE FROM trips
+         WHERE status IN ('completed', 'cancelled')
+           AND departure_time < NOW() - INTERVAL '${TRIP_RETENTION_DAYS} days'
+         RETURNING id`
+      );
+      totalPurged = tripsPurge.rowCount;
+    });
 
-    // Log summary
+    if (ran === false) {
+      logger.debug(`${label} skipped — another instance holds cleanup lock`);
+      return;
+    }
+
     const parts = [];
-    if (totalDeleted > 0)   parts.push(`deleted ${totalDeleted} union ride(s)`);
+    if (totalDeleted > 0) parts.push(`deleted ${totalDeleted} union ride(s)`);
     if (totalCompleted > 0) parts.push(`completed ${totalCompleted} trip(s)`);
-    if (totalPurged > 0)    parts.push(`purged ${totalPurged} old trip(s) (>${TRIP_RETENTION_DAYS}d)`);
+    if (totalPurged > 0) parts.push(`purged ${totalPurged} old trip(s) (>${TRIP_RETENTION_DAYS}d)`);
 
     if (parts.length > 0) {
       logger.info(`${label} ${parts.join(', ')}`);
     } else {
       logger.info(`${label} Nothing to clean up`);
     }
-
   } catch (err) {
-    if (err.code === '42P01') return; // migrations not run yet
+    if (err.code === '42P01') return;
     logger.warn(`${label} Error: ${err.message}`);
   }
 }
 
 function start() {
-  // Run once at startup to catch any missed window
   runCleanup();
 
-  // Midnight IST = 18:30 UTC
   cron.schedule('30 18 * * *', () => {
     logger.info('[RideCleanup] Midnight IST cleanup triggered');
     runCleanup();
   });
 
-  // 06:00 IST = 00:30 UTC — safety net
   cron.schedule('30 0 * * *', () => {
     logger.info('[RideCleanup] 06:00 IST safety cleanup triggered');
     runCleanup();
   });
 
-  logger.info(`[RideCleanup] Scheduled — midnight IST daily. Trip retention: ${TRIP_RETENTION_DAYS} days`);
+  logger.info(
+    `[RideCleanup] Scheduled — midnight IST daily. Trip retention: ${TRIP_RETENTION_DAYS} days. PG advisory lock.`
+  );
 }
 
 module.exports = { start, runCleanup };

@@ -44,6 +44,12 @@ Metrics include:
 - CPU load average
 - PostgreSQL pool stats (total/idle/waiting)
 
+## Phase 5 — Background jobs & scale (incremental)
+
+- **PostgreSQL advisory locks** (`src/jobs/pgAdvisoryTryLock.js`) guard **rate notification** and **ride cleanup** jobs. If you ever run **multiple `core` instances**, only one runs each job per tick — no duplicate notifications or double cleanup (Redis not required).
+- **Gateway** still exposes `GET /health/metrics` for rough latency / error-rate monitoring; add APM or log aggregation when traffic grows.
+- **Load testing:** optional tools (k6, ApacheBench) against **gateway** `GET /api/trips/search` — run off-production or in a staging window.
+
 ## Recommended alert thresholds
 
 - `error_rate_5xx_pct > 2` for 5 minutes
