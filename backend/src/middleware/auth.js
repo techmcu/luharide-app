@@ -4,6 +4,8 @@ const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 
+const _isProd = () => process.env.NODE_ENV === 'production';
+
 /**
  * Authenticate user with JWT token
  */
@@ -41,7 +43,11 @@ const authenticate = asyncHandler(async (req, res, next) => {
   req.user = user;
   req.token = token;
 
-  logger.info(`✅ Authenticated user: ${user.name} (${user.email}) - Role: ${user.role}`);
+  if (_isProd()) {
+    logger.debug({ msg: 'Authenticated', userId: user.id, role: user.role });
+  } else {
+    logger.info(`✅ Authenticated user: ${user.name} (${user.email}) - Role: ${user.role}`);
+  }
 
   next();
 });
@@ -58,9 +64,11 @@ const authorize = (...roles) => {
     // Trim + lowercase so "Passenger" / spacing mismatches don't break RBAC
     const userRole = String(req.user.role ?? '').trim().toLowerCase();
     const allowed = roles.map((r) => String(r).trim().toLowerCase());
-    logger.info(`🔐 Authorization check:`);
-    logger.info(`   User role: "${userRole}" (type: ${typeof userRole}, length: ${userRole.length})`);
-    logger.info(`   Required roles: [${allowed.join(', ')}]`);
+    if (!_isProd()) {
+      logger.info(`🔐 Authorization check:`);
+      logger.info(`   User role: "${userRole}" (type: ${typeof userRole}, length: ${userRole.length})`);
+      logger.info(`   Required roles: [${allowed.join(', ')}]`);
+    }
 
     if (!allowed.includes(userRole)) {
       logger.warn(`❌ Access denied for ${req.user.email}`);
@@ -68,7 +76,9 @@ const authorize = (...roles) => {
       throw ApiError.forbidden(`Access denied. Required roles: ${roles.join(', ')}`);
     }
 
-    logger.info(`✅ Authorization passed for ${req.user.email}`);
+    if (!_isProd()) {
+      logger.info(`✅ Authorization passed for ${req.user.email}`);
+    }
     next();
   });
 };

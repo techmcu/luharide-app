@@ -6,6 +6,8 @@
  * Env: AUTH_URL, CORE_URL, UNION_URL, PLATFORM_URL (defaults below)
  */
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
+const { validateConfig } = require('../src/config/env');
+validateConfig();
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-gateway';
 const path = require('path');
 const os = require('os');

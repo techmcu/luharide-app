@@ -37,12 +37,36 @@ const config = {
   },
 };
 
+/** Known insecure placeholders — must not run in production with these */
+const JWT_PLACEHOLDER_SECRETS = new Set([
+  'your-secret-key-change-in-production',
+  'your_jwt_secret_key_here_change_in_production',
+  'changeme',
+  'secret',
+]);
+
+const JWT_PROD_MIN_LEN = parseInt(process.env.JWT_SECRET_MIN_LENGTH || '16', 10) || 16;
+
 function validateConfig() {
   if (!config.db.password && config.nodeEnv === 'production') {
     throw new Error('DB_PASSWORD is required in production');
   }
-  if (!config.jwt.secret && config.nodeEnv === 'production') {
+
+  if (config.nodeEnv !== 'production') {
+    return;
+  }
+
+  const secret = String(config.jwt.secret || '').trim();
+  if (!secret) {
     throw new Error('JWT_SECRET is required in production');
+  }
+  if (JWT_PLACEHOLDER_SECRETS.has(secret.toLowerCase())) {
+    throw new Error('JWT_SECRET must not be a default placeholder; set a strong unique value');
+  }
+  if (secret.length < JWT_PROD_MIN_LEN) {
+    throw new Error(
+      `JWT_SECRET must be at least ${JWT_PROD_MIN_LEN} characters in production (set JWT_SECRET_MIN_LENGTH to relax)`
+    );
   }
 }
 
