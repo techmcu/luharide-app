@@ -102,7 +102,7 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                           padding: const EdgeInsets.all(16),
                           itemCount: _filteredRides.length,
                           itemBuilder: (context, index) {
-                            return _buildRideCard(_filteredRides[index]);
+                            return _buildRideCard(loc, _filteredRides[index]);
                           },
                         ),
                       ),
@@ -195,7 +195,7 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
     );
   }
 
-  Widget _buildRideCard(TripModel trip) {
+  Widget _buildRideCard(AppLocalizations loc, TripModel trip) {
     final now = DateTime.now();
     final isOngoing = !trip.departureTime.isBefore(now); // departure time not passed = ongoing
     final bookedSeats = trip.totalSeats - trip.availableSeats;
@@ -237,7 +237,9 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          isOngoing ? 'ONGOING' : 'COMPLETED',
+                          isOngoing
+                              ? loc.t('driver.trips.badge.ongoing')
+                              : loc.t('driver.trips.badge.completed'),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -254,7 +256,9 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            '${trip.pendingRequestsCount} PENDING',
+                            loc.tReplace('driver.trips.badge.pending_row', {
+                              'n': '${trip.pendingRequestsCount}',
+                            }),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -345,7 +349,10 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '$bookedSeats/${trip.totalSeats} Booked',
+                          loc.tReplace('driver.trips.card.booked', {
+                            'b': '$bookedSeats',
+                            't': '${trip.totalSeats}',
+                          }),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

@@ -41,11 +41,28 @@ class _LandingScreenState extends State<LandingScreen> {
     super.dispose();
   }
 
+  bool _isSameCalendarDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  /// Avoids overscroll / assertion on short screens or before layout.
+  Future<void> _animateScrollClamped(double preferredOffset, {required int delayMs, required int durationMs}) async {
+    await Future.delayed(Duration(milliseconds: delayMs));
+    if (!mounted || !_scrollController.hasClients) return;
+    final max = _scrollController.position.maxScrollExtent;
+    final target = preferredOffset.clamp(0.0, max);
+    await _scrollController.animateTo(
+      target,
+      duration: Duration(milliseconds: durationMs),
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
   Future<void> _searchTrips() async {
+    final loc = AppLocalizations.of(context);
     if (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter both locations'),
+        SnackBar(
+          content: Text(loc.t('landing.both_locations')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -72,29 +89,18 @@ class _LandingScreenState extends State<LandingScreen> {
     });
 
     if (_searchResults.isNotEmpty && mounted) {
-      await Future.delayed(const Duration(milliseconds: 400));
-      if (mounted) {
-        final targetOffset = 440.0;
-        _scrollController.animateTo(
-          targetOffset,
-          duration: const Duration(milliseconds: 1100),
-          curve: Curves.easeInOutCubic,
-        );
-      }
+      await _animateScrollClamped(440, delayMs: 400, durationMs: 1100);
     } else if (_hasSearched && _searchResults.isEmpty && mounted) {
-      await Future.delayed(const Duration(milliseconds: 250));
-      if (mounted) {
-        _scrollController.animateTo(
-          420,
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeInOutCubic,
-        );
-      }
+      await _animateScrollClamped(420, delayMs: 250, durationMs: 900);
     }
 
     if (!result['success'] && mounted) {
+      final msg = result['message']?.toString();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Search failed'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text((msg != null && msg.isNotEmpty) ? msg : loc.t('landing.search_failed')),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -124,27 +130,32 @@ class _LandingScreenState extends State<LandingScreen> {
     if (isLoggedIn) {
       action();
     } else {
+      final loc = AppLocalizations.of(context);
       showDialog(
         context: context,
         builder: (dialogCtx) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.lock_rounded, color: Color(0xFF2563EB), size: 22),
-              SizedBox(width: 8),
-              Text('Login Required',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+              const Icon(Icons.lock_rounded, color: Color(0xFF2563EB), size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  loc.t('landing.contact.login_title'),
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+                ),
+              ),
             ],
           ),
-          content: const Text(
-            'Please login to contact the driver.',
-            style: TextStyle(fontSize: 14),
+          content: Text(
+            loc.t('landing.contact.login_body'),
+            style: const TextStyle(fontSize: 14),
           ),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogCtx),
-              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+              child: Text(loc.t('app.cancel'), style: const TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -161,8 +172,10 @@ class _LandingScreenState extends State<LandingScreen> {
                       builder: (_) => const SimpleLoginScreen()),
                 );
               },
-              child: const Text('Login',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(
+                loc.t('trip.details.login_cta'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
             ),
           ],
         ),
@@ -226,7 +239,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 foregroundColor: Colors.grey[700],
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               ),
-                              child: const Text('Login', style: TextStyle(fontWeight: FontWeight.w400, fontSize: 14)),
+                              child: Text(loc.t('auth.login.title'), style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 14)),
                             ),
                             const SizedBox(width: 4),
                             Container(
@@ -247,7 +260,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                   foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                 ),
-                                child: const Text('Sign up', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                child: Text(loc.t('landing.header.signup'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                               ),
                             ),
                           ],
@@ -284,7 +297,7 @@ class _LandingScreenState extends State<LandingScreen> {
                           children: [
                             _LocationField(
                               controller: _fromController,
-                              label: 'From',
+                              label: loc.t('ride.from.label'),
                               icon: Icons.trip_origin_rounded,
                               iconColor: Colors.green[400]!,
                               tripService: _tripService,
@@ -292,7 +305,7 @@ class _LandingScreenState extends State<LandingScreen> {
                             const SizedBox(height: 14),
                             _LocationField(
                               controller: _toController,
-                              label: 'To',
+                              label: loc.t('ride.to.label'),
                               icon: Icons.location_on_rounded,
                               iconColor: Colors.red[300]!,
                               tripService: _tripService,
@@ -315,7 +328,9 @@ class _LandingScreenState extends State<LandingScreen> {
                                     Icon(Icons.calendar_today_rounded, color: Colors.grey[400], size: 20),
                                     const SizedBox(width: 12),
                                     Text(
-                                      _selectedDate.day == DateTime.now().day ? 'Today' : DateFormat('EEE, d MMM').format(_selectedDate),
+                                      _isSameCalendarDay(_selectedDate, DateTime.now())
+                                          ? loc.t('landing.date.today')
+                                          : DateFormat('EEE, d MMM').format(_selectedDate),
                                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[800]),
                                     ),
                                     const Spacer(),
@@ -352,7 +367,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 ),
                                 child: _isSearching
                                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                    : Text('Find Rides', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.3)),
+                                    : Text(loc.t('landing.search.cta'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.3)),
                               ),
                             ),
                           ),
@@ -367,7 +382,7 @@ class _LandingScreenState extends State<LandingScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    'Find rides at low prices',
+                    loc.t('landing.tagline'),
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w300,
@@ -388,8 +403,12 @@ class _LandingScreenState extends State<LandingScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Rides Found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800])),
-                          if (_searchResults.isNotEmpty) Text('${_searchResults.length} trips', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600])),
+                          Text(loc.t('landing.results.title'), style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey[800])),
+                          if (_searchResults.isNotEmpty)
+                            Text(
+                              loc.tReplace('landing.results.count', {'n': '${_searchResults.length}'}),
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: Colors.grey[600]),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -401,7 +420,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               children: [
                                 Icon(Icons.search_off, size: 56, color: Colors.grey[300]),
                                 const SizedBox(height: 16),
-                                Text('No rides found', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[500])),
+                                Text(loc.t('landing.results.empty'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[500])),
                               ],
                             ),
                           ),
@@ -409,7 +428,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       else ...[
                         if (_searchResults.isNotEmpty) ...[
                           Text(
-                            'Independent driver rides',
+                            loc.t('landing.section.independent'),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -417,12 +436,12 @@ class _LandingScreenState extends State<LandingScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ..._searchResults.map((trip) => _buildTripCard(trip)),
+                          ..._searchResults.map((trip) => _buildTripCard(loc, trip)),
                           const SizedBox(height: 16),
                         ],
                         if (_unionRides.isNotEmpty) ...[
                           Text(
-                            'Union scheduled rides',
+                            loc.t('landing.section.union'),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -430,7 +449,7 @@ class _LandingScreenState extends State<LandingScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          ..._unionRides.map((ride) => _buildUnionRideCard(ride as Map<String, dynamic>)),
+                          ..._unionRides.map((ride) => _buildUnionRideCard(loc, ride as Map<String, dynamic>)),
                         ],
                       ],
                     ],
@@ -505,7 +524,7 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _buildTripCard(TripModel trip) {
+  Widget _buildTripCard(AppLocalizations loc, TripModel trip) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -529,7 +548,7 @@ class _LandingScreenState extends State<LandingScreen> {
                 children: [
                   Icon(Icons.directions_car_rounded, size: 16, color: Colors.blue[700]),
                   const SizedBox(width: 6),
-                  Text('Independent driver • Book on app', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue[800])),
+                  Text(loc.t('landing.card.independent_tag'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue[800])),
                 ],
               ),
             ),
@@ -560,7 +579,10 @@ class _LandingScreenState extends State<LandingScreen> {
                     const Icon(Icons.event_seat, size: 18, color: Colors.grey),
                     const SizedBox(width: 4),
                     Text(
-                      '${trip.availableSeats} / ${trip.totalSeats} seats',
+                      loc.tReplace('landing.card.seats', {
+                        'a': '${trip.availableSeats}',
+                        't': '${trip.totalSeats}',
+                      }),
                       style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: trip.availableSeats > 0 ? Colors.green : Colors.red),
                     ),
                   ],
@@ -583,7 +605,7 @@ class _LandingScreenState extends State<LandingScreen> {
               child: ElevatedButton(
                 onPressed: () => _onTripTap(trip),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
-                child: const Text('Book', style: TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(loc.t('landing.card.book'), style: const TextStyle(fontWeight: FontWeight.w700)),
               ),
             ),
           ],
@@ -592,7 +614,7 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _buildUnionRideCard(Map<String, dynamic> ride) {
+  Widget _buildUnionRideCard(AppLocalizations loc, Map<String, dynamic> ride) {
     final from = (ride['from_location'] ?? '').toString();
     final to = (ride['to_location'] ?? '').toString();
     final unionName = (ride['union_name'] ?? '').toString();
@@ -613,7 +635,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
     final departureText = departure != null
         ? DateFormat('dd MMM yyyy • hh:mm a').format(departure)
-        : 'Time N/A';
+        : loc.t('landing.union.time_na');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -637,7 +659,7 @@ class _LandingScreenState extends State<LandingScreen> {
                 children: [
                   const Icon(Icons.business_rounded, size: 16, color: Colors.orange),
                   const SizedBox(width: 6),
-                  Text('Union ride', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[800])),
+                  Text(loc.t('landing.union.tag'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.orange[800])),
                   if (unionName.isNotEmpty) ...[
                     const SizedBox(width: 8),
                     Expanded(child: Text(unionName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.orange), maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -720,11 +742,11 @@ class _LandingScreenState extends State<LandingScreen> {
             const SizedBox(height: 12),
             Row(children: [
               if (phone.isNotEmpty) ...[
-                Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _guardedContact(() => _launchPhone(phone)))),
+                Expanded(child: _contactBtn(Icons.call_rounded, loc.t('landing.contact.call'), const Color(0xFF16A34A), () => _guardedContact(() => _launchPhone(phone)))),
                 const SizedBox(width: 8),
               ],
               if ((whatsapp.isNotEmpty || phone.isNotEmpty))
-                Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _guardedContact(() => _launchWhatsApp(whatsapp.isNotEmpty ? whatsapp : phone)))),
+                Expanded(child: _contactBtn(Icons.chat_rounded, loc.t('landing.contact.whatsapp'), const Color(0xFF25D366), () => _guardedContact(() => _launchWhatsApp(whatsapp.isNotEmpty ? whatsapp : phone)))),
             ]),
           ],
         ),

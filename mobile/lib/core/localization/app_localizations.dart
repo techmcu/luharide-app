@@ -834,6 +834,103 @@ class AppLocalizations {
       'en': 'No pending requests',
       'hi': 'कोई लंबित अनुरोध नहीं',
     },
+    'driver.trips.badge.ongoing': {
+      'en': 'ONGOING',
+      'hi': 'चालू',
+    },
+    'driver.trips.badge.completed': {
+      'en': 'COMPLETED',
+      'hi': 'पूर्ण',
+    },
+    'driver.trips.badge.pending_row': {
+      'en': '{n} PENDING',
+      'hi': '{n} लंबित',
+    },
+    'driver.trips.card.booked': {
+      'en': '{b}/{t} booked',
+      'hi': '{b}/{t} बुक',
+    },
+    // Landing (guest search)
+    'landing.both_locations': {
+      'en': 'Please enter both locations',
+      'hi': 'दोनों स्थान दर्ज करें',
+    },
+    'landing.search_failed': {
+      'en': 'Search failed',
+      'hi': 'खोज असफल',
+    },
+    'landing.contact.login_title': {
+      'en': 'Login required',
+      'hi': 'लॉग इन आवश्यक',
+    },
+    'landing.contact.login_body': {
+      'en': 'Please log in to contact the driver.',
+      'hi': 'ड्राइवर से संपर्क करने के लिए लॉग इन करें।',
+    },
+    'landing.header.signup': {
+      'en': 'Sign up',
+      'hi': 'साइन अप',
+    },
+    'landing.search.cta': {
+      'en': 'Find rides',
+      'hi': 'राइड खोजें',
+    },
+    'landing.tagline': {
+      'en': 'Find rides at low prices',
+      'hi': 'कम किराए पर राइड खोजें',
+    },
+    'landing.results.title': {
+      'en': 'Rides found',
+      'hi': 'मिली राइडें',
+    },
+    'landing.results.count': {
+      'en': '{n} trips',
+      'hi': '{n} यात्राएँ',
+    },
+    'landing.results.empty': {
+      'en': 'No rides found',
+      'hi': 'कोई राइड नहीं मिली',
+    },
+    'landing.section.independent': {
+      'en': 'Independent driver rides',
+      'hi': 'स्वतंत्र ड्राइवर की राइडें',
+    },
+    'landing.section.union': {
+      'en': 'Union scheduled rides',
+      'hi': 'यूनियन निर्धारित राइडें',
+    },
+    'landing.card.independent_tag': {
+      'en': 'Independent driver • Book on app',
+      'hi': 'स्वतंत्र ड्राइवर • ऐप पर बुक करें',
+    },
+    'landing.card.seats': {
+      'en': '{a} / {t} seats',
+      'hi': '{a} / {t} सीटें',
+    },
+    'landing.card.book': {
+      'en': 'Book',
+      'hi': 'बुक करें',
+    },
+    'landing.union.tag': {
+      'en': 'Union ride',
+      'hi': 'यूनियन राइड',
+    },
+    'landing.union.time_na': {
+      'en': 'Time N/A',
+      'hi': 'समय अज्ञात',
+    },
+    'landing.contact.call': {
+      'en': 'Call',
+      'hi': 'कॉल',
+    },
+    'landing.contact.whatsapp': {
+      'en': 'WhatsApp',
+      'hi': 'WhatsApp',
+    },
+    'landing.date.today': {
+      'en': 'Today',
+      'hi': 'आज',
+    },
   };
 
   String t(String key) {
