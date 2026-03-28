@@ -264,23 +264,31 @@ class _LuhaRideMarkPainter extends CustomPainter {
 
   void _drawCabShadow(Canvas canvas) {
     final shadow = Path()
-      ..addOval(const Rect.fromLTWH(39.5, 95, 29, 4.8));
+      ..addOval(const Rect.fromLTWH(37.5, 95, 34.5, 4.6));
     canvas.drawPath(
       shadow,
       Paint()
-        ..color = const Color(0xFF0F172A).withValues(alpha: 0.26)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1),
+        ..color = const Color(0xFF0F172A).withValues(alpha: 0.28)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
     );
   }
 
-  /// Side-profile taxi (left = front bumper, right = rear) — not head-on.
+  /// Side-profile sedan taxi (left = front, right = rear): hood → cabin → deck, arches, not a toy block.
   void _drawCab(Canvas canvas) {
     final hull = Path()
-      ..moveTo(42, 93.5)
-      ..lineTo(66, 93.5)
-      ..lineTo(66, 70.5)
-      ..cubicTo(65.5, 62.5, 61.2, 57.8, 54, 56.2)
-      ..cubicTo(46.8, 57.8, 42.5, 62.5, 42, 70.5)
+      ..moveTo(39.8, 92.6)
+      ..lineTo(39.8, 85.2)
+      ..cubicTo(39.5, 81.5, 41.2, 76.8, 43.8, 73.2)
+      ..cubicTo(46.5, 69, 49.2, 63.5, 52.2, 59.2)
+      ..cubicTo(54.8, 55.8, 59.5, 54.6, 64.2, 55.4)
+      ..cubicTo(66.5, 55.8, 68.2, 58.2, 68.9, 62.5)
+      ..cubicTo(69.5, 67, 69.7, 72.5, 69.7, 78.2)
+      ..lineTo(69.7, 92.6)
+      ..lineTo(65.2, 92.6)
+      ..quadraticBezierTo(60.8, 87.8, 56.2, 92.6)
+      ..lineTo(51.8, 92.6)
+      ..quadraticBezierTo(47.2, 87.8, 42.6, 92.6)
+      ..lineTo(39.8, 92.6)
       ..close();
 
     final hullBounds = hull.getBounds();
@@ -288,96 +296,179 @@ class _LuhaRideMarkPainter extends CustomPainter {
       hull,
       Paint()
         ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: const Alignment(-0.85, -1),
+          end: const Alignment(0.75, 1),
           colors: const [
-            Color(0xFFFEF08A),
+            Color(0xFFFFE566),
             Color(0xFFFACC15),
             Color(0xFFEAB308),
-            Color(0xFFD97706),
+            Color(0xFFC28A0A),
           ],
-          stops: const [0, 0.3, 0.65, 1],
-        ).createShader(hullBounds.inflate(1.5)),
+          stops: const [0, 0.38, 0.72, 1],
+        ).createShader(hullBounds.inflate(2)),
+    );
+
+    // Rocker / lower body shade (metal reads darker near road)
+    final rocker = Path()
+      ..moveTo(40.2, 88.5)
+      ..lineTo(69.2, 88.5)
+      ..lineTo(69.2, 92.6)
+      ..lineTo(40.2, 92.6)
+      ..close();
+    canvas.drawPath(
+      rocker,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFFEAB308).withValues(alpha: 0),
+            const Color(0xFF92400E).withValues(alpha: 0.22),
+          ],
+        ).createShader(rocker.getBounds()),
     );
 
     canvas.drawPath(
       hull,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.75
-        ..color = const Color(0xFFB45309).withValues(alpha: 0.4),
+        ..strokeWidth = 0.7
+        ..color = const Color(0xFF92400E).withValues(alpha: 0.45),
     );
 
-    // Roof taxi lamp
-    final lampOuter = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(49.2, 47.8, 9.6, 5.4),
-      const Radius.circular(1),
-    );
-    canvas.drawRRect(lampOuter, Paint()..color = const Color(0xFF171717));
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(49.8, 48.5, 8.4, 3.4),
-        const Radius.circular(0.5),
-      ),
-      Paint()..color = const Color(0xFFFBBF24),
+    // Waist chrome line
+    canvas.drawLine(
+      const Offset(41.5, 84.8),
+      const Offset(68.8, 84.8),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.5)
+        ..strokeWidth = 0.45,
     );
 
-    // Side glass (one cabin block)
-    final glass = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(44.5, 59.2, 19, 12.2),
-      const Radius.circular(1.8),
-    );
-    canvas.drawRRect(
+    // Greenhouse glass (windshield rake + side glass)
+    final glass = Path()
+      ..moveTo(45.2, 71.4)
+      ..lineTo(47.9, 60.6)
+      ..lineTo(63.3, 59.5)
+      ..lineTo(65.9, 71.1)
+      ..close();
+    final gRect = glass.getBounds();
+    canvas.drawPath(
       glass,
       Paint()
         ..shader = LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFCCFBF1),
-            const Color(0xFF0F766E),
-            const Color(0xFF134E4A),
+          colors: const [
+            Color(0xFFE0F2F1),
+            Color(0xFF0F766E),
+            Color(0xFF042F2E),
           ],
-        ).createShader(glass.outerRect),
+          stops: const [0, 0.45, 1],
+        ).createShader(gRect.inflate(1)),
     );
-    canvas.drawRRect(
+    canvas.drawPath(
       glass,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.6
-        ..color = Colors.white.withValues(alpha: 0.45),
+        ..strokeWidth = 0.55
+        ..color = Colors.white.withValues(alpha: 0.5),
     );
 
-    // Door / B-pillar (side view)
+    // B-pillar
     canvas.drawLine(
-      const Offset(54, 60),
-      const Offset(54, 70.5),
+      const Offset(54.2, 60.8),
+      const Offset(54.2, 71.2),
       Paint()
-        ..color = const Color(0xFF0F172A).withValues(alpha: 0.2)
-        ..strokeWidth = 0.65,
+        ..color = const Color(0xFF0F172A).withValues(alpha: 0.35)
+        ..strokeWidth = 0.7,
     );
 
-    // Front headlamp (left / nose)
-    canvas.drawCircle(const Offset(41.6, 75.2), 2.1, Paint()..color = const Color(0xFFFEFCE8));
-    canvas.drawCircle(const Offset(41.3, 74.8), 0.9, Paint()..color = Colors.white);
+    // Roof taxi board (wide, low — like real rooftop sign)
+    final lampOuter = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(47.8, 52.8, 14.2, 4.6),
+      const Radius.circular(0.85),
+    );
+    canvas.drawRRect(lampOuter, Paint()..color = const Color(0xFF171717));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(48.4, 53.45, 13, 3.2),
+        const Radius.circular(0.45),
+      ),
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFFDE68A), Color(0xFFF59E0B)],
+        ).createShader(const Rect.fromLTWH(48.4, 53.45, 13, 3.2)),
+    );
 
-    _miniWheel(canvas, const Offset(47.5, 94.35));
-    _miniWheel(canvas, const Offset(60.5, 94.35));
+    // Side mirror stub
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(38.9, 69.8, 2.4, 1.8),
+        const Radius.circular(0.4),
+      ),
+      Paint()..color = const Color(0xFF1E293B),
+    );
+
+    // Headlamp cluster (capsule, not toy dot)
+    final head = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(38.2, 73.4, 4.2, 2.65),
+      const Radius.circular(1.1),
+    );
+    canvas.drawRRect(
+      head,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFFFFFFFF), Color(0xFFFEF9C3)],
+        ).createShader(head.outerRect),
+    );
+    canvas.drawRRect(
+      head,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.35
+        ..color = const Color(0xFFCA8A04).withValues(alpha: 0.5),
+    );
+
+    // Rear combination lamp (small red slice)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(68.35, 77.8, 2.15, 5.2),
+        const Radius.circular(0.6),
+      ),
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xFFEF4444), Color(0xFF991B1B)],
+        ).createShader(const Rect.fromLTWH(68.35, 77.8, 2.15, 5.2)),
+    );
+
+    _cabWheel(canvas, const Offset(47.35, 93.95));
+    _cabWheel(canvas, const Offset(60.65, 93.95));
   }
 
-  void _miniWheel(Canvas canvas, Offset c) {
-    canvas.drawCircle(c, 5.1, Paint()..color = const Color(0xFF0F172A));
-    canvas.drawCircle(c, 4.5, Paint()..color = const Color(0xFF1E293B));
-    canvas.drawCircle(c, 2.7, Paint()..color = const Color(0xFF64748B));
+  /// Tire + alloy — smaller vs body so it reads like a car, not chunky toy wheels.
+  void _cabWheel(Canvas canvas, Offset c) {
+    const r = 4.35;
+    canvas.drawCircle(c, r, Paint()..color = const Color(0xFF0A0F18));
+    canvas.drawCircle(c, r * 0.9, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(c, r * 0.64, Paint()..color = const Color(0xFF94A3B8));
+    canvas.drawCircle(c, r * 0.52, Paint()..color = const Color(0xFFCBD5E1));
+    canvas.drawCircle(c, r * 0.24, Paint()..color = const Color(0xFF475569));
     canvas.drawArc(
-      Rect.fromCircle(center: c, radius: 2.5),
-      -2.5,
-      1.1,
+      Rect.fromCircle(center: c, radius: r * 0.66),
+      -2.35,
+      1.05,
       false,
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.35)
+        ..color = Colors.white.withValues(alpha: 0.4)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.75,
+        ..strokeWidth = 0.55,
     );
   }
 
