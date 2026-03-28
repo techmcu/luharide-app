@@ -264,7 +264,7 @@ class _LuhaRideMarkPainter extends CustomPainter {
 
   void _drawCabShadow(Canvas canvas) {
     final shadow = Path()
-      ..addOval(const Rect.fromLTWH(39.5, 95, 29, 4.8));
+      ..addOval(const Rect.fromLTWH(36.5, 95, 35, 4.6));
     canvas.drawPath(
       shadow,
       Paint()
@@ -273,14 +273,16 @@ class _LuhaRideMarkPainter extends CustomPainter {
     );
   }
 
-  /// Compact mini-cab: short wheelbase, tall cabin, big wheels — reads at tiny sizes.
+  /// Front-view taxi: symmetric — windshield, twin lamps, roof sign, two wheels.
   void _drawCab(Canvas canvas) {
     final hull = Path()
-      ..moveTo(42, 93.5)
-      ..lineTo(66, 93.5)
-      ..lineTo(66, 70.5)
-      ..cubicTo(65.5, 62.5, 61.2, 57.8, 54, 56.2)
-      ..cubicTo(46.8, 57.8, 42.5, 62.5, 42, 70.5)
+      ..moveTo(40, 91.8)
+      ..lineTo(68, 91.8)
+      ..lineTo(68.5, 69)
+      ..cubicTo(68.5, 61, 65, 56, 60, 54.6)
+      ..lineTo(54, 53.8)
+      ..lineTo(48, 54.6)
+      ..cubicTo(43, 56, 39.5, 61, 39.5, 69)
       ..close();
 
     final hullBounds = hull.getBounds();
@@ -296,7 +298,7 @@ class _LuhaRideMarkPainter extends CustomPainter {
             Color(0xFFEAB308),
             Color(0xFFD97706),
           ],
-          stops: const [0, 0.3, 0.65, 1],
+          stops: const [0, 0.28, 0.62, 1],
         ).createShader(hullBounds.inflate(1.5)),
     );
 
@@ -308,61 +310,75 @@ class _LuhaRideMarkPainter extends CustomPainter {
         ..color = const Color(0xFFB45309).withValues(alpha: 0.4),
     );
 
-    // Small roof taxi lamp (centered on mini cab)
+    // Roof taxi lamp (center)
     final lampOuter = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(49.2, 47.8, 9.6, 5.4),
-      const Radius.circular(1),
+      const Rect.fromLTWH(48.8, 46.5, 10.4, 5.6),
+      const Radius.circular(1.1),
     );
     canvas.drawRRect(lampOuter, Paint()..color = const Color(0xFF171717));
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(49.8, 48.5, 8.4, 3.4),
-        const Radius.circular(0.5),
+        const Rect.fromLTWH(49.5, 47.3, 9, 3.6),
+        const Radius.circular(0.55),
       ),
       Paint()..color = const Color(0xFFFBBF24),
     );
 
-    // Windscreen — one rounded block (simple “face” of the cab)
-    final glass = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(44.5, 59.2, 19, 12.2),
-      const Radius.circular(1.8),
-    );
-    canvas.drawRRect(
+    // Front windshield (wide trapezoid)
+    final glass = Path()
+      ..moveTo(45.2, 56.8)
+      ..lineTo(62.8, 56.8)
+      ..lineTo(61.8, 68.2)
+      ..lineTo(46.2, 68.2)
+      ..close();
+    final gBounds = glass.getBounds();
+    canvas.drawPath(
       glass,
       Paint()
         ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
           colors: [
             const Color(0xFFCCFBF1),
             const Color(0xFF0F766E),
             const Color(0xFF134E4A),
           ],
-        ).createShader(glass.outerRect),
+        ).createShader(gBounds),
     );
-    canvas.drawRRect(
+    canvas.drawPath(
       glass,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.6
+        ..strokeWidth = 0.65
         ..color = Colors.white.withValues(alpha: 0.45),
     );
 
-    // B-pillar hint (splits read as two tiny windows)
+    // Hood line under glass
     canvas.drawLine(
-      const Offset(54, 60),
-      const Offset(54, 70.5),
+      const Offset(44, 70.5),
+      const Offset(64, 70.5),
       Paint()
-        ..color = const Color(0xFF0F172A).withValues(alpha: 0.2)
-        ..strokeWidth = 0.65,
+        ..color = const Color(0xFFCA8A04).withValues(alpha: 0.5)
+        ..strokeWidth = 0.55,
     );
 
-    // Front headlamp nub
-    canvas.drawCircle(const Offset(41.6, 75.2), 2.1, Paint()..color = const Color(0xFFFEFCE8));
-    canvas.drawCircle(const Offset(41.3, 74.8), 0.9, Paint()..color = Colors.white);
+    // Grille / bumper detail (center)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(51, 77.8, 6, 2.8),
+        const Radius.circular(0.4),
+      ),
+      Paint()..color = const Color(0xFF292524).withValues(alpha: 0.65),
+    );
 
-    _miniWheel(canvas, const Offset(47.5, 94.35));
-    _miniWheel(canvas, const Offset(60.5, 94.35));
+    // Twin headlights (front view — left & right)
+    for (final ox in [45.5, 62.5]) {
+      canvas.drawCircle(Offset(ox, 73.2), 2.65, Paint()..color = const Color(0xFFFEFCE8));
+      canvas.drawCircle(Offset(ox - 0.15, 72.9), 1.1, Paint()..color = Colors.white);
+    }
+
+    _miniWheel(canvas, const Offset(46, 93.9));
+    _miniWheel(canvas, const Offset(62, 93.9));
   }
 
   void _miniWheel(Canvas canvas, Offset c) {
