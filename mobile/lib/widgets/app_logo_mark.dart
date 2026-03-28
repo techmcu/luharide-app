@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Hills + ride road + yellow cab (roof sign) + summit pin — matches adaptive launcher art.
+/// One smooth hill + ride road + cab (roof sign) + summit pin — matches adaptive launcher art.
 class AppLogoMark extends StatelessWidget {
   final double size;
 
@@ -43,34 +43,18 @@ class _HillsRideEmblemPainter extends CustomPainter {
     canvas.scale(0.86);
     canvas.translate(-54, -54);
 
-    final backHill = Path()
-      ..moveTo(0, 56)
-      ..lineTo(20, 36)
-      ..lineTo(40, 48)
-      ..lineTo(58, 32)
-      ..lineTo(78, 44)
-      ..lineTo(108, 38)
+    final hill = Path()
+      ..moveTo(0, 60)
+      ..quadraticBezierTo(54, 34, 108, 60)
       ..lineTo(108, 108)
       ..lineTo(0, 108)
       ..close();
-    canvas.drawPath(backHill, Paint()..color = const Color(0xFF34D399));
-
-    final frontHill = Path()
-      ..moveTo(0, 64)
-      ..lineTo(32, 46)
-      ..lineTo(54, 56)
-      ..lineTo(78, 44)
-      ..lineTo(100, 52)
-      ..lineTo(108, 58)
-      ..lineTo(108, 108)
-      ..lineTo(0, 108)
-      ..close();
-    canvas.drawPath(frontHill, Paint()..color = const Color(0xFF0F766E));
+    canvas.drawPath(hill, Paint()..color = const Color(0xFF0F766E));
 
     final road = Path()
       ..moveTo(30, 93)
-      ..quadraticBezierTo(48, 72, 54, 58)
-      ..quadraticBezierTo(62, 46, 84, 42);
+      ..quadraticBezierTo(48, 74, 54, 62)
+      ..quadraticBezierTo(60, 50, 78, 46);
     canvas.drawPath(
       road,
       Paint()
@@ -81,14 +65,14 @@ class _HillsRideEmblemPainter extends CustomPainter {
     );
 
     final pin = Path()
-      ..moveTo(28, 33)
-      ..cubicTo(25.2, 33, 23, 35.2, 23, 38)
-      ..cubicTo(23, 41.5, 28, 47.2, 28, 47.2)
-      ..cubicTo(28, 47.2, 33, 41.5, 33, 38)
-      ..cubicTo(33, 35.2, 30.8, 33, 28, 33)
+      ..moveTo(54, 30)
+      ..cubicTo(51.2, 30, 49, 32.2, 49, 35)
+      ..cubicTo(49, 38.5, 54, 44.2, 54, 44.2)
+      ..cubicTo(54, 44.2, 59, 38.5, 59, 35)
+      ..cubicTo(59, 32.2, 56.8, 30, 54, 30)
       ..close();
     canvas.drawPath(pin, Paint()..color = const Color(0xFFC9A227));
-    canvas.drawCircle(const Offset(28, 35.5), 2, Paint()..color = const Color(0xFFFFFFFF));
+    canvas.drawCircle(const Offset(54, 32.5), 2, Paint()..color = const Color(0xFFFFFFFF));
 
     final cab = Path()
       ..moveTo(43, 73)
