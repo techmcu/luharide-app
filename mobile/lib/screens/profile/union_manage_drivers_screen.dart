@@ -17,7 +17,6 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
   List<dynamic> _drivers = const [];
 
   static const _orange = Color(0xFFFF6B00);
-  static const _blue   = Color(0xFF1E88E5);
   static const _green  = Color(0xFF43A047);
 
   // Avatar color palette — cycles through drivers
@@ -76,6 +75,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
         whatsappCtrl: whatsappCtrl,
         onSave: (submitting) async {
           if (!formKey.currentState!.validate()) return;
+          final messenger = ScaffoldMessenger.of(context);
           submitting(true);
           final result = await _service.addDriver(
             name: nameCtrl.text.trim(),
@@ -84,10 +84,10 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
             whatsappNumber: whatsappCtrl.text.trim(),
           );
           submitting(false);
-          if (!mounted) return;
+          if (!context.mounted) return;
           if (result['success'] == true) {
             Navigator.pop(ctx);
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               SnackBar(
                 content: const Row(children: [
                   Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
@@ -101,7 +101,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
             );
             _load();
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               SnackBar(
                 content: Text(result['message']?.toString() ?? 'Failed to add driver'),
                 backgroundColor: Colors.red,
@@ -176,7 +176,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -212,7 +212,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -227,9 +227,9 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
-                border: Border.all(color: color.withOpacity(0.3), width: 2),
+                border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
               ),
               child: Center(
                 child: Text(
@@ -326,7 +326,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
         child: Container(
           padding: const EdgeInsets.all(9),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 19),
@@ -345,7 +345,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: _orange.withOpacity(0.1),
+                color: _orange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.people_outline_rounded, size: 52, color: _orange),
@@ -466,7 +466,7 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _orange.withOpacity(0.12),
+                    color: _orange.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.person_add_alt_1_rounded, color: _orange, size: 22),
@@ -533,7 +533,7 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _orange,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: _orange.withOpacity(0.6),
+                  disabledBackgroundColor: _orange.withValues(alpha: 0.6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),

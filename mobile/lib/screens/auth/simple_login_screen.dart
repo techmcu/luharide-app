@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/app_navigator.dart';
 import '../home/home_screen.dart';
@@ -61,14 +63,15 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
         );
       }
     } else if (mounted) {
-      final err = authProvider.error ?? 'Login failed';
+      final loc = AppLocalizations.of(context);
+      final err = authProvider.error ?? loc.t('auth.login.failed_fallback');
       final isInvalidCreds = err.toLowerCase().contains('invalid') || err.toLowerCase().contains('password');
       final is404 = err.contains('404') || err.contains('nahi mila');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             isInvalidCreds
-                ? 'Invalid email or password.'
+                ? loc.t('auth.login.invalid_credentials')
                 : (is404
                     ? '$err${kDebugMode ? '\n\nAPI: ${EnvConfig.apiBaseUrl}' : ''}'
                     : err),
@@ -82,6 +85,8 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
     final topPadding = MediaQuery.of(context).padding.top;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 600;
@@ -104,6 +109,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: ConstrainedBox(
               constraints: BoxConstraints(
@@ -125,7 +131,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                     SizedBox(height: spacing),
                     Center(
                       child: Text(
-                        'Login',
+                        loc.t('auth.login.title'),
                         style: TextStyle(
                           fontSize: isSmallScreen ? 26 : 30,
                           fontWeight: FontWeight.bold,
@@ -140,8 +146,8 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       autocorrect: false,
                       decoration: InputDecoration(
-                        labelText: 'Email',
-                        hintText: 'your@email.com',
+                        labelText: loc.t('input.email.label'),
+                        hintText: loc.t('input.email.placeholder'),
                         prefixIcon: Icon(Icons.email_outlined, color: Colors.blue.shade700, size: 22),
                         filled: true,
                         fillColor: Colors.white,
@@ -160,8 +166,8 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Email is required';
-                        if (!value.contains('@')) return 'Enter valid email';
+                        if (value == null || value.isEmpty) return loc.t('auth.login.email_required');
+                        if (!value.contains('@')) return loc.t('auth.login.email_invalid');
                         return null;
                       },
                     ),
@@ -170,8 +176,8 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
-                        labelText: 'Password',
-                        hintText: 'Your password',
+                        labelText: loc.t('auth.login.password_label'),
+                        hintText: loc.t('auth.login.password_hint'),
                         prefixIcon: Icon(Icons.lock_outline_rounded, color: Colors.blue.shade700, size: 22),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -197,7 +203,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Password is required';
+                        if (value == null || value.isEmpty) return loc.t('auth.login.password_required');
                         return null;
                       },
                     ),
@@ -219,7 +225,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(
-                          'Forgot password?',
+                          loc.t('auth.login.forgot_password'),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.blue.shade700,
@@ -237,7 +243,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                           backgroundColor: Colors.blue.shade600,
                           foregroundColor: Colors.white,
                           elevation: 2,
-                          shadowColor: Colors.blue.withOpacity(0.4),
+                          shadowColor: Colors.blue.withValues(alpha: 0.4),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -251,9 +257,9 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               )
-                            : const Text(
-                                'Login',
-                                style: TextStyle(
+                            : Text(
+                                loc.t('auth.login.title'),
+                                style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 0.3,
@@ -273,7 +279,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                           );
                         },
                         child: Text(
-                          "Don't have an account? Sign up",
+                          loc.t('auth.login.signup_prompt'),
                           style: TextStyle(
                             fontSize: 15,
                             color: Colors.blue.shade700,
@@ -288,7 +294,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         onPressed: () => Navigator.pop(context),
                         icon: Icon(Icons.arrow_back_rounded, size: 20, color: Colors.grey.shade600),
                         label: Text(
-                          'Back',
+                          loc.t('auth.login.back'),
                           style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
                         ),
                       ),

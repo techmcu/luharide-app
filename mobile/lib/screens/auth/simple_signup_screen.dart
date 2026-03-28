@@ -50,14 +50,15 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
     setState(() => _isLoading = true);
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.sendOTPByEmail(email, purpose: 'registration');
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (success && mounted) {
+    if (success) {
       setState(() => _step = 2);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('OTP sent to your email. Check inbox or spam.'), backgroundColor: Colors.green),
       );
-    } else if (mounted) {
+    } else {
       final err = authProvider.error ?? 'Failed to send OTP';
       final isAlreadyRegistered = err.toLowerCase().contains('already registered');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -105,16 +106,17 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
       password: password,
       role: widget.userType,
     );
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (success && mounted) {
+    if (success) {
       if (navigatorKey.currentState != null) {
         navigatorKey.currentState!.pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
           (route) => false,
         );
       }
-    } else if (mounted) {
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(authProvider.error ?? 'Verification failed'),
@@ -129,6 +131,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(24.0),
           child: _step == 1 ? _buildStep1() : _buildStep2(),
         ),

@@ -45,9 +45,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
     final authProvider = context.read<AuthProvider>();
     final ok = await authProvider.requestPasswordReset(email);
-    setState(() => _isLoading = false);
-
     if (!mounted) return;
+    setState(() => _isLoading = false);
 
     if (ok) {
       setState(() => _step = 2);
@@ -92,9 +91,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       otp: otp,
       newPassword: newPassword,
     );
-    setState(() => _isLoading = false);
-
     if (!mounted) return;
+    setState(() => _isLoading = false);
 
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -122,6 +120,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.all(24),
           child: _step == 1 ? _buildStep1() : _buildStep2(),
         ),

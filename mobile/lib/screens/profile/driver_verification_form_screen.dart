@@ -17,10 +17,12 @@ class DriverVerificationFormScreen extends StatefulWidget {
   const DriverVerificationFormScreen({super.key});
 
   @override
-  State<DriverVerificationFormScreen> createState() => _DriverVerificationFormScreenState();
+  State<DriverVerificationFormScreen> createState() =>
+      _DriverVerificationFormScreenState();
 }
 
-class _DriverVerificationFormScreenState extends State<DriverVerificationFormScreen> {
+class _DriverVerificationFormScreenState
+    extends State<DriverVerificationFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _service = DriverVerificationService();
   final _uploadService = UploadService();
@@ -40,7 +42,8 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkUnionExclusivity());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _checkUnionExclusivity());
   }
 
   Future<void> _checkUnionExclusivity() async {
@@ -79,7 +82,8 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
 
   Future<void> _pickDocument(void Function(XFile) setter) async {
     final picker = ImagePicker();
-    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final img =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (img == null) return;
     setter(img);
   }
@@ -88,12 +92,12 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
     if (!_formKey.currentState!.validate()) return;
     if (_selectedVehicle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your vehicle'), backgroundColor: Colors.orange),
+        const SnackBar(
+            content: Text('Please select your vehicle'),
+            backgroundColor: Colors.orange),
       );
       return;
     }
-
-    setState(() => _isLoading = true);
 
     if (_aadhaarFrontFile == null ||
         _aadhaarBackFile == null ||
@@ -102,10 +106,15 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
         _licenseFrontFile == null ||
         _licenseBackFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please upload Aadhaar, RC and License front/back photos'), backgroundColor: Colors.orange),
+        const SnackBar(
+            content:
+                Text('Please upload Aadhaar, RC and License front/back photos'),
+            backgroundColor: Colors.orange),
       );
       return;
     }
+
+    setState(() => _isLoading = true);
 
     String? aadhaarFrontUrl;
     String? aadhaarBackUrl;
@@ -115,12 +124,16 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
     String? licenseBackUrl;
 
     try {
-      aadhaarFrontUrl = await _uploadService.uploadDriverDocument(_aadhaarFrontFile!);
-      aadhaarBackUrl = await _uploadService.uploadDriverDocument(_aadhaarBackFile!);
+      aadhaarFrontUrl =
+          await _uploadService.uploadDriverDocument(_aadhaarFrontFile!);
+      aadhaarBackUrl =
+          await _uploadService.uploadDriverDocument(_aadhaarBackFile!);
       rcFrontUrl = await _uploadService.uploadDriverDocument(_rcFrontFile!);
       rcBackUrl = await _uploadService.uploadDriverDocument(_rcBackFile!);
-      licenseFrontUrl = await _uploadService.uploadDriverDocument(_licenseFrontFile!);
-      licenseBackUrl = await _uploadService.uploadDriverDocument(_licenseBackFile!);
+      licenseFrontUrl =
+          await _uploadService.uploadDriverDocument(_licenseFrontFile!);
+      licenseBackUrl =
+          await _uploadService.uploadDriverDocument(_licenseBackFile!);
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -160,19 +173,22 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
       drivingLicenseBackUrl: licenseBackUrl,
     );
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (mounted) {
-      if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Submitted! Admin will review.'), backgroundColor: Colors.green),
-        );
-        Navigator.pop(context, true);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result['message'] ?? 'Failed'), backgroundColor: Colors.red),
-        );
-      }
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(result['message'] ?? 'Submitted! Admin will review.'),
+            backgroundColor: Colors.green),
+      );
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(result['message'] ?? 'Failed'),
+            backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -208,13 +224,15 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
                 Text(
                   loc.t('exclusivity.driver_blocked.title'),
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   loc.t('exclusivity.driver_blocked.body'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+                  style: TextStyle(
+                      fontSize: 14, color: Colors.grey[800], height: 1.4),
                 ),
               ],
             ),
@@ -228,206 +246,244 @@ class _DriverVerificationFormScreenState extends State<DriverVerificationFormScr
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Consumer<AuthProvider>(
-                builder: (_, auth, __) {
-                  final phone = (auth.user?.phone ?? '').trim();
-                  if (phone.isEmpty) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextFormField(
-                      initialValue: phone,
-                      enabled: false,
-                      decoration: InputDecoration(
-                        labelText: 'Profile phone (used for contact)',
-                        prefixIcon: const Icon(Icons.phone_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Consumer<AuthProvider>(
+                  builder: (_, auth, __) {
+                    final phone = (auth.user?.phone ?? '').trim();
+                    if (phone.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: TextFormField(
+                        initialValue: phone,
+                        enabled: false,
+                        decoration: InputDecoration(
+                          labelText: 'Profile phone (used for contact)',
+                          prefixIcon: const Icon(Icons.phone_outlined),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
+                    );
+                  },
+                ),
+                Card(
+                  color: Colors.blue[50],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue[700]),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Yeh form sirf asli taxi drivers ke liye hai. Galat / jhoothi details bharne par aapka account block ho sakta hai.\n\n'
+                            'Submit your documents for verification. Admin will review within 24-48 hours.',
+                            style: TextStyle(
+                                fontSize: 14, color: Colors.blue[900]),
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
-              Card(
-                color: Colors.blue[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
+                  ),
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _licenseController,
+                  decoration: InputDecoration(
+                    labelText: 'Driving License Number',
+                    hintText: 'DL-XX-XXXX-XXXX',
+                    prefixIcon: const Icon(Icons.badge),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Upload documents (photos) — sirf basic zaruri docs',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _DocChip(
+                      label: 'Aadhaar front',
+                      selected: _aadhaarFrontFile != null,
+                      onTap: _isLoading
+                          ? null
+                          : () => _pickDocument(
+                              (f) => setState(() => _aadhaarFrontFile = f)),
+                    ),
+                    _DocChip(
+                      label: 'Aadhaar back',
+                      selected: _aadhaarBackFile != null,
+                      onTap: _isLoading
+                          ? null
+                          : () => _pickDocument(
+                              (f) => setState(() => _aadhaarBackFile = f)),
+                    ),
+                    _DocChip(
+                      label: 'RC front',
+                      selected: _rcFrontFile != null,
+                      onTap: _isLoading
+                          ? null
+                          : () => _pickDocument(
+                              (f) => setState(() => _rcFrontFile = f)),
+                    ),
+                    _DocChip(
+                      label: 'RC back',
+                      selected: _rcBackFile != null,
+                      onTap: _isLoading
+                          ? null
+                          : () => _pickDocument(
+                              (f) => setState(() => _rcBackFile = f)),
+                    ),
+                    _DocChip(
+                      label: 'License front',
+                      selected: _licenseFrontFile != null,
+                      onTap: _isLoading
+                          ? null
+                          : () => _pickDocument(
+                              (f) => setState(() => _licenseFrontFile = f)),
+                    ),
+                    _DocChip(
+                      label: 'License back',
+                      selected: _licenseBackFile != null,
+                      onTap: _isLoading
+                          ? null
+                          : () => _pickDocument(
+                              (f) => setState(() => _licenseBackFile = f)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _vehicleRegController,
+                  decoration: InputDecoration(
+                    labelText: 'Vehicle Registration (RC)',
+                    hintText: 'e.g. UK07AB1234',
+                    prefixIcon: const Icon(Icons.directions_car),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (v) =>
+                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                ),
+                const SizedBox(height: 20),
+                // Kaunsi gadi hai aapko? — dropdown fixes seat count & layout (RTO-style)
+                const Text(
+                  'Kaunsi gadi hai aapko?',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<VehicleDropdownOption>(
+                  value: _selectedVehicle,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.event_seat),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  hint: const Text('Select vehicle (seats as per RTO)'),
+                  isExpanded: true,
+                  itemHeight: 72,
+                  // Web / some themes give selected row only ~24px height — single line avoids overflow.
+                  selectedItemBuilder: (context) {
+                    return VehicleCatalog.allVehicleOptionsForDropdown
+                        .map((opt) {
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${opt.displayName} · ${opt.capacitySubtitle}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      );
+                    }).toList();
+                  },
+                  items: VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
+                    return DropdownMenuItem<VehicleDropdownOption>(
+                      value: opt,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            opt.displayName,
+                            maxLines: 2,
+                            overflow: TextOverflow.visible,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            opt.capacitySubtitle,
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (opt) => setState(() => _selectedVehicle = opt),
+                  validator: (v) => v == null ? 'Select your vehicle' : null,
+                ),
+                if (_selectedVehicle != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.blue[700]),
-                      const SizedBox(width: 12),
+                      Icon(Icons.info_outline,
+                          size: 18, color: Colors.green[700]),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Yeh form sirf asli taxi drivers ke liye hai. Galat / jhoothi details bharne par aapka account block ho sakta hai.\n\n'
-                          'Submit your documents for verification. Admin will review within 24-48 hours.',
-                          style: TextStyle(fontSize: 14, color: Colors.blue[900]),
+                          '${_selectedVehicle!.capacity} seats — same layout will show for passengers when they book.',
+                          style:
+                              TextStyle(fontSize: 13, color: Colors.grey[700]),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _licenseController,
-                decoration: InputDecoration(
-                  labelText: 'Driving License Number',
-                  hintText: 'DL-XX-XXXX-XXXX',
-                  prefixIcon: const Icon(Icons.badge),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Upload documents (photos) — sirf basic zaruri docs',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _DocChip(
-                    label: 'Aadhaar front',
-                    selected: _aadhaarFrontFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _aadhaarFrontFile = f)),
-                  ),
-                  _DocChip(
-                    label: 'Aadhaar back',
-                    selected: _aadhaarBackFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _aadhaarBackFile = f)),
-                  ),
-                  _DocChip(
-                    label: 'RC front',
-                    selected: _rcFrontFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _rcFrontFile = f)),
-                  ),
-                  _DocChip(
-                    label: 'RC back',
-                    selected: _rcBackFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _rcBackFile = f)),
-                  ),
-                  _DocChip(
-                    label: 'License front',
-                    selected: _licenseFrontFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _licenseFrontFile = f)),
-                  ),
-                  _DocChip(
-                    label: 'License back',
-                    selected: _licenseBackFile != null,
-                    onTap: _isLoading ? null : () => _pickDocument((f) => setState(() => _licenseBackFile = f)),
-                  ),
                 ],
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _vehicleRegController,
-                decoration: InputDecoration(
-                  labelText: 'Vehicle Registration (RC)',
-                  hintText: 'e.g. UK07AB1234',
-                  prefixIcon: const Icon(Icons.directions_car),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-              ),
-              const SizedBox(height: 20),
-              // Kaunsi gadi hai aapko? — dropdown fixes seat count & layout (RTO-style)
-              const Text(
-                'Kaunsi gadi hai aapko?',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<VehicleDropdownOption>(
-                value: _selectedVehicle,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.event_seat),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                ),
-                hint: const Text('Select vehicle (seats as per RTO)'),
-                isExpanded: true,
-                itemHeight: 72,
-                // Web / some themes give selected row only ~24px height — single line avoids overflow.
-                selectedItemBuilder: (context) {
-                  return VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
-                    return Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        '${opt.displayName} · ${opt.capacitySubtitle}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    );
-                  }).toList();
-                },
-                items: VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
-                  return DropdownMenuItem<VehicleDropdownOption>(
-                    value: opt,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          opt.displayName,
-                          maxLines: 2,
-                          overflow: TextOverflow.visible,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          opt.capacitySubtitle,
-                          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                        ),
-                      ],
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
-                  );
-                }).toList(),
-                onChanged: (opt) => setState(() => _selectedVehicle = opt),
-                validator: (v) => v == null ? 'Select your vehicle' : null,
-              ),
-              if (_selectedVehicle != null) ...[
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 18, color: Colors.green[700]),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '${_selectedVehicle!.capacity} seats — same layout will show for passengers when they book.',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                      ),
-                    ),
-                  ],
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2),
+                          )
+                        : const Text('Submit for Verification',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
                 ),
               ],
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Text('Submit for Verification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -455,7 +511,8 @@ class _DocChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? Colors.green[50] : Colors.grey[100],
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? Colors.green : Colors.grey[300]!),
+          border:
+              Border.all(color: selected ? Colors.green : Colors.grey[300]!),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -473,4 +530,3 @@ class _DocChip extends StatelessWidget {
     );
   }
 }
-

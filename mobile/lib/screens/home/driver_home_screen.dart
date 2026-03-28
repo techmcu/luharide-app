@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/notification_service.dart';
 import '../notifications/notifications_screen.dart';
@@ -38,12 +40,21 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
+    final helloName = () {
+      final first = user?.name.split(' ').first;
+      if (first != null && first.isNotEmpty) return first;
+      return user?.role == 'driver'
+          ? loc.t('driver.home.fallback_driver')
+          : loc.t('driver.home.fallback_passenger');
+    }();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Driver Dashboard'),
+        title: Text(loc.t('driver.home.title')),
         actions: [
           IconButton(
             icon: Stack(
@@ -86,6 +97,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   builder: (_) => const NotificationsScreen(),
                 ),
               );
+              if (!mounted) return;
               _loadUnreadNotifications();
             },
           ),
@@ -111,7 +123,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     radius: 20,
                     backgroundColor: Colors.white,
                     child: Text(
-                      (user?.name?.substring(0, 1).toUpperCase() ?? 'D'),
+                      (user?.name.substring(0, 1).toUpperCase() ?? 'D'),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -125,7 +137,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Hello, ${user?.name?.split(' ').first ?? (user?.role == 'driver' ? 'Driver' : 'Passenger')}!',
+                          loc.tReplace('driver.home.hello', {'name': helloName}),
                           style: const TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -137,12 +149,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         const SizedBox(height: 2),
                         Row(
                           children: [
-                            Icon(Icons.star_outline, color: Colors.white.withOpacity(0.9), size: 12),
+                            Icon(Icons.star_outline, color: Colors.white.withValues(alpha: 0.9), size: 12),
                             const SizedBox(width: 4),
                             Text(
-                              'Get rated',
+                              loc.t('driver.home.get_rated'),
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.95),
+                                color: Colors.white.withValues(alpha: 0.95),
                                 fontSize: 11,
                               ),
                             ),
@@ -157,9 +169,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                             ),
                               const SizedBox(width: 6),
                             Text(
-                              'Online',
+                              loc.t('driver.home.online'),
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.9),
+                                color: Colors.white.withValues(alpha: 0.9),
                                 fontSize: 11,
                               ),
                             ),
@@ -171,10 +183,13 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text('Online', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10)),
+                    child: Text(
+                      loc.t('driver.home.online'),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10),
+                    ),
                   ),
                 ],
               ),
@@ -200,15 +215,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         if (result == true) {}
                       },
                       icon: const Icon(Icons.add_road, size: 26),
-                      label: const Text(
-                        'Create New Trip',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      label: Text(
+                        loc.t('driver.home.create_trip'),
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green[700],
                         foregroundColor: Colors.white,
                         elevation: 4,
-                        shadowColor: Colors.green.withOpacity(0.4),
+                        shadowColor: Colors.green.withValues(alpha: 0.4),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
@@ -238,7 +253,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         );
                       },
                       icon: const Icon(Icons.list_alt, size: 20),
-                      label: const Text('My Rides'),
+                      label: Text(loc.t('my_rides.title')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.green[700],
                         side: BorderSide(color: Colors.green[400]!),
@@ -255,18 +270,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildFooter(context),
+      bottomNavigationBar: _buildFooter(context, loc),
     );
   }
 
-  Widget _buildFooter(BuildContext context) {
+  Widget _buildFooter(BuildContext context, AppLocalizations loc) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -280,7 +295,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               child: _buildFooterItem(
                 context,
                 icon: Icons.route,
-                label: 'My Rides',
+                label: loc.t('my_rides.title'),
                 iconColor: Colors.green[700]!,
                 bgColor: Colors.green[50]!,
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyRidesScreen())),
@@ -291,7 +306,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               child: _buildFooterItem(
                 context,
                 icon: Icons.add_road,
-                label: 'Create',
+                label: loc.t('driver.footer.create'),
                 iconColor: Colors.orange[700]!,
                 bgColor: Colors.orange[50]!,
                 isHighlight: true,
@@ -303,7 +318,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               child: _buildFooterItem(
                 context,
                 icon: Icons.person,
-                label: 'Profile',
+                label: loc.t('driver.footer.profile'),
                 iconColor: Colors.green[700]!,
                 bgColor: Colors.green[50]!,
                 isHighlight: true,

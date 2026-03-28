@@ -234,7 +234,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.local_taxi_rounded, color: Colors.white, size: 28),
@@ -280,7 +280,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1A237E).withOpacity(0.3),
+            color: const Color(0xFF1A237E).withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -291,7 +291,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.emoji_events_rounded, color: Colors.amber, size: 28),
@@ -380,14 +380,14 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 22),
@@ -404,7 +404,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(fontSize: 11, color: color.withOpacity(0.8)),
+            style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -499,7 +499,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.07),
+              color: Colors.black.withValues(alpha: 0.07),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -566,10 +566,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _orange.withOpacity(0.3)),
+          border: Border.all(color: _orange.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: _orange.withOpacity(0.12),
+              color: _orange.withValues(alpha: 0.12),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -624,7 +624,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: _orange.withOpacity(0.12),
+                color: _orange.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.arrow_forward_rounded, color: _orange, size: 18),
@@ -649,7 +649,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -659,7 +659,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: _orange.withOpacity(0.15),
+            backgroundColor: _orange.withValues(alpha: 0.15),
             child: Text(
               initial,
               style: const TextStyle(
@@ -750,7 +750,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         child: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(icon, color: color, size: 18),
@@ -773,7 +773,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           border: Border.all(color: Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 6,
               offset: const Offset(0, 2),
             ),
@@ -784,7 +784,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: _orange.withOpacity(0.1),
+                color: _orange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.person_add_alt_1_rounded, color: _orange, size: 26),
@@ -842,11 +842,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: hasThumb ? _orange.withOpacity(0.35) : Colors.grey.shade200,
+            color: hasThumb ? _orange.withValues(alpha: 0.35) : Colors.grey.shade200,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -859,7 +859,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _orange.withOpacity(0.12),
+                  color: _orange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.folder_shared_rounded, color: _orange, size: 22),
@@ -905,7 +905,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _orange.withOpacity(0.12),
+                  color: _orange.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
@@ -964,11 +964,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: hasHeader ? _purple.withOpacity(0.3) : Colors.grey.shade200,
+            color: hasHeader ? _purple.withValues(alpha: 0.3) : Colors.grey.shade200,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 3),
             ),
@@ -981,7 +981,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: _purple.withOpacity(0.1),
+                  color: _purple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(
@@ -1028,7 +1028,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _purple.withOpacity(0.1),
+                  color: _purple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -1148,7 +1148,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     color: const Color(0xFFFFF8F3),
-                    border: Border.all(color: _orange.withOpacity(0.25)),
+                    border: Border.all(color: _orange.withValues(alpha: 0.25)),
                   ),
                   child: ValueListenableBuilder<TextEditingValue>(
                     valueListenable: ctrl,
@@ -1226,7 +1226,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       ctrl.text = example;
                       ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
                     },
-                    backgroundColor: _purple.withOpacity(0.08),
+                    backgroundColor: _purple.withValues(alpha: 0.08),
                     labelStyle: TextStyle(color: _purple),
                   )).toList(),
                 ),
@@ -1323,6 +1323,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     onPressed: saving
                         ? null
                         : () async {
+                            final messenger = ScaffoldMessenger.of(context);
                             setSheet(() => saving = true);
                             final result = await UnionService().updateBranding(
                               posterHeader: ctrl.text.trim(),
@@ -1332,7 +1333,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                               posterTheme: selectedTheme,
                             );
                             setSheet(() => saving = false);
-                            if (!mounted) return;
+                            if (!context.mounted) return;
                             if (result['success'] == true) {
                               setState(() {
                                 _posterHeader = ctrl.text.trim();
@@ -1340,8 +1341,8 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                 _posterCustomTextPosition = selectedPosition;
                                 _posterTheme = selectedTheme;
                               });
-                              Navigator.pop(ctx);
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              if (ctx.mounted) Navigator.pop(ctx);
+                              messenger.showSnackBar(
                                 SnackBar(
                                   content: const Row(children: [
                                     Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
@@ -1354,7 +1355,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                 ),
                               );
                             } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              messenger.showSnackBar(
                                 SnackBar(
                                   content: Text(result['message']?.toString() ?? 'Failed to save'),
                                   backgroundColor: Colors.red,

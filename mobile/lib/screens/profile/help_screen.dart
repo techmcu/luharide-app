@@ -1,93 +1,113 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/brand_config.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
+  Future<void> _openWhatsApp() async {
+    final u = BrandConfig.whatsAppUri;
+    if (await canLaunchUrl(u)) {
+      await launchUrl(u, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _openEmail() async {
+    final u = Uri(
+      scheme: 'mailto',
+      path: BrandConfig.supportEmail,
+      queryParameters: {'subject': '${BrandConfig.appName} support'},
+    );
+    if (await canLaunchUrl(u)) await launchUrl(u);
+  }
+
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Help & FAQs'),
+        title: Text(loc.t('help.title')),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Frequently Asked Questions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            loc.t('help.faq.title'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           ExpansionTile(
-            title: const Text('Ride kaise book karein?'),
-            children: const [
+            title: Text(loc.t('help.faq.book.q')),
+            children: [
               Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'From aur To location select karein, date choose karein, phir list me se ride select karke '
-                  '\"Select Seats & Book\" pe tap karein. Seat select karke confirm karein.',
-                ),
+                padding: const EdgeInsets.all(12),
+                child: Text(loc.t('help.faq.book.a')),
               ),
             ],
           ),
           ExpansionTile(
-            title: const Text('Payment kaise hoga?'),
-            children: const [
+            title: Text(loc.t('help.faq.pay.q')),
+            children: [
               Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Abhi payment ride ke end me directly driver ko hota hai (cash / UPI). '
-                  'LuhaRide sirf driver aur passenger ko connect karta hai.',
-                ),
+                padding: const EdgeInsets.all(12),
+                child: Text(loc.t('help.faq.pay.a')),
               ),
             ],
           ),
           ExpansionTile(
-            title: const Text('Driver verification ka process kya hai?'),
-            children: const [
+            title: Text(loc.t('help.faq.driver.q')),
+            children: [
               Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Profile > Become a Driver se documents submit karein. Admin documents verify karke '
-                  'status \"approved\" karega, tab aap rides create kar sakte hain.',
-                ),
+                padding: const EdgeInsets.all(12),
+                child: Text(loc.t('help.faq.driver.a')),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Safety Tips',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            loc.t('help.safety.title'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const ListTile(
-            leading: Icon(Icons.shield_outlined),
-            title: Text('Trip se pehle driver aur gaadi verify karein'),
-            subtitle: Text('App me dikh rahe driver name, photo, vehicle number ko ground pe match karein.'),
+          ListTile(
+            leading: const Icon(Icons.shield_outlined),
+            title: Text(loc.t('help.safety.1.title')),
+            subtitle: Text(loc.t('help.safety.1.sub')),
           ),
-          const ListTile(
-            leading: Icon(Icons.warning_amber_outlined),
-            title: Text('Emergency ke liye 112 / local police ka number save rakhein'),
-            subtitle: Text('Koi bhi emergency ho to turant official helplines par contact karein.'),
+          ListTile(
+            leading: const Icon(Icons.warning_amber_outlined),
+            title: Text(loc.t('help.safety.2.title')),
+            subtitle: Text(loc.t('help.safety.2.sub')),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Contact & Support',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            loc.t('help.contact.title'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const ListTile(
-            leading: Icon(Icons.email_outlined),
-            title: Text('Email'),
-            subtitle: Text('support@luharide.com'),
+          ListTile(
+            leading: const Icon(Icons.email_outlined),
+            title: Text(loc.t('help.email.label')),
+            subtitle: Text(BrandConfig.supportEmail),
+            onTap: _openEmail,
           ),
-          const ListTile(
-            leading: Icon(Icons.phone_outlined),
-            title: Text('WhatsApp Support'),
-            subtitle: Text('+91-00000-00000'),
+          ListTile(
+            leading: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
+            title: Text(loc.t('help.whatsapp.label')),
+            subtitle: Text(
+              '${BrandConfig.whatsAppDisplay}\n${loc.t('help.whatsapp.tap')}',
+            ),
+            isThreeLine: true,
+            onTap: _openWhatsApp,
           ),
         ],
       ),
     );
   }
 }
-

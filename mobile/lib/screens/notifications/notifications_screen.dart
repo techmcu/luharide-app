@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/localization/app_localizations.dart';
 import '../../models/notification_model.dart';
+import '../../providers/app_language_provider.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/rate_ride_dialog.dart';
 
@@ -28,18 +31,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(loc.t('notifications.title')),
         actions: [
           IconButton(
             icon: const Icon(Icons.done_all),
-            tooltip: 'Mark all as read',
+            tooltip: loc.t('notifications.mark_all_tooltip'),
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               final ok = await _notificationService.markAllAsRead();
-              if (ok && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('All notifications marked as read')),
+              if (!mounted) return;
+              if (ok) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text(loc.t('notifications.mark_all_read'))),
                 );
                 _refresh();
               }
@@ -56,7 +64,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                'Failed to load notifications',
+                loc.t('notifications.load_failed'),
                 style: TextStyle(color: Colors.red[400]),
               ),
             );
@@ -75,10 +83,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       children: [
                         Icon(Icons.notifications_none, size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
-                        Text('No notifications yet', style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+                        Text(loc.t('notifications.empty.title'),
+                            style: TextStyle(fontSize: 16, color: Colors.grey[600])),
                         const SizedBox(height: 4),
                         Text(
-                          'You\'ll see updates about verification, bookings and more here.',
+                          loc.t('notifications.empty.subtitle'),
                           style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                           textAlign: TextAlign.center,
                         ),
@@ -97,7 +106,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final n = items[index];
-                return _buildNotificationTile(n);
+                return _buildNotificationTile(loc, n);
               },
             ),
           );
@@ -106,23 +115,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationTile(NotificationModel n) {
+  Widget _buildNotificationTile(AppLocalizations loc, NotificationModel n) {
     final subtitle = n.message ?? '';
     final created = n.createdAt;
-    String timeText = '';
-    if (created != null) {
-      final now = DateTime.now();
-      final diff = now.difference(created);
-      if (diff.inMinutes < 1) {
-        timeText = 'Just now';
-      } else if (diff.inMinutes < 60) {
-        timeText = '${diff.inMinutes} min ago';
-      } else if (diff.inHours < 24) {
-        timeText = '${diff.inHours} h ago';
-      } else {
-        timeText = '${diff.inDays} d ago';
-      }
-    }
+    final timeText =
+        created != null ? loc.notificationRelativeTime(created) : '';
 
     return Card(
       elevation: n.isRead ? 0 : 2,
@@ -158,9 +155,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         onTap: () async {
           if (!n.isRead) {
             await _notificationService.markAsRead(n.id);
+            if (!mounted) return;
             _refresh();
           }
           if (n.type == 'rate_ride' && n.bookingId != null && n.bookingId!.isNotEmpty) {
+            if (!mounted) return;
             final submitted = await showDialog<bool>(
               context: context,
               barrierDismissible: false,
@@ -169,7 +168,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 title: n.title,
               ),
             );
-            if (submitted == true) _refresh();
+            if (submitted == true && mounted) _refresh();
           }
         },
       ),
@@ -203,7 +202,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     return CircleAvatar(
-      backgroundColor: color.withOpacity(0.12),
+      backgroundColor: color.withValues(alpha: 0.12),
       child: Icon(icon, color: color, size: 20),
     );
   }

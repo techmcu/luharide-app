@@ -221,6 +221,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     // Always refresh latest seat status just before booking to reduce stale UI risk.
     await _loadSeatStatus(forceRefresh: true);
 
+    if (!mounted) return;
     if (_isSubmitting) return; // prevent double-tap
     setState(() => _isSubmitting = true);
 
@@ -533,7 +534,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.3),
+                  color: Colors.grey.withValues(alpha: 0.3),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),

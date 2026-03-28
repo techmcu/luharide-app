@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/brand_config.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
+import '../../widgets/app_logo_mark.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
@@ -168,6 +172,8 @@ class _LandingScreenState extends State<LandingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
     final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
       body: Container(
@@ -196,14 +202,20 @@ class _LandingScreenState extends State<LandingScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'LuhaRide',
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.blue[800],
-                            letterSpacing: 0.2,
-                          ),
+                        Row(
+                          children: [
+                            const AppLogoMark(size: 40),
+                            const SizedBox(width: 10),
+                            Text(
+                              BrandConfig.appName,
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue[800],
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ],
                         ),
                         Row(
                           mainAxisSize: MainAxisSize.min,
@@ -226,7 +238,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.blue.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 3)),
+                                  BoxShadow(color: Colors.blue.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3)),
                                 ],
                               ),
                               child: TextButton(
@@ -255,12 +267,12 @@ class _LandingScreenState extends State<LandingScreen> {
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 20,
                             offset: const Offset(0, 6),
                           ),
                           BoxShadow(
-                            color: Colors.blue.withOpacity(0.04),
+                            color: Colors.blue.withValues(alpha: 0.04),
                             blurRadius: 30,
                             offset: const Offset(0, 4),
                           ),
@@ -326,7 +338,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 ),
                                 borderRadius: BorderRadius.circular(14),
                                 boxShadow: [
-                                  BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3)),
+                                  BoxShadow(color: Colors.blue.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3)),
                                 ],
                               ),
                               child: ElevatedButton(
@@ -449,35 +461,31 @@ class _LandingScreenState extends State<LandingScreen> {
                         ),
                       ),
                       // Powered by text with elegant styling
-                      RichText(
+                      Text(
+                        loc.brandFooterParentLine,
                         textAlign: TextAlign.center,
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: 'Powered by ',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w300,
-                                color: Colors.grey[400],
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'LuhaRide',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[400],
-                                letterSpacing: 1.5,
-                              ),
-                            ),
-                          ],
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[500],
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        loc.t('brand.footer.app_line'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.grey[400],
+                          letterSpacing: 0.5,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      // Tagline with better design
                       Text(
-                        'Safe • Legal • Reliable',
+                        loc.t('brand.footer.tagline'),
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w300,
@@ -738,7 +746,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
   Widget _contactBtn(IconData icon, String label, Color color, VoidCallback onTap) {
     return Material(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),

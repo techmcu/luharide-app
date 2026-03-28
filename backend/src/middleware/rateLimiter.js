@@ -85,6 +85,102 @@ const otpLimiter = rateLimit(
   })
 );
 
+const _otpSendIdentWindow = parseInt(
+  process.env.OTP_SEND_IDENT_WINDOW_MS || String(60 * 60 * 1000),
+  10
+);
+
+/**
+ * OTP send — per phone/email (on top of otpLimiter per IP). Stops targeted SMS/email burn from many IPs.
+ * Run AFTER body validation so phone/email are present.
+ */
+function otpSendIdentifierKey(req) {
+  const b = req.body || {};
+  const phone = String(b.phone || '').replace(/\D/g, '');
+  const email = String(b.email || '').trim().toLowerCase();
+  if (email && email.includes('@')) return `otp-send:email:${email}`;
+  if (phone.length >= 10) return `otp-send:phone:${phone.slice(-10)}`;
+  return `otp-send:empty:${req.ip}`;
+}
+
+const otpSendIdentifierLimiter = rateLimit(
+  withStore('otp-send-ident', {
+    windowMs: Number.isFinite(_otpSendIdentWindow) && _otpSendIdentWindow > 0 ? _otpSendIdentWindow : 60 * 60 * 1000,
+    max: parseLimitEnv('OTP_SEND_IDENTIFIER_MAX', 3, 1, 30),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => otpSendIdentifierKey(req),
+    message: 'Too many OTP requests for this phone or email',
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many OTP requests for this number or email. Try again later.');
+    },
+  })
+);
+
+/**
+ * OTP verify — per phone/email failed attempts (on top of authLimiter per IP).
+ * Run AFTER body validation.
+ */
+function otpVerifyIdentifierKey(req) {
+  const b = req.body || {};
+  const phone = String(b.phone || '').replace(/\D/g, '');
+  const email = String(b.email || '').trim().toLowerCase();
+  if (email && email.includes('@')) return `otp-verify:email:${email}`;
+  if (phone.length >= 10) return `otp-verify:phone:${phone.slice(-10)}`;
+  return `otp-verify:empty:${req.ip}`;
+}
+
+const otpVerifyIdentifierLimiter = rateLimit(
+  withStore('otp-verify-ident', {
+    windowMs: 15 * 60 * 1000,
+    max: parseLimitEnv('OTP_VERIFY_IDENTIFIER_MAX', 8, 3, 40),
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => otpVerifyIdentifierKey(req),
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many incorrect OTP attempts for this number or email. Try again later.');
+    },
+  })
+);
+
+/**
+ * Authenticated document uploads (per user).
+ */
+const uploadDocLimiter = rateLimit(
+  withStore('upload-doc', {
+    windowMs: 60 * 60 * 1000,
+    max: parseLimitEnv('UPLOAD_DOC_MAX_PER_HOUR', 30, 5, 500),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `upload-doc:user:${req.user.id}` : `upload-doc:ip:${req.ip}`,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many uploads. Try again in an hour.');
+    },
+  })
+);
+
+/**
+ * Union PDF poster generation (CPU-heavy).
+ */
+const unionPosterLimiter = rateLimit(
+  withStore('union-poster', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('UNION_POSTER_MAX_PER_MINUTE', 15, 3, 120),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `union-poster:user:${req.user.id}` : `union-poster:ip:${req.ip}`,
+    handler: (req, res) => {
+      throw ApiError.tooManyRequests('Too many poster downloads. Please wait a minute.');
+    },
+  })
+);
+
 /**
  * Cancel ride/schedule spam protection.
  * This endpoint can be hit repeatedly by accidental double taps / poor networks.
@@ -191,6 +287,10 @@ module.exports = {
   apiLimiter,
   authLimiter,
   otpLimiter,
+  otpSendIdentifierLimiter,
+  otpVerifyIdentifierLimiter,
+  uploadDocLimiter,
+  unionPosterLimiter,
   cancelScheduleLimiter,
   simpleAuthLoginLimiter,
   simpleAuthSignupLimiter,

@@ -26,7 +26,7 @@ const {
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
-const { cancelScheduleLimiter } = require('../middleware/rateLimiter');
+const { cancelScheduleLimiter, unionPosterLimiter } = require('../middleware/rateLimiter');
 
 // Validation schema for creating trip for driver
 const createTripForDriverSchema = Joi.object({
@@ -190,6 +190,7 @@ router.get(
   '/schedules/poster-combined',
   authenticate,
   authorize('union_admin'),
+  unionPosterLimiter,
   getUnionCombinedPoster
 );
 
@@ -198,6 +199,7 @@ router.get(
   '/schedules/:id/poster',
   authenticate,
   authorize('union_admin'),
+  unionPosterLimiter,
   getUnionSchedulePoster
 );
 

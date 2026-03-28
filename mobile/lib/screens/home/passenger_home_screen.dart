@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
@@ -198,7 +199,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('LuhaRide', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+        title: Text(BrandConfig.appName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.grey[800],
@@ -360,7 +361,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.08),
+                                    color: Colors.black.withValues(alpha: 0.08),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -415,7 +416,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.08),
+                                    color: Colors.black.withValues(alpha: 0.08),
                                     blurRadius: 8,
                                     offset: const Offset(0, 2),
                                   ),
@@ -656,7 +657,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 10, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -773,12 +774,13 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
+              final auth = context.read<AuthProvider>();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
               ).then((refresh) {
-                if (refresh == true) {
-                  context.read<AuthProvider>().refreshUser();
+                if (refresh == true && mounted) {
+                  auth.refreshUser();
                 }
               });
             },
@@ -983,7 +985,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   Widget _contactBtn(IconData icon, String label, Color color, VoidCallback onTap) {
     return Material(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -1012,7 +1014,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),

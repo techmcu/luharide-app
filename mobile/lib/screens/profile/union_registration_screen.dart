@@ -198,6 +198,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     if (result['success'] == true) {
       // Refresh user so role/flags are up to date if backend sets them.
       await auth.refreshUser();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -281,6 +282,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     if (_status == 'pending' && _union != null) {
       final name = (_union!['name'] ?? '').toString();
       final location = (_union!['address'] ?? _union!['location'] ?? '').toString();
+      final loc = AppLocalizations.of(context);
       return Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -299,15 +301,17 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                       children: [
                         Icon(Icons.hourglass_empty, color: Colors.orange[700], size: 22),
                         const SizedBox(width: 10),
-                        const Text(
-                          'Waiting for approval',
-                          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            loc.t('union.pending.title'),
+                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      name.isNotEmpty ? name : 'Your taxi union',
+                      name.isNotEmpty ? name : loc.t('union.pending.name_placeholder'),
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     if (location.isNotEmpty) ...[
@@ -316,11 +320,8 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                     ],
                     const SizedBox(height: 12),
                     Text(
-                      'Your union request has been submitted. App admin usually reviews within 24–48 hours.\n'
-                      'Tap \"Check status\" after some time to see if it was approved.\n\n'
-                      'Agar isse zyada delay ho jaye, to aap supportluharide@gmail.com par politely email karke '
-                      'apni union request ka status pooch sakte hain (subject mein union ka naam aur apna phone number likh kar).',
-                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                      loc.t('union.pending.body'),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
                     ),
                   ],
                 ),
@@ -332,7 +333,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
               icon: _checkingStatus
                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.refresh),
-              label: Text(_checkingStatus ? 'Checking...' : 'Check status'),
+              label: Text(_checkingStatus ? loc.t('union.pending.checking') : loc.t('union.pending.check')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,

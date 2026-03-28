@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 import '../../services/trip_service.dart';
 
 class PassengerMyRidesScreen extends StatefulWidget {
@@ -30,11 +33,14 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     });
     final result = await _tripService.getMyBookings();
     if (!mounted) return;
+    final loc = AppLocalizations.of(context);
     final newBookings = result['bookings'] ?? [];
     setState(() {
       _isLoading = false;
       _bookings = newBookings;
-      _loadError = result['success'] == false ? (result['message'] ?? 'Failed to load') : null;
+      _loadError = result['success'] == false
+          ? (result['message']?.toString() ?? loc.t('my_rides.load_failed'))
+          : null;
     });
   }
 
@@ -51,14 +57,14 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     }
   }
 
-  String _statusText(String status) {
+  String _statusText(AppLocalizations loc, String status) {
     switch (status) {
       case 'confirmed':
-        return 'Approved';
+        return loc.t('my_rides.status.confirmed');
       case 'pending':
-        return 'Pending';
+        return loc.t('my_rides.status.pending');
       case 'cancelled':
-        return 'Cancelled';
+        return loc.t('my_rides.status.cancelled');
       default:
         return status;
     }
@@ -79,30 +85,33 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Rides'),
+        title: Text(loc.t('my_rides.title')),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
       body: _isLoading && _bookings.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null && _bookings.isEmpty
-              ? _buildErrorState()
+              ? _buildErrorState(loc)
               : _bookings.isEmpty
-                  ? _buildEmpty()
+                  ? _buildEmpty(loc)
                   : RefreshIndicator(
-                  onRefresh: _loadBookings,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _bookings.length,
-                    itemBuilder: (context, i) => _buildBookingCard(_bookings[i]),
-                  ),
-                ),
+                      onRefresh: _loadBookings,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _bookings.length,
+                        itemBuilder: (context, i) => _buildBookingCard(loc, _bookings[i]),
+                      ),
+                    ),
     );
   }
 
-  Widget _buildErrorState() {
+  Widget _buildErrorState(AppLocalizations loc) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -112,7 +121,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
             Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
             const SizedBox(height: 16),
             Text(
-              _loadError ?? 'Failed to load',
+              _loadError ?? loc.t('my_rides.load_failed'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.grey[700]),
             ),
@@ -120,7 +129,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
             ElevatedButton.icon(
               onPressed: _loadBookings,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(loc.t('my_rides.retry')),
             ),
           ],
         ),
@@ -128,7 +137,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     );
   }
 
-  Widget _buildEmpty() {
+  Widget _buildEmpty(AppLocalizations loc) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -136,12 +145,12 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
           Icon(Icons.confirmation_number_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
-            'No rides yet',
+            loc.t('my_rides.empty.title'),
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
-            'Book a ride to see it here',
+            loc.t('my_rides.empty.subtitle'),
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
@@ -149,9 +158,10 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     );
   }
 
-  Widget _buildBookingCard(Map<String, dynamic> b) {
+  Widget _buildBookingCard(AppLocalizations loc, Map<String, dynamic> b) {
     final status = b['status']?.toString() ?? 'pending';
     final isApproved = status == 'confirmed';
+    final statusColor = _statusColor(status);
 
     return Card(
       elevation: 2,
@@ -168,15 +178,15 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: _statusColor(status).withOpacity(0.2),
+                    color: statusColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    _statusText(status),
+                    _statusText(loc, status),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: _statusColor(status),
+                      color: statusColor,
                     ),
                   ),
                 ),
@@ -226,7 +236,8 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 const SizedBox(width: 4),
                 Text(
                   b['departure_time'] != null
-                      ? DateFormat('dd MMM, hh:mm a').format(DateTime.parse(b['departure_time'] as String).toLocal())
+                      ? DateFormat('dd MMM, hh:mm a')
+                          .format(DateTime.parse(b['departure_time'] as String).toLocal())
                       : '-',
                   style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
@@ -235,7 +246,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
             if (isApproved && b['driver'] != null) ...[
               const SizedBox(height: 12),
               InkWell(
-                onTap: () => _openChatWithDriver(b['driver']),
+                onTap: () => _openChatWithDriver(loc, b['driver']),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   padding: const EdgeInsets.all(12),
@@ -259,13 +270,17 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              b['driver']['name'] ?? 'Driver',
+                              b['driver']['name']?.toString() ?? loc.t('my_rides.driver_default'),
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Tap to chat on WhatsApp',
-                              style: TextStyle(fontSize: 11, color: Colors.blue[700], fontWeight: FontWeight.w500),
+                              loc.t('my_rides.whatsapp_hint'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue[700],
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
@@ -282,21 +297,21 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Waiting for driver approval. You\'ll see driver details once approved.',
+                      loc.t('my_rides.pending_message'),
                       style: TextStyle(fontSize: 13, color: Colors.orange[700], fontStyle: FontStyle.italic),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Pull down to refresh for latest status',
+                      loc.t('my_rides.pull_refresh'),
                       style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () => _showAskQuestionDialog(context, b),
+                          onPressed: () => _showAskQuestionDialog(loc),
                           icon: const Icon(Icons.help_outline, size: 18),
-                          label: const Text('Ask a question'),
+                          label: Text(loc.t('my_rides.ask_question')),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.blue[700],
                             side: BorderSide(color: Colors.blue[300]!),
@@ -304,9 +319,9 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                         ),
                         const SizedBox(width: 8),
                         OutlinedButton.icon(
-                          onPressed: () => _showCancelBookingDialog(b),
+                          onPressed: () => _showCancelBookingDialog(loc, b),
                           icon: const Icon(Icons.cancel_outlined, size: 18),
-                          label: const Text('Cancel booking'),
+                          label: Text(loc.t('my_rides.cancel_booking')),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.red[700],
                             side: BorderSide(color: Colors.red[300]!),
@@ -321,9 +336,9 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
               const SizedBox(height: 12),
               if (_canCancelBooking(b))
                 OutlinedButton.icon(
-                  onPressed: () => _showCancelBookingDialog(b),
+                  onPressed: () => _showCancelBookingDialog(loc, b),
                   icon: const Icon(Icons.cancel_outlined, size: 18),
-                  label: const Text('Cancel booking'),
+                  label: Text(loc.t('my_rides.cancel_booking')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.red[700],
                     side: BorderSide(color: Colors.red[300]!),
@@ -333,7 +348,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    'Cancel not allowed (within 2 min of departure or ride started)',
+                    loc.t('my_rides.cancel_blocked'),
                     style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
                   ),
                 ),
@@ -344,17 +359,15 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     );
   }
 
-  Future<void> _openChatWithDriver(Map<String, dynamic> driver) async {
-    // Prefer WhatsApp number for direct chat
+  Future<void> _openChatWithDriver(AppLocalizations loc, Map<String, dynamic> driver) async {
     final whatsapp = driver['whatsapp_number']?.toString().trim();
     final phone = driver['phone']?.toString() ?? '';
     final numberToUse = (whatsapp != null && whatsapp.isNotEmpty) ? whatsapp : phone;
     if (numberToUse.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Driver contact not available. Ask driver to add WhatsApp in profile.')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(loc.t('my_rides.contact_unavailable'))),
+      );
       return;
     }
     final cleanPhone = numberToUse.replaceAll(RegExp(r'[^\d+]'), '');
@@ -370,15 +383,14 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
         }
       }
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open chat')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(loc.t('my_rides.open_chat_failed'))),
+      );
     }
   }
 
-  void _showCancelBookingDialog(Map<String, dynamic> booking) {
+  void _showCancelBookingDialog(AppLocalizations loc, Map<String, dynamic> booking) {
     final bookingId = booking['id']?.toString();
     final status = booking['status']?.toString() ?? '';
     if (bookingId == null || bookingId.isEmpty) return;
@@ -401,24 +413,24 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Cancel booking?',
+              loc.t('my_rides.cancel_confirm_title'),
               style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             if (status == 'confirmed')
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  'Cancellation is allowed until 2 minutes before departure (for testing).',
+                  loc.t('my_rides.cancel_policy'),
                   style: TextStyle(fontSize: 12, color: Colors.orange[700]),
                 ),
               ),
             const SizedBox(height: 16),
             TextField(
               controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Reason (optional)',
-                hintText: 'E.g. plan changed',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: loc.t('my_rides.reason_label'),
+                hintText: loc.t('my_rides.reason_hint'),
+                border: const OutlineInputBorder(),
               ),
               maxLines: 2,
             ),
@@ -428,7 +440,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Keep booking'),
+                    child: Text(loc.t('my_rides.keep_booking')),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -443,17 +455,27 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                       if (!mounted) return;
                       if (result['success'] == true) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(result['message'] ?? 'Booking cancelled'), backgroundColor: Colors.green),
+                          SnackBar(
+                            content: Text(
+                              result['message']?.toString() ?? loc.t('my_rides.booking_cancelled_fallback'),
+                            ),
+                            backgroundColor: Colors.green,
+                          ),
                         );
                         _loadBookings();
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(result['message'] ?? 'Could not cancel'), backgroundColor: Colors.red),
+                          SnackBar(
+                            content: Text(
+                              result['message']?.toString() ?? loc.t('my_rides.cancel_failed_fallback'),
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
                         );
                       }
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    child: const Text('Cancel booking'),
+                    child: Text(loc.t('my_rides.cancel_booking')),
                   ),
                 ),
               ],
@@ -464,7 +486,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     );
   }
 
-  void _showAskQuestionDialog(BuildContext context, Map<String, dynamic> booking) {
+  void _showAskQuestionDialog(AppLocalizations loc) {
     final controller = TextEditingController();
     showModalBottomSheet(
       context: context,
@@ -484,20 +506,20 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Ask a question',
+              loc.t('my_rides.question_title'),
               style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              'Your question will be sent to the driver. (Coming soon: backend)',
+              loc.t('my_rides.question_body'),
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: controller,
-              decoration: const InputDecoration(
-                hintText: 'E.g. pickup point, luggage space...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: loc.t('my_rides.question_field_hint'),
+                border: const OutlineInputBorder(),
               ),
               maxLines: 3,
             ),
@@ -505,17 +527,19 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
+                if (!mounted) return;
+                final empty = controller.text.trim().isEmpty;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(controller.text.trim().isEmpty
-                        ? 'Question feature coming soon'
-                        : 'Question sent! (Demo - backend coming soon)'),
-                    backgroundColor: Colors.green,
+                    content: Text(
+                      empty ? loc.t('my_rides.question_snackbar_empty') : loc.t('my_rides.question_snackbar_note'),
+                    ),
+                    backgroundColor: Colors.blueGrey.shade700,
                   ),
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              child: const Text('Send'),
+              child: Text(loc.t('my_rides.question_send')),
             ),
           ],
         ),

@@ -193,7 +193,7 @@ class _IconBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: onTap == null ? Colors.grey[100] : color.withOpacity(0.1),
+      color: onTap == null ? Colors.grey[100] : color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -237,7 +237,7 @@ class _TripCard extends StatelessWidget {
         color: _kCard,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 12, offset: const Offset(0, 3)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 12, offset: const Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -248,7 +248,7 @@ class _TripCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: _kBlue.withOpacity(0.08),
+              color: _kBlue.withValues(alpha: 0.08),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
@@ -368,7 +368,7 @@ class _UnionCard extends StatelessWidget {
         color: _kCard,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 12, offset: const Offset(0, 3)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.07), blurRadius: 12, offset: const Offset(0, 3)),
         ],
       ),
       child: Column(
@@ -429,36 +429,6 @@ class _UnionCard extends StatelessWidget {
   }
 }
 
-// ── Seat availability badge ──────────────────────────────────────────────────
-class _SeatBadge extends StatelessWidget {
-  const _SeatBadge({required this.seats});
-  final int seats;
-
-  @override
-  Widget build(BuildContext context) {
-    final full  = seats <= 0;
-    final color = full ? _kRed : _kGreen;
-    final label = full ? 'Full' : '$seats seat${seats == 1 ? '' : 's'}';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.event_seat_rounded, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Tiny meta chip (time / driver / vehicle) ─────────────────────────────────
 class _MetaChip extends StatelessWidget {
   const _MetaChip({required this.icon, required this.label});
@@ -494,7 +464,7 @@ class _SectionLabel extends StatelessWidget {
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(color: _kBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: _kBlue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
             child: Text('$count', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: _kBlue)),
           ),
         ],
@@ -558,6 +528,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
 
     final result = await _tripService.searchTrips(from: from, to: to, date: _date);
 
+    if (!mounted) return;
     setState(() {
       _loading    = false;
       _trips      = List<TripModel>.from(result['trips'] ?? []);
@@ -582,17 +553,21 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     final t = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: _kBg,
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Find a Ride', style: TextStyle(fontWeight: FontWeight.w700)),
         backgroundColor: _kBlue,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          _buildSearchForm(t),
-          Expanded(child: _buildResults()),
-        ],
+      body: SafeArea(
+        top: false,
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverToBoxAdapter(child: _buildSearchForm(t)),
+          ],
+          body: _buildResultsScrollable(),
+        ),
       ),
     );
   }
@@ -688,38 +663,76 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     );
   }
 
-  // ── Results list ─────────────────────────────────────────────────────────
-  Widget _buildResults() {
-    if (!_searched) return _buildEmptyState(
-      icon: Icons.search_rounded,
-      title: 'Search for rides',
-      subtitle: 'Enter locations above and tap Search',
-    );
-    if (_loading) return const Center(child: CircularProgressIndicator(color: _kBlue));
-    if (_trips.isEmpty && _unionRides.isEmpty) return _buildEmptyState(
-      icon: Icons.directions_car_outlined,
-      title: 'No rides found',
-      subtitle: 'Try different locations or a different date',
-    );
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-      children: [
-        if (_trips.isNotEmpty) ...[
-          _SectionLabel(label: 'Independent driver rides', count: _trips.length),
-          ..._trips.map((t) => _TripCard(
-            trip: t,
-            onBook: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => TripDetailsScreen(tripId: t.id, initialTrip: t)),
+  // ── Results: scrollable body for NestedScrollView (search form + results scroll together
+  // when keyboard is open so fields stay reachable). ───────────────────────
+  Widget _buildResultsScrollable() {
+    if (!_searched) {
+      return CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(
+              icon: Icons.search_rounded,
+              title: 'Search for rides',
+              subtitle: 'Enter locations above and tap Search',
             ),
-          )),
-          const SizedBox(height: 8),
+          ),
         ],
-        if (_unionRides.isNotEmpty) ...[
-          _SectionLabel(label: 'Union scheduled rides', count: _unionRides.length),
-          ..._unionRides.map((r) => _UnionCard(ride: r as Map<String, dynamic>)),
+      );
+    }
+    if (_loading) {
+      return CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: const [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Center(child: CircularProgressIndicator(color: _kBlue)),
+          ),
         ],
+      );
+    }
+    if (_trips.isEmpty && _unionRides.isEmpty) {
+      return CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(
+              icon: Icons.directions_car_outlined,
+              title: 'No rides found',
+              subtitle: 'Try different locations or a different date',
+            ),
+          ),
+        ],
+      );
+    }
+
+    final children = <Widget>[
+      if (_trips.isNotEmpty) ...[
+        _SectionLabel(label: 'Independent driver rides', count: _trips.length),
+        ..._trips.map((t) => _TripCard(
+              trip: t,
+              onBook: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => TripDetailsScreen(tripId: t.id, initialTrip: t)),
+              ),
+            )),
+        const SizedBox(height: 8),
+      ],
+      if (_unionRides.isNotEmpty) ...[
+        _SectionLabel(label: 'Union scheduled rides', count: _unionRides.length),
+        ..._unionRides.map((r) => _UnionCard(ride: r as Map<String, dynamic>)),
+      ],
+    ];
+
+    return CustomScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          sliver: SliverList(delegate: SliverChildListDelegate(children)),
+        ),
       ],
     );
   }
@@ -762,12 +775,14 @@ class _LocationField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final kb = MediaQuery.viewInsetsOf(context).bottom;
     return TextField(
       controller: controller,
       textCapitalization: TextCapitalization.words,
       enableSuggestions: false,
       autocorrect: false,
       autofillHints: const [],
+      scrollPadding: EdgeInsets.only(bottom: 24 + kb),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,

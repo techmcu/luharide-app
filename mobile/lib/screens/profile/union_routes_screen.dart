@@ -61,16 +61,17 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
         toCtrl: toCtrl,
         onSave: (submitting) async {
           if (!formKey.currentState!.validate()) return;
+          final messenger = ScaffoldMessenger.of(context);
           submitting(true);
           final res = await _service.addRoute(
             fromLocation: fromCtrl.text.trim(),
             toLocation: toCtrl.text.trim(),
           );
           submitting(false);
-          if (!mounted) return;
+          if (!context.mounted) return;
           if (res['success'] == true) {
             Navigator.pop(ctx);
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               SnackBar(
                 content: const Row(children: [
                   Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
@@ -84,7 +85,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
             );
             _load();
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               SnackBar(
                 content: Text(res['message']?.toString() ?? 'Failed to add route'),
                 backgroundColor: Colors.red,
@@ -159,7 +160,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -178,7 +179,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
             Text(
               'Use these when creating rides',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 11,
               ),
             ),
@@ -202,7 +203,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -245,7 +246,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: fromColor.withOpacity(0.1),
+                          color: fromColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -271,7 +272,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: toColor.withOpacity(0.1),
+                          color: toColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
@@ -300,7 +301,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
               height: 36,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [fromColor.withOpacity(0.8), toColor.withOpacity(0.8)],
+                  colors: [fromColor.withValues(alpha: 0.8), toColor.withValues(alpha: 0.8)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -333,7 +334,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: _blue.withOpacity(0.1),
+                color: _blue.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.alt_route_rounded, size: 52, color: _blue),
@@ -451,7 +452,7 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _orange.withOpacity(0.12),
+                    color: _orange.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(Icons.add_road_rounded, color: _orange, size: 22),
@@ -565,7 +566,7 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _orange,
                   foregroundColor: Colors.white,
-                  disabledBackgroundColor: _orange.withOpacity(0.6),
+                  disabledBackgroundColor: _orange.withValues(alpha: 0.6),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),

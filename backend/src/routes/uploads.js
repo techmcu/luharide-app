@@ -3,8 +3,17 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
+const { uploadDocLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
+
+/** KYC uploads: images + PDF only (reduces malware / odd file hosting risk). */
+const ALLOWED_DOC_MIMES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+]);
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
@@ -28,11 +37,24 @@ function createStorage(subdir) {
   });
 }
 
+function kycFileFilter(req, file, cb) {
+  const m = String(file.mimetype || '').toLowerCase();
+  if (ALLOWED_DOC_MIMES.has(m)) {
+    return cb(null, true);
+  }
+  cb(
+    new Error(
+      'Invalid file type. Allowed: JPEG, PNG, WebP, or PDF only.'
+    )
+  );
+}
+
 const driverUpload = multer({
   storage: createStorage('driver-docs'),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5 MB
   },
+  fileFilter: kycFileFilter,
 });
 
 const unionUpload = multer({
@@ -40,12 +62,14 @@ const unionUpload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5 MB
   },
+  fileFilter: kycFileFilter,
 });
 
 // POST /api/uploads/driver-doc
 router.post(
   '/driver-doc',
   authenticate,
+  uploadDocLimiter,
   driverUpload.single('file'),
   (req, res) => {
     if (!req.file) {
@@ -66,6 +90,7 @@ router.post(
 router.post(
   '/union-doc',
   authenticate,
+  uploadDocLimiter,
   unionUpload.single('file'),
   (req, res) => {
     if (!req.file) {
@@ -83,4 +108,3 @@ router.post(
 );
 
 module.exports = router;
-

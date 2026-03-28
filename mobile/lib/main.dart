@@ -2,15 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
+import 'core/brand_config.dart';
 import 'core/config/env_config.dart';
 import 'core/app_navigator.dart';
-import 'core/localization/app_localizations.dart';
 import 'providers/auth_provider.dart';
 import 'providers/app_language_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
-import 'screens/auth/simple_login_screen.dart';
-import 'screens/auth/simple_signup_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/landing/landing_screen.dart';
 
@@ -48,7 +46,7 @@ class LuhaRideApp extends StatelessWidget {
           final locale = langProvider.locale;
           return MaterialApp(
             navigatorKey: navigatorKey,
-            title: 'LuhaRide',
+            title: BrandConfig.appName,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,

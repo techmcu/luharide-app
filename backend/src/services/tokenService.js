@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
@@ -6,6 +7,10 @@ const ApiError = require('../utils/ApiError');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
+
+function hashRefreshToken(raw) {
+  return crypto.createHash('sha256').update(String(raw), 'utf8').digest('hex');
+}
 
 /**
  * Generate access token (JWT)
@@ -38,21 +43,36 @@ const generateRefreshToken = (userId, role) => {
 };
 
 /**
- * Store refresh token in database
+ * Store refresh token in database (SHA-256 hash only when token_hash column exists).
  */
 const storeRefreshToken = async (userId, token, deviceInfo = {}, ipAddress = null) => {
   try {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const tokenHash = hashRefreshToken(token);
 
-    const result = await pool.query(
-      `INSERT INTO refresh_tokens (user_id, token, device_info, ip_address, expires_at)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id`,
-      [userId, token, JSON.stringify(deviceInfo), ipAddress, expiresAt]
-    );
-
-    logger.info(`Refresh token stored for user: ${userId}`);
-    return result.rows[0].id;
+    try {
+      const result = await pool.query(
+        `INSERT INTO refresh_tokens (user_id, token, token_hash, device_info, ip_address, expires_at)
+         VALUES ($1, NULL, $2, $3, $4, $5)
+         RETURNING id`,
+        [userId, tokenHash, JSON.stringify(deviceInfo), ipAddress, expiresAt]
+      );
+      logger.info(`Refresh token stored (hashed) for user: ${userId}`);
+      return result.rows[0].id;
+    } catch (e) {
+      // Pre-migration DB: no token_hash column or token NOT NULL
+      if (e.code === '42703' || e.code === '23502') {
+        const result = await pool.query(
+          `INSERT INTO refresh_tokens (user_id, token, device_info, ip_address, expires_at)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id`,
+          [userId, token, JSON.stringify(deviceInfo), ipAddress, expiresAt]
+        );
+        logger.info(`Refresh token stored (legacy plaintext) for user: ${userId}`);
+        return result.rows[0].id;
+      }
+      throw e;
+    }
   } catch (error) {
     logger.error('Error storing refresh token:', error);
     throw ApiError.internal('Failed to store refresh token');
@@ -65,7 +85,7 @@ const storeRefreshToken = async (userId, token, deviceInfo = {}, ipAddress = nul
 const verifyAccessToken = (token) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     if (decoded.type !== 'access') {
       throw ApiError.unauthorized('Invalid token type');
     }
@@ -87,19 +107,36 @@ const verifyAccessToken = (token) => {
  */
 const verifyRefreshToken = async (token) => {
   try {
-    // Verify JWT signature
     const decoded = jwt.verify(token, JWT_SECRET);
-    
+
     if (decoded.type !== 'refresh') {
       throw ApiError.unauthorized('Invalid token type');
     }
 
-    // Check if token exists in database and is not revoked
-    const result = await pool.query(
-      `SELECT * FROM refresh_tokens 
-       WHERE token = $1 AND is_revoked = FALSE AND expires_at > CURRENT_TIMESTAMP`,
-      [token]
-    );
+    const tokenHash = hashRefreshToken(token);
+
+    let result;
+    try {
+      result = await pool.query(
+        `SELECT * FROM refresh_tokens
+         WHERE is_revoked = FALSE AND expires_at > CURRENT_TIMESTAMP
+           AND (
+             (token_hash IS NOT NULL AND token_hash = $1)
+             OR (token IS NOT NULL AND token = $2)
+           )`,
+        [tokenHash, token]
+      );
+    } catch (e) {
+      if (e.code === '42703') {
+        result = await pool.query(
+          `SELECT * FROM refresh_tokens
+           WHERE token = $1 AND is_revoked = FALSE AND expires_at > CURRENT_TIMESTAMP`,
+          [token]
+        );
+      } else {
+        throw e;
+      }
+    }
 
     if (result.rows.length === 0) {
       throw ApiError.unauthorized('Refresh token is invalid or expired');
@@ -125,13 +162,31 @@ const verifyRefreshToken = async (token) => {
  */
 const revokeRefreshToken = async (token) => {
   try {
-    const result = await pool.query(
-      `UPDATE refresh_tokens 
-       SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
-       WHERE token = $1
-       RETURNING id`,
-      [token]
-    );
+    const tokenHash = hashRefreshToken(token);
+
+    let result;
+    try {
+      result = await pool.query(
+        `UPDATE refresh_tokens
+         SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
+         WHERE is_revoked = FALSE
+           AND ((token_hash IS NOT NULL AND token_hash = $1) OR (token IS NOT NULL AND token = $2))
+         RETURNING id`,
+        [tokenHash, token]
+      );
+    } catch (e) {
+      if (e.code === '42703') {
+        result = await pool.query(
+          `UPDATE refresh_tokens
+           SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
+           WHERE token = $1
+           RETURNING id`,
+          [token]
+        );
+      } else {
+        throw e;
+      }
+    }
 
     if (result.rows.length === 0) {
       throw ApiError.notFound('Refresh token not found');
@@ -151,7 +206,7 @@ const revokeRefreshToken = async (token) => {
 const revokeAllUserTokens = async (userId) => {
   try {
     const result = await pool.query(
-      `UPDATE refresh_tokens 
+      `UPDATE refresh_tokens
        SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
        WHERE user_id = $1 AND is_revoked = FALSE
        RETURNING id`,
@@ -187,9 +242,9 @@ const cleanupExpiredTokens = async () => {
 const generateTokenPair = async (userId, role, deviceInfo = {}, ipAddress = null) => {
   const accessToken = generateAccessToken(userId, role);
   const refreshToken = generateRefreshToken(userId, role);
-  
+
   await storeRefreshToken(userId, refreshToken, deviceInfo, ipAddress);
-  
+
   return {
     accessToken,
     refreshToken

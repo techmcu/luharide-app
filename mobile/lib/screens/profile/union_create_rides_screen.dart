@@ -1,9 +1,8 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/brand_config.dart';
 import '../../services/union_service.dart';
 
 class UnionCreateRidesScreen extends StatefulWidget {
@@ -29,7 +28,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   final Map<String, String?> _driverRouteIds = <String, String?>{};
 
   List<dynamic> _currentSchedules = const [];
-  List<dynamic> _recentSchedules = const [];
 
   // Prevent spamming cancel endpoint (avoid rapid duplicate requests).
   final Set<String> _cancelLoadingIds = <String>{};
@@ -89,33 +87,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         _currentSchedules =
             currentResult['schedules'] as List<dynamic>? ?? const [];
       }
-      _recentSchedules = const [];
     });
-  }
-
-  Future<void> _pickDateTime() async {
-    final now = DateTime.now();
-    final pickedDate = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: now.subtract(const Duration(days: 0)),
-      lastDate: now.add(const Duration(days: 30)),
-    );
-    if (pickedDate == null) return;
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
-    );
-    if (pickedTime == null) return;
-
-    final dt = DateTime(
-      pickedDate.year,
-      pickedDate.month,
-      pickedDate.day,
-      pickedTime.hour,
-      pickedTime.minute,
-    );
-    setState(() => _selectedDateTime = dt);
   }
 
   Future<void> _pickDriverDateTime(String driverId) async {
@@ -128,6 +100,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       lastDate: now.add(const Duration(days: 30)),
     );
     if (pickedDate == null) return;
+    if (!mounted) return;
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
@@ -142,58 +115,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       pickedTime.minute,
     );
     setState(() => _driverTimes[driverId] = dt);
-  }
-
-  Future<void> _showAddRouteDialog() async {
-    final fromController = TextEditingController();
-    final toController   = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _QuickAddRouteSheet(
-        formKey: formKey,
-        fromCtrl: fromController,
-        toCtrl: toController,
-        onSave: (submitting) async {
-          if (!formKey.currentState!.validate()) return;
-          submitting(true);
-          final res = await _service.addRoute(
-            fromLocation: fromController.text.trim(),
-            toLocation: toController.text.trim(),
-          );
-          submitting(false);
-          if (!mounted) return;
-          if (res['success'] == true) {
-            Navigator.pop(ctx);
-            _loadAll();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Row(children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text('Route saved'),
-                ]),
-                backgroundColor: const Color(0xFF43A047),
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(res['message']?.toString() ?? 'Failed to add route'),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            );
-          }
-        },
-      ),
-    );
   }
 
   Future<void> _pickDriverRoute(String driverId) async {
@@ -238,7 +159,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _orange.withOpacity(0.12),
+                        color: _orange.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(Icons.route_rounded, color: _orange, size: 18),
@@ -327,6 +248,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     final List<String> createdIds = [];
 
     for (final id in _selectedDriverIds) {
+      if (!mounted) return;
       final routeId = _driverRouteIds[id];
       final route = _routes
           .cast<Map<String, dynamic>>()
@@ -433,7 +355,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         [XFile.fromData(Uint8List.fromList(bytes),
             name: 'luharide-daily-schedule.pdf',
             mimeType: 'application/pdf')],
-        text: 'Daily taxi schedule — powered by LuhaRide',
+        text: 'Daily taxi schedule — ${BrandConfig.appName} · ${BrandConfig.parentBrand}',
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -462,54 +384,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     );
     if (res['success'] == true) {
       _loadAll();
-    }
-  }
-
-  Future<void> _sharePoster(Map<String, dynamic> schedule) async {
-    final id = schedule['id']?.toString() ?? '';
-    if (id.isEmpty) return;
-
-    final res = await _service.getSchedulePosterBytes(id);
-    if (!mounted) return;
-
-    if (res['success'] == true) {
-      final bytes = (res['bytes'] as List<int>? ?? <int>[]);
-      if (bytes.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Poster could not be generated'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      final from = (schedule['from_location'] ?? '').toString();
-      final to = (schedule['to_location'] ?? '').toString();
-      final name = 'LuhaRide-${from.isNotEmpty ? from : 'from'}-${to.isNotEmpty ? to : 'to'}.pdf'
-          .replaceAll(RegExp(r'[^\w\.-]+'), '-');
-
-      final data = Uint8List.fromList(bytes);
-
-      // Open system share sheet so user can save/share PDF locally
-      final file = XFile.fromData(
-        data,
-        name: name,
-        mimeType: 'application/pdf',
-      );
-
-      await Share.shareXFiles(
-        [file],
-        text: 'Taxi union ride poster from LuhaRide',
-      );
-    } else {
-      final msg = res['message']?.toString() ?? 'Failed to download poster';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -681,7 +555,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
               final driverDt = _driverTimes[id];
               final effectiveDt = driverDt ?? _selectedDateTime;
               final timeSet = effectiveDt != null;
-              final timeLabel = timeSet ? _fmtDt(effectiveDt!) : 'Time not set — tap to set';
+              final timeLabel = timeSet ? _fmtDt(effectiveDt) : 'Time not set — tap to set';
               final hasCustomTime = _driverTimes[id] != null;
 
               final routeId = _driverRouteIds[id];
@@ -723,7 +597,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -739,7 +613,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                             CircleAvatar(
                               radius: 20,
                               backgroundColor: isSelected
-                                  ? Colors.orange.withOpacity(0.15)
+                                  ? Colors.orange.withValues(alpha: 0.15)
                                   : Colors.grey.shade100,
                               child: Text(
                                 name.isNotEmpty
@@ -1015,8 +889,8 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                   const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: isSet
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -1107,7 +981,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, size: 16, color: color),
@@ -1127,7 +1001,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
@@ -1213,7 +1087,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -1225,7 +1099,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 12, 10),
             decoration: BoxDecoration(
-              color: _orange.withOpacity(0.05),
+              color: _orange.withValues(alpha: 0.05),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
@@ -1233,7 +1107,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: _orange.withOpacity(0.12),
+                    color: _orange.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(Icons.directions_bus_rounded, color: _orange, size: 20),
@@ -1304,7 +1178,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                   Container(
                     width: 34, height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E88E5).withOpacity(0.1),
+                      color: const Color(0xFF1E88E5).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -1388,172 +1262,6 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           else
             const SizedBox(height: 12),
         ],
-      ),
-    );
-  }
-}
-
-// ── Quick Add Route Sheet (used inside Create Rides tab) ──────────────────────
-
-class _QuickAddRouteSheet extends StatefulWidget {
-  final GlobalKey<FormState> formKey;
-  final TextEditingController fromCtrl, toCtrl;
-  final void Function(Future<void> Function(bool)) onSave;
-
-  const _QuickAddRouteSheet({
-    required this.formKey,
-    required this.fromCtrl,
-    required this.toCtrl,
-    required this.onSave,
-  });
-
-  @override
-  State<_QuickAddRouteSheet> createState() => _QuickAddRouteSheetState();
-}
-
-class _QuickAddRouteSheetState extends State<_QuickAddRouteSheet> {
-  bool _submitting = false;
-  static const _orange = Color(0xFFFF6B00);
-  static const _blue   = Color(0xFF1E88E5);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-        top: 8,
-        left: 20,
-        right: 20,
-      ),
-      child: Form(
-        key: widget.formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _orange.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.add_road_rounded, color: _orange, size: 20),
-                ),
-                const SizedBox(width: 12),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Quick Add Route',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                    Text('Save route to use when creating rides',
-                        style: TextStyle(fontSize: 12, color: Colors.black54)),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: widget.fromCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: _inputDeco('From (e.g. Purola)', Icons.trip_origin_rounded, _orange),
-              validator: (v) =>
-                  (v?.trim() ?? '').isEmpty ? 'Enter departure location' : null,
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(children: [
-                      Icon(Icons.arrow_downward_rounded, size: 14, color: Colors.grey),
-                      SizedBox(width: 4),
-                      Text('to', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    ]),
-                  ),
-                ],
-              ),
-            ),
-            TextFormField(
-              controller: widget.toCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: _inputDeco('To (e.g. Dehradun)', Icons.location_on_rounded, _blue),
-              validator: (v) =>
-                  (v?.trim() ?? '').isEmpty ? 'Enter destination' : null,
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _submitting
-                    ? null
-                    : () {
-                        widget.onSave(
-                          (val) async { if (mounted) setState(() => _submitting = val); },
-                        );
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _orange,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        width: 20, height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text('Save Route',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDeco(String label, IconData icon, Color accent) {
-    return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, size: 18, color: accent),
-      filled: true,
-      fillColor: const Color(0xFFF8F8F8),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade200),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade200),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: accent, width: 1.5),
       ),
     );
   }

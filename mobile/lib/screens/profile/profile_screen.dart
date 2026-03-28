@@ -125,6 +125,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Card(
+            margin: EdgeInsets.zero,
+            color: Colors.amber[50],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.amber[200]!),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.science_outlined, color: Colors.amber[900], size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      loc.t('profile.beta.banner'),
+                      style: TextStyle(fontSize: 12.5, height: 1.35, color: Colors.amber[900]),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           // Profile header - name, rating, email
           Center(
             child: Column(
@@ -149,7 +174,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Hello, ${user?.name?.split(' ').first ?? "User"}!',
+                      'Hello, ${user?.name.split(' ').first ?? "User"}!',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -191,14 +216,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Share your ride — hidden if union path is active
+          // Share your ride — only when independent driver path is allowed (no always-on blocked banner)
           if (!_blocksIndependent(authProvider))
-            _buildShareRideButton(context, authProvider)
-          else
-            _buildExclusivePathNote(
-              context,
-              loc.t('exclusivity.driver_blocked.body'),
-            ),
+            _buildShareRideButton(context, authProvider, loc),
 
           const SizedBox(height: 28),
 
@@ -222,8 +242,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildMenuItem(
               context,
               icon: Icons.business_rounded,
-              title: 'Add your union',
-              subtitle: loc.t('exclusivity.union_blocked.body'),
+              title: loc.t('union.register.title'),
+              subtitle: loc.t('exclusivity.union_blocked.subtitle'),
               onTap: () => _showExclusivityDialog(
                 context,
                 titleKey: 'exclusivity.union_blocked.title',
@@ -234,8 +254,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildMenuItem(
               context,
               icon: Icons.business_rounded,
-              title: 'Add your union',
-              subtitle: 'List your union on LuhaRide',
+              title: loc.t('union.register.title'),
+              subtitle: loc.t('union.list.subtitle'),
               onTap: () => _openUnionSection(context, authProvider),
             ),
           const SizedBox(height: 28),
@@ -281,7 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               context,
               icon: Icons.info_outline,
               title: loc.t('exclusivity.driver_blocked.title'),
-              subtitle: loc.t('exclusivity.driver_blocked.body'),
+              subtitle: loc.t('exclusivity.driver_blocked.subtitle'),
               onTap: () => _showExclusivityDialog(
                 context,
                 titleKey: 'exclusivity.driver_blocked.title',
@@ -318,15 +338,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               context,
               icon: driverStatus == 'rejected' ? Icons.error_outline : Icons.drive_eta,
               title: driverStatus == 'pending'
-                  ? 'Verification pending'
+                  ? loc.t('driver.tile.pending.title')
                   : driverStatus == 'rejected'
-                      ? 'Verification rejected'
-                      : 'Drive with LuhaRide',
+                      ? loc.t('driver.tile.rejected.title')
+                      : loc.t('driver.promo.title_new'),
               subtitle: driverStatus == 'pending'
-                  ? 'Admin is reviewing your documents'
+                  ? loc.t('driver.tile.pending.sub')
                   : driverStatus == 'rejected'
-                      ? 'Documents were rejected. Update details and submit again.'
-                      : 'Get verified to create rides',
+                      ? loc.t('driver.tile.rejected.sub')
+                      : loc.t('profile.share.sub.need_verify'),
               onTap: driverStatus == 'pending'
                   ? null
                   : () {
@@ -419,33 +439,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildExclusivePathNote(BuildContext context, String message) {
-    return Card(
-      margin: EdgeInsets.zero,
-      color: Colors.blueGrey[50],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.blueGrey[200]!),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.info_outline, color: Colors.blueGrey[700], size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: TextStyle(fontSize: 13, color: Colors.blueGrey[900], height: 1.35),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _sectionLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(left: 4),
@@ -462,6 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _onShareRideTap(BuildContext context, AuthProvider authProvider) {
+    final loc = AppLocalizations.of(context);
     if (_blocksIndependent(authProvider)) {
       _showExclusivityDialog(
         context,
@@ -479,11 +473,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!hasPhone || !hasEmail || !hasProfilePic) {
       _showProfilePrereqDialog(
         context,
-        title: 'Complete profile first',
-        message:
-            'Independent driver verification is only for real taxi owners.\n\n'
-            'Please add your profile photo, email address and make sure your phone number is correct before submitting documents. '
-            'Fake / misuse submissions may lead to your account being blocked.',
+        title: loc.t('profile.prereq.title'),
+        message: loc.t('profile.prereq.body'),
       );
       return;
     }
@@ -496,16 +487,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showVerifyDialog(
         context,
         authProvider,
-        'Your driver verification is pending. Admin usually reviews within 24–48 hours.\n\n'
-        'Agar isse zyada delay ho jaye, to aap supportluharide@gmail.com par politely email karke '
-        'apni request ka status pooch sakte hain (subject mein apna naam aur phone number likh kar).',
+        loc.t('profile.verify.pending_body'),
       );
     } else {
-      _showVerifyDialog(context, authProvider, 'Please verify your documents first to create rides.');
+      _showVerifyDialog(context, authProvider, loc.t('profile.verify.need_docs'));
     }
   }
 
   void _showVerifyDialog(BuildContext context, AuthProvider authProvider, String message) {
+    final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -514,12 +504,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(Icons.verified_user_outlined, color: Colors.orange[700], size: 28),
             const SizedBox(width: 10),
-            const Text('Verify First', style: TextStyle(fontSize: 18)),
+            Expanded(
+              child: Text(loc.t('profile.verify.dialog_title'), style: const TextStyle(fontSize: 18)),
+            ),
           ],
         ),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -529,7 +521,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ).then((_) => authProvider.refreshUser());
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-            child: const Text('Verify Documents'),
+            child: Text(loc.t('profile.verify_docs_btn')),
           ),
         ],
       ),
@@ -649,7 +641,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: Text(AppLocalizations.of(context).t('app.close')),
           ),
           ElevatedButton(
             onPressed: () {
@@ -663,16 +655,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               backgroundColor: Colors.blue,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Complete profile'),
+            child: Text(AppLocalizations.of(context).t('profile.complete_profile_btn')),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildShareRideButton(BuildContext context, AuthProvider authProvider) {
+  Widget _buildShareRideButton(BuildContext context, AuthProvider authProvider, AppLocalizations loc) {
     final user = authProvider.user;
     final status = user?.driverVerificationStatus ?? 'none';
+    final sub = status == 'approved'
+        ? loc.t('profile.share.sub.approved')
+        : (status == 'pending' ? loc.t('profile.share.sub.pending') : loc.t('profile.share.sub.need_verify'));
     return InkWell(
       onTap: () => _onShareRideTap(context, authProvider),
       borderRadius: BorderRadius.circular(12),
@@ -691,11 +686,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Create a ride', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.green[800])),
-                  Text(
-                    status == 'approved' ? 'Create a new trip' : (status == 'pending' ? 'Verification pending' : 'Verify to create rides'),
-                    style: TextStyle(fontSize: 12, color: Colors.green[700]),
-                  ),
+                  Text(loc.t('profile.share.create_title'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.green[800])),
+                  Text(sub, style: TextStyle(fontSize: 12, color: Colors.green[700])),
                 ],
               ),
             ),
@@ -747,16 +739,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
     // Show brief loading indicator
+    final loc = AppLocalizations.of(context);
     final snack = ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Row(
           children: [
-            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-            SizedBox(width: 12),
-            Text('Checking union status…'),
+            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+            const SizedBox(width: 12),
+            Expanded(child: Text(loc.t('union.checking_snackbar'))),
           ],
         ),
-        duration: Duration(seconds: 5),
+        duration: const Duration(seconds: 5),
       ),
     );
 

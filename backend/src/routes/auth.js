@@ -15,7 +15,12 @@ const {
 // Middleware
 const { authenticate } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
-const { otpLimiter, authLimiter } = require('../middleware/rateLimiter');
+const {
+  otpLimiter,
+  authLimiter,
+  otpSendIdentifierLimiter,
+  otpVerifyIdentifierLimiter,
+} = require('../middleware/rateLimiter');
 
 // Validation schemas (flat body: phone, email, otp, etc.)
 const sendOTPSchema = Joi.object({
@@ -62,14 +67,26 @@ const updateProfileSchema = Joi.object({
  * @desc    Send OTP to phone number
  * @access  Public
  */
-router.post('/send-otp', otpLimiter, validate(sendOTPSchema), sendOTPController);
+router.post(
+  '/send-otp',
+  otpLimiter,
+  validate(sendOTPSchema),
+  otpSendIdentifierLimiter,
+  sendOTPController
+);
 
 /**
  * @route   POST /api/auth/verify-otp
  * @desc    Verify OTP and login/register
  * @access  Public
  */
-router.post('/verify-otp', authLimiter, validate(verifyOTPSchema), verifyOTPController);
+router.post(
+  '/verify-otp',
+  authLimiter,
+  validate(verifyOTPSchema),
+  otpVerifyIdentifierLimiter,
+  verifyOTPController
+);
 
 /**
  * @route   POST /api/auth/refresh-token

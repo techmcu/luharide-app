@@ -80,7 +80,7 @@ class SeatLayoutView extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade400, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -105,7 +105,7 @@ class SeatLayoutView extends StatelessWidget {
       height: _kCellSize,
       margin: const EdgeInsets.all(_kCellMargin),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(6),
         border: Border.all(color: color, width: 1.2),
       ),

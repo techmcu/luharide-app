@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
+import '../../core/brand_config.dart';
 import '../../core/constants/api_constants.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
@@ -106,39 +109,42 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     final to = t.toLocation;
     final date = DateFormat('dd MMM yyyy, hh:mm a').format(t.departureTime.toLocal());
     final shareUrl = '${ApiConstants.baseUrl}/trips/${widget.tripId}';
-    final text = 'LuhaRide: $from → $to on $date. Book or view: $shareUrl';
-    Share.share(text, subject: 'LuhaRide trip');
+    final text = '${BrandConfig.appName}: $from → $to on $date. Book or view: $shareUrl';
+    Share.share(text, subject: '${BrandConfig.appName} trip');
   }
 
   void _copyTripLink() {
     final shareUrl = '${ApiConstants.baseUrl}/trips/${widget.tripId}';
     Clipboard.setData(ClipboardData(text: shareUrl));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Link copied to clipboard'), duration: Duration(seconds: 2)),
-      );
-    }
+    if (!mounted) return;
+    final loc = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(loc.t('trip.details.link_copied')), duration: const Duration(seconds: 2)),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trip Details'),
+        title: Text(loc.t('trip.details.title')),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
           if (_displayTrip != null)
             PopupMenuButton<String>(
               icon: const Icon(Icons.share),
-              tooltip: 'Share trip',
+              tooltip: loc.t('trip.details.share_tooltip'),
               onSelected: (v) {
                 if (v == 'share') _shareTrip();
                 else if (v == 'copy') _copyTripLink();
               },
               itemBuilder: (ctx) => [
-                const PopupMenuItem(value: 'share', child: Text('Share trip link')),
-                const PopupMenuItem(value: 'copy', child: Text('Copy link')),
+                PopupMenuItem(value: 'share', child: Text(loc.t('trip.details.share_link'))),
+                PopupMenuItem(value: 'copy', child: Text(loc.t('trip.details.copy_link'))),
               ],
             ),
         ],
@@ -146,15 +152,15 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _displayTrip == null
-              ? const Center(child: Text('Trip not found'))
-              : _buildTripDetails(),
+              ? Center(child: Text(loc.t('trip.details.not_found')))
+              : _buildTripDetails(loc),
       bottomNavigationBar: _displayTrip != null && _displayTrip!.availableSeats > 0
-          ? _buildBookButton()
+          ? _buildBookButton(loc)
           : null,
     );
   }
 
-  Widget _buildTripDetails() {
+  Widget _buildTripDetails(AppLocalizations loc) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -171,14 +177,14 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                   _buildRouteRow(
                     icon: Icons.trip_origin,
                     color: Colors.green,
-                    label: 'From',
+                    label: loc.t('ride.from.label'),
                     value: _displayTrip!.fromLocation,
                   ),
                   const SizedBox(height: 16),
                   _buildRouteRow(
                     icon: Icons.location_on,
                     color: Colors.red,
-                    label: 'To',
+                    label: loc.t('ride.to.label'),
                     value: _displayTrip!.toLocation,
                   ),
                 ],
@@ -196,9 +202,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Schedule',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    loc.t('trip.details.schedule'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -244,9 +250,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Vehicle Details',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    loc.t('trip.details.vehicle_details'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   if (_displayTrip!.vehicleNumber != null)
@@ -266,7 +272,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       const Icon(Icons.event_seat, size: 20, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
-                        '${_displayTrip!.availableSeats} / ${_displayTrip!.totalSeats} seats available',
+                        loc.tReplace('trip.details.seats_available', {
+                          'a': '${_displayTrip!.availableSeats}',
+                          't': '${_displayTrip!.totalSeats}',
+                        }),
                         style: TextStyle(
                           fontSize: 16,
                           color: _displayTrip!.availableSeats > 0 ? Colors.green : Colors.red,
@@ -291,9 +300,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Driver',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Text(
+                      loc.t('trip.details.driver_section'),
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     InkWell(
@@ -363,7 +372,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       OutlinedButton.icon(
                         onPressed: () => launchWhatsApp(_displayTrip!.driver!.contactNumber),
                         icon: const Icon(Icons.chat, size: 18),
-                        label: const Text('Message on WhatsApp'),
+                        label: Text(loc.t('trip.details.whatsapp')),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.green[700],
                           side: BorderSide(color: Colors.green[700]!),
@@ -408,9 +417,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Fare per Seat',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  Text(
+                    loc.t('trip.details.fare_per_seat'),
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Row(
                     children: [
@@ -464,14 +473,14 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     );
   }
 
-  Widget _buildBookButton() {
+  Widget _buildBookButton(AppLocalizations loc) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -486,10 +495,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               showDialog(
                 context: context,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Login Required'),
-                  content: const Text('Please login to book a seat on this ride.'),
+                  title: Text(loc.t('trip.details.login_required_title')),
+                  content: Text(loc.t('trip.details.login_required_body')),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
                     TextButton(
                       onPressed: () {
                         Navigator.pop(ctx);
@@ -498,7 +507,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                           MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
                         );
                       },
-                      child: const Text('Login'),
+                      child: Text(loc.t('trip.details.login_cta')),
                     ),
                   ],
                 ),
@@ -532,9 +541,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
             ),
           ),
           icon: const Icon(Icons.directions_bus, size: 24),
-          label: const Text(
-            'Book Ride',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          label: Text(
+            loc.t('trip.details.book_ride'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ),
       ),
@@ -551,6 +560,7 @@ class _DriverRatingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return FutureBuilder<Map<String, dynamic>>(
       future: ReviewService().getUserRatingSummary(driverId),
       builder: (context, snapshot) {
@@ -579,7 +589,7 @@ class _DriverRatingRow extends StatelessWidget {
                 ),
               )
             else
-              Text('No ratings yet', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              Text(loc.t('trip.details.no_ratings'), style: TextStyle(fontSize: 13, color: Colors.grey[600])),
             const SizedBox(width: 12),
             TextButton(
               onPressed: () {
@@ -590,7 +600,7 @@ class _DriverRatingRow extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text('See reviews'),
+              child: Text(loc.t('trip.details.see_reviews')),
             ),
           ],
         );

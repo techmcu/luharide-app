@@ -7,7 +7,19 @@ const { applyCorsHeadersOnError } = require('./corsLuha');
  */
 const errorConverter = (err, req, res, next) => {
   let error = err;
-  
+
+  // Multer (file upload size / parsing)
+  if (err && err.name === 'MulterError') {
+    const code = err.code;
+    const msg =
+      code === 'LIMIT_FILE_SIZE'
+        ? 'File too large (max 5 MB)'
+        : err.message || 'Upload failed';
+    error = new ApiError(400, msg, true);
+  } else if (err && err.message && typeof err.message === 'string' && err.message.startsWith('Invalid file type.')) {
+    error = new ApiError(400, err.message, true);
+  }
+
   if (!(error instanceof ApiError)) {
     const statusCode = error.statusCode || error.status || 500;
     const message = error.message || 'Internal Server Error';
