@@ -77,10 +77,10 @@ flutter:
     - assets/branding/
     - assets/branding/icon_demos/
 
-# Android adaptive foreground is vector: android/.../drawable/ic_launcher_foreground.xml
-# (do not set android: true here — it would recreate ic_launcher_foreground.png and break the build).
 flutter_launcher_icons:
-  android: false
+  android: true
   ios: true
   image_path: assets/branding/luharide_launcher_master.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/branding/luharide_launcher_master.png
   min_sdk_android: 21
