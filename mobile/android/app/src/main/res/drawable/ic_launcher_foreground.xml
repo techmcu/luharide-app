@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- L-shaped road + small tail hook (LuhaRide feel, no letters); larger cab on the bend. -->
+<!-- Simple brand mark: one hill, one road curve, taxi, yellow location pin on peak. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -8,50 +8,48 @@
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.86"
-        android:scaleY="0.86"
-        android:translateY="-1.5">
+        android:scaleX="0.88"
+        android:scaleY="0.88"
+        android:translateY="-1">
+        <!-- Single mountain -->
         <path
             android:fillColor="#0F766E"
-            android:pathData="M 0,60 Q 54,34 108,60 L 108,108 L 0,108 Z" />
-        <!-- L-run: up from bottom-left, corner, across — last segment curls down (R-like hook) -->
+            android:pathData="M 0,63 Q 36,39 54,37 Q 72,39 108,63 L 108,108 L 0,108 Z" />
+        <!-- One clear road (no L / letter shapes) -->
         <path
             android:fillColor="#00000000"
-            android:pathData="M 15,99 Q 17,70 18,60 Q 19,51 36,49 Q 58,45 86,40 Q 91,44 85,52"
-            android:strokeWidth="6"
-            android:strokeColor="#E2E8F0"
-            android:strokeLineCap="round"
-            android:strokeLineJoin="round" />
-        <path
-            android:fillColor="#C9A227"
-            android:pathData="M 54,30 C 51.2,30 49,32.2 49,35 C 49,38.5 54,44.2 54,44.2 C 54,44.2 59,38.5 59,35 C 59,32.2 56.8,30 54,30 Z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M 54,32.5 A 2,2 0 1,1 54.01,32.5 Z" />
-        <!-- Larger taxi — sits over horizontal leg of L -->
+            android:pathData="M 22,99 Q 54,72 90,50"
+            android:strokeWidth="5"
+            android:strokeColor="#F1F5F9"
+            android:strokeLineCap="round" />
+        <!-- Taxi on road -->
         <path
             android:fillColor="#FACC15"
-            android:pathData="M 39,69 L 39,82 Q 39,85 42.5,85 L 67.5,85 Q 71,85 71,82 L 71,71.5 L 65.5,63.5 L 44.5,63.5 L 39,69 Z" />
+            android:pathData="M 44,71 L 44,81.5 Q 44,83.5 46.5,83.5 L 64.5,83.5 Q 67,83.5 67,81.5 L 67,73 L 64,67.5 L 47.5,67.5 L 44,71 Z" />
         <path
-            android:fillColor="#FDE047"
-            android:pathData="M 43,62 L 66.5,62 L 68.5,63.5 L 41,63.5 Z" />
+            android:fillColor="#EAB308"
+            android:pathData="M 47.5,64.5 L 63.5,64.5 L 65,67 L 46,67 Z" />
         <path
             android:fillColor="#DC2626"
-            android:pathData="M 46,58.5 L 63.5,58.5 L 63.5,61.5 L 46,61.5 Z" />
+            android:pathData="M 50,61.5 L 61,61.5 L 61,63.8 L 50,63.8 Z" />
+        <path
+            android:fillColor="#0F766E"
+            android:pathData="M 47,72 L 51.5,72 L 51.5,75.5 L 47,75.5 Z" />
+        <path
+            android:fillColor="#0F766E"
+            android:pathData="M 59.5,72 L 64,72 L 64,75.5 L 59.5,75.5 Z" />
+        <path
+            android:fillColor="#1E293B"
+            android:pathData="M 50.8,84 A 2.8,2.8 0 1,1 45,84 A 2.8,2.8 0 1,1 50.8,84" />
+        <path
+            android:fillColor="#1E293B"
+            android:pathData="M 63.8,84 A 2.8,2.8 0 1,1 58,84 A 2.8,2.8 0 1,1 63.8,84" />
+        <!-- Yellow map pin — large, readable, on summit (meaningful destination) -->
+        <path
+            android:fillColor="#FACC15"
+            android:pathData="M 54,23 C 48.5,23 43.5,28 43.5,34.5 C 43.5,42 54,53.5 54,53.5 C 54,53.5 64.5,42 64.5,34.5 C 64.5,28 59.5,23 54,23 Z" />
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M 47.5,59.2 L 62,59.2 L 62,60.6 L 47.5,60.6 Z" />
-        <path
-            android:fillColor="#0D9488"
-            android:pathData="M 43.5,70.5 L 49.5,70.5 L 49.5,74.5 L 43.5,74.5 Z" />
-        <path
-            android:fillColor="#0D9488"
-            android:pathData="M 59.5,70.5 L 65.5,70.5 L 65.5,74.5 L 59.5,74.5 Z" />
-        <path
-            android:fillColor="#1E293B"
-            android:pathData="M 48.4,85 A 3.2,3.2 0 1,1 42,85 A 3.2,3.2 0 1,1 48.4,85" />
-        <path
-            android:fillColor="#1E293B"
-            android:pathData="M 65.6,85 A 3.2,3.2 0 1,1 59.2,85 A 3.2,3.2 0 1,1 65.6,85" />
+            android:pathData="M 54,30 A 3.5,3.5 0 1,1 54.01,30 Z" />
     </group>
 </vector>
