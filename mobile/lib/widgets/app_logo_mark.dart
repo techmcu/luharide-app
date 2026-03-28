@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// LuhaRide launcher-style emblem: white plate, gold ring, teal pin + car — static (matches APK adaptive icon).
+/// Hills + ride road + yellow cab (roof sign) + summit pin — matches adaptive launcher art.
 class AppLogoMark extends StatelessWidget {
   final double size;
 
@@ -12,13 +12,13 @@ class AppLogoMark extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _LauncherEmblemPainter(),
+        painter: _HillsRideEmblemPainter(),
       ),
     );
   }
 }
 
-class _LauncherEmblemPainter extends CustomPainter {
+class _HillsRideEmblemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.shortestSide / 108.0;
@@ -38,62 +38,94 @@ class _LauncherEmblemPainter extends CustomPainter {
     );
 
     canvas.save();
-    canvas.translate(0, -2);
+    canvas.translate(0, -1.5);
     canvas.translate(54, 54);
-    canvas.scale(0.88);
+    canvas.scale(0.86);
     canvas.translate(-54, -54);
 
-    canvas.drawCircle(
-      const Offset(54, 54),
-      33,
+    final backHill = Path()
+      ..moveTo(0, 56)
+      ..lineTo(20, 36)
+      ..lineTo(40, 48)
+      ..lineTo(58, 32)
+      ..lineTo(78, 44)
+      ..lineTo(108, 38)
+      ..lineTo(108, 108)
+      ..lineTo(0, 108)
+      ..close();
+    canvas.drawPath(backHill, Paint()..color = const Color(0xFF34D399));
+
+    final frontHill = Path()
+      ..moveTo(0, 64)
+      ..lineTo(32, 46)
+      ..lineTo(54, 56)
+      ..lineTo(78, 44)
+      ..lineTo(100, 52)
+      ..lineTo(108, 58)
+      ..lineTo(108, 108)
+      ..lineTo(0, 108)
+      ..close();
+    canvas.drawPath(frontHill, Paint()..color = const Color(0xFF0F766E));
+
+    final road = Path()
+      ..moveTo(30, 93)
+      ..quadraticBezierTo(48, 72, 54, 58)
+      ..quadraticBezierTo(62, 46, 84, 42);
+    canvas.drawPath(
+      road,
       Paint()
+        ..color = const Color(0xFFE2E8F0)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5
-        ..color = const Color(0xFFC9A227)
+        ..strokeWidth = 5.5
         ..strokeCap = StrokeCap.round,
     );
 
     final pin = Path()
-      ..moveTo(54, 27.5)
-      ..cubicTo(50.9, 27.5, 48.4, 29.9, 48.4, 32.9)
-      ..cubicTo(48.4, 36.7, 54, 43.7, 54, 43.7)
-      ..cubicTo(54, 43.7, 59.6, 36.7, 59.6, 32.9)
-      ..cubicTo(59.6, 29.9, 57.1, 27.5, 54, 27.5)
+      ..moveTo(28, 33)
+      ..cubicTo(25.2, 33, 23, 35.2, 23, 38)
+      ..cubicTo(23, 41.5, 28, 47.2, 28, 47.2)
+      ..cubicTo(28, 47.2, 33, 41.5, 33, 38)
+      ..cubicTo(33, 35.2, 30.8, 33, 28, 33)
       ..close();
-    canvas.drawPath(pin, Paint()..color = const Color(0xFF0F766E));
-    canvas.drawCircle(const Offset(54, 30.5), 2.3, Paint()..color = const Color(0xFFFFFFFF));
+    canvas.drawPath(pin, Paint()..color = const Color(0xFFC9A227));
+    canvas.drawCircle(const Offset(28, 35.5), 2, Paint()..color = const Color(0xFFFFFFFF));
 
-    final car = Path()
-      ..moveTo(31.5, 61.5)
-      ..lineTo(31.5, 71.5)
-      ..quadraticBezierTo(31.5, 74.5, 34.5, 74.5)
-      ..lineTo(73.5, 74.5)
-      ..quadraticBezierTo(76.5, 74.5, 76.5, 71.5)
-      ..lineTo(76.5, 61.5)
-      ..quadraticBezierTo(76.5, 58.5, 73.5, 58.5)
-      ..lineTo(69.5, 58.5)
-      ..lineTo(66.5, 52.5)
-      ..lineTo(41.5, 52.5)
-      ..lineTo(38.5, 58.5)
-      ..lineTo(34.5, 58.5)
-      ..quadraticBezierTo(31.5, 58.5, 31.5, 61.5)
+    final cab = Path()
+      ..moveTo(43, 73)
+      ..lineTo(43, 80)
+      ..quadraticBezierTo(43, 82, 45, 82)
+      ..lineTo(63, 82)
+      ..quadraticBezierTo(65, 82, 65, 80)
+      ..lineTo(65, 74)
+      ..lineTo(62, 69)
+      ..lineTo(46, 69)
       ..close();
-    canvas.drawPath(car, Paint()..color = const Color(0xFF0F766E));
+    canvas.drawPath(cab, Paint()..color = const Color(0xFFFACC15));
 
-    final wind = Path()
-      ..moveTo(43, 59.5)
-      ..lineTo(45.5, 59.5)
-      ..lineTo(48, 56.5)
-      ..lineTo(60, 56.5)
-      ..lineTo(62.5, 59.5)
-      ..lineTo(65, 59.5)
-      ..lineTo(63, 62.5)
-      ..lineTo(45, 62.5)
+    final roof = Path()
+      ..moveTo(46.5, 67)
+      ..lineTo(61.5, 67)
+      ..lineTo(63, 69)
+      ..lineTo(45, 69)
       ..close();
-    canvas.drawPath(wind, Paint()..color = const Color(0xFF99F6E4));
+    canvas.drawPath(roof, Paint()..color = const Color(0xFFFDE047));
 
-    canvas.drawCircle(const Offset(39, 74.5), 4.8, Paint()..color = const Color(0xFF1E293B));
-    canvas.drawCircle(const Offset(69, 74.5), 4.8, Paint()..color = const Color(0xFF1E293B));
+    final sign = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(49.5, 64.5, 9, 2.5),
+          const Radius.circular(0.4),
+        ),
+      );
+    canvas.drawPath(sign, Paint()..color = const Color(0xFFDC2626));
+
+    canvas.drawRect(const Rect.fromLTWH(50.5, 65.2, 7, 1.1), Paint()..color = const Color(0xFFFFFFFF));
+
+    canvas.drawRect(const Rect.fromLTWH(46.5, 71, 4.5, 3), Paint()..color = const Color(0xFF0D9488));
+    canvas.drawRect(const Rect.fromLTWH(57, 71, 4.5, 3), Paint()..color = const Color(0xFF0D9488));
+
+    canvas.drawCircle(const Offset(47.5, 82), 2.6, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(60.5, 82), 2.6, Paint()..color = const Color(0xFF1E293B));
 
     canvas.restore();
     canvas.restore();

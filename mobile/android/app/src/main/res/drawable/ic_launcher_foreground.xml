@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Scaled + nudged for OEM launcher masks (circle/squircle); cab stays inside ~66% safe zone. -->
+<!-- Hills + winding road (ride) + cab with roof sign + peak pin. Scaled for launcher safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -8,32 +8,59 @@
     <group
         android:pivotX="54"
         android:pivotY="54"
-        android:scaleX="0.88"
-        android:scaleY="0.88"
-        android:translateY="-2">
+        android:scaleX="0.86"
+        android:scaleY="0.86"
+        android:translateY="-1.5">
+        <!-- Distant range -->
+        <path
+            android:fillColor="#34D399"
+            android:pathData="M 0,56 L 20,36 L 40,48 L 58,32 L 78,44 L 108,38 L 108,108 L 0,108 Z" />
+        <!-- Foreground hills -->
+        <path
+            android:fillColor="#0F766E"
+            android:pathData="M 0,64 L 32,46 L 54,56 L 78,44 L 100,52 L 108,58 L 108,108 L 0,108 Z" />
+        <!-- Ride route / road -->
         <path
             android:fillColor="#00000000"
-            android:pathData="M 87,54 A 33,33 0 1,1 86.99,54"
-            android:strokeWidth="2.5"
-            android:strokeColor="#C9A227"
+            android:pathData="M 30,93 Q 48,72 54,58 Q 62,46 84,42"
+            android:strokeWidth="5.5"
+            android:strokeColor="#E2E8F0"
             android:strokeLineCap="round" />
+        <!-- Gold pin on summit (destination) -->
         <path
-            android:fillColor="#0F766E"
-            android:pathData="M 54,27.5 C 50.9,27.5 48.4,29.9 48.4,32.9 C 48.4,36.7 54,43.7 54,43.7 C 54,43.7 59.6,36.7 59.6,32.9 C 59.6,29.9 57.1,27.5 54,27.5 Z" />
+            android:fillColor="#C9A227"
+            android:pathData="M 28,33 C 25.2,33 23,35.2 23,38 C 23,41.5 28,47.2 28,47.2 C 28,47.2 33,41.5 33,38 C 33,35.2 30.8,33 28,33 Z" />
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M 54,30.5 A 2.3,2.3 0 1,1 54.01,30.5 Z" />
+            android:pathData="M 28,35.5 A 2,2 0 1,1 28.01,35.5 Z" />
+        <!-- Taxi body -->
         <path
-            android:fillColor="#0F766E"
-            android:pathData="M 31.5,61.5 L 31.5,71.5 Q 31.5,74.5 34.5,74.5 L 73.5,74.5 Q 76.5,74.5 76.5,71.5 L 76.5,61.5 Q 76.5,58.5 73.5,58.5 L 69.5,58.5 L 66.5,52.5 L 41.5,52.5 L 38.5,58.5 L 34.5,58.5 Q 31.5,58.5 31.5,61.5 Z" />
+            android:fillColor="#FACC15"
+            android:pathData="M 43,73 L 43,80 Q 43,82 45,82 L 63,82 Q 65,82 65,80 L 65,74 L 62,69 L 46,69 L 43,73 Z" />
+        <!-- Roof -->
         <path
-            android:fillColor="#99F6E4"
-            android:pathData="M 43,59.5 L 45.5,59.5 L 48,56.5 L 60,56.5 L 62.5,59.5 L 65,59.5 L 63,62.5 L 45,62.5 Z" />
+            android:fillColor="#FDE047"
+            android:pathData="M 46.5,67 L 61.5,67 L 63,69 L 45,69 Z" />
+        <!-- Taxi roof sign -->
+        <path
+            android:fillColor="#DC2626"
+            android:pathData="M 49.5,64.5 L 58.5,64.5 L 58.5,67 L 49.5,67 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M 50.5,65.2 L 57.5,65.2 L 57.5,66.3 L 50.5,66.3 Z" />
+        <!-- Glass -->
+        <path
+            android:fillColor="#0D9488"
+            android:pathData="M 46.5,71 L 51,71 L 51,74 L 46.5,74 Z" />
+        <path
+            android:fillColor="#0D9488"
+            android:pathData="M 57,71 L 61.5,71 L 61.5,74 L 57,74 Z" />
+        <!-- Wheels -->
         <path
             android:fillColor="#1E293B"
-            android:pathData="M 34.2,74.5 A 4.8,4.8 0 1,1 43.81,74.5 A 4.8,4.8 0 1,1 34.2,74.5" />
+            android:pathData="M 50.1,82 A 2.6,2.6 0 1,1 44.9,82 A 2.6,2.6 0 1,1 50.1,82" />
         <path
             android:fillColor="#1E293B"
-            android:pathData="M 64.2,74.5 A 4.8,4.8 0 1,1 73.81,74.5 A 4.8,4.8 0 1,1 64.2,74.5" />
+            android:pathData="M 63.1,82 A 2.6,2.6 0 1,1 57.9,82 A 2.6,2.6 0 1,1 63.1,82" />
     </group>
 </vector>
