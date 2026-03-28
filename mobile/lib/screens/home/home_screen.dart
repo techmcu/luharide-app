@@ -2,9 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../profile/union_dashboard_screen.dart';
 import 'passenger_home_screen.dart';
-import 'driver_home_screen.dart';
+import 'role_home_shell.dart';
 import 'union_admin_home_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -27,13 +26,14 @@ class HomeScreen extends StatelessWidget {
       return const UnionAdminHomeScreen();
     }
 
-    // Approved union operator: union dashboard as home (not passenger search UI)
+    // Union admin: find rides (passenger UI) + union dashboard — same as passenger search flow
     if (role == 'union_admin') {
-      return const UnionDashboardScreen();
+      return const RoleHomeShell(mode: RoleHomeShellMode.unionAdmin);
     }
 
+    // Independent driver: find rides + driver hub (create trip, my rides, etc.)
     if (role == 'driver') {
-      return const DriverHomeScreen();
+      return const RoleHomeShell(mode: RoleHomeShellMode.driver);
     }
 
     return const PassengerHomeScreen();

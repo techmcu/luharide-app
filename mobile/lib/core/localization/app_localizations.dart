@@ -10,12 +10,12 @@ class AppLocalizations {
 
   AppLocalizations(this.code);
 
-  /// Landing footer line for parent company — spelling always from [BrandConfig.parentBrand] (TECHMCU).
+  /// Small footer credit — spelling always from [BrandConfig.parentBrand] (TECHMCU).
   String get brandFooterParentLine {
     if (code == AppLanguageCode.hi) {
-      return '${BrandConfig.parentBrand} द्वारा प्रस्तुत';
+      return '${BrandConfig.parentBrand} द्वारा संचालित';
     }
-    return 'A ${BrandConfig.parentBrand} product';
+    return 'Powered by ${BrandConfig.parentBrand}';
   }
 
   static AppLocalizations of(BuildContext context) {
@@ -125,8 +125,8 @@ class AppLocalizations {
       'hi': 'LuhaRide',
     },
     'brand.footer.tagline': {
-      'en': 'Safe • Legal • Reliable',
-      'hi': 'सुरक्षित • वैध • विश्वसनीय',
+      'en': 'Safe · Friendly · Reliable rides',
+      'hi': 'सुरक्षित · सहज · भरोसेमंद सवारी',
     },
     'profile.beta.banner': {
       'en':
@@ -930,6 +930,19 @@ class AppLocalizations {
     'landing.date.today': {
       'en': 'Today',
       'hi': 'आज',
+    },
+    // Home shell — union admin / driver can switch to same find-rides UI as passengers
+    'home.shell.tab.find_rides': {
+      'en': 'Find rides',
+      'hi': 'राइड खोजें',
+    },
+    'home.shell.tab.union': {
+      'en': 'Union',
+      'hi': 'यूनियन',
+    },
+    'home.shell.tab.driver': {
+      'en': 'Driver',
+      'hi': 'ड्राइवर',
     },
   };
 
