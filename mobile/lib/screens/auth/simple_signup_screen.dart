@@ -5,6 +5,7 @@ import '../../core/app_navigator.dart';
 import '../../core/localization/app_localizations.dart';
 import '../home/home_screen.dart';
 import 'simple_login_screen.dart';
+import '../../widgets/app_logo_mark.dart';
 
 class SimpleSignupScreen extends StatefulWidget {
   final String userType;
@@ -150,7 +151,9 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
           icon: const Icon(Icons.arrow_back),
           padding: EdgeInsets.zero,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
+        const Center(child: AppLogoMark(size: 96)),
+        const SizedBox(height: 16),
         Text(
           'Step 1 of 2',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue[700]),
@@ -225,7 +228,9 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
             icon: const Icon(Icons.arrow_back),
             padding: EdgeInsets.zero,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          const Center(child: AppLogoMark(size: 96)),
+          const SizedBox(height: 16),
           Text(
             'Step 2 of 2',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue[700]),

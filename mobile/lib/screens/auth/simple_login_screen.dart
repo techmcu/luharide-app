@@ -9,6 +9,7 @@ import '../home/home_screen.dart';
 import 'forgot_password_screen.dart';
 import 'simple_signup_screen.dart';
 import '../../core/config/env_config.dart';
+import '../../widgets/app_logo_mark.dart';
 
 class SimpleLoginScreen extends StatefulWidget {
   const SimpleLoginScreen({super.key});
@@ -120,13 +121,9 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(height: isSmallScreen ? 24 : 48),
+                    SizedBox(height: isSmallScreen ? 20 : 36),
                     Center(
-                      child: Icon(
-                        Icons.local_taxi_rounded,
-                        size: isSmallScreen ? 64 : 80,
-                        color: Colors.blue.shade700,
-                      ),
+                      child: AppLogoMark(size: isSmallScreen ? 100 : 120),
                     ),
                     SizedBox(height: spacing),
                     Center(

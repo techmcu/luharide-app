@@ -76,13 +76,10 @@ flutter:
   assets:
     - assets/branding/
 
+# Android adaptive foreground is vector: android/.../drawable/ic_launcher_foreground.xml
+# (do not set android: true here — it would recreate ic_launcher_foreground.png and break the build).
 flutter_launcher_icons:
-  android: true
+  android: false
   ios: true
-  # Full-bleed master for iOS / legacy Android (white + circular emblem, no stretch)
   image_path: assets/branding/luharide_launcher_master.png
-  adaptive_icon_background: '#FFFFFF'
-  adaptive_icon_foreground: assets/branding/luharide_launcher_foreground.png
-  # Foreground PNG already has transparent margin; 12% avoids double-shrink vs default 16%.
-  adaptive_icon_foreground_inset: 12
   min_sdk_android: 21

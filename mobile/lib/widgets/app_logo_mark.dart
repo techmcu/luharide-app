@@ -1,206 +1,97 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
-/// Favicon-style mark: **cab + hills** only (no letters). Subtle breathe + gradient pulse + cab bob.
-class AppLogoMark extends StatefulWidget {
+/// LuhaRide launcher-style emblem: white plate, gold ring, teal pin + car — static (matches APK adaptive icon).
+class AppLogoMark extends StatelessWidget {
   final double size;
 
   const AppLogoMark({super.key, this.size = 40});
 
   @override
-  State<AppLogoMark> createState() => _AppLogoMarkState();
-}
-
-class _AppLogoMarkState extends State<AppLogoMark>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2800),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, _) {
-        final phase = _ctrl.value;
-        final breath = 1.0 + 0.04 * math.sin(phase * math.pi * 2);
-        final r = widget.size * 0.22;
-        return Transform.scale(
-          scale: breath,
-          alignment: Alignment.center,
-          child: Container(
-            width: widget.size,
-            height: widget.size,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(r),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0F766E).withValues(
-                    alpha: 0.28 + 0.08 * math.sin(phase * math.pi * 2),
-                  ),
-                  blurRadius: widget.size * 0.2,
-                  offset: Offset(0, widget.size * 0.05),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(r),
-              child: CustomPaint(
-                size: Size(widget.size, widget.size),
-                painter: _CabHillFaviconPainter(t: phase),
-              ),
-            ),
-          ),
-        );
-      },
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _LauncherEmblemPainter(),
+      ),
     );
   }
 }
 
-/// Flat iconic silhouette: layered hills + taxi — favicon-readable, no typography.
-class _CabHillFaviconPainter extends CustomPainter {
-  _CabHillFaviconPainter({required this.t});
-
-  final double t;
-
+class _LauncherEmblemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final rect = Rect.fromLTWH(0, 0, w, h);
+    final scale = size.shortestSide / 108.0;
+    final ox = (size.width - 108 * scale) / 2;
+    final oy = (size.height - 108 * scale) / 2;
+    canvas.save();
+    canvas.translate(ox, oy);
+    canvas.scale(scale);
 
-    final wave = (math.sin(t * math.pi * 2) * 0.5 + 0.5);
-    final top = Color.lerp(
-      const Color(0xFF0F766E),
-      const Color(0xFF2DD4BF),
-      0.22 + 0.12 * wave,
-    )!;
-    final bottom = Color.lerp(
-      const Color(0xFF0D5C52),
-      const Color(0xFF115E59),
-      0.18 + 0.1 * (1 - wave),
-    )!;
-
-    final bg = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [top, bottom],
-      ).createShader(rect);
-    canvas.drawRect(rect, bg);
-
-    // Distant hill
-    final far = Path()
-      ..moveTo(0, h * 0.58)
-      ..lineTo(w * 0.22, h * 0.32)
-      ..lineTo(w * 0.48, h * 0.44)
-      ..lineTo(w * 0.72, h * 0.36)
-      ..lineTo(w, h * 0.42)
-      ..lineTo(w, h)
-      ..lineTo(0, h)
-      ..close();
-    canvas.drawPath(
-      far,
-      Paint()..color = const Color(0xFF5EEAD4).withValues(alpha: 0.45),
-    );
-
-    // Main peak (white)
-    final peak = Path()
-      ..moveTo(w * 0.06, h * 0.62)
-      ..lineTo(w * 0.38, h * 0.2)
-      ..lineTo(w * 0.62, h * 0.38)
-      ..lineTo(w * 0.82, h * 0.28)
-      ..lineTo(w * 0.94, h * 0.36)
-      ..lineTo(w, h * 0.4)
-      ..lineTo(w, h)
-      ..lineTo(0, h)
-      ..close();
-    canvas.drawPath(peak, Paint()..color = const Color(0xFFF8FAFC));
-
-    // Foreground hill
-    final near = Path()
-      ..moveTo(0, h * 0.66)
-      ..lineTo(w * 0.3, h * 0.52)
-      ..lineTo(w * 0.55, h * 0.58)
-      ..lineTo(w * 0.78, h * 0.48)
-      ..lineTo(w, h * 0.54)
-      ..lineTo(w, h)
-      ..lineTo(0, h)
-      ..close();
-    canvas.drawPath(
-      near,
-      Paint()..color = const Color(0xFFE2E8F0).withValues(alpha: 0.92),
-    );
-
-    // Cab with vertical bob
-    final bob = math.sin(t * math.pi * 2) * h * 0.014;
-    final cabW = w * 0.42;
-    final cabH = h * 0.2;
-    final cabX = (w - cabW) / 2;
-    final cabY = h * 0.54 + bob;
-
-    final body = RRect.fromRectAndRadius(
-      Rect.fromLTWH(cabX, cabY + h * 0.035, cabW, cabH * 0.68),
-      Radius.circular(h * 0.035),
-    );
-    canvas.drawRRect(body, Paint()..color = const Color(0xFFFDE047));
+    const plateR = 24.0;
     canvas.drawRRect(
-      body,
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(0, 0, 108, 108),
+        const Radius.circular(plateR),
+      ),
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
+
+    canvas.drawCircle(
+      const Offset(54, 54),
+      33,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = w * 0.016
-        ..color = const Color(0xFFEAB308),
+        ..strokeWidth = 2.5
+        ..color = const Color(0xFFC9A227)
+        ..strokeCap = StrokeCap.round,
     );
 
-    final roof = RRect.fromRectAndRadius(
-      Rect.fromLTWH(cabX + cabW * 0.1, cabY, cabW * 0.8, h * 0.1),
-      Radius.circular(h * 0.025),
-    );
-    canvas.drawRRect(roof, Paint()..color = const Color(0xFFFEF08A));
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(cabX + cabW * 0.36, cabY + h * 0.022, cabW * 0.28, h * 0.034),
-        Radius.circular(2),
-      ),
-      Paint()..color = const Color(0xFFEF4444),
-    );
+    final pin = Path()
+      ..moveTo(54, 27.5)
+      ..cubicTo(50.9, 27.5, 48.4, 29.9, 48.4, 32.9)
+      ..cubicTo(48.4, 36.7, 54, 43.7, 54, 43.7)
+      ..cubicTo(54, 43.7, 59.6, 36.7, 59.6, 32.9)
+      ..cubicTo(59.6, 29.9, 57.1, 27.5, 54, 27.5)
+      ..close();
+    canvas.drawPath(pin, Paint()..color = const Color(0xFF0F766E));
+    canvas.drawCircle(const Offset(54, 30.5), 2.3, Paint()..color = const Color(0xFFFFFFFF));
 
-    final glass = Paint()..color = const Color(0xFF0D9488);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(cabX + cabW * 0.12, cabY + h * 0.055, cabW * 0.22, h * 0.06),
-        Radius.circular(2),
-      ),
-      glass,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(cabX + cabW * 0.66, cabY + h * 0.055, cabW * 0.22, h * 0.06),
-        Radius.circular(2),
-      ),
-      glass,
-    );
+    final car = Path()
+      ..moveTo(31.5, 61.5)
+      ..lineTo(31.5, 71.5)
+      ..quadraticBezierTo(31.5, 74.5, 34.5, 74.5)
+      ..lineTo(73.5, 74.5)
+      ..quadraticBezierTo(76.5, 74.5, 76.5, 71.5)
+      ..lineTo(76.5, 61.5)
+      ..quadraticBezierTo(76.5, 58.5, 73.5, 58.5)
+      ..lineTo(69.5, 58.5)
+      ..lineTo(66.5, 52.5)
+      ..lineTo(41.5, 52.5)
+      ..lineTo(38.5, 58.5)
+      ..lineTo(34.5, 58.5)
+      ..quadraticBezierTo(31.5, 58.5, 31.5, 61.5)
+      ..close();
+    canvas.drawPath(car, Paint()..color = const Color(0xFF0F766E));
 
-    final wh = Paint()..color = const Color(0xFF1E293B);
-    canvas.drawCircle(Offset(cabX + cabW * 0.24, cabY + cabH * 0.78), h * 0.038, wh);
-    canvas.drawCircle(Offset(cabX + cabW * 0.76, cabY + cabH * 0.78), h * 0.038, wh);
+    final wind = Path()
+      ..moveTo(43, 59.5)
+      ..lineTo(45.5, 59.5)
+      ..lineTo(48, 56.5)
+      ..lineTo(60, 56.5)
+      ..lineTo(62.5, 59.5)
+      ..lineTo(65, 59.5)
+      ..lineTo(63, 62.5)
+      ..lineTo(45, 62.5)
+      ..close();
+    canvas.drawPath(wind, Paint()..color = const Color(0xFF99F6E4));
+
+    canvas.drawCircle(const Offset(39, 74.5), 4.8, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(69, 74.5), 4.8, Paint()..color = const Color(0xFF1E293B));
+
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _CabHillFaviconPainter oldDelegate) =>
-      oldDelegate.t != t;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

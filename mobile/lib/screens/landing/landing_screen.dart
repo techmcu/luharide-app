@@ -217,7 +217,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       children: [
                         Row(
                           children: [
-                            const AppLogoMark(size: 40),
+                            const AppLogoMark(size: 44),
                             const SizedBox(width: 10),
                             Text(
                               BrandConfig.appName,
