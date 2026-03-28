@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// One smooth hill + ride road + cab (roof sign) + summit pin — matches adaptive launcher art.
+/// Single hill, L-shaped road + tail hook (no letters), larger cab — matches launcher vector.
 class AppLogoMark extends StatelessWidget {
   final double size;
 
@@ -12,13 +12,13 @@ class AppLogoMark extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _HillsRideEmblemPainter(),
+        painter: _HillRideEmblemPainter(),
       ),
     );
   }
 }
 
-class _HillsRideEmblemPainter extends CustomPainter {
+class _HillRideEmblemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.shortestSide / 108.0;
@@ -52,16 +52,19 @@ class _HillsRideEmblemPainter extends CustomPainter {
     canvas.drawPath(hill, Paint()..color = const Color(0xFF0F766E));
 
     final road = Path()
-      ..moveTo(30, 93)
-      ..quadraticBezierTo(48, 74, 54, 62)
-      ..quadraticBezierTo(60, 50, 78, 46);
+      ..moveTo(15, 99)
+      ..quadraticBezierTo(17, 70, 18, 60)
+      ..quadraticBezierTo(19, 51, 36, 49)
+      ..quadraticBezierTo(58, 45, 86, 40)
+      ..quadraticBezierTo(91, 44, 85, 52);
     canvas.drawPath(
       road,
       Paint()
         ..color = const Color(0xFFE2E8F0)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 5.5
-        ..strokeCap = StrokeCap.round,
+        ..strokeWidth = 6
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
     );
 
     final pin = Path()
@@ -75,41 +78,39 @@ class _HillsRideEmblemPainter extends CustomPainter {
     canvas.drawCircle(const Offset(54, 32.5), 2, Paint()..color = const Color(0xFFFFFFFF));
 
     final cab = Path()
-      ..moveTo(43, 73)
-      ..lineTo(43, 80)
-      ..quadraticBezierTo(43, 82, 45, 82)
-      ..lineTo(63, 82)
-      ..quadraticBezierTo(65, 82, 65, 80)
-      ..lineTo(65, 74)
-      ..lineTo(62, 69)
-      ..lineTo(46, 69)
+      ..moveTo(39, 69)
+      ..lineTo(39, 82)
+      ..quadraticBezierTo(39, 85, 42.5, 85)
+      ..lineTo(67.5, 85)
+      ..quadraticBezierTo(71, 85, 71, 82)
+      ..lineTo(71, 71.5)
+      ..lineTo(65.5, 63.5)
+      ..lineTo(44.5, 63.5)
       ..close();
     canvas.drawPath(cab, Paint()..color = const Color(0xFFFACC15));
 
     final roof = Path()
-      ..moveTo(46.5, 67)
-      ..lineTo(61.5, 67)
-      ..lineTo(63, 69)
-      ..lineTo(45, 69)
+      ..moveTo(43, 62)
+      ..lineTo(66.5, 62)
+      ..lineTo(68.5, 63.5)
+      ..lineTo(41, 63.5)
       ..close();
     canvas.drawPath(roof, Paint()..color = const Color(0xFFFDE047));
 
-    final sign = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(49.5, 64.5, 9, 2.5),
-          const Radius.circular(0.4),
-        ),
-      );
-    canvas.drawPath(sign, Paint()..color = const Color(0xFFDC2626));
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(46, 58.5, 17.5, 3),
+        const Radius.circular(0.35),
+      ),
+      Paint()..color = const Color(0xFFDC2626),
+    );
+    canvas.drawRect(const Rect.fromLTWH(47.5, 59.2, 14.5, 1.4), Paint()..color = const Color(0xFFFFFFFF));
 
-    canvas.drawRect(const Rect.fromLTWH(50.5, 65.2, 7, 1.1), Paint()..color = const Color(0xFFFFFFFF));
+    canvas.drawRect(const Rect.fromLTWH(43.5, 70.5, 6, 4), Paint()..color = const Color(0xFF0D9488));
+    canvas.drawRect(const Rect.fromLTWH(59.5, 70.5, 6, 4), Paint()..color = const Color(0xFF0D9488));
 
-    canvas.drawRect(const Rect.fromLTWH(46.5, 71, 4.5, 3), Paint()..color = const Color(0xFF0D9488));
-    canvas.drawRect(const Rect.fromLTWH(57, 71, 4.5, 3), Paint()..color = const Color(0xFF0D9488));
-
-    canvas.drawCircle(const Offset(47.5, 82), 2.6, Paint()..color = const Color(0xFF1E293B));
-    canvas.drawCircle(const Offset(60.5, 82), 2.6, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(45.2, 85), 3.2, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(63.8, 85), 3.2, Paint()..color = const Color(0xFF1E293B));
 
     canvas.restore();
     canvas.restore();
