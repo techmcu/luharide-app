@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Brand emblem: one hill, simple road, taxi, yellow location pin on peak (matches launcher).
+/// Two soft mountain peaks + saddle, road, taxi, yellow pin (matches launcher).
 class AppLogoMark extends StatelessWidget {
   final double size;
 
@@ -12,13 +12,13 @@ class AppLogoMark extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _BrandHillEmblemPainter(),
+        painter: _TwinPeakEmblemPainter(),
       ),
     );
   }
 }
 
-class _BrandHillEmblemPainter extends CustomPainter {
+class _TwinPeakEmblemPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.shortestSide / 108.0;
@@ -44,9 +44,12 @@ class _BrandHillEmblemPainter extends CustomPainter {
     canvas.translate(-54, -54);
 
     final hill = Path()
-      ..moveTo(0, 63)
-      ..quadraticBezierTo(36, 39, 54, 37)
-      ..quadraticBezierTo(72, 39, 108, 63)
+      ..moveTo(0, 65)
+      ..quadraticBezierTo(14, 54, 28, 44)
+      ..quadraticBezierTo(34, 37, 42, 46)
+      ..quadraticBezierTo(48, 50, 56, 42)
+      ..quadraticBezierTo(68, 32, 80, 40)
+      ..quadraticBezierTo(92, 50, 108, 58)
       ..lineTo(108, 108)
       ..lineTo(0, 108)
       ..close();
