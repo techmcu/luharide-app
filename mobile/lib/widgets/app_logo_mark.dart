@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Two soft mountain peaks + saddle, road, taxi, yellow pin (matches launcher).
+/// Twin rounded peaks (cubic ridgeline), road, larger taxi, yellow pin.
 class AppLogoMark extends StatelessWidget {
   final double size;
 
@@ -40,76 +40,75 @@ class _TwinPeakEmblemPainter extends CustomPainter {
     canvas.save();
     canvas.translate(0, -1);
     canvas.translate(54, 54);
-    canvas.scale(0.88);
+    canvas.scale(0.9);
     canvas.translate(-54, -54);
 
     final hill = Path()
-      ..moveTo(0, 65)
-      ..quadraticBezierTo(14, 54, 28, 44)
-      ..quadraticBezierTo(34, 37, 42, 46)
-      ..quadraticBezierTo(48, 50, 56, 42)
-      ..quadraticBezierTo(68, 32, 80, 40)
-      ..quadraticBezierTo(92, 50, 108, 58)
+      ..moveTo(0, 72)
+      ..cubicTo(10, 65, 22, 52, 30, 46)
+      ..cubicTo(34, 42, 38, 48, 44, 50)
+      ..cubicTo(48, 52, 56, 38, 74, 33)
+      ..cubicTo(82, 31, 94, 44, 108, 56)
       ..lineTo(108, 108)
       ..lineTo(0, 108)
       ..close();
     canvas.drawPath(hill, Paint()..color = const Color(0xFF0F766E));
 
     final road = Path()
-      ..moveTo(22, 99)
-      ..quadraticBezierTo(54, 72, 90, 50);
+      ..moveTo(16, 100)
+      ..quadraticBezierTo(50, 76, 96, 54);
     canvas.drawPath(
       road,
       Paint()
         ..color = const Color(0xFFF1F5F9)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
+        ..strokeWidth = 5.5
         ..strokeCap = StrokeCap.round,
     );
 
     final cab = Path()
-      ..moveTo(44, 71)
-      ..lineTo(44, 81.5)
-      ..quadraticBezierTo(44, 83.5, 46.5, 83.5)
-      ..lineTo(64.5, 83.5)
-      ..quadraticBezierTo(67, 83.5, 67, 81.5)
-      ..lineTo(67, 73)
-      ..lineTo(64, 67.5)
-      ..lineTo(47.5, 67.5)
+      ..moveTo(37, 66)
+      ..lineTo(37, 86)
+      ..quadraticBezierTo(37, 89, 41, 89)
+      ..lineTo(69, 89)
+      ..quadraticBezierTo(73, 89, 73, 86)
+      ..lineTo(73, 74)
+      ..lineTo(68, 63.5)
+      ..lineTo(42, 63.5)
       ..close();
     canvas.drawPath(cab, Paint()..color = const Color(0xFFFACC15));
 
     final roof = Path()
-      ..moveTo(47.5, 64.5)
-      ..lineTo(63.5, 64.5)
-      ..lineTo(65, 67)
-      ..lineTo(46, 67)
+      ..moveTo(41, 61)
+      ..lineTo(69, 61)
+      ..lineTo(71, 63.5)
+      ..lineTo(39, 63.5)
       ..close();
     canvas.drawPath(roof, Paint()..color = const Color(0xFFEAB308));
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(50, 61.5, 11, 2.3),
-        const Radius.circular(0.25),
+        const Rect.fromLTWH(44.5, 57.5, 21, 3),
+        const Radius.circular(0.35),
       ),
       Paint()..color = const Color(0xFFDC2626),
     );
 
-    canvas.drawRect(const Rect.fromLTWH(47, 72, 4.5, 3.5), Paint()..color = const Color(0xFF0F766E));
-    canvas.drawRect(const Rect.fromLTWH(59.5, 72, 4.5, 3.5), Paint()..color = const Color(0xFF0F766E));
+    canvas.drawRect(const Rect.fromLTWH(42, 71.5, 6.5, 4.5), Paint()..color = const Color(0xFF0F766E));
+    canvas.drawRect(const Rect.fromLTWH(59.5, 71.5, 6.5, 4.5), Paint()..color = const Color(0xFF0F766E));
 
-    canvas.drawCircle(const Offset(47.9, 84), 2.8, Paint()..color = const Color(0xFF1E293B));
-    canvas.drawCircle(const Offset(60.1, 84), 2.8, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(44.5, 89.5), 3.5, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(62.5, 89.5), 3.5, Paint()..color = const Color(0xFF1E293B));
 
     final pin = Path()
-      ..moveTo(54, 23)
-      ..cubicTo(48.5, 23, 43.5, 28, 43.5, 34.5)
-      ..cubicTo(43.5, 42, 54, 53.5, 54, 53.5)
-      ..cubicTo(54, 53.5, 64.5, 42, 64.5, 34.5)
-      ..cubicTo(64.5, 28, 59.5, 23, 54, 23)
+      ..moveTo(54, 21.5)
+      ..cubicTo(48.2, 21.5, 42.8, 27, 42.8, 34)
+      ..cubicTo(42.8, 41.5, 54, 52.5, 54, 52.5)
+      ..cubicTo(54, 52.5, 65.2, 41.5, 65.2, 34)
+      ..cubicTo(65.2, 27, 59.8, 21.5, 54, 21.5)
       ..close();
     canvas.drawPath(pin, Paint()..color = const Color(0xFFFACC15));
-    canvas.drawCircle(const Offset(54, 30), 3.5, Paint()..color = const Color(0xFFFFFFFF));
+    canvas.drawCircle(const Offset(54, 28.8), 3.8, Paint()..color = const Color(0xFFFFFFFF));
 
     canvas.restore();
     canvas.restore();
