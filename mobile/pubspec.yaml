@@ -75,6 +75,7 @@ flutter:
 
   assets:
     - assets/branding/
+    - assets/branding/icon_demos/
 
 # Android adaptive foreground is vector: android/.../drawable/ic_launcher_foreground.xml
 # (do not set android: true here — it would recreate ic_launcher_foreground.png and break the build).
