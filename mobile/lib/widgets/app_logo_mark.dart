@@ -70,38 +70,38 @@ class _TwinPeakEmblemPainter extends CustomPainter {
     );
 
     final cab = Path()
-      ..moveTo(37, 66)
-      ..lineTo(37, 86)
-      ..quadraticBezierTo(37, 89, 41, 89)
-      ..lineTo(69, 89)
-      ..quadraticBezierTo(73, 89, 73, 86)
-      ..lineTo(73, 74)
-      ..lineTo(68, 63.5)
-      ..lineTo(42, 63.5)
+      ..moveTo(33, 63)
+      ..lineTo(33, 91)
+      ..quadraticBezierTo(33, 95, 38.5, 95)
+      ..lineTo(72.5, 95)
+      ..quadraticBezierTo(78, 95, 78, 91)
+      ..lineTo(78, 75)
+      ..lineTo(72, 60.5)
+      ..lineTo(40, 60.5)
       ..close();
     canvas.drawPath(cab, Paint()..color = const Color(0xFFFACC15));
 
     final roof = Path()
-      ..moveTo(41, 61)
-      ..lineTo(69, 61)
-      ..lineTo(71, 63.5)
-      ..lineTo(39, 63.5)
+      ..moveTo(37.5, 57)
+      ..lineTo(73.5, 57)
+      ..lineTo(76, 60.5)
+      ..lineTo(35, 60.5)
       ..close();
     canvas.drawPath(roof, Paint()..color = const Color(0xFFEAB308));
 
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(44.5, 57.5, 21, 3),
+        const Rect.fromLTWH(41, 53.5, 29, 3.3),
         const Radius.circular(0.35),
       ),
       Paint()..color = const Color(0xFFDC2626),
     );
 
-    canvas.drawRect(const Rect.fromLTWH(42, 71.5, 6.5, 4.5), Paint()..color = const Color(0xFF0F766E));
-    canvas.drawRect(const Rect.fromLTWH(59.5, 71.5, 6.5, 4.5), Paint()..color = const Color(0xFF0F766E));
+    canvas.drawRect(const Rect.fromLTWH(39.5, 69.5, 8, 5.5), Paint()..color = const Color(0xFF0F766E));
+    canvas.drawRect(const Rect.fromLTWH(60.5, 69.5, 8, 5.5), Paint()..color = const Color(0xFF0F766E));
 
-    canvas.drawCircle(const Offset(44.5, 89.5), 3.5, Paint()..color = const Color(0xFF1E293B));
-    canvas.drawCircle(const Offset(62.5, 89.5), 3.5, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(47.5, 94.5), 4, Paint()..color = const Color(0xFF1E293B));
+    canvas.drawCircle(const Offset(64.5, 94.5), 4, Paint()..color = const Color(0xFF1E293B));
 
     final pin = Path()
       ..moveTo(54, 21.5)
