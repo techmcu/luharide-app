@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// Natural-style ridgeline (asymmetric cubics), road, larger taxi, yellow pin.
+/// Natural-style ridgeline, road, taxi, pin. Matches [ic_launcher_foreground.xml].
 class AppLogoMark extends StatelessWidget {
   final double size;
+  final bool showPlate;
 
-  const AppLogoMark({super.key, this.size = 40});
+  const AppLogoMark({
+    super.key,
+    this.size = 40,
+    this.showPlate = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -12,13 +17,17 @@ class AppLogoMark extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _TwinPeakEmblemPainter(),
+        painter: _TwinPeakEmblemPainter(showPlate: showPlate),
       ),
     );
   }
 }
 
 class _TwinPeakEmblemPainter extends CustomPainter {
+  _TwinPeakEmblemPainter({required this.showPlate});
+
+  final bool showPlate;
+
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.shortestSide / 108.0;
@@ -28,20 +37,22 @@ class _TwinPeakEmblemPainter extends CustomPainter {
     canvas.translate(ox, oy);
     canvas.scale(scale);
 
-    const plateR = 24.0;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTWH(0, 0, 108, 108),
-        const Radius.circular(plateR),
-      ),
-      Paint()..color = const Color(0xFFFFFFFF),
-    );
+    if (showPlate) {
+      const plateR = 24.0;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(0, 0, 108, 108),
+          const Radius.circular(plateR),
+        ),
+        Paint()..color = const Color(0xFFFFFFFF),
+      );
+    }
 
     canvas.save();
-    canvas.translate(0, -1);
     canvas.translate(54, 54);
-    canvas.scale(0.9);
+    canvas.scale(0.76);
     canvas.translate(-54, -54);
+    canvas.translate(0, -8);
 
     final hill = Path()
       ..moveTo(0, 73)
@@ -118,5 +129,6 @@ class _TwinPeakEmblemPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _TwinPeakEmblemPainter oldDelegate) =>
+      oldDelegate.showPlate != showPlate;
 }

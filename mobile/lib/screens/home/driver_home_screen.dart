@@ -8,6 +8,7 @@ import '../notifications/notifications_screen.dart';
 import '../trips/create_trip_screen.dart';
 import '../trips/my_rides_screen.dart';
 import '../profile/profile_screen.dart';
+import '../../widgets/brand_app_bar_title.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -54,7 +55,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(loc.t('driver.home.title')),
+        centerTitle: false,
+        title: BrandAppBarTitle(title: Text(loc.t('driver.home.title'))),
         actions: [
           IconButton(
             icon: Stack(

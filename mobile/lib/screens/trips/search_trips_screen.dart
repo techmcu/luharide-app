@@ -7,6 +7,7 @@ import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
 import '../auth/simple_login_screen.dart';
+import '../../widgets/brand_app_bar_title.dart';
 import 'trip_details_screen.dart';
 
 // ── Palette constants ────────────────────────────────────────────────────────
@@ -555,7 +556,12 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       backgroundColor: _kBg,
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
-        title: const Text('Find a Ride', style: TextStyle(fontWeight: FontWeight.w700)),
+        centerTitle: false,
+        title: const BrandAppBarTitle(
+          onColoredBar: true,
+          logoSize: 32,
+          title: Text('Find a Ride', style: TextStyle(fontWeight: FontWeight.w700)),
+        ),
         backgroundColor: _kBlue,
         foregroundColor: Colors.white,
         elevation: 0,

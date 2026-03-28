@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
 import '../../core/app_navigator.dart';
 import '../landing/landing_screen.dart';
+import '../../widgets/brand_app_bar_title.dart';
 
 /// Admin Panel - Simple: Driver verification requests only. No search bar.
 class UnionAdminHomeScreen extends StatefulWidget {
@@ -142,7 +143,11 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Panel'),
+        centerTitle: false,
+        title: const BrandAppBarTitle(
+          onColoredBar: true,
+          title: Text('Admin Panel'),
+        ),
         backgroundColor: Colors.purple[700],
         foregroundColor: Colors.white,
         actions: [

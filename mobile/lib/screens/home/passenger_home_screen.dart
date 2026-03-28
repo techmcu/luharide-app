@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
-import '../../core/brand_config.dart';
+import '../../widgets/brand_app_bar_title.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
@@ -202,7 +202,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(BrandConfig.appName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+        centerTitle: false,
+        title: const BrandAppBarTitleAppName(),
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.grey[800],
