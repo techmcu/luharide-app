@@ -264,7 +264,7 @@ class _LuhaRideMarkPainter extends CustomPainter {
 
   void _drawCabShadow(Canvas canvas) {
     final shadow = Path()
-      ..addOval(const Rect.fromLTWH(37.5, 95, 34.5, 4.6));
+      ..addOval(const Rect.fromLTWH(30.5, 95.1, 47, 4.5));
     canvas.drawPath(
       shadow,
       Paint()
@@ -273,22 +273,26 @@ class _LuhaRideMarkPainter extends CustomPainter {
     );
   }
 
-  /// Side-profile sedan taxi (left = front, right = rear): hood → cabin → deck, arches, not a toy block.
+  /// Variant **B**: low wedge sedan taxi — long hood, sharp windshield, wide track (demo lock).
   void _drawCab(Canvas canvas) {
+    // Low-wedge sedan taxi (variant B): hood → cabin → deck, X compressed ~0.82 about center 54.
     final hull = Path()
-      ..moveTo(39.8, 92.6)
-      ..lineTo(39.8, 85.2)
-      ..cubicTo(39.5, 81.5, 41.2, 76.8, 43.8, 73.2)
-      ..cubicTo(46.5, 69, 49.2, 63.5, 52.2, 59.2)
-      ..cubicTo(54.8, 55.8, 59.5, 54.6, 64.2, 55.4)
-      ..cubicTo(66.5, 55.8, 68.2, 58.2, 68.9, 62.5)
-      ..cubicTo(69.5, 67, 69.7, 72.5, 69.7, 78.2)
-      ..lineTo(69.7, 92.6)
-      ..lineTo(65.2, 92.6)
-      ..quadraticBezierTo(60.8, 87.8, 56.2, 92.6)
-      ..lineTo(51.8, 92.6)
-      ..quadraticBezierTo(47.2, 87.8, 42.6, 92.6)
-      ..lineTo(39.8, 92.6)
+      ..moveTo(32.9, 95.15)
+      ..lineTo(32.9, 86.5)
+      ..quadraticBezierTo(32.45, 78.0, 36.6, 72.5)
+      ..quadraticBezierTo(41.1, 65.0, 46.0, 60.5)
+      ..lineTo(51.7, 56.0)
+      ..quadraticBezierTo(57.8, 53.5, 64.0, 54.8)
+      ..quadraticBezierTo(69.8, 56.0, 71.9, 61.0)
+      ..lineTo(74.3, 70.0)
+      ..lineTo(75.1, 80.0)
+      ..lineTo(75.1, 95.15)
+      ..lineTo(67.3, 95.15)
+      ..quadraticBezierTo(64.9, 88.5, 59.8, 88.5)
+      ..quadraticBezierTo(54.75, 88.5, 52.2, 95.15)
+      ..lineTo(46.8, 95.15)
+      ..quadraticBezierTo(44.4, 88.5, 39.4, 88.5)
+      ..quadraticBezierTo(35.3, 88.5, 32.9, 95.15)
       ..close();
 
     final hullBounds = hull.getBounds();
@@ -296,24 +300,24 @@ class _LuhaRideMarkPainter extends CustomPainter {
       hull,
       Paint()
         ..shader = LinearGradient(
-          begin: const Alignment(-0.85, -1),
-          end: const Alignment(0.75, 1),
+          begin: const Alignment(-0.95, -0.9),
+          end: const Alignment(0.85, 1),
           colors: const [
-            Color(0xFFFFE566),
+            Color(0xFFFEF08A),
             Color(0xFFFACC15),
-            Color(0xFFEAB308),
-            Color(0xFFC28A0A),
+            Color(0xFFCA8A04),
+            Color(0xFF92400E),
           ],
-          stops: const [0, 0.38, 0.72, 1],
+          stops: const [0, 0.35, 0.68, 1],
         ).createShader(hullBounds.inflate(2)),
     );
 
     // Rocker / lower body shade (metal reads darker near road)
     final rocker = Path()
-      ..moveTo(40.2, 88.5)
-      ..lineTo(69.2, 88.5)
-      ..lineTo(69.2, 92.6)
-      ..lineTo(40.2, 92.6)
+      ..moveTo(33.5, 88.8)
+      ..lineTo(74.5, 88.8)
+      ..lineTo(74.5, 95.15)
+      ..lineTo(33.5, 95.15)
       ..close();
     canvas.drawPath(
       rocker,
@@ -336,21 +340,21 @@ class _LuhaRideMarkPainter extends CustomPainter {
         ..color = const Color(0xFF92400E).withValues(alpha: 0.45),
     );
 
-    // Waist chrome line
+    // Waist chrome line (follows long wedge shoulder)
     canvas.drawLine(
-      const Offset(41.5, 84.8),
-      const Offset(68.8, 84.8),
+      const Offset(34.2, 85.2),
+      const Offset(73.8, 85.2),
       Paint()
         ..color = Colors.white.withValues(alpha: 0.5)
         ..strokeWidth = 0.45,
     );
 
-    // Greenhouse glass (windshield rake + side glass)
+    // Greenhouse glass (steep windshield + side glass, matches demo B)
     final glass = Path()
-      ..moveTo(45.2, 71.4)
-      ..lineTo(47.9, 60.6)
-      ..lineTo(63.3, 59.5)
-      ..lineTo(65.9, 71.1)
+      ..moveTo(42.0, 71.2)
+      ..lineTo(48.0, 57.8)
+      ..lineTo(69.5, 56.8)
+      ..lineTo(73.2, 66.8)
       ..close();
     final gRect = glass.getBounds();
     canvas.drawPath(
@@ -377,22 +381,22 @@ class _LuhaRideMarkPainter extends CustomPainter {
 
     // B-pillar
     canvas.drawLine(
-      const Offset(54.2, 60.8),
-      const Offset(54.2, 71.2),
+      const Offset(56.8, 58.5),
+      const Offset(56.8, 71.0),
       Paint()
         ..color = const Color(0xFF0F172A).withValues(alpha: 0.35)
         ..strokeWidth = 0.7,
     );
 
-    // Roof taxi board (wide, low — like real rooftop sign)
+    // Roof taxi board (demo B proportions: slightly rear of center)
     final lampOuter = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(47.8, 52.8, 14.2, 4.6),
+      const Rect.fromLTWH(51.2, 51.2, 15.0, 4.9),
       const Radius.circular(0.85),
     );
     canvas.drawRRect(lampOuter, Paint()..color = const Color(0xFF171717));
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(48.4, 53.45, 13, 3.2),
+        const Rect.fromLTWH(51.85, 52.0, 13.7, 3.4),
         const Radius.circular(0.45),
       ),
       Paint()
@@ -400,21 +404,21 @@ class _LuhaRideMarkPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [Color(0xFFFDE68A), Color(0xFFF59E0B)],
-        ).createShader(const Rect.fromLTWH(48.4, 53.45, 13, 3.2)),
+        ).createShader(const Rect.fromLTWH(51.85, 52.0, 13.7, 3.4)),
     );
 
-    // Side mirror stub
+    // Side mirror stub (forward on long hood)
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(38.9, 69.8, 2.4, 1.8),
+        const Rect.fromLTWH(31.2, 69.5, 2.5, 1.85),
         const Radius.circular(0.4),
       ),
       Paint()..color = const Color(0xFF1E293B),
     );
 
-    // Headlamp cluster (capsule, not toy dot)
+    // Headlamp cluster (low nose — tucked forward)
     final head = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(38.2, 73.4, 4.2, 2.65),
+      const Rect.fromLTWH(30.5, 73.0, 4.5, 2.75),
       const Radius.circular(1.1),
     );
     canvas.drawRRect(
@@ -434,10 +438,10 @@ class _LuhaRideMarkPainter extends CustomPainter {
         ..color = const Color(0xFFCA8A04).withValues(alpha: 0.5),
     );
 
-    // Rear combination lamp (small red slice)
+    // Rear combination lamp (vertical slice on tall deck)
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        const Rect.fromLTWH(68.35, 77.8, 2.15, 5.2),
+        const Rect.fromLTWH(73.85, 74.5, 2.25, 7.0),
         const Radius.circular(0.6),
       ),
       Paint()
@@ -445,11 +449,11 @@ class _LuhaRideMarkPainter extends CustomPainter {
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [Color(0xFFEF4444), Color(0xFF991B1B)],
-        ).createShader(const Rect.fromLTWH(68.35, 77.8, 2.15, 5.2)),
+        ).createShader(const Rect.fromLTWH(73.85, 74.5, 2.25, 7.0)),
     );
 
-    _cabWheel(canvas, const Offset(47.35, 93.95));
-    _cabWheel(canvas, const Offset(60.65, 93.95));
+    _cabWheel(canvas, const Offset(40.5, 94.05));
+    _cabWheel(canvas, const Offset(62.8, 94.05));
   }
 
   /// Tire + alloy — smaller vs body so it reads like a car, not chunky toy wheels.

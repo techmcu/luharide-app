@@ -52,95 +52,95 @@
             android:strokeWidth="4"
             android:strokeColor="#F1F5F9"
             android:strokeLineCap="round" />
-        <!-- Cab shadow (sedan profile) -->
+        <!-- Cab shadow (variant B wedge, wide track) -->
         <path
             android:fillColor="#480F172A"
-            android:pathData="M 37.5,95 a 17.25,2.3 0 1,0 34.5,0 a 17.25,2.3 0 1,0 -34.5,0" />
-        <!-- Taxi body: hood → cabin → deck, wheel arches (left = front) -->
+            android:pathData="M 30.5,95.1 a 23.5,2.25 0 1,0 47,0 a 23.5,2.25 0 1,0 -47,0" />
+        <!-- Taxi body: low wedge sedan (demo B, centered) -->
         <path
             android:fillColor="#EAB308"
-            android:pathData="M 39.8,92.6 L 39.8,85.2 C 39.5,81.5 41.2,76.8 43.8,73.2 C 46.5,69 49.2,63.5 52.2,59.2 C 54.8,55.8 59.5,54.6 64.2,55.4 C 66.5,55.8 68.2,58.2 68.9,62.5 C 69.5,67 69.7,72.5 69.7,78.2 L 69.7,92.6 L 65.2,92.6 Q 60.8,87.8 56.2,92.6 L 51.8,92.6 Q 47.2,87.8 42.6,92.6 L 39.8,92.6 Z" />
+            android:pathData="M 32.9,95.15 L 32.9,86.5 Q 32.45,78 36.6,72.5 Q 41.1,65 46,60.5 L 51.7,56 Q 57.8,53.5 64,54.8 Q 69.8,56 71.9,61 L 74.3,70 L 75.1,80 L 75.1,95.15 L 67.3,95.15 Q 64.9,88.5 59.8,88.5 Q 54.75,88.5 52.2,95.15 L 46.8,95.15 Q 44.4,88.5 39.4,88.5 Q 35.3,88.5 32.9,95.15 Z" />
         <path
             android:fillColor="#38A16212"
-            android:pathData="M 40.2,88.5 L 69.2,88.5 L 69.2,92.6 L 40.2,92.6 Z" />
+            android:pathData="M 33.5,88.8 L 74.5,88.8 L 74.5,95.15 L 33.5,95.15 Z" />
         <path
             android:fillColor="#00000000"
-            android:pathData="M 39.8,92.6 L 39.8,85.2 C 39.5,81.5 41.2,76.8 43.8,73.2 C 46.5,69 49.2,63.5 52.2,59.2 C 54.8,55.8 59.5,54.6 64.2,55.4 C 66.5,55.8 68.2,58.2 68.9,62.5 C 69.5,67 69.7,72.5 69.7,78.2 L 69.7,92.6 L 65.2,92.6 Q 60.8,87.8 56.2,92.6 L 51.8,92.6 Q 47.2,87.8 42.6,92.6 L 39.8,92.6 Z"
+            android:pathData="M 32.9,95.15 L 32.9,86.5 Q 32.45,78 36.6,72.5 Q 41.1,65 46,60.5 L 51.7,56 Q 57.8,53.5 64,54.8 Q 69.8,56 71.9,61 L 74.3,70 L 75.1,80 L 75.1,95.15 L 67.3,95.15 Q 64.9,88.5 59.8,88.5 Q 54.75,88.5 52.2,95.15 L 46.8,95.15 Q 44.4,88.5 39.4,88.5 Q 35.3,88.5 32.9,95.15 Z"
             android:strokeWidth="0.7"
-            android:strokeColor="#92400E"
+            android:strokeColor="#713F12"
             android:strokeAlpha="0.45" />
         <path
             android:fillColor="#00000000"
-            android:pathData="M 41.5,84.8 L 68.8,84.8"
+            android:pathData="M 34.2,85.2 L 73.8,85.2"
             android:strokeWidth="0.45"
             android:strokeColor="#FFFFFF"
             android:strokeAlpha="0.5" />
         <!-- Rooftop taxi board -->
         <path
             android:fillColor="#171717"
-            android:pathData="M 47.8,52.8 L 62,52.8 L 62,57.4 L 47.8,57.4 Z" />
+            android:pathData="M 51.2,51.2 L 66.2,51.2 L 66.2,56.1 L 51.2,56.1 Z" />
         <path
-            android:fillColor="#F59E0B"
-            android:pathData="M 48.4,53.45 L 61.4,53.45 L 61.4,56.65 L 48.4,56.65 Z" />
-        <!-- Greenhouse glass -->
+            android:fillColor="#FCD34D"
+            android:pathData="M 51.85,52 L 65.55,52 L 65.55,55.4 L 51.85,55.4 Z" />
+        <!-- Greenhouse glass (steep rake) -->
         <path
             android:fillColor="#0F766E"
-            android:pathData="M 45.2,71.4 L 47.9,60.6 L 63.3,59.5 L 65.9,71.1 Z" />
+            android:pathData="M 42,71.2 L 48,57.8 L 69.5,56.8 L 73.2,66.8 Z" />
         <path
             android:fillColor="#00000000"
-            android:pathData="M 45.2,71.4 L 47.9,60.6 L 63.3,59.5 L 65.9,71.1 Z"
+            android:pathData="M 42,71.2 L 48,57.8 L 69.5,56.8 L 73.2,66.8 Z"
             android:strokeWidth="0.55"
             android:strokeColor="#FFFFFF"
             android:strokeAlpha="0.5" />
         <path
             android:fillColor="#00000000"
-            android:pathData="M 54.2,60.8 L 54.2,71.2"
+            android:pathData="M 56.8,58.5 L 56.8,71"
             android:strokeWidth="0.7"
             android:strokeColor="#0F172A"
             android:strokeAlpha="0.35" />
         <!-- Side mirror -->
         <path
-            android:fillColor="#1E293B"
-            android:pathData="M 38.9,69.8 L 41.3,69.8 L 41.3,71.6 L 38.9,71.6 Z" />
-        <!-- Headlamp (horizontal capsule) -->
+            android:fillColor="#0A0A0A"
+            android:pathData="M 31.2,69.5 L 33.7,69.5 L 33.7,71.35 L 31.2,71.35 Z" />
+        <!-- Headlamp (low nose) -->
         <path
-            android:fillColor="#FEFCE8"
-            android:pathData="M 40.3,73.4 m -2.1,0 a 2.1,1.325 0 1,0 4.2,0 a 2.1,1.325 0 1,0 -4.2,0" />
+            android:fillColor="#F8FAFC"
+            android:pathData="M 32.75,73.375 m -2.25,0 a 2.25,1.375 0 1,0 4.5,0 a 2.25,1.375 0 1,0 -4.5,0" />
         <!-- Tail lamp -->
         <path
-            android:fillColor="#DC2626"
-            android:pathData="M 68.35,77.8 L 70.5,77.8 L 70.5,83 L 68.35,83 Z" />
+            android:fillColor="#B91C1C"
+            android:pathData="M 73.85,74.5 L 76.1,74.5 L 76.1,81.5 L 73.85,81.5 Z" />
         <!-- Wheels (tire + alloy) -->
         <path
             android:fillColor="#0A0F18"
-            android:pathData="M 47.35,93.95 A 4.35,4.35 0 1,1 43,93.95 A 4.35,4.35 0 1,1 47.35,93.95" />
+            android:pathData="M 40.5,94.05 A 4.35,4.35 0 1,1 36.15,94.05 A 4.35,4.35 0 1,1 40.5,94.05" />
         <path
             android:fillColor="#1E293B"
-            android:pathData="M 47.35,93.95 A 3.92,3.92 0 1,1 43.43,93.95 A 3.92,3.92 0 1,1 47.35,93.95" />
+            android:pathData="M 40.5,94.05 A 3.92,3.92 0 1,1 36.58,94.05 A 3.92,3.92 0 1,1 40.5,94.05" />
         <path
             android:fillColor="#94A3B8"
-            android:pathData="M 47.35,93.95 A 2.78,2.78 0 1,1 44.57,93.95 A 2.78,2.78 0 1,1 47.35,93.95" />
+            android:pathData="M 40.5,94.05 A 2.78,2.78 0 1,1 37.72,94.05 A 2.78,2.78 0 1,1 40.5,94.05" />
         <path
             android:fillColor="#CBD5E1"
-            android:pathData="M 47.35,93.95 A 2.26,2.26 0 1,1 45.09,93.95 A 2.26,2.26 0 1,1 47.35,93.95" />
+            android:pathData="M 40.5,94.05 A 2.26,2.26 0 1,1 38.24,94.05 A 2.26,2.26 0 1,1 40.5,94.05" />
         <path
             android:fillColor="#475569"
-            android:pathData="M 47.35,93.95 A 1.04,1.04 0 1,1 46.31,93.95 A 1.04,1.04 0 1,1 47.35,93.95" />
+            android:pathData="M 40.5,94.05 A 1.04,1.04 0 1,1 39.46,94.05 A 1.04,1.04 0 1,1 40.5,94.05" />
         <path
             android:fillColor="#0A0F18"
-            android:pathData="M 60.65,93.95 A 4.35,4.35 0 1,1 56.3,93.95 A 4.35,4.35 0 1,1 60.65,93.95" />
+            android:pathData="M 62.8,94.05 A 4.35,4.35 0 1,1 58.45,94.05 A 4.35,4.35 0 1,1 62.8,94.05" />
         <path
             android:fillColor="#1E293B"
-            android:pathData="M 60.65,93.95 A 3.92,3.92 0 1,1 56.73,93.95 A 3.92,3.92 0 1,1 60.65,93.95" />
+            android:pathData="M 62.8,94.05 A 3.92,3.92 0 1,1 58.88,94.05 A 3.92,3.92 0 1,1 62.8,94.05" />
         <path
             android:fillColor="#94A3B8"
-            android:pathData="M 60.65,93.95 A 2.78,2.78 0 1,1 57.87,93.95 A 2.78,2.78 0 1,1 60.65,93.95" />
+            android:pathData="M 62.8,94.05 A 2.78,2.78 0 1,1 60.02,94.05 A 2.78,2.78 0 1,1 62.8,94.05" />
         <path
             android:fillColor="#CBD5E1"
-            android:pathData="M 60.65,93.95 A 2.26,2.26 0 1,1 58.39,93.95 A 2.26,2.26 0 1,1 60.65,93.95" />
+            android:pathData="M 62.8,94.05 A 2.26,2.26 0 1,1 60.54,94.05 A 2.26,2.26 0 1,1 62.8,94.05" />
         <path
             android:fillColor="#475569"
-            android:pathData="M 60.65,93.95 A 1.04,1.04 0 1,1 59.61,93.95 A 1.04,1.04 0 1,1 60.65,93.95" />
+            android:pathData="M 62.8,94.05 A 1.04,1.04 0 1,1 61.76,94.05 A 1.04,1.04 0 1,1 62.8,94.05" />
         <!-- Pin -->
         <path
             android:fillColor="#FACC15"
