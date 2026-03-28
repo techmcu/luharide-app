@@ -113,6 +113,7 @@ class _LuhaRideMarkPainter extends CustomPainter {
     canvas.translate(0, -8);
 
     _drawSky(canvas);
+    _drawGreenMountainsBackdrop(canvas);
     _drawMountainsGraphic(canvas);
     _drawRoadGold(canvas);
     canvas.save();
@@ -150,6 +151,101 @@ class _LuhaRideMarkPainter extends CustomPainter {
         ],
       ).createShader(const Rect.fromLTWH(0, 0, 108, 108));
     canvas.drawRect(const Rect.fromLTWH(0, 0, 108, 108), vignette);
+  }
+
+  /// Distant + mid green hills behind black peaks (Uttarakhand “real pahad” read).
+  void _drawGreenMountainsBackdrop(Canvas canvas) {
+    const bounds = Rect.fromLTWH(-4, 28, 116, 82);
+    // Far atmospheric ridge (cooler, softer)
+    final far = Path()
+      ..moveTo(0, 108)
+      ..lineTo(0, 72)
+      ..cubicTo(22, 58, 40, 64, 58, 52)
+      ..cubicTo(76, 42, 92, 48, 108, 40)
+      ..lineTo(108, 108)
+      ..close();
+    canvas.drawPath(
+      far,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF3D7A56).withValues(alpha: 0.88),
+            const Color(0xFF2D5A3F),
+            const Color(0xFF1E4D32),
+          ],
+          stops: const [0, 0.45, 1],
+        ).createShader(bounds),
+    );
+    // Main rolling hills (warmer forest greens)
+    final mid = Path()
+      ..moveTo(0, 108)
+      ..lineTo(0, 86)
+      ..cubicTo(14, 74, 28, 78, 42, 68)
+      ..cubicTo(52, 62, 62, 66, 74, 58)
+      ..cubicTo(86, 52, 96, 56, 108, 50)
+      ..lineTo(108, 108)
+      ..close();
+    canvas.drawPath(
+      mid,
+      Paint()
+        ..shader = LinearGradient(
+          begin: const Alignment(-0.2, -1),
+          end: const Alignment(0.15, 1),
+          colors: const [
+            Color(0xFF4ADE80),
+            Color(0xFF22C55E),
+            Color(0xFF15803D),
+            Color(0xFF14532D),
+          ],
+          stops: const [0, 0.35, 0.7, 1],
+        ).createShader(bounds.inflate(8)),
+    );
+    // Near foothill shadow (depth against road)
+    final near = Path()
+      ..moveTo(0, 108)
+      ..lineTo(0, 94)
+      ..cubicTo(24, 88, 48, 92, 72, 84)
+      ..cubicTo(90, 80, 100, 86, 108, 82)
+      ..lineTo(108, 108)
+      ..close();
+    canvas.drawPath(
+      near,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFF166534).withValues(alpha: 0),
+            const Color(0xFF14532D).withValues(alpha: 0.55),
+          ],
+        ).createShader(const Rect.fromLTWH(0, 78, 108, 32)),
+    );
+    // Light ridges (sun on slopes)
+    final ridge = Path()
+      ..moveTo(8, 78)
+      ..quadraticBezierTo(38, 62, 68, 58)
+      ..quadraticBezierTo(88, 54, 104, 52);
+    canvas.drawPath(
+      ridge,
+      Paint()
+        ..color = const Color(0xFF86EFAC).withValues(alpha: 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round,
+    );
+    final ridge2 = Path()
+      ..moveTo(20, 88)
+      ..quadraticBezierTo(48, 80, 82, 74);
+    canvas.drawPath(
+      ridge2,
+      Paint()
+        ..color = const Color(0xFFBBF7D0).withValues(alpha: 0.22)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   /// Sharp black mass + white caps — travel / mountain pass read (not a copy of any stock mark).
