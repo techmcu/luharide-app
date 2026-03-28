@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Twin rounded peaks (cubic ridgeline), road, larger taxi, yellow pin.
+/// Natural-style ridgeline (asymmetric cubics), road, larger taxi, yellow pin.
 class AppLogoMark extends StatelessWidget {
   final double size;
 
@@ -44,11 +44,14 @@ class _TwinPeakEmblemPainter extends CustomPainter {
     canvas.translate(-54, -54);
 
     final hill = Path()
-      ..moveTo(0, 72)
-      ..cubicTo(10, 65, 22, 52, 30, 46)
-      ..cubicTo(34, 42, 38, 48, 44, 50)
-      ..cubicTo(48, 52, 56, 38, 74, 33)
-      ..cubicTo(82, 31, 94, 44, 108, 56)
+      ..moveTo(0, 73)
+      ..cubicTo(6, 68, 12, 60, 20, 54)
+      ..cubicTo(26, 50, 32, 52, 36, 48)
+      ..cubicTo(40, 45, 42, 41, 44, 39)
+      ..cubicTo(46, 40, 50, 46, 54, 47)
+      ..cubicTo(58, 46, 64, 38, 70, 36)
+      ..cubicTo(76, 34, 84, 40, 92, 48)
+      ..cubicTo(98, 52, 103, 56, 108, 59)
       ..lineTo(108, 108)
       ..lineTo(0, 108)
       ..close();
