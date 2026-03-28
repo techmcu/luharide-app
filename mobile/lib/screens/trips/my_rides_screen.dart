@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
 import 'driver_trip_details_screen.dart';
@@ -57,9 +60,12 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Rides'),
+        title: Text(loc.t('my_rides.title')),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
@@ -72,13 +78,13 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildFilterChip('All', 'all'),
+                  _buildFilterChip(loc, 'all'),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Ongoing', 'ongoing'),
+                  _buildFilterChip(loc, 'ongoing'),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Pending', 'pending'),
+                  _buildFilterChip(loc, 'pending'),
                   const SizedBox(width: 8),
-                  _buildFilterChip('Completed', 'completed'),
+                  _buildFilterChip(loc, 'completed'),
                 ],
               ),
             ),
@@ -89,7 +95,7 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredRides.isEmpty
-                    ? _buildEmptyState()
+                    ? _buildEmptyState(loc)
                     : RefreshIndicator(
                         onRefresh: _loadMyRides,
                         child: ListView.builder(
@@ -106,7 +112,14 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
+  Widget _buildFilterChip(AppLocalizations loc, String value) {
+    final label = switch (value) {
+      'all' => loc.t('driver.trips.chip.all'),
+      'ongoing' => loc.t('driver.trips.chip.ongoing'),
+      'pending' => loc.t('driver.trips.chip.pending'),
+      'completed' => loc.t('driver.trips.chip.completed'),
+      _ => value,
+    };
     final isSelected = _filter == value;
     final pendingCount = value == 'pending' ? _rides.where((t) => t.pendingRequestsCount > 0).length : 0;
     return GestureDetector(
@@ -155,7 +168,13 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations loc) {
+    final subtitle = switch (_filter) {
+      'ongoing' => loc.t('driver.trips.empty.ongoing'),
+      'completed' => loc.t('driver.trips.empty.completed'),
+      'pending' => loc.t('driver.trips.empty.pending'),
+      _ => loc.t('driver.trips.empty.all'),
+    };
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -163,18 +182,12 @@ class _MyRidesScreenState extends State<MyRidesScreen> {
           Icon(Icons.directions_bus_outlined, size: 80, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
-            'No rides yet',
+            loc.t('driver.trips.empty.title'),
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
-            _filter == 'ongoing'
-                ? 'Create a new ride to get started'
-                : _filter == 'completed'
-                    ? 'No completed rides yet'
-                    : _filter == 'pending'
-                        ? 'No pending requests'
-                        : 'Create your first ride',
+            subtitle,
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],

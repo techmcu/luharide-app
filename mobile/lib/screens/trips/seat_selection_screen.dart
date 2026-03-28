@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 import '../../models/trip_model.dart';
 import '../../models/seat_layout.dart';
 import '../../services/realtime_socket_service.dart';
@@ -153,12 +156,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   }
 
   void _toggleSeat(int seatNumber) {
+    final loc = AppLocalizations.of(context);
     if (_driverSeatIndices.contains(seatNumber)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Driver seat is reserved and cannot be booked'),
+        SnackBar(
+          content: Text(loc.t('seat.select.driver_reserved')),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
       return;
@@ -166,8 +170,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     if (_seatStatus[seatNumber]) {
       final logicalNum = _logicalSeatNumber[seatNumber];
       final msg = _pendingSeats.contains(logicalNum)
-          ? 'Seat $logicalNum is pending (requested by another passenger)'
-          : 'Seat $logicalNum is already booked';
+          ? loc.tReplace('seat.select.seat_pending_other', {'n': '$logicalNum'})
+          : loc.tReplace('seat.select.seat_booked', {'n': '$logicalNum'});
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
@@ -251,38 +255,45 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     Navigator.pop(context);
     setState(() => _isSubmitting = false);
 
+    final loc = AppLocalizations.of(context);
     if (result['success']) {
       Navigator.pop(context, true);
+      final m = result['message']?.toString();
+      final successText =
+          (m != null && m.isNotEmpty) ? m : loc.t('seat.select.booking_confirmed_fallback');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message'] ?? 'Booking confirmed!'),
+          content: Text(successText),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 3),
         ),
       );
     } else {
-      final msg = result['message'] ?? 'Booking failed';
+      final raw = result['message']?.toString();
+      final msg =
+          (raw != null && raw.isNotEmpty) ? raw : loc.t('seat.select.booking_failed_fallback');
       // Special message for already-booked case
       final isAlreadyBooked = msg.toLowerCase().contains('already') ||
           msg.toLowerCase().contains('conflict') ||
           msg.toLowerCase().contains('pending');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(isAlreadyBooked ? 'You already have a booking for this trip.' : msg),
+          content: Text(isAlreadyBooked ? loc.t('seat.select.already_booking') : msg),
           backgroundColor: isAlreadyBooked ? Colors.orange : Colors.red,
           duration: const Duration(seconds: 4),
         ),
       );
-            // Reload seat status so UI shows updated booked seats
-            _loadSeatStatus(forceRefresh: true);
+      // Reload seat status so UI shows updated booked seats
+      _loadSeatStatus(forceRefresh: true);
     }
   }
 
   void _confirmBooking() {
+    final loc = AppLocalizations.of(context);
     if (_selectedSeats.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one seat'),
+        SnackBar(
+          content: Text(loc.t('seat.select.pick_one')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -290,21 +301,22 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     }
 
     final totalFare = _selectedSeats.length * widget.trip.farePerSeat;
-    
+    final seatsStr = _selectedSeats.map((s) => _logicalSeatNumber[s]).join(', ');
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirm Booking'),
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.t('seat.select.confirm_title')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Selected Seats: ${_selectedSeats.map((s) => _logicalSeatNumber[s]).join(', ')}'),
+            Text(loc.tReplace('seat.select.selected_seats', {'s': seatsStr})),
             const SizedBox(height: 8),
-            Text('Number of Seats: ${_selectedSeats.length}'),
+            Text(loc.tReplace('seat.select.number_of_seats', {'n': '${_selectedSeats.length}'})),
             const SizedBox(height: 8),
             Text(
-              'Total (pay after ride): ₹${totalFare.toStringAsFixed(0)}',
+              loc.tReplace('seat.select.total_pay', {'amt': totalFare.toStringAsFixed(0)}),
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -315,15 +327,15 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(loc.t('app.cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context); // Close dialog
+              Navigator.pop(ctx); // Close dialog
               await _doBooking(totalFare);
             },
-            child: const Text('Confirm Booking'),
+            child: Text(loc.t('seat.select.confirm_booking')),
           ),
         ],
       ),
@@ -332,6 +344,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
     final totalSeats = _effectiveTotalSeats;
     // Use EXACT same layout as driver verification (set in initState)
     final layout = _layout;
@@ -345,7 +359,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Seats'),
+        title: Text(loc.t('seat.select.title')),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -392,7 +406,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                         if (!_isLoadingSeats &&
                             _availableCount >= 0) ...[
                           Text(
-                            '$_availableCount available',
+                            loc.tReplace('seat.select.available_count', {'n': '$_availableCount'}),
                             style: TextStyle(
                               fontSize: 12,
                               color: _availableCount > 0
@@ -404,7 +418,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                           const SizedBox(width: 12),
                         ],
                         Text(
-                          '₹${widget.trip.farePerSeat.toStringAsFixed(0)} per seat',
+                          loc.tReplace('seat.select.per_seat', {
+                            'amt': widget.trip.farePerSeat.toStringAsFixed(0),
+                          }),
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -435,16 +451,16 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildCountChip('Confirmed', _bookedSeats.length, Colors.grey),
-                        _buildCountChip('Pending', _pendingSeats.length, Colors.orange),
-                        _buildCountChip('Available', _availableCount, Colors.green),
+                        _buildCountChip(loc.t('seat.select.summary.confirmed'), _bookedSeats.length, Colors.grey),
+                        _buildCountChip(loc.t('seat.select.summary.pending'), _pendingSeats.length, Colors.orange),
+                        _buildCountChip(loc.t('seat.select.summary.available'), _availableCount, Colors.green),
                       ],
                     ),
                   ),
                   if (_loadError != null) ...[
                     const SizedBox(height: 8),
                     Text(
-                      'Tap ↓ to refresh',
+                      loc.t('seat.select.tap_refresh'),
                       style: TextStyle(fontSize: 12, color: Colors.orange[700]),
                     ),
                   ],
@@ -455,11 +471,11 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                   spacing: 16,
                   runSpacing: 8,
                   children: [
-                    _buildLegend(Colors.orange, Icons.local_taxi, 'Driver'),
-                    _buildLegend(Colors.blue[100]!, Icons.event_seat_outlined, 'Available'),
-                    _buildLegend(Colors.green, Icons.event_seat, 'Selected'),
-                    _buildLegend(Colors.grey, Icons.event_seat, 'Booked'),
-                    _buildLegend(Colors.orange[300]!, Icons.event_seat, 'Pending'),
+                    _buildLegend(Colors.orange, Icons.local_taxi, loc.t('seat.select.legend.driver')),
+                    _buildLegend(Colors.blue[100]!, Icons.event_seat_outlined, loc.t('seat.select.legend.available')),
+                    _buildLegend(Colors.green, Icons.event_seat, loc.t('seat.select.legend.selected')),
+                    _buildLegend(Colors.grey, Icons.event_seat, loc.t('seat.select.legend.booked')),
+                    _buildLegend(Colors.orange[300]!, Icons.event_seat, loc.t('seat.select.legend.pending')),
                   ],
                 ),
               ],
@@ -488,13 +504,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                                     color: Colors.grey[300],
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Row(
+                                  child: Row(
                                     children: [
-                                      Icon(Icons.airline_seat_recline_extra, size: 30),
-                                      SizedBox(width: 8),
+                                      const Icon(Icons.airline_seat_recline_extra, size: 30),
+                                      const SizedBox(width: 8),
                                       Text(
-                                        'Driver',
-                                        style: TextStyle(fontWeight: FontWeight.bold),
+                                        loc.t('seat.select.legend.driver'),
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
                                       ),
                                     ],
                                   ),
@@ -550,8 +566,10 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       children: [
                         Text(
                           _selectedSeats.isEmpty
-                              ? 'Select seats'
-                              : '${_selectedSeats.length} seat(s) selected',
+                              ? loc.t('seat.select.prompt_select')
+                              : loc.tReplace('seat.select.seats_selected', {
+                                  'n': '${_selectedSeats.length}',
+                                }),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -559,7 +577,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                         ),
                         if (_selectedSeats.isNotEmpty)
                           Text(
-                            'Total: ₹${(_selectedSeats.length * widget.trip.farePerSeat).toStringAsFixed(0)}',
+                            loc.tReplace('seat.select.total', {
+                              'amt': (_selectedSeats.length * widget.trip.farePerSeat).toStringAsFixed(0),
+                            }),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -583,9 +603,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Book Now',
-                      style: TextStyle(
+                    child: Text(
+                      loc.t('seat.select.book_now'),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),

@@ -733,6 +733,70 @@ class AppLocalizations {
       'en': 'Confirm booking',
       'hi': 'बुकिंग पुष्टि करें',
     },
+    'seat.select.booking_failed_fallback': {
+      'en': 'Booking failed',
+      'hi': 'बुकिंग असफल',
+    },
+    'seat.select.available_count': {
+      'en': '{n} available',
+      'hi': '{n} उपलब्ध',
+    },
+    'seat.select.tap_refresh': {
+      'en': 'Tap ↓ to refresh',
+      'hi': 'रीफ़्रेश के लिए नीचे खींचें',
+    },
+    'seat.select.summary.confirmed': {
+      'en': 'Confirmed',
+      'hi': 'पुष्टि',
+    },
+    'seat.select.summary.pending': {
+      'en': 'Pending',
+      'hi': 'लंबित',
+    },
+    'seat.select.summary.available': {
+      'en': 'Available',
+      'hi': 'उपलब्ध',
+    },
+    'seat.select.legend.driver': {
+      'en': 'Driver',
+      'hi': 'ड्राइवर',
+    },
+    'seat.select.legend.available': {
+      'en': 'Available',
+      'hi': 'खाली',
+    },
+    'seat.select.legend.selected': {
+      'en': 'Selected',
+      'hi': 'चुनी',
+    },
+    'seat.select.legend.booked': {
+      'en': 'Booked',
+      'hi': 'बुक',
+    },
+    'seat.select.legend.pending': {
+      'en': 'Pending',
+      'hi': 'लंबित',
+    },
+    'seat.select.per_seat': {
+      'en': '₹{amt} per seat',
+      'hi': 'प्रति सीट ₹{amt}',
+    },
+    'seat.select.prompt_select': {
+      'en': 'Select seats',
+      'hi': 'सीट चुनें',
+    },
+    'seat.select.seats_selected': {
+      'en': '{n} seat(s) selected',
+      'hi': '{n} सीट चुनी',
+    },
+    'seat.select.total': {
+      'en': 'Total: ₹{amt}',
+      'hi': 'कुल: ₹{amt}',
+    },
+    'seat.select.book_now': {
+      'en': 'Book now',
+      'hi': 'अब बुक करें',
+    },
     // Driver — my trips list
     'driver.trips.chip.all': {
       'en': 'All',
