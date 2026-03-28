@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// LuhaRide mark: layered hills (Uttarakhand), mountain road, taxi, destination pin.
-/// No text — journey + local ride meaning. Rich gradients in-app; XML launcher uses flat fills.
+/// LuhaRide mark: graphic black peaks + snow, golden mountain road, cab, location pin (refined travel identity).
+/// No text. In-app gradients; launcher XML uses flat fills.
 class AppLogoMark extends StatelessWidget {
   final double size;
   final bool showPlate;
@@ -81,10 +81,6 @@ class _LuhaRideMarkPainter extends CustomPainter {
   final bool showPlate;
   final double breathe;
 
-  static const _kTeal = Color(0xFF0F766E);
-  static const _kTealDeep = Color(0xFF0D5C55);
-  static const _kTealDark = Color(0xFF134E4A);
-
   @override
   void paint(Canvas canvas, Size size) {
     final scale = size.shortestSide / 108.0;
@@ -117,147 +113,161 @@ class _LuhaRideMarkPainter extends CustomPainter {
     canvas.translate(0, -8);
 
     _drawSky(canvas);
-    _drawFarRange(canvas);
-    _drawSnowHints(canvas);
-    _drawNearHill(canvas);
-    _drawRoad(canvas);
+    _drawMountainsGraphic(canvas);
+    _drawRoadGold(canvas);
+    canvas.save();
+    canvas.translate(9, -1.5);
     _drawCabShadow(canvas);
     _drawCab(canvas);
-    _drawPin(canvas);
+    canvas.restore();
+    _drawPinGraphic(canvas);
 
     canvas.restore();
     canvas.restore();
   }
 
   void _drawSky(Canvas canvas) {
-    const rect = Rect.fromLTWH(0, 0, 108, 48);
+    const rect = Rect.fromLTWH(0, 0, 108, 56);
     final g = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: [
-        const Color(0xFFB2DFDB).withValues(alpha: 0.95),
-        const Color(0xFFE0F2F1).withValues(alpha: 0.5),
+        const Color(0xFFF8FAFC),
+        const Color(0xFFE2E8F0).withValues(alpha: 0.65),
         Colors.white.withValues(alpha: 0),
       ],
-      stops: const [0, 0.55, 1],
+      stops: const [0, 0.45, 1],
     );
     canvas.drawRect(rect, Paint()..shader = g.createShader(rect));
+    // Subtle warm corner (nod to split-circle refinement) — very light
+    final vignette = Paint()
+      ..shader = RadialGradient(
+        center: const Alignment(0.85, 0.35),
+        radius: 1.05,
+        colors: [
+          const Color(0xFFFFE566).withValues(alpha: 0.12),
+          Colors.transparent,
+        ],
+      ).createShader(const Rect.fromLTWH(0, 0, 108, 108));
+    canvas.drawRect(const Rect.fromLTWH(0, 0, 108, 108), vignette);
   }
 
-  void _drawFarRange(Canvas canvas) {
-    final far = Path()
-      ..moveTo(0, 78)
-      ..cubicTo(14, 68, 26, 66, 38, 61)
-      ..cubicTo(50, 55, 62, 57, 74, 50)
-      ..cubicTo(86, 45, 98, 52, 108, 46)
+  /// Sharp black mass + white caps — travel / mountain pass read (not a copy of any stock mark).
+  void _drawMountainsGraphic(Canvas canvas) {
+    final mass = Path()
+      ..moveTo(0, 108)
+      ..lineTo(0, 70)
+      ..lineTo(14, 52)
+      ..lineTo(26, 62)
+      ..lineTo(44, 38)
+      ..lineTo(58, 48)
+      ..lineTo(76, 30)
+      ..lineTo(90, 44)
+      ..lineTo(102, 36)
+      ..lineTo(108, 42)
       ..lineTo(108, 108)
-      ..lineTo(0, 108)
       ..close();
-    final farRect = far.getBounds();
+    canvas.drawPath(mass, Paint()..color = const Color(0xFF0A0A0A));
+    final mass2 = Path()
+      ..moveTo(0, 108)
+      ..lineTo(0, 78)
+      ..lineTo(32, 58)
+      ..lineTo(52, 68)
+      ..lineTo(72, 52)
+      ..lineTo(108, 62)
+      ..lineTo(108, 108)
+      ..close();
     canvas.drawPath(
-      far,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_kTealDark, _kTealDeep],
-        ).createShader(farRect.inflate(4)),
+      mass2,
+      Paint()..color = const Color(0xFF171717).withValues(alpha: 0.92),
     );
-  }
 
-  void _drawSnowHints(Canvas canvas) {
-    final cap = Path()
-      ..moveTo(72, 49)
-      ..cubicTo(76, 44, 82, 43, 88, 46)
-      ..cubicTo(84, 50, 78, 52, 72, 49)
+    final cap1 = Path()
+      ..moveTo(38, 44)
+      ..lineTo(44, 34)
+      ..lineTo(50, 46)
       ..close();
-    canvas.drawPath(cap, Paint()..color = const Color(0xFFE0F7FA).withValues(alpha: 0.85));
     final cap2 = Path()
-      ..moveTo(28, 60)
-      ..cubicTo(32, 56, 38, 55, 42, 58)
-      ..cubicTo(38, 62, 32, 63, 28, 60)
+      ..moveTo(70, 32)
+      ..lineTo(76, 24)
+      ..lineTo(82, 36)
       ..close();
-    canvas.drawPath(cap2, Paint()..color = const Color(0xFFF0FDFA).withValues(alpha: 0.7));
-  }
-
-  void _drawNearHill(Canvas canvas) {
-    final hill = Path()
-      ..moveTo(0, 74)
-      ..cubicTo(8, 69, 14, 62, 22, 56)
-      ..cubicTo(28, 52, 34, 54, 38, 50)
-      ..cubicTo(42, 46, 44, 42, 46, 40)
-      ..cubicTo(48, 41, 52, 46, 56, 47)
-      ..cubicTo(60, 46, 66, 38, 72, 36)
-      ..cubicTo(78, 34, 86, 40, 94, 48)
-      ..cubicTo(100, 52, 105, 56, 108, 59)
-      ..lineTo(108, 108)
-      ..lineTo(0, 108)
+    final cap3 = Path()
+      ..moveTo(96, 34)
+      ..lineTo(102, 28)
+      ..lineTo(108, 38)
       ..close();
-    final b = hill.getBounds();
+    const snow = Color(0xFFF8FAFC);
+    canvas.drawPath(cap1, Paint()..color = snow);
+    canvas.drawPath(cap2, Paint()..color = snow);
+    canvas.drawPath(cap3, Paint()..color = snow);
     canvas.drawPath(
-      hill,
+      cap1,
       Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF14B8A6),
-            _kTeal,
-            const Color(0xFF0D9488),
-          ],
-          stops: const [0, 0.45, 1],
-        ).createShader(b.inflate(6)),
-    );
-    final ridge = Path()
-      ..moveTo(18, 58)
-      ..quadraticBezierTo(46, 42, 78, 38);
-    canvas.drawPath(
-      ridge,
-      Paint()
-        ..color = const Color(0xFF5EEAD4).withValues(alpha: 0.35)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round,
+        ..strokeWidth = 0.35
+        ..color = Colors.white.withValues(alpha: 0.5),
+    );
+    canvas.drawPath(
+      cap2,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.35
+        ..color = Colors.white.withValues(alpha: 0.5),
+    );
+    canvas.drawPath(
+      cap3,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.35
+        ..color = Colors.white.withValues(alpha: 0.5),
     );
   }
 
-  void _drawRoad(Canvas canvas) {
+  /// Golden highway into the pass — high contrast like pro travel marks.
+  void _drawRoadGold(Canvas canvas) {
     final road = Path()
-      ..moveTo(12, 102)
-      ..quadraticBezierTo(50, 77, 100, 54);
+      ..moveTo(11, 103)
+      ..quadraticBezierTo(50, 74, 101, 53);
+    final roadRect = const Rect.fromLTWH(0, 48, 108, 62);
     canvas.drawPath(
       road,
       Paint()
-        ..color = const Color(0xFF334155)
+        ..color = const Color(0xFF1C1917)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 8.5
+        ..strokeWidth = 9.2
         ..strokeCap = StrokeCap.round,
     );
     canvas.drawPath(
       road,
       Paint()
-        ..color = const Color(0xFF475569)
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [Color(0xFFFFE066), Color(0xFFF5C518), Color(0xFFE6A800)],
+          stops: [0, 0.5, 1],
+        ).createShader(roadRect)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 6
+        ..strokeWidth = 6.8
         ..strokeCap = StrokeCap.round,
     );
     canvas.drawPath(
       road,
       Paint()
-        ..color = const Color(0xFFF1F5F9)
+        ..color = const Color(0xFFFFFAD1)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 4
+        ..strokeWidth = 3.2
         ..strokeCap = StrokeCap.round,
     );
     final dash = Path()
-      ..moveTo(22, 96)
-      ..quadraticBezierTo(52, 74, 88, 58);
+      ..moveTo(22, 95)
+      ..quadraticBezierTo(52, 72, 90, 56);
     canvas.drawPath(
       dash,
       Paint()
-        ..color = const Color(0xFFE2E8F0).withValues(alpha: 0.9)
+        ..color = const Color(0xFFCA8A04).withValues(alpha: 0.55)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2
+        ..strokeWidth = 1.15
         ..strokeCap = StrokeCap.round,
     );
   }
@@ -364,9 +374,9 @@ class _LuhaRideMarkPainter extends CustomPainter {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: const [
-            Color(0xFFE0F2F1),
-            Color(0xFF0F766E),
-            Color(0xFF042F2E),
+            Color(0xFFBFDBFE),
+            Color(0xFF1E3A5F),
+            Color(0xFF0F172A),
           ],
           stops: const [0, 0.45, 1],
         ).createShader(gRect.inflate(1)),
@@ -476,49 +486,44 @@ class _LuhaRideMarkPainter extends CustomPainter {
     );
   }
 
-  void _drawPin(Canvas canvas) {
-    const cx = 54.0;
-    const top = 20.0;
+  /// Left pin + **black** centre hole (open-composition travel mark style).
+  void _drawPinGraphic(Canvas canvas) {
+    const cx = 22.0;
+    const top = 14.5;
     final pinPath = Path()
       ..moveTo(cx, top)
-      ..cubicTo(46.5, top, 40.5, 26.2, 40.5, 33.5)
-      ..cubicTo(40.5, 41.5, cx, 53.2, cx, 53.2)
-      ..cubicTo(cx, 53.2, 67.5, 41.5, 67.5, 33.5)
-      ..cubicTo(67.5, 26.2, 61.5, top, cx, top)
+      ..cubicTo(14.5, top, 8.5, 20.7, 8.5, 28.0)
+      ..cubicTo(8.5, 36.0, cx, 47.5, cx, 47.5)
+      ..cubicTo(cx, 47.5, 35.5, 36.0, 35.5, 28.0)
+      ..cubicTo(35.5, 20.7, 29.5, top, cx, top)
       ..close();
     final pinRect = pinPath.getBounds();
     canvas.drawPath(
       pinPath,
       Paint()
         ..shader = RadialGradient(
-          center: const Alignment(0, -0.65),
-          radius: 1.15,
+          center: const Alignment(-0.15, -0.55),
+          radius: 1.05,
           colors: const [
-            Color(0xFFFEF08A),
-            Color(0xFFFACC15),
+            Color(0xFFFFE566),
+            Color(0xFFFFD60A),
+            Color(0xFFF5C518),
             Color(0xFFD97706),
-            Color(0xFFB45309),
           ],
-          stops: const [0, 0.35, 0.72, 1],
-        ).createShader(pinRect.inflate(3)),
+          stops: const [0, 0.32, 0.68, 1],
+        ).createShader(pinRect.inflate(2)),
     );
     canvas.drawPath(
       pinPath,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.85
-        ..color = const Color(0xFFB45309).withValues(alpha: 0.45),
+        ..strokeWidth = 0.9
+        ..color = const Color(0xFF1C1917).withValues(alpha: 0.55),
     );
-
-    final hole = Paint()
-      ..shader = const RadialGradient(
-        colors: [Color(0xFFFFFFFF), Color(0xFFE2E8F0)],
-      ).createShader(Rect.fromCircle(center: Offset(cx, 29.5), radius: 4.1));
-    canvas.drawCircle(const Offset(cx, 29.5), 4.1, hole);
     canvas.drawCircle(
-      const Offset(cx, 28.6),
-      1.5,
-      Paint()..color = Colors.white.withValues(alpha: 0.95),
+      const Offset(cx, 26.5),
+      3.65,
+      Paint()..color = const Color(0xFF0A0A0A),
     );
   }
 
