@@ -37,6 +37,12 @@ class _LauncherEmblemPainter extends CustomPainter {
       Paint()..color = const Color(0xFFFFFFFF),
     );
 
+    canvas.save();
+    canvas.translate(0, -2);
+    canvas.translate(54, 54);
+    canvas.scale(0.88);
+    canvas.translate(-54, -54);
+
     canvas.drawCircle(
       const Offset(54, 54),
       33,
@@ -89,6 +95,7 @@ class _LauncherEmblemPainter extends CustomPainter {
     canvas.drawCircle(const Offset(39, 74.5), 4.8, Paint()..color = const Color(0xFF1E293B));
     canvas.drawCircle(const Offset(69, 74.5), 4.8, Paint()..color = const Color(0xFF1E293B));
 
+    canvas.restore();
     canvas.restore();
   }
 
