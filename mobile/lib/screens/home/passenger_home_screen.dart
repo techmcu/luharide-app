@@ -196,6 +196,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
     final t = AppLocalizations.of(context);
+    // Independent-driver create flow only; union admins manage rides from Union tab.
+    final showCreateRideAction =
+        (user?.role ?? '').toString().toLowerCase() != 'union_admin';
 
     return Scaffold(
       appBar: AppBar(
@@ -204,11 +207,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.grey[800],
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 24),
-            tooltip: 'Create ride',
-            onPressed: () => _onCreateRideTap(context, user),
-          ),
+          if (showCreateRideAction)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, size: 24),
+              tooltip: 'Create ride',
+              onPressed: () => _onCreateRideTap(context, user),
+            ),
           IconButton(
             icon: Stack(
               clipBehavior: Clip.none,
@@ -733,6 +737,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   );
 
   void _onCreateRideTap(BuildContext context, user) {
+    if ((user?.role ?? '').toString().toLowerCase() == 'union_admin') return;
     final status = user?.driverVerificationStatus ?? 'none';
     if (status == 'approved') {
       Navigator.push(
