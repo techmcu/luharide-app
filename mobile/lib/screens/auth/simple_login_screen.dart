@@ -123,7 +123,9 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                   children: [
                     SizedBox(height: isSmallScreen ? 20 : 36),
                     Center(
-                      child: AppLogoMark(size: isSmallScreen ? 100 : 120),
+                      child: AppLogoMarkAnimated(
+                        size: isSmallScreen ? 100 : 120,
+                      ),
                     ),
                     SizedBox(height: spacing),
                     Center(

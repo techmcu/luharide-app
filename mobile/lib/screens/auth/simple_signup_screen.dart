@@ -152,7 +152,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
           padding: EdgeInsets.zero,
         ),
         const SizedBox(height: 12),
-        const Center(child: AppLogoMark(size: 96)),
+        Center(child: AppLogoMarkAnimated(size: 96)),
         const SizedBox(height: 16),
         Text(
           'Step 1 of 2',
@@ -229,7 +229,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
             padding: EdgeInsets.zero,
           ),
           const SizedBox(height: 12),
-          const Center(child: AppLogoMark(size: 96)),
+          Center(child: AppLogoMarkAnimated(size: 96)),
           const SizedBox(height: 16),
           Text(
             'Step 2 of 2',
