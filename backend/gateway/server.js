@@ -33,6 +33,8 @@ const AUTH_URL = process.env.AUTH_URL || 'http://127.0.0.1:3001';
 const CORE_URL = process.env.CORE_URL || 'http://127.0.0.1:3002';
 const UNION_URL = process.env.UNION_URL || 'http://127.0.0.1:3003';
 const PLATFORM_URL = process.env.PLATFORM_URL || 'http://127.0.0.1:3004';
+/** If set, browser tab navigations to GET / (Sec-Fetch-Dest: document) redirect here — API clients still get JSON. */
+const PUBLIC_WEB_APP_URL = (process.env.PUBLIC_WEB_APP_URL || '').trim();
 
 function checkUpstreamHealth(baseUrl, timeoutMs = 2500) {
   return new Promise((resolve) => {
@@ -126,6 +128,9 @@ app.get('/health', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
+  if (PUBLIC_WEB_APP_URL && req.get('Sec-Fetch-Dest') === 'document') {
+    return res.redirect(302, PUBLIC_WEB_APP_URL);
+  }
   res.json({
     message: 'LuhaRide API Gateway',
     version: '1.0.0',
