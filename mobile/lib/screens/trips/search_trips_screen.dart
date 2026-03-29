@@ -559,7 +559,6 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
         centerTitle: false,
         title: const BrandAppBarTitle(
           onColoredBar: true,
-          logoSize: 32,
           title: Text('Find a Ride', style: TextStyle(fontWeight: FontWeight.w700)),
         ),
         backgroundColor: _kBlue,

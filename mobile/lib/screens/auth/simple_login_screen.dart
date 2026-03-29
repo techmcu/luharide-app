@@ -9,8 +9,6 @@ import '../home/home_screen.dart';
 import 'forgot_password_screen.dart';
 import 'simple_signup_screen.dart';
 import '../../core/config/env_config.dart';
-import '../../widgets/app_logo_mark.dart';
-
 class SimpleLoginScreen extends StatefulWidget {
   const SimpleLoginScreen({super.key});
 
@@ -116,11 +114,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(height: isSmallScreen ? 20 : 36),
-                    Center(
-                      child: AppLogoMark(size: AppLogoMark.authHeroSize(context)),
-                    ),
-                    SizedBox(height: spacing),
+                    SizedBox(height: isSmallScreen ? 28 : 44),
                     Center(
                       child: Text(
                         loc.t('auth.login.title'),

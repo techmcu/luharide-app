@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
-import '../../widgets/app_logo_mark.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
@@ -215,20 +214,14 @@ class _LandingScreenState extends State<LandingScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const AppLogoMark(size: 76),
-                            const SizedBox(width: 10),
-                            Text(
-                              BrandConfig.appName,
-                              style: TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blue[800],
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          BrandConfig.appName,
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue[800],
+                            letterSpacing: 0.2,
+                          ),
                         ),
                         Row(
                           mainAxisSize: MainAxisSize.min,
