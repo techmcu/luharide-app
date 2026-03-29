@@ -21,30 +21,48 @@ class UploadService {
     final formData = FormData.fromMap({
       'file': await _filePart(file),
     });
-    final response = await _api.post(
-      ApiConstants.uploadDriverDoc,
-      data: formData,
-      options: Options(contentType: 'multipart/form-data'),
-    );
-    if (response.statusCode == 200 && response.data['success'] == true) {
-      return response.data['url'] as String;
+    try {
+      final response = await _api.post(
+        ApiConstants.uploadDriverDoc,
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['url'] as String;
+      }
+      throw Exception(response.data['message'] ?? 'Failed to upload document');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 413) {
+        throw Exception(
+          'Photo file too large for server. Please choose the photo again (smaller size).',
+        );
+      }
+      rethrow;
     }
-    throw Exception(response.data['message'] ?? 'Failed to upload document');
   }
 
   Future<String> uploadUnionDocument(XFile file) async {
     final formData = FormData.fromMap({
       'file': await _filePart(file),
     });
-    final response = await _api.post(
-      ApiConstants.uploadUnionDoc,
-      data: formData,
-      options: Options(contentType: 'multipart/form-data'),
-    );
-    if (response.statusCode == 200 && response.data['success'] == true) {
-      return response.data['url'] as String;
+    try {
+      final response = await _api.post(
+        ApiConstants.uploadUnionDoc,
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['url'] as String;
+      }
+      throw Exception(response.data['message'] ?? 'Failed to upload document');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 413) {
+        throw Exception(
+          'Photo file too large for server. Please choose the photo again (smaller size).',
+        );
+      }
+      rethrow;
     }
-    throw Exception(response.data['message'] ?? 'Failed to upload document');
   }
 }
 

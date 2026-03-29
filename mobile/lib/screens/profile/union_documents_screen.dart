@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../core/config/env_config.dart';
+import '../../core/utils/kyc_image_picker.dart';
 import '../../services/union_service.dart';
 import '../../services/upload_service.dart';
 
@@ -64,7 +64,7 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
   }
 
   Future<void> _pick(void Function(String url) setUrl) async {
-    final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final img = await pickKycGalleryPhoto();
     if (img == null) return;
     setState(() => _saving = true);
     try {

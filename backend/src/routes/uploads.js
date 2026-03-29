@@ -4,6 +4,7 @@ const fs = require('fs');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const { uploadDocLimiter } = require('../middleware/rateLimiter');
+const { maxFileBytes } = require('../config/uploadLimits');
 
 const router = express.Router();
 
@@ -52,7 +53,7 @@ function kycFileFilter(req, file, cb) {
 const driverUpload = multer({
   storage: createStorage('driver-docs'),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5 MB
+    fileSize: maxFileBytes,
   },
   fileFilter: kycFileFilter,
 });
@@ -60,7 +61,7 @@ const driverUpload = multer({
 const unionUpload = multer({
   storage: createStorage('union-docs'),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5 MB
+    fileSize: maxFileBytes,
   },
   fileFilter: kycFileFilter,
 });

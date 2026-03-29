@@ -9,6 +9,7 @@ import '../../services/union_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/role_exclusivity.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/utils/kyc_image_picker.dart';
 import '../../providers/app_language_provider.dart';
 
 /// Form to submit driver verification documents.
@@ -81,9 +82,7 @@ class _DriverVerificationFormScreenState
   }
 
   Future<void> _pickDocument(void Function(XFile) setter) async {
-    final picker = ImagePicker();
-    final img =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final img = await pickKycGalleryPhoto();
     if (img == null) return;
     setter(img);
   }

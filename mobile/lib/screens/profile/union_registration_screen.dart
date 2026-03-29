@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
@@ -7,6 +6,7 @@ import '../../services/union_service.dart';
 import '../../services/upload_service.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/role_exclusivity.dart';
+import '../../core/utils/kyc_image_picker.dart';
 import '../../providers/app_language_provider.dart';
 import 'union_dashboard_screen.dart';
 
@@ -469,8 +469,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _ownerAadhaarFrontFile = img);
                       },
@@ -481,8 +480,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _ownerAadhaarBackFile = img);
                       },
@@ -493,8 +491,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _officePhotoFile = img);
                       },
@@ -505,8 +502,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _driverListPhotoFile = img);
                       },
@@ -517,8 +513,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _leaderDlFrontFile = img);
                       },
@@ -529,8 +524,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _leaderDlBackFile = img);
                       },
@@ -541,8 +535,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _ownerRcFrontFile = img);
                       },
@@ -553,8 +546,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                 onTap: _isSubmitting
                     ? null
                     : () async {
-                        final picker = ImagePicker();
-                        final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+                        final img = await pickKycGalleryPhoto();
                         if (img == null) return;
                         setState(() => _ownerRcBackFile = img);
                       },

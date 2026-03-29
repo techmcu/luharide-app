@@ -11,6 +11,9 @@ Agar app me **404** on `.../api/simple-auth/login` dikhe, **Flutter app sahi hai
 → `.env` me `PORT` / `GATEWAY_PORT` kisi aur port par ho to wahi `curl` karo.  
 → URL typo na ho: **`/api/simple-auth/ping`** ( **`ping4` nahi** ).
 
+**App par `413` / upload fail (driver/union docs)?**  
+→ Nginx default `client_max_body_size` chhota hota hai. API `server` block me **`client_max_body_size 30m;`** set karo (example: `infra/nginx-reverse-proxy-luharide-api-gateway.example.conf` / `infra/nginx-luharide-split-root-and-api.example.conf`), phir `sudo nginx -t && sudo systemctl reload nginx`. Backend: `UPLOAD_MAX_FILE_MB` (see `.env.example`).
+
 ---
 
 ## 1) SSH se VPS par check

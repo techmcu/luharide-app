@@ -1,6 +1,7 @@
 const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 const { applyCorsHeadersOnError } = require('./corsLuha');
+const { maxFileMb } = require('../config/uploadLimits');
 
 /**
  * Convert error to ApiError if needed (preserve PostgreSQL err.code for handler)
@@ -13,7 +14,7 @@ const errorConverter = (err, req, res, next) => {
     const code = err.code;
     const msg =
       code === 'LIMIT_FILE_SIZE'
-        ? 'File too large (max 5 MB)'
+        ? `File too large (max ${maxFileMb} MB per photo)`
         : err.message || 'Upload failed';
     error = new ApiError(400, msg, true);
   } else if (err && err.message && typeof err.message === 'string' && err.message.startsWith('Invalid file type.')) {
