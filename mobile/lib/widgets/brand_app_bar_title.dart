@@ -21,7 +21,7 @@ class BrandAppBarTitle extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        AppLogoMark(size: logoSize, showPlate: !onColoredBar),
+        AppLogoMark(size: logoSize),
         SizedBox(width: onColoredBar ? 8 : 10),
         DefaultTextStyle(
           style: TextStyle(

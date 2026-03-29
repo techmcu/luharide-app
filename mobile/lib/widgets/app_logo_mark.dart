@@ -1,86 +1,38 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// LuhaRide launcher art from [assets/branding/luharide_launcher_master.png] (1024² master).
+/// Static PNG logo — [assets/branding/luharide_launcher_master.png].
 class AppLogoMark extends StatelessWidget {
-  final double size;
-  final bool showPlate;
+  const AppLogoMark({super.key, this.size = 40});
 
-  const AppLogoMark({
-    super.key,
-    this.size = 40,
-    this.showPlate = true,
-  });
+  final double size;
 
   static const assetPath = 'assets/branding/luharide_launcher_master.png';
 
+  /// Login + signup: centered hero, same sizing on both screens.
+  static double authHeroSize(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final short = MediaQuery.sizeOf(context).height < 600;
+    if (short) return (w * 0.58).clamp(176.0, 228.0);
+    return (w * 0.68).clamp(220.0, 300.0);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final img = Image.asset(
-      assetPath,
-      width: size,
-      height: size,
-      fit: BoxFit.cover,
-      filterQuality: FilterQuality.high,
-      isAntiAlias: true,
-      gaplessPlayback: true,
-    );
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final px = (size * dpr).round().clamp(64, 1024);
     return SizedBox(
       width: size,
       height: size,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(
-          showPlate ? size * (24 / 108) : size * 0.2,
-        ),
-        child: img,
+      child: Image.asset(
+        assetPath,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        filterQuality: FilterQuality.medium,
+        cacheWidth: px,
+        cacheHeight: px,
       ),
-    );
-  }
-}
-
-/// Subtle scale pulse — login / splash only.
-class AppLogoMarkAnimated extends StatefulWidget {
-  const AppLogoMarkAnimated({
-    super.key,
-    this.size = 120,
-    this.showPlate = true,
-  });
-
-  final double size;
-  final bool showPlate;
-
-  @override
-  State<AppLogoMarkAnimated> createState() => _AppLogoMarkAnimatedState();
-}
-
-class _AppLogoMarkAnimatedState extends State<AppLogoMarkAnimated>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))
-      ..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, __) {
-        final breathe = 1 + 0.028 * math.sin(_c.value * math.pi * 2);
-        return Transform.scale(
-          scale: breathe,
-          child: AppLogoMark(size: widget.size, showPlate: widget.showPlate),
-        );
-      },
     );
   }
 }

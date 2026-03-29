@@ -75,7 +75,6 @@ flutter:
 
   assets:
     - assets/branding/
-    - assets/branding/icon_demos/
 
 flutter_launcher_icons:
   android: true

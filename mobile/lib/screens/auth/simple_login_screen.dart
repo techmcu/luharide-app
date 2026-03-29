@@ -26,11 +26,6 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
   bool _obscurePassword = true;
 
   @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -123,9 +118,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                   children: [
                     SizedBox(height: isSmallScreen ? 20 : 36),
                     Center(
-                      child: AppLogoMarkAnimated(
-                        size: isSmallScreen ? 100 : 120,
-                      ),
+                      child: AppLogoMark(size: AppLogoMark.authHeroSize(context)),
                     ),
                     SizedBox(height: spacing),
                     Center(
