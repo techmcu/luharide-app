@@ -1,0 +1,16 @@
+# Build LuhaRide for web (same UI as APK) — run from repo: mobile\
+# Usage:  .\scripts\build_web_production.ps1
+# Then upload folder mobile\build\web\* to VPS: /var/www/luharide-web/
+
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot\..
+
+flutter build web --release `
+  --dart-define=API_BASE_URL=https://api.luharide.cloud/api `
+  --dart-define=SOCKET_URL=https://api.luharide.cloud `
+  --dart-define=STABLE_RELEASE=true
+
+Write-Host ""
+Write-Host "Output: $(Join-Path (Get-Location) 'build\web')"
+Write-Host "Deploy: scp -r build/web/* user@YOUR_VPS:/var/www/luharide-web/"
+Write-Host "Then on VPS: sudo nginx -t && sudo systemctl reload nginx"

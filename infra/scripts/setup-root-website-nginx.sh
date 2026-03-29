@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# OPTIONAL: lightweight static marketing page only.
+# For the real app UI (same as APK) use Flutter Web + setup-luharide-flutter-web-nginx.sh
+#
 # Run ON THE VPS (after: git pull in repo clone):
 #   chmod +x infra/scripts/setup-root-website-nginx.sh
 #   sudo ./infra/scripts/setup-root-website-nginx.sh
