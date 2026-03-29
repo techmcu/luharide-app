@@ -20,6 +20,7 @@ Full URLs are built in `lib/services/api_service.dart` (`buildApiUrl`). Override
 - **Default API** (no dart-defines): `https://api.luharide.cloud` — REST base `.../api`, Socket same host. Override with `--dart-define=API_BASE_URL=...` and `SOCKET_URL=...` if your gateway URL differs.
 - **Web build:** `scripts/build_web_production.ps1` (Windows) or `scripts/build_web_production.sh` (Linux/macOS) → upload `build/web/*` to VPS `/var/www/luharide-web/` → run `infra/scripts/setup-root-website-nginx.sh` so the **same Flutter UI** is served on the main domain.
 - **Backend:** set `CORS_ALLOWED_ORIGINS` to include `https://luharide.cloud` and `https://www.luharide.cloud` (see `backend/.env.example`). Nginx for `api.*` needs WebSocket **Upgrade** headers — `infra/nginx-reverse-proxy-luharide-api-gateway.example.conf`.
+- **Smaller APK (arm64-v8a only):** `scripts/build_apk_arm64_release.ps1` or `build_apk_arm64_release.sh` → `app-arm64-v8a-release.apk` (uses `--split-per-abi`). Universal `flutter build apk --release` bundles all ABIs and is larger; old 32-bit phones need a separate armeabi-v7a build if you support them.
 
 See also: `../docs/MICROSERVICES_RUN.md`, `../docs/MOBILE_DIO_API_BASE.md`.
 
