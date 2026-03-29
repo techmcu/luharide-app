@@ -15,6 +15,12 @@ If the port is wrong, the browser shows **`XMLHttpRequest onError`** / **`ERROR[
 
 Full URLs are built in `lib/services/api_service.dart` (`buildApiUrl`). Override anything with `--dart-define=API_BASE_URL=...`.
 
+### Production (APK + Flutter Web + `luharide.cloud`)
+
+- **Default API** (no dart-defines): `https://api.luharide.cloud` — REST base `.../api`, Socket same host. Override with `--dart-define=API_BASE_URL=...` and `SOCKET_URL=...` if your gateway URL differs.
+- **Web build:** `scripts/build_web_production.ps1` (Windows) or `scripts/build_web_production.sh` (Linux/macOS) → upload `build/web/*` to VPS `/var/www/luharide-web/` → run `infra/scripts/setup-root-website-nginx.sh` so the **same Flutter UI** is served on the main domain.
+- **Backend:** set `CORS_ALLOWED_ORIGINS` to include `https://luharide.cloud` and `https://www.luharide.cloud` (see `backend/.env.example`). Nginx for `api.*` needs WebSocket **Upgrade** headers — `infra/nginx-reverse-proxy-luharide-api-gateway.example.conf`.
+
 See also: `../docs/MICROSERVICES_RUN.md`, `../docs/MOBILE_DIO_API_BASE.md`.
 
 ---

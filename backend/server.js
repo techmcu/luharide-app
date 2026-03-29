@@ -9,7 +9,7 @@ const os = require('os');
 const express = require('express');
 const compression = require('compression');
 const { createHelmetMiddleware } = require('./src/config/helmetConfig');
-const { applyLuhaCors } = require('./src/middleware/corsLuha');
+const { applyLuhaCors, corsOptions } = require('./src/middleware/corsLuha');
 const morgan = require('morgan');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -83,9 +83,10 @@ server.keepAliveTimeout = 65000;
 
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || '*',
-    methods: ['GET', 'POST']
-  }
+    origin: corsOptions.origin,
+    methods: ['GET', 'POST'],
+    credentials: false,
+  },
 });
 attachSocketIoRedisAdapter(io);
 

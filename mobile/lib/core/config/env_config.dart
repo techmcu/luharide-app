@@ -35,6 +35,13 @@ class EnvConfig {
   static String _trimEndSlashes(String s) =>
       s.replaceAll(RegExp(r'/+$'), '');
 
+  /// Public API when no `--dart-define=API_BASE_URL=...` (release APK + `flutter build web`).
+  /// Override for self-hosted: `--dart-define=API_BASE_URL=https://your-host/api`
+  static const String _productionApiBase = 'https://api.luharide.cloud/api';
+
+  /// Socket host (no `/api`) — must match gateway/nginx TLS host.
+  static const String _productionSocket = 'https://api.luharide.cloud';
+
   /// REST API base including `/api`. **Not const** — Web vs Android emulator differs for local dev.
   static String get apiBaseUrl {
     if (_apiBaseUrlDefine.isNotEmpty) {
@@ -44,8 +51,7 @@ class EnvConfig {
       // Web: **127.0.0.1** — Windows par `localhost` → ::1 vs Node IPv4 mismatch fix.
       return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:$_localApiPort/api';
     }
-    // Default until TLS + domain are live; override with API_BASE_URL for release.
-    return 'http://76.13.243.157:3000/api';
+    return _productionApiBase;
   }
 
   /// Socket.IO URL (host:port, no `/api`).
@@ -56,7 +62,7 @@ class EnvConfig {
     if (kDebugMode && _useLocalApiEnv) {
       return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:$_localApiPort';
     }
-    return 'http://76.13.243.157:3000';
+    return _productionSocket;
   }
 
   /// Non-empty when this build should show a channel tag after `version (build)` in About.

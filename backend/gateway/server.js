@@ -15,7 +15,11 @@ const http = require('http');
 const express = require('express');
 const compression = require('compression');
 const { createHelmetMiddleware } = require('../src/config/helmetConfig');
-const { applyLuhaCors, applyCorsHeadersOnError } = require('../src/middleware/corsLuha');
+const {
+  applyLuhaCors,
+  applyCorsHeadersOnError,
+  corsOptions,
+} = require('../src/middleware/corsLuha');
 const morgan = require('morgan');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const socketIo = require('socket.io');
@@ -296,10 +300,12 @@ app.use(apiProxy(CORE_URL, '/api/drivers'));
 app.use(apiProxy(CORE_URL, '/api/driver-verification'));
 
 const server = http.createServer(app);
+// Same origin rules as REST (CORS_ALLOWED_ORIGINS / CLIENT_URL + localhost dev).
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || '*',
+    origin: corsOptions.origin,
     methods: ['GET', 'POST'],
+    credentials: false,
   },
 });
 attachSocketIoRedisAdapter(io);

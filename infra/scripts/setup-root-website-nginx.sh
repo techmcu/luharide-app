@@ -12,7 +12,12 @@
 # Flutter optional: scp -r mobile/build/web/* root@VPS:/var/www/luharide-web/
 # then run this script again — it will switch to Flutter automatically.
 #
-# api.luharide.cloud is unchanged (separate nginx / proxy).
+# Backend .env (same VPS): CORS_ALLOWED_ORIGINS must include
+#   https://luharide.cloud,https://www.luharide.cloud
+# so Flutter Web + REST + Socket.IO work (see backend/.env.example).
+#
+# api.luharide.cloud is unchanged (separate nginx — use WebSocket Upgrade headers; see
+# infra/nginx-reverse-proxy-luharide-api-gateway.example.conf).
 
 set -euo pipefail
 
