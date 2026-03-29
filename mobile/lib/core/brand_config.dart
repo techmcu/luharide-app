@@ -13,5 +13,14 @@ class BrandConfig {
 
   static const String supportEmail = 'supportluharide@gmail.com';
 
+  /// Public privacy policy page for Play Console. Empty until hosted — then set `https://...`.
+  static const String privacyPolicyUrl = '';
+
+  static Uri? get privacyPolicyUri {
+    final s = privacyPolicyUrl.trim();
+    if (s.isEmpty) return null;
+    return Uri.tryParse(s);
+  }
+
   static Uri get whatsAppUri => Uri.parse('https://wa.me/$whatsAppWaMeDigits');
 }

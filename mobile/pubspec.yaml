@@ -1,7 +1,7 @@
 name: luharide
 description: Uttarakhand taxi booking platform - Legal taxi aggregator with seat booking system
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.9.0+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -54,6 +54,7 @@ dependencies:
   permission_handler: ^11.2.0
   
   # Utils
+  package_info_plus: ^8.0.0
   intl: ^0.20.2
   flutter_typeahead: ^5.2.0
   url_launcher: ^6.2.3
@@ -79,4 +80,5 @@ flutter_launcher_icons:
   image_path: assets/branding/luharide_launcher_master.png
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: assets/branding/luharide_launcher_master.png
+  adaptive_icon_foreground_inset: 0
   min_sdk_android: 21

@@ -1,6 +1,8 @@
+import '../config/env_config.dart';
+
 class ApiConstants {
-  // Production API (Hostinger VPS) – same as EnvConfig.apiBaseUrl
-  static const String baseUrl = 'http://76.13.243.157:3000/api';
+  /// REST base including `/api` — always [EnvConfig.apiBaseUrl] (dart-define / debug / default).
+  static String get baseUrl => EnvConfig.apiBaseUrl;
   
   // Authentication Endpoints
   static const String sendOTP = '/auth/send-otp';

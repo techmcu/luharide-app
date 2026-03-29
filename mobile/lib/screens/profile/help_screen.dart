@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/brand_config.dart';
+import '../../core/config/env_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
 
@@ -94,7 +96,7 @@ class HelpScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.email_outlined),
             title: Text(loc.t('help.email.label')),
-            subtitle: Text(BrandConfig.supportEmail),
+            subtitle: const Text(BrandConfig.supportEmail),
             onTap: _openEmail,
           ),
           ListTile(
@@ -105,6 +107,60 @@ class HelpScreen extends StatelessWidget {
             ),
             isThreeLine: true,
             onTap: _openWhatsApp,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            loc.t('help.about.title'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snap) {
+              if (!snap.hasData) {
+                return ListTile(
+                  leading: const Icon(Icons.info_outline),
+                  title: Text(loc.t('help.about.version')),
+                  trailing: const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              }
+              final p = snap.data!;
+              final suffix = EnvConfig.versionDisplaySuffix;
+              final sub = suffix.isEmpty
+                  ? '${p.version} (${p.buildNumber})'
+                  : '${p.version} (${p.buildNumber}) · $suffix';
+              return ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text(loc.t('help.about.version')),
+                subtitle: Text(sub),
+              );
+            },
+          ),
+          Builder(
+            builder: (context) {
+              final u = BrandConfig.privacyPolicyUri;
+              if (u != null) {
+                return ListTile(
+                  leading: const Icon(Icons.privacy_tip_outlined),
+                  title: Text(loc.t('help.about.privacy')),
+                  subtitle: Text(u.toString()),
+                  onTap: () async {
+                    if (await canLaunchUrl(u)) {
+                      await launchUrl(u, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                );
+              }
+              return ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: Text(loc.t('help.about.privacy')),
+                subtitle: Text(loc.t('help.about.privacy_hint')),
+              );
+            },
           ),
         ],
       ),

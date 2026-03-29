@@ -284,6 +284,22 @@ class AppLocalizations {
       'en': 'Tap to open WhatsApp chat',
       'hi': 'WhatsApp चैट खोलने के लिए टैप करें',
     },
+    'help.about.title': {
+      'en': 'About this app',
+      'hi': 'ऐप के बारे में',
+    },
+    'help.about.version': {
+      'en': 'Version',
+      'hi': 'संस्करण',
+    },
+    'help.about.privacy': {
+      'en': 'Privacy policy',
+      'hi': 'गोपनीयता नीति',
+    },
+    'help.about.privacy_hint': {
+      'en': 'Link will appear here once published.',
+      'hi': 'प्रकाशित होने पर यहाँ लिंक दिखेगा।',
+    },
     'profile.logout': {
       'en': 'Sign out',
       'hi': 'साइन आउट',

@@ -1,5 +1,12 @@
 import 'package:flutter/foundation.dart';
 
+/// API hosts for REST + Socket.IO. Production should use HTTPS + domain, e.g.:
+/// `--dart-define=API_BASE_URL=https://api.example.com/api --dart-define=SOCKET_URL=https://api.example.com`
+///
+/// Version label in Help → About:
+/// - Default shows `Beta` after `0.9.0 (1)`.
+/// - Store / stable: `--dart-define=STABLE_RELEASE=true`
+/// - Custom tag: `--dart-define=VERSION_CHANNEL=Preview` (ignored if STABLE_RELEASE=true)
 class EnvConfig {
   /// Compile-time: `--dart-define=USE_LOCAL_API=true` (recommended with [kDebugMode] check below).
   static const bool _useLocalApiEnv =
@@ -17,6 +24,14 @@ class EnvConfig {
   /// Same for Socket.IO host (no `/api`).
   static const String _socketUrlDefine = String.fromEnvironment('SOCKET_URL');
 
+  /// Play / public release: `--dart-define=STABLE_RELEASE=true` hides channel label next to version.
+  static const bool _stableRelease =
+      bool.fromEnvironment('STABLE_RELEASE', defaultValue: false);
+
+  /// Shown next to app version in Help (e.g. Beta). Ignored when [_stableRelease] is true.
+  static const String _versionChannel =
+      String.fromEnvironment('VERSION_CHANNEL', defaultValue: 'Beta');
+
   static String _trimEndSlashes(String s) =>
       s.replaceAll(RegExp(r'/+$'), '');
 
@@ -29,6 +44,7 @@ class EnvConfig {
       // Web: **127.0.0.1** — Windows par `localhost` → ::1 vs Node IPv4 mismatch fix.
       return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:$_localApiPort/api';
     }
+    // Default until TLS + domain are live; override with API_BASE_URL for release.
     return 'http://76.13.243.157:3000/api';
   }
 
@@ -41,6 +57,13 @@ class EnvConfig {
       return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:$_localApiPort';
     }
     return 'http://76.13.243.157:3000';
+  }
+
+  /// Non-empty when this build should show a channel tag after `version (build)` in About.
+  static String get versionDisplaySuffix {
+    if (_stableRelease) return '';
+    final c = _versionChannel.trim();
+    return c;
   }
 
   // Google Maps API Key
