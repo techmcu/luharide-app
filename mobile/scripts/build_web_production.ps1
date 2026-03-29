@@ -13,4 +13,4 @@ flutter build web --release `
 Write-Host ""
 Write-Host "Output: $(Join-Path (Get-Location) 'build\web')"
 Write-Host "Deploy: scp -r build/web/* user@YOUR_VPS:/var/www/luharide-web/"
-Write-Host "Then on VPS: sudo nginx -t && sudo systemctl reload nginx"
+Write-Host "Then on VPS (repo clone): sudo bash infra/scripts/setup-root-website-nginx.sh"
