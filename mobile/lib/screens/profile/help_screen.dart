@@ -8,22 +8,6 @@ import '../../core/config/env_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
 
-Future<void> _openSupportEmail(BuildContext context, AppLocalizations loc) async {
-  final subject = Uri.encodeComponent(
-    '${BrandConfig.appName} — ${loc.t('help.email.subject')}',
-  );
-  final body = Uri.encodeComponent(loc.t('help.email.body_prefill'));
-  final u = Uri.parse('mailto:${BrandConfig.supportEmail}?subject=$subject&body=$body');
-  if (await canLaunchUrl(u)) {
-    await launchUrl(u, mode: LaunchMode.externalApplication);
-    return;
-  }
-  if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(loc.t('help.email.open_failed'))),
-  );
-}
-
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
@@ -94,29 +78,27 @@ class HelpScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ListTile(
-            leading: Icon(Icons.email_outlined, color: Colors.blue[700]),
+            leading: Icon(Icons.email_outlined, color: Colors.grey[800]),
             title: Text(loc.t('help.email.label')),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                SelectableText(
                   BrandConfig.supportEmail,
                   style: TextStyle(
-                    color: Colors.blue[700],
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.underline,
-                    decorationColor: Colors.blue[700],
+                    color: Colors.grey[900],
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  loc.t('help.email.tap_hint'),
+                  loc.t('help.email.display_hint'),
                   style: TextStyle(fontSize: 12.5, height: 1.35, color: Colors.grey[700]),
                 ),
               ],
             ),
             isThreeLine: true,
-            onTap: () => _openSupportEmail(context, loc),
           ),
           const SizedBox(height: 24),
           Text(
@@ -139,25 +121,38 @@ class HelpScreen extends StatelessWidget {
                 );
               }
               final p = snap.data!;
-              final suffix = EnvConfig.versionDisplaySuffix;
-              final sub = suffix.isEmpty
-                  ? '${p.version} (${p.buildNumber})'
-                  : '${p.version} (${p.buildNumber}) · $suffix';
+              final suffix = EnvConfig.versionDisplaySuffix.trim();
+              final versionLine =
+                  suffix.isEmpty ? p.version : '${p.version} $suffix';
               return ListTile(
                 leading: const Icon(Icons.info_outline),
                 title: Text(loc.t('help.about.version')),
-                subtitle: Text(sub),
+                subtitle: Text(versionLine),
               );
             },
           ),
           Builder(
-            builder: (context) {
+            builder: (ctx) {
               final u = BrandConfig.privacyPolicyUri;
               if (u != null) {
                 return ListTile(
                   leading: const Icon(Icons.privacy_tip_outlined),
                   title: Text(loc.t('help.about.privacy')),
-                  subtitle: Text(u.toString()),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        u.toString(),
+                        style: TextStyle(fontSize: 13, color: Colors.blue[700]),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        loc.t('help.about.privacy_updating'),
+                        style: TextStyle(fontSize: 12.5, height: 1.35, color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                  isThreeLine: true,
                   onTap: () async {
                     if (await canLaunchUrl(u)) {
                       await launchUrl(u, mode: LaunchMode.externalApplication);

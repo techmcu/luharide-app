@@ -3,10 +3,9 @@ import 'package:flutter/foundation.dart';
 /// API hosts for REST + Socket.IO. Production should use HTTPS + domain, e.g.:
 /// `--dart-define=API_BASE_URL=https://api.example.com/api --dart-define=SOCKET_URL=https://api.example.com`
 ///
-/// Version label in Help → About:
-/// - Default shows `Beta` after `0.9.0 (1)`.
-/// - Store / stable: `--dart-define=STABLE_RELEASE=true`
-/// - Custom tag: `--dart-define=VERSION_CHANNEL=Preview` (ignored if STABLE_RELEASE=true)
+/// Version label in Help → About (e.g. `1.0.0 beta` — build number is not shown in UI).
+/// - Store / stable: `--dart-define=STABLE_RELEASE=true` (hides channel tag).
+/// - Custom tag: `--dart-define=VERSION_CHANNEL=preview` (ignored if STABLE_RELEASE=true).
 class EnvConfig {
   /// Compile-time: `--dart-define=USE_LOCAL_API=true` (recommended with [kDebugMode] check below).
   static const bool _useLocalApiEnv =
@@ -30,7 +29,7 @@ class EnvConfig {
 
   /// Shown next to app version in Help (e.g. Beta). Ignored when [_stableRelease] is true.
   static const String _versionChannel =
-      String.fromEnvironment('VERSION_CHANNEL', defaultValue: 'Beta');
+      String.fromEnvironment('VERSION_CHANNEL', defaultValue: 'beta');
 
   static String _trimEndSlashes(String s) =>
       s.replaceAll(RegExp(r'/+$'), '');

@@ -276,21 +276,9 @@ class AppLocalizations {
       'en': 'Email support',
       'hi': 'ईमेल सहायता',
     },
-    'help.email.tap_hint': {
-      'en': 'Tap here to open your email app and send us your question or request.',
-      'hi': 'अपना प्रश्न या अनुरोध भेजने हेतु अपना ईमेल ऐप खोलने के लिए यहाँ टैप करें।',
-    },
-    'help.email.subject': {
-      'en': 'Support request',
-      'hi': 'सहायता अनुरोध',
-    },
-    'help.email.body_prefill': {
-      'en': 'Hello LuhaRide team,\n\n[Please write your question or feedback here]\n\n',
-      'hi': 'नमस्ते LuhaRide टीम,\n\n[कृपया अपना प्रश्न या फीडबैक यहाँ लिखें]\n\n',
-    },
-    'help.email.open_failed': {
-      'en': 'Could not open email app. Please write to us at the address above.',
-      'hi': 'ईमेल ऐप नहीं खुल सका। कृपया ऊपर दिए पते पर हमें लिखें।',
+    'help.email.display_hint': {
+      'en': 'For support, open your email app and write to this address (not a link). Long-press to copy if needed.',
+      'hi': 'सहायता के लिए अपने ईमेल ऐप में यह पता लिखें (लिंक नहीं)। कॉपी करने हेतु लंबा दबाएँ।',
     },
     'help.about.title': {
       'en': 'About this app',
@@ -307,6 +295,10 @@ class AppLocalizations {
     'help.about.privacy_hint': {
       'en': 'Link will appear here once published.',
       'hi': 'प्रकाशित होने पर यहाँ लिंक दिखेगा।',
+    },
+    'help.about.privacy_updating': {
+      'en': 'This page will be updated soon with the full policy.',
+      'hi': 'पूर्ण नीति के साथ यह पृष्ठ जल्द अपडेट किया जाएगा।',
     },
     'profile.logout': {
       'en': 'Sign out',
