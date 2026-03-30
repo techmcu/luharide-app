@@ -2,6 +2,25 @@ import 'package:dio/dio.dart';
 
 /// User-facing text for SnackBars (Hindi + English short).
 String userMessageFromDio(DioException e) {
+  // No HTTP body: timeouts, DNS, offline, TLS — always show simple text (never raw Dio internals).
+  switch (e.type) {
+    case DioExceptionType.connectionTimeout:
+    case DioExceptionType.sendTimeout:
+    case DioExceptionType.receiveTimeout:
+      return 'Server se time par jawab nahi mila (timeout). Internet check karke thodi der baad dubara try karein. '
+          '(The connection or server took too long.)';
+    case DioExceptionType.connectionError:
+      return 'Server tak pahunch nahi paye. Wi‑Fi / mobile data ya flight mode check karein. '
+          '(Cannot reach server.)';
+    case DioExceptionType.cancel:
+      return 'Request radd ho gayi.';
+    case DioExceptionType.badCertificate:
+      return 'Secure connection fail (SSL). VPN / network check karein.';
+    case DioExceptionType.badResponse:
+    case DioExceptionType.unknown:
+      break;
+  }
+
   final code = e.response?.statusCode;
   final data = e.response?.data;
   String? serverMsg;
@@ -23,5 +42,13 @@ String userMessageFromDio(DioException e) {
   if (serverMsg != null && serverMsg.isNotEmpty) {
     return serverMsg;
   }
-  return e.message ?? 'Network error. Connection check karein.';
+  return e.message != null && !_looksLikeRawDioAdvice(e.message!)
+      ? e.message!
+      : 'Network error. Connection check karein.';
+}
+
+bool _looksLikeRawDioAdvice(String m) {
+  return m.contains('RequestOptions.connectTimeout') ||
+      m.contains('receiveTimeout') ||
+      m.contains('sendTimeout');
 }

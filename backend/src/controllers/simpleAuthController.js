@@ -237,8 +237,13 @@ const requestPasswordReset = asyncHandler(async (req, res) => {
     throw err;
   }
 
-  await sendOTPByEmail(emailNorm, otpData.otp);
-  logger.info(`Password reset OTP sent to ${emailNorm}`);
+  sendOTPByEmail(emailNorm, otpData.otp).catch((err) => {
+    logger.error('Password reset: sendOTPByEmail failed (async)', {
+      email: emailNorm,
+      message: err.message,
+    });
+  });
+  logger.info(`Password reset OTP queued for ${emailNorm}`);
 
   ApiResponse.success(
     {

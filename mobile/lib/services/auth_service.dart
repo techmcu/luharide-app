@@ -39,7 +39,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to send OTP');
       }
-      throw Exception('Network error. Please check your connection.');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -63,7 +63,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to send OTP');
       }
-      throw Exception('Network error. Please check your connection.');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -105,7 +105,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to verify OTP');
       }
-      throw Exception('Network error. Please check your connection.');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -149,7 +149,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to verify OTP');
       }
-      throw Exception('Network error. Please check your connection.');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -266,7 +266,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to update profile');
       }
-      throw Exception('Network error');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -292,7 +292,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to update password');
       }
-      throw Exception('Network error');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -316,7 +316,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to request password reset');
       }
-      throw Exception('Network error');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -344,7 +344,7 @@ class AuthService {
       if (e.response != null) {
         throw Exception(e.response!.data['message'] ?? 'Failed to reset password');
       }
-      throw Exception('Network error');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -461,9 +461,9 @@ class AuthService {
       if (e.response != null) {
         final data = e.response!.data;
         final msg = data is Map ? data['message'] : null;
-        throw Exception(msg?.toString() ?? e.message ?? 'Login failed');
+        throw Exception(msg?.toString() ?? 'Login failed');
       }
-      throw Exception(e.message ?? 'Network error. Please check your connection.');
+      throw Exception(userMessageFromDio(e));
     }
   }
 
@@ -524,7 +524,7 @@ class AuthService {
         final msg = data is Map ? data['message'] : null;
         throw Exception(msg?.toString() ?? 'Signup failed');
       }
-      throw Exception('Network error. Please check your connection.');
+      throw Exception(userMessageFromDio(e));
     }
   }
 }

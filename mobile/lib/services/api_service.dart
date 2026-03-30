@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
+import '../core/utils/api_error_messages.dart';
 import 'dio_adapter_config.dart'
     if (dart.library.html) 'dio_adapter_config_web.dart';
 import 'realtime_socket_service.dart';
@@ -41,8 +42,10 @@ class ApiService {
       BaseOptions(
         // Every call uses [buildApiUrl] — empty avoids any merge ambiguity.
         baseUrl: '',
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
+        // Slightly generous for slow mobile networks & OTP endpoints (server still must be up).
+        connectTimeout: const Duration(seconds: 45),
+        sendTimeout: const Duration(seconds: 45),
+        receiveTimeout: const Duration(seconds: 90),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -104,6 +107,19 @@ class ApiService {
                 'Test: GET /api/simple-auth/ping (see backend simpleAuth routes).',
               );
             }
+          }
+          // Timeouts / offline — never surface raw Dio "RequestOptions.connectTimeout" text.
+          if (error.type == DioExceptionType.connectionTimeout ||
+              error.type == DioExceptionType.sendTimeout ||
+              error.type == DioExceptionType.receiveTimeout ||
+              error.type == DioExceptionType.connectionError) {
+            final friendly = DioException(
+              requestOptions: error.requestOptions,
+              type: error.type,
+              error: error.error,
+              message: userMessageFromDio(error),
+            );
+            return handler.next(friendly);
           }
           // 429: rate limit — show clear message (not raw Dio validateStatus text)
           if (error.response?.statusCode == 429) {

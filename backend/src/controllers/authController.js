@@ -34,7 +34,13 @@ const sendOTPController = asyncHandler(async (req, res) => {
       }
       throw err;
     }
-    await sendOTPByEmail(emailNorm, otpData.otp);
+    // Don't block HTTP response on SMTP — slow mail servers caused mobile timeouts.
+    sendOTPByEmail(emailNorm, otpData.otp).catch((err) => {
+      logger.error('send-otp sendOTPByEmail failed (async)', {
+        email: emailNorm,
+        message: err.message,
+      });
+    });
     const responseData = {
       message: 'OTP sent to your email',
       email: emailNorm,
