@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/union_service.dart';
 import '../../services/upload_service.dart';
+import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/role_exclusivity.dart';
 import '../../core/utils/kyc_image_picker.dart';
@@ -321,7 +322,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                     ],
                     const SizedBox(height: 12),
                     Text(
-                      loc.t('union.pending.body'),
+                      loc.tReplace('union.pending.body', {'supportEmail': BrandConfig.supportEmail}),
                       style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.4),
                     ),
                   ],

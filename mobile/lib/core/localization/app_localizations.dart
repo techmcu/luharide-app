@@ -154,9 +154,9 @@ class AppLocalizations {
     },
     'union.pending.body': {
       'en':
-          'Your union registration has been received. Our team usually reviews within 24–48 hours. Use “Check status” after some time.\n\nIf it takes longer, email us at supportluharide@gmail.com with your union name and phone in the subject line.',
+          'Your union registration has been received. Our team usually reviews within 24–48 hours. Use “Check status” after some time.\n\nIf it takes longer, email us at {supportEmail} with your union name and phone in the subject line.',
       'hi':
-          'आपका यूनियन पंजीकरण प्राप्त हो गया है। हमारी टीम आमतौर पर 24–48 घंटे में जाँच करती है। कुछ समय बाद “स्थिति देखें” दबाएँ।\n\nअगर और देर हो, तो supportluharide@gmail.com पर यूनियन नाम और फ़ोन विषय में लिखकर ईमेल करें।',
+          'आपका यूनियन पंजीकरण प्राप्त हो गया है। हमारी टीम आमतौर पर 24–48 घंटे में जाँच करती है। कुछ समय बाद “स्थिति देखें” दबाएँ।\n\nअगर और देर हो, तो {supportEmail} पर यूनियन नाम और फ़ोन विषय में लिखकर ईमेल करें।',
     },
     'union.pending.check': {
       'en': 'Check status',
@@ -176,9 +176,9 @@ class AppLocalizations {
     },
     'profile.verify.pending_body': {
       'en':
-          'Your driver verification is pending. We usually review within 24–48 hours.\n\nIf it takes longer, email supportluharide@gmail.com with your name and phone in the subject line.',
+          'Your driver verification is pending. We usually review within 24–48 hours.\n\nIf it takes longer, email {supportEmail} with your name and phone in the subject line.',
       'hi':
-          'आपका ड्राइवर सत्यापन लंबित है। हम आमतौर पर 24–48 घंटे में जाँच करते हैं।\n\nअगर देर हो, तो supportluharide@gmail.com पर नाम और फ़ोन विषय में लिखकर ईमेल करें।',
+          'आपका ड्राइवर सत्यापन लंबित है। हम आमतौर पर 24–48 घंटे में जाँच करते हैं।\n\nअगर देर हो, तो {supportEmail} पर नाम और फ़ोन विषय में लिखकर ईमेल करें।',
     },
     'profile.verify.need_docs': {
       'en': 'Please complete document verification before creating rides.',

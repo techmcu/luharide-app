@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../core/app_navigator.dart';
+import '../../core/brand_config.dart';
+import '../../core/legal_document_info.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../providers/auth_provider.dart';
 import '../home/home_screen.dart';
+import '../profile/terms_screen.dart';
 import 'simple_login_screen.dart';
 class SimpleSignupScreen extends StatefulWidget {
   final String userType;
@@ -25,6 +30,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
   final _otpController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _acceptedTermsAndPrivacy = false;
   int _step = 1; // 1 = enter email & send OTP, 2 = enter OTP + name + password
 
   @override
@@ -38,6 +44,15 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
 
   Future<void> _sendOtp() async {
     if (_isLoading) return;
+    if (!_acceptedTermsAndPrivacy) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept Terms & Privacy policy to continue.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -82,6 +97,15 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
 
   Future<void> _verifyAndSignup() async {
     if (_isLoading) return;
+    if (!_acceptedTermsAndPrivacy) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept Terms & Privacy policy to continue.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
 
     final email = _emailController.text.trim();
@@ -180,7 +204,78 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
             return null;
           },
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        Text(
+          LegalDocumentInfo.termsSummaryLine,
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Checkbox(
+              value: _acceptedTermsAndPrivacy,
+              onChanged: _isLoading
+                  ? null
+                  : (v) => setState(() => _acceptedTermsAndPrivacy = v ?? false),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 0,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                      'I agree to the ',
+                      style: TextStyle(fontSize: 14, height: 1.35, color: Colors.grey[800]),
+                    ),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(builder: (_) => const TermsScreen()),
+                        );
+                      },
+                      child: const Text('Terms'),
+                    ),
+                    Text(' & ', style: TextStyle(fontSize: 14, color: Colors.grey[800])),
+                    TextButton(
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () async {
+                        final u = BrandConfig.privacyPolicyUri;
+                        if (u != null && await canLaunchUrl(u)) {
+                          await launchUrl(u, mode: LaunchMode.externalApplication);
+                          return;
+                        }
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(BrandConfig.privacyPolicyUrl.isNotEmpty
+                                ? BrandConfig.privacyPolicyUrl
+                                : 'Open Help for privacy'),
+                          ),
+                        );
+                      },
+                      child: const Text('Privacy policy'),
+                    ),
+                    Text('.', style: TextStyle(fontSize: 14, color: Colors.grey[800])),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
           height: 56,
@@ -305,7 +400,73 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
               return null;
             },
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Checkbox(
+                value: _acceptedTermsAndPrivacy,
+                onChanged: _isLoading
+                    ? null
+                    : (v) => setState(() => _acceptedTermsAndPrivacy = v ?? false),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    runSpacing: 4,
+                    children: [
+                      Text('I agree to ', style: TextStyle(fontSize: 13, color: Colors.grey[800])),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(builder: (_) => const TermsScreen()),
+                          );
+                        },
+                        child: const Text('Terms'),
+                      ),
+                      Text(' & ', style: TextStyle(fontSize: 13, color: Colors.grey[800])),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () async {
+                          final u = BrandConfig.privacyPolicyUri;
+                          if (u != null && await canLaunchUrl(u)) {
+                            await launchUrl(u, mode: LaunchMode.externalApplication);
+                            return;
+                          }
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(BrandConfig.privacyPolicyUrl.isNotEmpty
+                                  ? BrandConfig.privacyPolicyUrl
+                                  : 'Open Help for privacy'),
+                            ),
+                          );
+                        },
+                        child: const Text('Privacy policy'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            LegalDocumentInfo.termsSummaryLine,
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             height: 56,

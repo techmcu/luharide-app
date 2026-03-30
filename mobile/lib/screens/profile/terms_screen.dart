@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/brand_config.dart';
+import '../../core/legal_document_info.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
 
@@ -95,7 +96,12 @@ final List<({String title, String body})> _termsEn = [
     body:
         'We process limited personal data to run the Service (e.g. name, phone, ride history). We do not sell '
         'your personal data. A separate privacy notice may apply; use the Service only if you agree to '
-        'reasonable processing for operations and support.',
+        'reasonable processing for operations and support. '
+        'Support & grievances: write to ${BrandConfig.grievContactEmail}. '
+        'KYC and verification documents are stored on access-controlled servers with standard safeguards; we '
+        'retain them only as long as needed for verification, fraud prevention, and legal compliance while '
+        'your account is active. After account closure we delete or anonymise them within a reasonable period '
+        'unless applicable law requires longer retention. We do not sell your document images.',
   ),
   (
     title: '9. Account suspension',
@@ -195,7 +201,11 @@ final List<({String title, String body})> _termsHi = [
     body:
         'सेवा चलाने के लिए सीमित व्यक्तिगत डेटा (नाम, फ़ोन, यात्रा इतिहास आदि) संसाधित करते हैं। व्यक्तिगत '
         'डेटा बेचते नहीं। अलग गोपनीयता नोटिस लागू हो सकता है; संचालन और सहायता के लिए उचित प्रसंस्करण स्वीकार '
-        'करके ही सेवा का उपयोग करें।',
+        'करके ही सेवा का उपयोग करें। '
+        'सहायता / शिकायत: ${BrandConfig.grievContactEmail} पर लिखें। '
+        'सत्यापन व केआईसी दस्तावेज़ सुरक्षित सर्वर पर रखे जाते हैं; जब तक खाता सक्रिय है और कानून/सत्यापन '
+        'के लिए ज़रूरी है, तब तक ही रखते हैं। खाता बंद होने के बाद जहाँ तक कानून अनुमति दे, उचित समय में '
+        'हटा देते या अनाम कर देते हैं। दस्तावेज़ बेचते नहीं।',
   ),
   (
     title: '9. खाता निलंबन',
@@ -233,6 +243,11 @@ class TermsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Text(
+            LegalDocumentInfo.termsSummaryLine,
+            style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 16),
           for (final s in sections) ...[
             Text(
               s.title,

@@ -11,10 +11,14 @@ class BrandConfig {
   static const String whatsAppWaMeDigits = '917060618851';
   static const String whatsAppDisplay = '+91 70606 18851';
 
-  static const String supportEmail = 'supportluharide@gmail.com';
+  /// General support & grievance channel (also for privacy questions).
+  static const String supportEmail = 'infoluharide@gmail.com';
 
-  /// Public privacy policy page for Play Console. Empty until hosted — then set `https://...`.
-  static const String privacyPolicyUrl = '';
+  /// Public-facing grievance inbox (same as support unless you split later).
+  static const String grievContactEmail = 'infoluharide@gmail.com';
+
+  /// Host `docs/PRIVACY_AND_GRIEVANCE.md` content at this URL on `luharide.cloud`.
+  static const String privacyPolicyUrl = 'https://luharide.cloud/privacy';
 
   static Uri? get privacyPolicyUri {
     final s = privacyPolicyUrl.trim();

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/app_language_provider.dart';
 import '../../core/app_navigator.dart';
+import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../landing/landing_screen.dart';
 import '../trips/passenger_my_rides_screen.dart';
@@ -487,7 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showVerifyDialog(
         context,
         authProvider,
-        loc.t('profile.verify.pending_body'),
+        loc.tReplace('profile.verify.pending_body', {'supportEmail': BrandConfig.supportEmail}),
       );
     } else {
       _showVerifyDialog(context, authProvider, loc.t('profile.verify.need_docs'));

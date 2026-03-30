@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/brand_app_bar_title.dart';
+import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
@@ -751,7 +752,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       _showVerifyPopup(
         context,
         'Your driver verification is pending. Admin usually reviews within 24–48 hours.\n\n'
-        'Agar isse zyada delay ho jaye, to aap supportluharide@gmail.com par politely email karke '
+        'Agar isse zyada delay ho jaye, to aap ${BrandConfig.supportEmail} par politely email karke '
         'apni request ka status pooch sakte hain (subject mein apna naam aur phone number likh kar).',
       );
     } else {
