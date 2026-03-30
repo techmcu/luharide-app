@@ -42,9 +42,9 @@ class ApiService {
       BaseOptions(
         // Every call uses [buildApiUrl] — empty avoids any merge ambiguity.
         baseUrl: '',
-        // Slightly generous for slow mobile networks & OTP endpoints (server still must be up).
-        connectTimeout: const Duration(seconds: 45),
-        sendTimeout: const Duration(seconds: 45),
+        // Mobile networks + auth endpoints: allow headroom (server must still be reachable).
+        connectTimeout: const Duration(seconds: 60),
+        sendTimeout: const Duration(seconds: 60),
         receiveTimeout: const Duration(seconds: 90),
         headers: {
           'Content-Type': 'application/json',

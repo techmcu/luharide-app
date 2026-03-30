@@ -300,24 +300,41 @@ class AuthService {
   Future<bool> requestPasswordReset({
     required String email,
   }) async {
-    try {
-      final response = await _apiService.post(
-        '/simple-auth/forgot-password',
-        data: {
-          'email': email.trim().toLowerCase(),
-        },
-      );
+    DioException? lastTimeout;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await _apiService.post(
+          '/simple-auth/forgot-password',
+          data: {
+            'email': email.trim().toLowerCase(),
+          },
+        );
 
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        return true;
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          return true;
+        }
+        final body = response.data;
+        final msg = body is Map ? body['message']?.toString() : null;
+        throw Exception(msg ?? 'Failed to request password reset');
+      } on DioException catch (e) {
+        final canRetry = attempt == 0 &&
+            (e.type == DioExceptionType.connectionTimeout ||
+                e.type == DioExceptionType.receiveTimeout ||
+                e.type == DioExceptionType.connectionError);
+        if (canRetry) {
+          lastTimeout = e;
+          await Future<void>.delayed(const Duration(milliseconds: 900));
+          continue;
+        }
+        if (e.response != null) {
+          final data = e.response!.data;
+          final msg = data is Map ? data['message']?.toString() : null;
+          throw Exception(msg ?? 'Failed to request password reset');
+        }
+        throw Exception(userMessageFromDio(lastTimeout ?? e));
       }
-      throw Exception(response.data['message'] ?? 'Failed to request password reset');
-    } on DioException catch (e) {
-      if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to request password reset');
-      }
-      throw Exception(userMessageFromDio(e));
     }
+    throw Exception(userMessageFromDio(lastTimeout!));
   }
 
   /// Reset password using email + OTP

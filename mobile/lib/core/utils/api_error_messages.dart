@@ -1,5 +1,25 @@
 import 'package:dio/dio.dart';
 
+/// Safe message for [AuthProvider] / SnackBars: never show raw Dio "RequestOptions…" text.
+String userFacingAuthError(Object error) {
+  if (error is DioException) {
+    return userMessageFromDio(error);
+  }
+  final raw = error.toString().replaceAll('Exception:', '').trim();
+  if (_looksLikeRawDioAdvice(raw) ||
+      raw.contains('connection took longer than') ||
+      (raw.contains('0:00:') && raw.contains('aborted'))) {
+    return 'Server se time par jawab nahi mila (timeout). Internet check karke thodi der baad dubara try karein. '
+        '(Request timed out.)';
+  }
+  if (raw.contains('SocketException') ||
+      raw.contains('Failed host lookup') ||
+      raw.contains('Network is unreachable')) {
+    return 'Server tak pahunch nahi paye. Wi‑Fi / mobile data check karein. (Cannot reach server.)';
+  }
+  return raw;
+}
+
 /// User-facing text for SnackBars (Hindi + English short).
 String userMessageFromDio(DioException e) {
   // No HTTP body: timeouts, DNS, offline, TLS — always show simple text (never raw Dio internals).

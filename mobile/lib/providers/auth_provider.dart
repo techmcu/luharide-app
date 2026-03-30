@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../core/utils/api_error_messages.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/realtime_socket_service.dart';
@@ -83,7 +84,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -114,7 +115,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -130,7 +131,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -163,7 +164,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -184,7 +185,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       notifyListeners(); // Notify UI to rebuild
     } catch (e) {
-      _error = e.toString();
+      _error = userFacingAuthError(e);
       _user = null;
       _status = AuthStatus.unauthenticated;
       _setLoading(false);
@@ -219,7 +220,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -243,7 +244,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return ok;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -259,7 +260,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return ok;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -283,7 +284,7 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       return ok;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _setLoading(false);
       notifyListeners();
       return false;
@@ -296,7 +297,7 @@ class AuthProvider with ChangeNotifier {
       _user = await _authService.getCurrentUser();
       notifyListeners();
     } catch (e) {
-      _error = e.toString();
+      _error = userFacingAuthError(e);
       notifyListeners();
     }
   }
@@ -335,7 +336,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners(); // Ensure UI rebuilds
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _user = null;
       _status = AuthStatus.unauthenticated;
       _setLoading(false);
@@ -379,7 +380,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners(); // Ensure UI rebuilds
       return true;
     } catch (e) {
-      _error = e.toString().replaceAll('Exception: ', '');
+      _error = userFacingAuthError(e);
       _user = null;
       _status = AuthStatus.unauthenticated;
       _setLoading(false);
