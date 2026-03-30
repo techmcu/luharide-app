@@ -1,7 +1,7 @@
 # LuhaRide — Privacy, KYC retention & grievance contact (public copy)
 
 Host this content at **`https://luharide.cloud/privacy`** (or merge into your full Privacy Policy).  
-The mobile app uses `BrandConfig.privacyPolicyUrl`. **Not legal advice** — have counsel review for India / DPDP.
+The mobile app uses `BrandConfig.privacyPolicyUrl`.
 
 ---
 
@@ -9,7 +9,7 @@ The mobile app uses `BrandConfig.privacyPolicyUrl`. **Not legal advice** — hav
 
 For **questions, feedback, privacy requests, or grievances** about the LuhaRide service operated under **TECHMCU**:
 
-**Email:** [infoluharide@gmail.com](mailto:infoluharide@gmail.com)
+**Email:** [supportluharide@gmail.com](mailto:supportluharide@gmail.com)
 
 We aim to **acknowledge genuine queries** within a **reasonable time** and route serious safety or abuse reports appropriately.  
 *(If your lawyer advises a label such as “Grievance Officer” under applicable rules, use that title on this page and in the Play Console Data safety form.)*
@@ -31,4 +31,4 @@ We treat rider and driver data with **care proportional to a transport marketpla
 
 ---
 
-*Last updated: 30 March 2026 · Terms version 1.0*
+*Last updated: 30 March 2026 · Terms version 1.0.0*

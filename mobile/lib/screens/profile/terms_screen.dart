@@ -232,9 +232,9 @@ class TermsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<AppLanguageProvider>();
-    final loc = AppLocalizations.of(context);
-    final sections = _termsSections(context.read<AppLanguageProvider>().language);
+    final lang = context.watch<AppLanguageProvider>().language;
+    final loc = AppLocalizations(lang);
+    final sections = _termsSections(lang);
 
     return Scaffold(
       appBar: AppBar(
@@ -260,10 +260,6 @@ class TermsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
           ],
-          Text(
-            loc.t('terms.disclaimer'),
-            style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
-          ),
         ],
       ),
     );

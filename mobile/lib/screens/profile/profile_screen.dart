@@ -107,7 +107,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<AppLanguageProvider>();
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
     final role = widget.userRole ?? user?.role ?? 'passenger';
@@ -115,7 +114,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final driverStatus = user?.driverVerificationStatus ?? 'none';
     final isUnionAdmin = user?.role == 'union_admin';
 
-    final loc = AppLocalizations.of(context);
+    final lang = context.watch<AppLanguageProvider>().language;
+    final loc = AppLocalizations(lang);
 
     return Scaffold(
       appBar: AppBar(

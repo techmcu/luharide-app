@@ -273,16 +273,24 @@ class AppLocalizations {
       'hi': 'संपर्क व सहायता',
     },
     'help.email.label': {
-      'en': 'Email',
-      'hi': 'ईमेल',
+      'en': 'Email support',
+      'hi': 'ईमेल सहायता',
     },
-    'help.whatsapp.label': {
-      'en': 'WhatsApp support',
-      'hi': 'WhatsApp सहायता',
+    'help.email.tap_hint': {
+      'en': 'Tap here to open your email app and send us your question or request.',
+      'hi': 'अपना प्रश्न या अनुरोध भेजने हेतु अपना ईमेल ऐप खोलने के लिए यहाँ टैप करें।',
     },
-    'help.whatsapp.tap': {
-      'en': 'Tap to open WhatsApp chat',
-      'hi': 'WhatsApp चैट खोलने के लिए टैप करें',
+    'help.email.subject': {
+      'en': 'Support request',
+      'hi': 'सहायता अनुरोध',
+    },
+    'help.email.body_prefill': {
+      'en': 'Hello LuhaRide team,\n\n[Please write your question or feedback here]\n\n',
+      'hi': 'नमस्ते LuhaRide टीम,\n\n[कृपया अपना प्रश्न या फीडबैक यहाँ लिखें]\n\n',
+    },
+    'help.email.open_failed': {
+      'en': 'Could not open email app. Please write to us at the address above.',
+      'hi': 'ईमेल ऐप नहीं खुल सका। कृपया ऊपर दिए पते पर हमें लिखें।',
     },
     'help.about.title': {
       'en': 'About this app',
@@ -351,14 +359,6 @@ class AppLocalizations {
     'terms.title': {
       'en': 'Terms & conditions',
       'hi': 'नियम व शर्तें',
-    },
-    'terms.disclaimer': {
-      'en':
-          'This text is for general information only and is not legal advice. Have your Terms, Privacy Policy, '
-          'and data practices reviewed by a qualified lawyer before large-scale or commercial use.',
-      'hi':
-          'यह पाठ सामान्य जानकारी के लिए है, कानूनी सलाह नहीं। व्यापक या वाणिज्यिक उपयोग से पहले योग्य वकील से '
-          'नियम, गोपनीयता नीति और डेटा प्रथाओं की समीक्षा करवाएँ।',
     },
     // Passenger — My bookings / rides list
     'my_rides.title': {

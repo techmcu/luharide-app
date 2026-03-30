@@ -8,29 +8,29 @@ import '../../core/config/env_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
 
+Future<void> _openSupportEmail(BuildContext context, AppLocalizations loc) async {
+  final subject = Uri.encodeComponent(
+    '${BrandConfig.appName} — ${loc.t('help.email.subject')}',
+  );
+  final body = Uri.encodeComponent(loc.t('help.email.body_prefill'));
+  final u = Uri.parse('mailto:${BrandConfig.supportEmail}?subject=$subject&body=$body');
+  if (await canLaunchUrl(u)) {
+    await launchUrl(u, mode: LaunchMode.externalApplication);
+    return;
+  }
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(loc.t('help.email.open_failed'))),
+  );
+}
+
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
-  Future<void> _openWhatsApp() async {
-    final u = BrandConfig.whatsAppUri;
-    if (await canLaunchUrl(u)) {
-      await launchUrl(u, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  Future<void> _openEmail() async {
-    final u = Uri(
-      scheme: 'mailto',
-      path: BrandConfig.supportEmail,
-      queryParameters: {'subject': '${BrandConfig.appName} support'},
-    );
-    if (await canLaunchUrl(u)) await launchUrl(u);
-  }
-
   @override
   Widget build(BuildContext context) {
-    context.watch<AppLanguageProvider>();
-    final loc = AppLocalizations.of(context);
+    final lang = context.watch<AppLanguageProvider>().language;
+    final loc = AppLocalizations(lang);
 
     return Scaffold(
       appBar: AppBar(
@@ -94,19 +94,29 @@ class HelpScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ListTile(
-            leading: const Icon(Icons.email_outlined),
+            leading: Icon(Icons.email_outlined, color: Colors.blue[700]),
             title: Text(loc.t('help.email.label')),
-            subtitle: const Text(BrandConfig.supportEmail),
-            onTap: _openEmail,
-          ),
-          ListTile(
-            leading: const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
-            title: Text(loc.t('help.whatsapp.label')),
-            subtitle: Text(
-              '${BrandConfig.whatsAppDisplay}\n${loc.t('help.whatsapp.tap')}',
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  BrandConfig.supportEmail,
+                  style: TextStyle(
+                    color: Colors.blue[700],
+                    fontWeight: FontWeight.w600,
+                    decoration: TextDecoration.underline,
+                    decorationColor: Colors.blue[700],
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  loc.t('help.email.tap_hint'),
+                  style: TextStyle(fontSize: 12.5, height: 1.35, color: Colors.grey[700]),
+                ),
+              ],
             ),
             isThreeLine: true,
-            onTap: _openWhatsApp,
+            onTap: () => _openSupportEmail(context, loc),
           ),
           const SizedBox(height: 24),
           Text(
