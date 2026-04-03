@@ -27,7 +27,6 @@ class _DriverVerificationFormScreenState
   final _formKey = GlobalKey<FormState>();
   final _service = DriverVerificationService();
   final _uploadService = UploadService();
-  final _licenseController = TextEditingController();
   final _vehicleRegController = TextEditingController();
   final _contactPhoneController = TextEditingController();
   final _contactEmailController = TextEditingController();
@@ -39,6 +38,7 @@ class _DriverVerificationFormScreenState
   XFile? _licenseBackFile;
   bool _checkingUnionPath = true;
   bool _unionPathBlocksIndependent = false;
+  bool _verificationAlreadyPending = false;
 
   @override
   void initState() {
@@ -47,6 +47,14 @@ class _DriverVerificationFormScreenState
       final auth = context.read<AuthProvider>();
       _contactPhoneController.text = (auth.user?.phone ?? '').trim();
       _contactEmailController.text = (auth.user?.email ?? '').trim();
+      final dv = auth.user?.driverVerificationStatus ?? 'none';
+      if (dv == 'pending') {
+        setState(() {
+          _verificationAlreadyPending = true;
+          _checkingUnionPath = false;
+        });
+        return;
+      }
       _checkUnionExclusivity();
     });
   }
@@ -80,7 +88,6 @@ class _DriverVerificationFormScreenState
 
   @override
   void dispose() {
-    _licenseController.dispose();
     _vehicleRegController.dispose();
     _contactPhoneController.dispose();
     _contactEmailController.dispose();
@@ -95,10 +102,11 @@ class _DriverVerificationFormScreenState
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final loc = AppLocalizations.of(context);
     if (_selectedVehicle == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please select your vehicle'),
+        SnackBar(
+            content: Text(loc.t('kyc.driver.snack.select_vehicle')),
             backgroundColor: Colors.orange),
       );
       return;
@@ -109,9 +117,8 @@ class _DriverVerificationFormScreenState
         _licenseFrontFile == null ||
         _licenseBackFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'Aadhaar front/back aur Driving License front/back ki photos zaroori hain.'),
+        SnackBar(
+            content: Text(loc.t('kyc.driver.snack.missing_docs')),
             backgroundColor: Colors.orange),
       );
       return;
@@ -153,7 +160,6 @@ class _DriverVerificationFormScreenState
     final vehicleModel = v.displayName;
 
     final result = await _service.submitVerification(
-      drivingLicenseNumber: _licenseController.text.trim(),
       drivingLicenseUrl: licenseFrontUrl,
       vehicleRegistration: _vehicleRegController.text.trim(),
       vehicleType: vehicleType,
@@ -177,7 +183,9 @@ class _DriverVerificationFormScreenState
     if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-            content: Text(result['message'] ?? 'Submitted! Admin will review.'),
+            content: Text(
+                result['message']?.toString() ??
+                    AppLocalizations.of(context).t('kyc.driver.snack.submitted')),
             backgroundColor: Colors.green),
       );
       Navigator.pop(context, true);
@@ -197,17 +205,50 @@ class _DriverVerificationFormScreenState
     if (_checkingUnionPath) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Become a Driver'),
+          title: Text(loc.t('kyc.driver.title')),
           backgroundColor: Colors.green,
           foregroundColor: Colors.white,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
+    if (_verificationAlreadyPending) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(loc.t('kyc.driver.title')),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Icon(Icons.hourglass_empty, size: 56, color: Colors.green[700]),
+              const SizedBox(height: 16),
+              Text(
+                loc.t('kyc.driver.already_pending_title'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                loc.t('kyc.driver.already_pending_body'),
+                style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+              ),
+              const Spacer(),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(loc.t('kyc.driver.back')),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     if (_unionPathBlocksIndependent) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Become a Driver'),
+          title: Text(loc.t('kyc.driver.title')),
           backgroundColor: Colors.green,
           foregroundColor: Colors.white,
         ),
@@ -240,7 +281,7 @@ class _DriverVerificationFormScreenState
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Become a Driver'),
+        title: Text(loc.t('kyc.driver.title')),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
@@ -258,14 +299,14 @@ class _DriverVerificationFormScreenState
                   controller: _contactPhoneController,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    labelText: 'Contact number (driver)',
+                    labelText: loc.t('kyc.driver.contact_phone'),
                     prefixIcon: const Icon(Icons.phone_outlined),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   validator: (v) {
                     final s = (v ?? '').replaceAll(' ', '').trim();
-                    if (s.length < 10) return 'Valid phone number zaroori hai';
+                    if (s.length < 10) return loc.t('kyc.driver.val.phone');
                     return null;
                   },
                 ),
@@ -274,16 +315,16 @@ class _DriverVerificationFormScreenState
                   controller: _contactEmailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    labelText: 'Email ID (driver)',
+                    labelText: loc.t('kyc.driver.contact_email'),
                     prefixIcon: const Icon(Icons.email_outlined),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   validator: (v) {
                     final s = (v ?? '').trim();
-                    if (s.isEmpty) return 'Email zaroori hai';
+                    if (s.isEmpty) return loc.t('kyc.driver.val.email_required');
                     if (!s.contains('@') || !s.contains('.')) {
-                      return 'Sahi email likhein';
+                      return loc.t('kyc.driver.val.email_invalid');
                     }
                     return null;
                   },
@@ -299,8 +340,7 @@ class _DriverVerificationFormScreenState
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Yeh form sirf asli taxi drivers ke liye hai. Galat / jhoothi details bharne par aapka account block ho sakta hai.\n\n'
-                            'Submit your documents for verification. Admin will review within 24-48 hours.',
+                            loc.t('kyc.driver.info_card'),
                             style: TextStyle(
                                 fontSize: 14, color: Colors.blue[900]),
                           ),
@@ -310,27 +350,13 @@ class _DriverVerificationFormScreenState
                   ),
                 ),
                 const SizedBox(height: 24),
-                TextFormField(
-                  controller: _licenseController,
-                  decoration: InputDecoration(
-                    labelText: 'Driving License Number',
-                    hintText: 'DL-XX-XXXX-XXXX',
-                    prefixIcon: const Icon(Icons.badge),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Upload documents',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Text(
+                  loc.t('kyc.driver.upload_heading'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Har file ka size kam se kam 50 KB aur zyada se zyada 10 MB ho (photo ya PDF). Is se chhoti ya bahut badi file upload na karein.\n'
-                  'Images par server "Verified by LuhaRide" ka watermark laga sakta hai — sirf verification ke liye.',
+                  loc.t('kyc.driver.upload_note'),
                   style: TextStyle(fontSize: 12, color: Colors.grey[800], height: 1.35),
                 ),
                 const SizedBox(height: 8),
@@ -339,7 +365,7 @@ class _DriverVerificationFormScreenState
                   runSpacing: 8,
                   children: [
                     _DocChip(
-                      label: 'Aadhaar front *',
+                      label: loc.t('kyc.driver.chip.aadhaar_front'),
                       selected: _aadhaarFrontFile != null,
                       onTap: _isLoading
                           ? null
@@ -347,7 +373,7 @@ class _DriverVerificationFormScreenState
                               (f) => setState(() => _aadhaarFrontFile = f)),
                     ),
                     _DocChip(
-                      label: 'Aadhaar back *',
+                      label: loc.t('kyc.driver.chip.aadhaar_back'),
                       selected: _aadhaarBackFile != null,
                       onTap: _isLoading
                           ? null
@@ -355,7 +381,7 @@ class _DriverVerificationFormScreenState
                               (f) => setState(() => _aadhaarBackFile = f)),
                     ),
                     _DocChip(
-                      label: 'Driving licence front *',
+                      label: loc.t('kyc.driver.chip.dl_front'),
                       selected: _licenseFrontFile != null,
                       onTap: _isLoading
                           ? null
@@ -363,7 +389,7 @@ class _DriverVerificationFormScreenState
                               (f) => setState(() => _licenseFrontFile = f)),
                     ),
                     _DocChip(
-                      label: 'Driving licence back *',
+                      label: loc.t('kyc.driver.chip.dl_back'),
                       selected: _licenseBackFile != null,
                       onTap: _isLoading
                           ? null
@@ -376,20 +402,22 @@ class _DriverVerificationFormScreenState
                 TextFormField(
                   controller: _vehicleRegController,
                   decoration: InputDecoration(
-                    labelText: 'Vehicle Registration (RC)',
-                    hintText: 'e.g. UK07AB1234',
+                    labelText: loc.t('kyc.driver.vehicle_reg'),
+                    hintText: loc.t('kyc.driver.vehicle_reg.hint'),
                     prefixIcon: const Icon(Icons.directions_car),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
+                  textCapitalization: TextCapitalization.characters,
                   validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Required' : null,
+                      (v == null || v.trim().isEmpty)
+                          ? loc.t('kyc.driver.vehicle_reg.required')
+                          : null,
                 ),
                 const SizedBox(height: 20),
-                // Kaunsi gadi hai aapko? — dropdown fixes seat count & layout (RTO-style)
-                const Text(
-                  'Kaunsi gadi hai aapko?',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                Text(
+                  loc.t('kyc.driver.vehicle_type.title'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<VehicleDropdownOption>(
@@ -443,7 +471,8 @@ class _DriverVerificationFormScreenState
                     );
                   }).toList(),
                   onChanged: (opt) => setState(() => _selectedVehicle = opt),
-                  validator: (v) => v == null ? 'Select your vehicle' : null,
+                  validator: (v) =>
+                      v == null ? loc.t('kyc.driver.vehicle_type.required') : null,
                 ),
                 if (_selectedVehicle != null) ...[
                   const SizedBox(height: 12),
@@ -454,7 +483,8 @@ class _DriverVerificationFormScreenState
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${_selectedVehicle!.capacity} seats — same layout will show for passengers when they book.',
+                          loc.tReplace('kyc.driver.seats_note',
+                              {'n': '${_selectedVehicle!.capacity}'}),
                           style:
                               TextStyle(fontSize: 13, color: Colors.grey[700]),
                         ),
@@ -481,8 +511,8 @@ class _DriverVerificationFormScreenState
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2),
                           )
-                        : const Text('Submit for Verification',
-                            style: TextStyle(
+                        : Text(loc.t('kyc.driver.submit'),
+                            style: const TextStyle(
                                 fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                 ),

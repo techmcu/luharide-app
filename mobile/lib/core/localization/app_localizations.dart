@@ -940,6 +940,415 @@ class AppLocalizations {
       'hi': 'आज',
     },
     // Home shell — union admin / driver can switch to same find-rides UI as passengers
+    // KYC — driver verification (no Hinglish; EN or HI only)
+    'kyc.driver.title': {
+      'en': 'Become a driver',
+      'hi': 'ड्राइवर बनें',
+    },
+    'kyc.driver.already_pending_title': {
+      'en': 'Application in review',
+      'hi': 'आवेदन समीक्षा में',
+    },
+    'kyc.driver.self': {
+      'en': 'Driver',
+      'hi': 'ड्राइवर',
+    },
+    'kyc.driver.already_pending_body': {
+      'en':
+          'Your verification is already submitted. Please wait for the team to review it. You cannot send another request until it is approved or rejected.',
+      'hi':
+          'आपका सत्यापन पहले ही भेजा जा चुका है। कृपया टीम की समीक्षा की प्रतीक्षा करें। स्वीकृति या अस्वीकृति तक दोबारा आवेदन नहीं भेज सकते।',
+    },
+    'kyc.driver.back': {
+      'en': 'Back',
+      'hi': 'वापस',
+    },
+    'kyc.driver.contact_phone': {
+      'en': 'Contact phone',
+      'hi': 'संपर्क फ़ोन',
+    },
+    'kyc.driver.contact_email': {
+      'en': 'Contact email',
+      'hi': 'संपर्क ईमेल',
+    },
+    'kyc.driver.info_card': {
+      'en':
+          'This form is for genuine taxi operators only. False details may lead to account restrictions.\n\nDocuments are reviewed within about 24–48 hours.',
+      'hi':
+          'यह फॉर्म केवल वास्तविक टैक्सी संचालकों के लिए है। गलत जानकारी पर खाते पर प्रतिबंध लग सकता है।\n\nदस्तावेज़ लगभग 24–48 घंटे में देखे जाते हैं।',
+    },
+    'kyc.driver.upload_heading': {
+      'en': 'Upload documents',
+      'hi': 'दस्तावेज़ अपलोड करें',
+    },
+    'kyc.driver.upload_note': {
+      'en':
+          'Each file must be between 50 KB and 10 MB (photo or PDF). Images may receive a “Verified by LuhaRide” watermark for verification only.',
+      'hi':
+          'हर फ़ाइल 50 KB से 10 MB के बीच हो (फोटो या PDF)। छवियों पर केवल सत्यापन हेतु “Verified by LuhaRide” वॉटरमार्क लग सकता है।',
+    },
+    'kyc.driver.snack.missing_docs': {
+      'en': 'Please upload Aadhaar (front and back) and driving licence (front and back).',
+      'hi': 'कृपया आधार (आगे-पीछे) और ड्राइविंग लाइसेंस (आगे-पीछे) अपलोड करें।',
+    },
+    'kyc.driver.snack.select_vehicle': {
+      'en': 'Please select your vehicle type.',
+      'hi': 'कृपया वाहन प्रकार चुनें।',
+    },
+    'kyc.driver.val.phone': {
+      'en': 'Enter a valid phone number (at least 10 digits).',
+      'hi': 'मान्य फ़ोन नंबर दर्ज करें (कम से कम 10 अंक)।',
+    },
+    'kyc.driver.val.email_required': {
+      'en': 'Email is required.',
+      'hi': 'ईमेल आवश्यक है।',
+    },
+    'kyc.driver.val.email_invalid': {
+      'en': 'Enter a valid email address.',
+      'hi': 'मान्य ईमेल पता दर्ज करें।',
+    },
+    'kyc.driver.vehicle_reg': {
+      'en': 'Vehicle registration number',
+      'hi': 'वाहन पंजीकरण संख्या',
+    },
+    'kyc.driver.vehicle_reg.hint': {
+      'en': 'As on RC, e.g. UK07AB1234',
+      'hi': 'आरसी जैसा, उदਾ. UK07AB1234',
+    },
+    'kyc.driver.vehicle_reg.required': {
+      'en': 'Vehicle registration is required.',
+      'hi': 'वाहन पंजीकरण आवश्यक है।',
+    },
+    'kyc.driver.vehicle_type.title': {
+      'en': 'Vehicle type',
+      'hi': 'वाहन प्रकार',
+    },
+    'kyc.driver.vehicle_type.hint': {
+      'en': 'Select vehicle (capacity as per RTO)',
+      'hi': 'वाहन चुनें (आरटीओ के अनुसार क्षमता)',
+    },
+    'kyc.driver.vehicle_type.required': {
+      'en': 'Please select a vehicle.',
+      'hi': 'कृपया वाहन चुनें।',
+    },
+    'kyc.driver.seats_note': {
+      'en': '{n} seats — passengers see this layout when booking.',
+      'hi': '{n} सीटें — बुकिंग पर यात्री यही लेआउट देखेंगे।',
+    },
+    'kyc.driver.chip.aadhaar_front': {
+      'en': 'Aadhaar front',
+      'hi': 'आधार अगला',
+    },
+    'kyc.driver.chip.aadhaar_back': {
+      'en': 'Aadhaar back',
+      'hi': 'आधार पिछला',
+    },
+    'kyc.driver.chip.dl_front': {
+      'en': 'Driving licence front',
+      'hi': 'डीएल अगला',
+    },
+    'kyc.driver.chip.dl_back': {
+      'en': 'Driving licence back',
+      'hi': 'डीएल पिछला',
+    },
+    'kyc.driver.submit': {
+      'en': 'Submit for verification',
+      'hi': 'सत्यापन हेतु जमा करें',
+    },
+    'kyc.driver.snack.submitted': {
+      'en': 'Submitted. The team will review your request.',
+      'hi': 'जमा हो गया। टीम आपका आवेदन देखेगी।',
+    },
+    'kyc.trip.vehicle_locked_hint': {
+      'en': 'This number is from your driver verification and will be used on rides.',
+      'hi': 'यह नंबर आपके ड्राइवर सत्यापन से है और राइड में यही उपयोग होगा।',
+    },
+    'kyc.trip.vehicle_required': {
+      'en': 'Enter the vehicle registration number.',
+      'hi': 'वाहन पंजीकरण संख्या दर्ज करें।',
+    },
+    'kyc.union.snack.missing_docs': {
+      'en': 'Please upload union leader Aadhaar (front and back) and a clear union photo.',
+      'hi': 'कृपया यूनियन प्रमुख का आधार (आगे-पीछे) और स्पष्ट यूनियन फोटो अपलोड करें।',
+    },
+    'kyc.union.upload_note': {
+      'en': 'Required: leader Aadhaar (front and back) and one clear union photo. Each file 50 KB–10 MB (photo or PDF).',
+      'hi':
+          'आवश्यक: प्रमुख का आधार (आगे-पीछे) और एक स्पष्ट यूनियन फोटो। प्रत्येक फ़ाइल 50 KB–10 MB (फोटो या PDF)।',
+    },
+    'kyc.union.val.phone': {
+      'en': 'Leader phone is required.',
+      'hi': 'प्रमुख का फ़ोन आवश्यक है।',
+    },
+    'kyc.union.val.phone_len': {
+      'en': 'Phone must be at least 10 digits.',
+      'hi': 'फ़ोन कम से कम 10 अंक का हो।',
+    },
+    'kyc.union.val.email': {
+      'en': 'Leader email is required.',
+      'hi': 'प्रमुख का ईमेल आवश्यक है।',
+    },
+    'kyc.union.val.email_invalid': {
+      'en': 'Enter a valid email.',
+      'hi': 'मान्य ईमेल दर्ज करें।',
+    },
+    'kyc.union.label.leader_phone': {
+      'en': 'Union leader phone',
+      'hi': 'यूनियन प्रमुख फ़ोन',
+    },
+    'kyc.union.label.leader_email': {
+      'en': 'Union leader email',
+      'hi': 'यूनियन प्रमुख ईमेल',
+    },
+    'kyc.union.chip.aadhaar_front': {
+      'en': 'Leader Aadhaar front',
+      'hi': 'प्रमुख आधार अगला',
+    },
+    'kyc.union.chip.aadhaar_back': {
+      'en': 'Leader Aadhaar back',
+      'hi': 'प्रमुख आधार पिछला',
+    },
+    'kyc.union.chip.photo': {
+      'en': 'Union photo',
+      'hi': 'यूनियन फोटो',
+    },
+    'kyc.union.leader_name': {
+      'en': 'Union leader name',
+      'hi': 'यूनियन प्रमुख का नाम',
+    },
+    'kyc.union.name_required': {
+      'en': 'Enter the leader name.',
+      'hi': 'प्रमुख का नाम दर्ज करें।',
+    },
+    'kyc.union.name_short': {
+      'en': 'Name must be at least 2 characters.',
+      'hi': 'नाम कम से कम 2 अक्षर का हो।',
+    },
+    'kyc.union.union_name': {
+      'en': 'Union name',
+      'hi': 'यूनियन नाम',
+    },
+    'kyc.union.union_name_required': {
+      'en': 'Enter the union name.',
+      'hi': 'यूनियन नाम दर्ज करें।',
+    },
+    'kyc.union.union_name_short': {
+      'en': 'Union name must be at least 3 characters.',
+      'hi': 'यूनियन नाम कम से कम 3 अक्षर का हो।',
+    },
+    'kyc.union.location': {
+      'en': 'Union location',
+      'hi': 'यूनियन स्थान',
+    },
+    'kyc.union.location_required': {
+      'en': 'Enter the location.',
+      'hi': 'स्थान दर्ज करें।',
+    },
+    'kyc.union.details_section': {
+      'en': 'Union details',
+      'hi': 'यूनियन विवरण',
+    },
+    'kyc.union.submit': {
+      'en': 'Submit for approval',
+      'hi': 'अनुमोदन हेतु जमा करें',
+    },
+    'kyc.union.approved_nav': {
+      'en': 'Approved. Opening dashboard…',
+      'hi': 'स्वीकृत। डैशबोर्ड खुल रहा है…',
+    },
+    'kyc.union.upload_heading': {
+      'en': 'Upload documents',
+      'hi': 'दस्तावेज़ अपलोड करें',
+    },
+    // Admin — platform KYC review (follows app language)
+    'admin.stat.trips': {
+      'en': 'Trips',
+      'hi': 'यात्राएँ',
+    },
+    'admin.stat.bookings': {
+      'en': 'Bookings',
+      'hi': 'बुकिंग',
+    },
+    'admin.stat.drivers': {
+      'en': 'Drivers',
+      'hi': 'ड्राइवर',
+    },
+    'admin.action.reject': {
+      'en': 'Reject',
+      'hi': 'अस्वीकार',
+    },
+    'admin.action.approve': {
+      'en': 'Approve',
+      'hi': 'स्वीकृत करें',
+    },
+    'admin.reject.driver_title': {
+      'en': 'Reject driver',
+      'hi': 'ड्राइवर अस्वीकार करें',
+    },
+    'admin.reject.reason_hint': {
+      'en': 'Reason (optional)',
+      'hi': 'कारण (वैकल्पिक)',
+    },
+    'admin.logout.title': {
+      'en': 'Log out',
+      'hi': 'लॉग आउट',
+    },
+    'admin.logout.body': {
+      'en': 'Do you want to log out?',
+      'hi': 'क्या आप लॉग आउट करना चाहते हैं?',
+    },
+    'admin.snack.cannot_open': {
+      'en': 'Could not open the link.',
+      'hi': 'लिंक नहीं खुल सका।',
+    },
+    'admin.kyc.phone': {
+      'en': 'Phone',
+      'hi': 'फ़ोन',
+    },
+    'admin.kyc.email': {
+      'en': 'Email',
+      'hi': 'ईमेल',
+    },
+    'admin.kyc.aadhaar_legacy': {
+      'en': 'Aadhaar (single file)',
+      'hi': 'आधार (एक फ़ाइल)',
+    },
+    'admin.kyc.union_leader_dl_front': {
+      'en': 'Leader driving licence (front)',
+      'hi': 'प्रमुख ड्राइविंग लाइसेंस (अगला)',
+    },
+    'admin.kyc.union_leader_dl_back': {
+      'en': 'Leader driving licence (back)',
+      'hi': 'प्रमुख ड्राइविंग लाइसेंस (पिछला)',
+    },
+    'admin.kyc.union_rc_front': {
+      'en': 'Leader vehicle RC (front)',
+      'hi': 'प्रमुख वाहन आरसी (अगला)',
+    },
+    'admin.kyc.union_rc_back': {
+      'en': 'Leader vehicle RC (back)',
+      'hi': 'प्रमुख वाहन आरसी (पिछला)',
+    },
+    'admin.kyc.union_driver_list_photo': {
+      'en': 'Driver list photo',
+      'hi': 'ड्राइवर सूची फोटो',
+    },
+    'admin.panel.title': {
+      'en': 'Admin panel',
+      'hi': 'एडमिन पैनल',
+    },
+    'admin.empty': {
+      'en': 'No pending requests',
+      'hi': 'कोई लंबित अनुरोध नहीं',
+    },
+    'admin.empty.hint': {
+      'en': 'Union registrations and driver requests will appear here.',
+      'hi': 'यूनियन पंजीयन और ड्राइवर अनुरोध यहाँ दिखेंगे।',
+    },
+    'admin.section.union': {
+      'en': 'Pending union registrations',
+      'hi': 'लंबित यूनियन पंजीयन',
+    },
+    'admin.section.driver': {
+      'en': 'Pending driver requests',
+      'hi': 'लंबित ड्राइवर अनुरोध',
+    },
+    'admin.kyc.documents': {
+      'en': 'Documents',
+      'hi': 'दस्तावेज़',
+    },
+    'admin.kyc.contact': {
+      'en': 'Applicant contact (form)',
+      'hi': 'आवेदक संपर्क (फ़ॉर्म)',
+    },
+    'admin.kyc.vehicle': {
+      'en': 'Vehicle',
+      'hi': 'वाहन',
+    },
+    'admin.kyc.view_prefix': {
+      'en': 'Open',
+      'hi': 'खोलें',
+    },
+    'admin.kyc.aadhaar_front': {
+      'en': 'Aadhaar (front)',
+      'hi': 'आधार (अगला)',
+    },
+    'admin.kyc.aadhaar_back': {
+      'en': 'Aadhaar (back)',
+      'hi': 'आधार (पिछला)',
+    },
+    'admin.kyc.dl_front': {
+      'en': 'Driving licence (front)',
+      'hi': 'डीएल (अगला)',
+    },
+    'admin.kyc.dl_back': {
+      'en': 'Driving licence (back)',
+      'hi': 'डीएल (पिछला)',
+    },
+    'admin.kyc.dl_legacy': {
+      'en': 'Driving licence (file)',
+      'hi': 'डीएल फ़ाइल',
+    },
+    'admin.kyc.rc': {
+      'en': 'RC / registration file',
+      'hi': 'आरसी / पंजीकरण फ़ाइल',
+    },
+    'admin.kyc.rc_front': {
+      'en': 'RC (front)',
+      'hi': 'आरसी अगला',
+    },
+    'admin.kyc.rc_back': {
+      'en': 'RC (back)',
+      'hi': 'आरसी पिछला',
+    },
+    'admin.kyc.permit': {
+      'en': 'Permit',
+      'hi': 'परमिट',
+    },
+    'admin.kyc.insurance': {
+      'en': 'Insurance',
+      'hi': 'बीमा',
+    },
+    'admin.kyc.union_leader_aadhaar': {
+      'en': 'Leader Aadhaar (legacy)',
+      'hi': 'प्रमुख आधार (पुराना)',
+    },
+    'admin.kyc.union_aadhaar_front': {
+      'en': 'Leader Aadhaar (front)',
+      'hi': 'प्रमुख आधार अगला',
+    },
+    'admin.kyc.union_aadhaar_back': {
+      'en': 'Leader Aadhaar (back)',
+      'hi': 'प्रमुख आधार पिछला',
+    },
+    'admin.kyc.office_photo': {
+      'en': 'Office / union photo',
+      'hi': 'कार्यालय / यूनियन फोटो',
+    },
+    'admin.kyc.union_photo': {
+      'en': 'Union photo (alternate)',
+      'hi': 'यूनियन फोटो (वैकल्पिक)',
+    },
+    'admin.kyc.union_rc': {
+      'en': 'Leader vehicle RC',
+      'hi': 'प्रमुख वाहन आरसी',
+    },
+    'admin.kyc.union.section_leader': {
+      'en': 'Union leader',
+      'hi': 'यूनियन प्रमुख',
+    },
+    'admin.kyc.union.section_applicant': {
+      'en': 'Applicant (account)',
+      'hi': 'आवेदक (खाता)',
+    },
+    'admin.kyc.union.contact_lead': {
+      'en': 'Union contact',
+      'hi': 'यूनियन संपर्क',
+    },
+    'admin.kyc.fallback_union_name': {
+      'en': 'Taxi union',
+      'hi': 'टैक्सी यूनियन',
+    },
     'home.shell.tab.find_rides': {
       'en': 'Find rides',
       'hi': 'राइड खोजें',

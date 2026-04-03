@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/config/env_config.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
 import '../../core/app_navigator.dart';
@@ -94,20 +96,21 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   }
 
   Future<void> _reject(String id) async {
+    final loc = AppLocalizations.of(context);
     final reason = await showDialog<String>(
       context: context,
       builder: (ctx) {
         final c = TextEditingController();
         return AlertDialog(
-          title: const Text('Reject Driver'),
+          title: Text(loc.t('admin.reject.driver_title')),
           content: TextField(
             controller: c,
-            decoration: const InputDecoration(hintText: 'Reason (optional)'),
+            decoration: InputDecoration(hintText: loc.t('admin.reject.reason_hint')),
             maxLines: 2,
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            TextButton(onPressed: () => Navigator.pop(ctx, c.text), child: const Text('Reject')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
+            TextButton(onPressed: () => Navigator.pop(ctx, c.text), child: Text(loc.t('admin.action.reject'))),
           ],
         );
       },
@@ -139,14 +142,16 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
       appBar: AppBar(
         centerTitle: false,
-        title: const BrandAppBarTitle(
+        title: BrandAppBarTitle(
           onColoredBar: true,
-          title: Text('Admin Panel'),
+          title: Text(loc.t('admin.panel.title')),
         ),
         backgroundColor: Colors.purple[700],
         foregroundColor: Colors.white,
@@ -169,15 +174,15 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: _buildStatCard('Trips', _totalTrips, Icons.directions_car, Colors.blue),
+                        child: _buildStatCard(loc.t('admin.stat.trips'), _totalTrips, Icons.directions_car, Colors.blue),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildStatCard('Bookings', _totalBookings, Icons.book_online, Colors.green),
+                        child: _buildStatCard(loc.t('admin.stat.bookings'), _totalBookings, Icons.book_online, Colors.green),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildStatCard('Drivers', _driversVerified, Icons.verified_user, Colors.orange),
+                        child: _buildStatCard(loc.t('admin.stat.drivers'), _driversVerified, Icons.verified_user, Colors.orange),
                       ),
                     ],
                   ),
@@ -197,12 +202,12 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                                 Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
                                 const SizedBox(height: 16),
                                 Text(
-                                  'No pending requests',
+                                  loc.t('admin.empty'),
                                   style: TextStyle(fontSize: 18, color: Colors.grey[600]),
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Union registrations and driver requests will appear here',
+                                  loc.t('admin.empty.hint'),
                                   style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                                   textAlign: TextAlign.center,
                                 ),
@@ -211,31 +216,27 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                           )
                         else ...[
                           if (_unionRequests.isNotEmpty) ...[
-                            const Text(
-                              'Pending union registrations',
-                              style: TextStyle(
+                            Text(
+                              loc.t('admin.section.union'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            ..._unionRequests
-                                .map((r) => _buildUnionRequestCard(r as Map<String, dynamic>))
-                                .toList(),
+                            ..._unionRequests.map((r) => _buildUnionRequestCard(loc, r as Map<String, dynamic>)),
                             const SizedBox(height: 16),
                           ],
                           if (_driverRequests.isNotEmpty) ...[
-                            const Text(
-                              'Pending driver requests',
-                              style: TextStyle(
+                            Text(
+                              loc.t('admin.section.driver'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 8),
-                            ..._driverRequests
-                                .map((r) => _buildRequestCard(r as Map<String, dynamic>))
-                                .toList(),
+                            ..._driverRequests.map((r) => _buildRequestCard(loc, r as Map<String, dynamic>)),
                           ],
                         ],
                       ],
@@ -271,18 +272,72 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     );
   }
 
-  Widget _buildRequestCard(Map<String, dynamic> r) {
+  String? _urlStr(Map<String, dynamic> r, String key) {
+    final v = r[key];
+    if (v == null) return null;
+    final s = v.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
+  List<Widget> _driverKycLinks(AppLocalizations loc, Map<String, dynamic> r) {
+    void add(List<Widget> list, String labelKey, String? url) {
+      if (url != null) list.add(_linkRow(loc, labelKey, url));
+    }
+
+    final out = <Widget>[];
+    add(out, 'admin.kyc.aadhaar_front', _urlStr(r, 'aadhaar_front_url'));
+    add(out, 'admin.kyc.aadhaar_back', _urlStr(r, 'aadhaar_back_url'));
+    add(out, 'admin.kyc.aadhaar_legacy', _urlStr(r, 'aadhaar_document_url'));
+    add(out, 'admin.kyc.dl_front', _urlStr(r, 'driving_license_front_url'));
+    add(out, 'admin.kyc.dl_back', _urlStr(r, 'driving_license_back_url'));
+    add(out, 'admin.kyc.dl_legacy', _urlStr(r, 'driving_license_url'));
+    add(out, 'admin.kyc.rc_front', _urlStr(r, 'rc_front_url'));
+    add(out, 'admin.kyc.rc_back', _urlStr(r, 'rc_back_url'));
+    add(out, 'admin.kyc.rc', _urlStr(r, 'rc_document_url'));
+    add(out, 'admin.kyc.permit', _urlStr(r, 'permit_document_url'));
+    add(out, 'admin.kyc.insurance', _urlStr(r, 'insurance_document_url'));
+    return out;
+  }
+
+  List<Widget> _unionKycLinks(AppLocalizations loc, Map<String, dynamic> r) {
+    void add(List<Widget> list, String labelKey, String? url) {
+      if (url != null) list.add(_linkRow(loc, labelKey, url));
+    }
+
+    final out = <Widget>[];
+    add(out, 'admin.kyc.union_aadhaar_front', _urlStr(r, 'owner_aadhaar_front_url'));
+    add(out, 'admin.kyc.union_aadhaar_back', _urlStr(r, 'owner_aadhaar_back_url'));
+    add(out, 'admin.kyc.union_leader_aadhaar', _urlStr(r, 'owner_aadhaar_url'));
+    add(out, 'admin.kyc.union_leader_dl_front', _urlStr(r, 'leader_driving_license_front_url'));
+    add(out, 'admin.kyc.union_leader_dl_back', _urlStr(r, 'leader_driving_license_back_url'));
+    add(out, 'admin.kyc.office_photo', _urlStr(r, 'office_photo_url'));
+    add(out, 'admin.kyc.union_photo', _urlStr(r, 'union_photo_url'));
+    add(out, 'admin.kyc.union_driver_list_photo', _urlStr(r, 'union_driver_list_photo_url'));
+    add(out, 'admin.kyc.union_rc_front', _urlStr(r, 'owner_vehicle_rc_front_url'));
+    add(out, 'admin.kyc.union_rc_back', _urlStr(r, 'owner_vehicle_rc_back_url'));
+    add(out, 'admin.kyc.union_rc', _urlStr(r, 'owner_vehicle_rc_url'));
+    return out;
+  }
+
+  Widget _buildRequestCard(AppLocalizations loc, Map<String, dynamic> r) {
     final id = r['id']?.toString() ?? '';
     final name = r['name'] ?? 'Unknown';
     final email = r['email'] ?? '';
     final phone = r['phone'] ?? '';
-    final license = r['driving_license_number'] ?? '-';
-    final vehicleReg = r['vehicle_registration'] ?? '-';
-    final vehicleType = r['vehicle_type'] ?? '-';
-    final vehicleModel = r['vehicle_model'] ?? '';
-    final licenseUrl = r['driving_license_url']?.toString();
-    final rcUrl = r['rc_document_url']?.toString();
-    final permitUrl = r['permit_document_url']?.toString();
+    final vehicleReg = (r['vehicle_registration'] ?? '').toString().trim();
+    final vehicleType = (r['vehicle_type'] ?? '').toString().trim();
+    final vehicleModel = (r['vehicle_model'] ?? '').toString().trim();
+    final cPhone = (r['contact_phone'] ?? '').toString().trim();
+    final cEmail = (r['contact_email'] ?? '').toString().trim();
+
+    String vehicleLine = '';
+    if (vehicleReg.isNotEmpty) {
+      vehicleLine = vehicleReg;
+      if (vehicleType.isNotEmpty) vehicleLine += ' ($vehicleType)';
+      if (vehicleModel.isNotEmpty) vehicleLine += ' — $vehicleModel';
+    }
+
+    final docLinks = _driverKycLinks(loc, r);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -298,7 +353,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                 CircleAvatar(
                   backgroundColor: Colors.orange[100],
                   child: Text(
-                    (name.toString().isNotEmpty ? name[0] : '?').toUpperCase(),
+                    (name.toString().isNotEmpty ? name.toString()[0] : '?').toUpperCase(),
                     style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange[800]),
                   ),
                 ),
@@ -307,8 +362,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      if (email.isNotEmpty) Text(email, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      Text(name.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      if (email.toString().isNotEmpty)
+                        Text(email.toString(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                       if (phone != null && phone.toString().trim().isNotEmpty)
                         Text(phone.toString(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                     ],
@@ -316,14 +372,18 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                 ),
               ],
             ),
+            if (cPhone.isNotEmpty || cEmail.isNotEmpty) ...[
+              const Divider(height: 24),
+              Text(loc.t('admin.kyc.contact'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 8),
+              if (cPhone.isNotEmpty) _docRow(loc.t('admin.kyc.phone'), cPhone),
+              if (cEmail.isNotEmpty) _docRow(loc.t('admin.kyc.email'), cEmail),
+            ],
             const Divider(height: 24),
-            const Text('Documents', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(loc.t('admin.kyc.documents'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
-            _docRow('License', license),
-            if (vehicleReg != '-') _docRow('Vehicle', '$vehicleReg${vehicleType != '-' ? ' ($vehicleType)' : ''}${vehicleModel != '' ? ' - $vehicleModel' : ''}'),
-            if (licenseUrl != null && licenseUrl.isNotEmpty) _linkRow('License doc', licenseUrl),
-            if (rcUrl != null && rcUrl.isNotEmpty) _linkRow('RC doc', rcUrl),
-            if (permitUrl != null && permitUrl.isNotEmpty) _linkRow('Permit doc', permitUrl),
+            if (vehicleLine.isNotEmpty) _docRow(loc.t('admin.kyc.vehicle'), vehicleLine),
+            ...docLinks,
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -331,13 +391,13 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                 OutlinedButton(
                   onPressed: () => _reject(id),
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
-                  child: const Text('Reject'),
+                  child: Text(loc.t('admin.action.reject')),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
                   onPressed: () => _approve(id),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                  child: const Text('Approve'),
+                  child: Text(loc.t('admin.action.approve')),
                 ),
               ],
             ),
@@ -347,7 +407,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     );
   }
 
-  Widget _buildUnionRequestCard(Map<String, dynamic> r) {
+  Widget _buildUnionRequestCard(AppLocalizations loc, Map<String, dynamic> r) {
     final id = r['id']?.toString() ?? '';
     final name = (r['name'] ?? '').toString();
     final location = (r['address'] ?? '').toString();
@@ -355,10 +415,10 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     final applicantName = (r['applicant_name'] ?? '').toString();
     final applicantEmail = (r['applicant_email'] ?? '').toString();
     final applicantPhone = (r['applicant_phone'] ?? '').toString();
+    final leadPhone = (r['contact_phone'] ?? '').toString().trim();
+    final leadEmail = (r['contact_email'] ?? '').toString().trim();
 
-    final ownerAadhaarUrl = r['owner_aadhaar_url']?.toString();
-    final officePhotoUrl = r['office_photo_url']?.toString();
-    final ownerVehicleRcUrl = r['owner_vehicle_rc_url']?.toString();
+    final docLinks = _unionKycLinks(loc, r);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -381,7 +441,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name.isNotEmpty ? name : 'Taxi union',
+                        name.isNotEmpty ? name : loc.t('admin.kyc.fallback_union_name'),
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       if (location.isNotEmpty)
@@ -395,9 +455,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Owner',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            Text(
+              loc.t('admin.kyc.union.section_leader'),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
             ),
             const SizedBox(height: 4),
             if (unionHeadName.isNotEmpty)
@@ -405,11 +465,18 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                 unionHeadName,
                 style: const TextStyle(fontSize: 13),
               ),
+            if (leadPhone.isNotEmpty || leadEmail.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(loc.t('admin.kyc.union.contact_lead'), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey[800])),
+              const SizedBox(height: 4),
+              if (leadPhone.isNotEmpty) _docRow(loc.t('admin.kyc.phone'), leadPhone),
+              if (leadEmail.isNotEmpty) _docRow(loc.t('admin.kyc.email'), leadEmail),
+            ],
             if (applicantName.isNotEmpty || applicantEmail.isNotEmpty || applicantPhone.isNotEmpty) ...[
               const SizedBox(height: 8),
-              const Text(
-                'Applicant (account)',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              Text(
+                loc.t('admin.kyc.union.section_applicant'),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               ),
               const SizedBox(height: 4),
               if (applicantName.isNotEmpty) Text(applicantName, style: const TextStyle(fontSize: 13)),
@@ -425,11 +492,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             const Divider(height: 24),
-            const Text('Documents', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(loc.t('admin.kyc.documents'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
-            if (ownerAadhaarUrl != null && ownerAadhaarUrl.isNotEmpty) _linkRow('Owner Aadhaar doc', ownerAadhaarUrl),
-            if (officePhotoUrl != null && officePhotoUrl.isNotEmpty) _linkRow('Office photo', officePhotoUrl),
-            if (ownerVehicleRcUrl != null && ownerVehicleRcUrl.isNotEmpty) _linkRow('Owner vehicle RC doc', ownerVehicleRcUrl),
+            ...docLinks,
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -440,7 +505,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                     foregroundColor: Colors.red,
                     side: const BorderSide(color: Colors.red),
                   ),
-                  child: const Text('Reject'),
+                  child: Text(loc.t('admin.action.reject')),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
@@ -449,7 +514,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Approve'),
+                  child: Text(loc.t('admin.action.approve')),
                 ),
               ],
             ),
@@ -472,7 +537,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     );
   }
 
-  Widget _linkRow(String label, String url) {
+  Widget _linkRow(AppLocalizations loc, String labelKey, String url) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
@@ -482,9 +547,10 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
           if (uri != null && await canLaunchUrl(uri)) {
             await launchUrl(uri, mode: LaunchMode.externalApplication);
           } else if (mounted) {
+            final snackLoc = AppLocalizations.of(context);
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Unable to open: $resolved'),
+                content: Text(snackLoc.t('admin.snack.cannot_open')),
                 backgroundColor: Colors.red,
               ),
             );
@@ -494,7 +560,12 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
           children: [
             Icon(Icons.link, size: 16, color: Colors.blue[700]),
             const SizedBox(width: 6),
-            Text('View $label', style: TextStyle(fontSize: 13, color: Colors.blue[700], decoration: TextDecoration.underline)),
+            Expanded(
+              child: Text(
+                '${loc.t('admin.kyc.view_prefix')}: ${loc.t(labelKey)}',
+                style: TextStyle(fontSize: 13, color: Colors.blue[700], decoration: TextDecoration.underline),
+              ),
+            ),
           ],
         ),
       ),
@@ -510,34 +581,30 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
+    final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Do you want to logout?'),
+        title: Text(loc.t('admin.logout.title')),
+        content: Text(loc.t('admin.logout.body')),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogCtx), 
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: Text(loc.t('app.cancel')),
           ),
           TextButton(
             onPressed: () async {
-              // Close dialog first
               Navigator.pop(dialogCtx);
-              
-              // Logout immediately - clear auth state
               await authProvider.logout();
-              
-              // Force navigation to landing screen - clear entire stack
               if (navigatorKey.currentState != null) {
                 navigatorKey.currentState!.pushAndRemoveUntil(
                   MaterialPageRoute(builder: (_) => const LandingScreen()),
-                  (route) => false, // Remove all previous routes
+                  (route) => false,
                 );
               }
             },
-            child: const Text('Logout'),
+            child: Text(loc.t('admin.logout.title')),
           ),
         ],
       ),

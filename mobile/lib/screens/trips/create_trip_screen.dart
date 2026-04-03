@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../core/localization/app_localizations.dart';
+import '../../providers/app_language_provider.dart';
 import '../../services/driver_verification_service.dart';
 import '../../services/trip_service.dart';
 
@@ -175,6 +178,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create New Trip'),
@@ -314,9 +319,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 hintText: 'e.g., UK 07 AB 1234',
-                helperText: _vehicleLockedFromVerification
-                    ? 'Ye number aapke driver verification (RC) se liya gaya hai — ride par yahi use hoga.'
-                    : null,
+                helperText: _vehicleLockedFromVerification ? loc.t('kyc.trip.vehicle_locked_hint') : null,
                 filled: _vehicleLockedFromVerification,
                 fillColor: _vehicleLockedFromVerification
                     ? Colors.grey.shade100
@@ -326,7 +329,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               validator: (value) {
                 if (_vehicleLockedFromVerification) return null;
                 if (value == null || value.isEmpty) {
-                  return 'Please enter vehicle number';
+                  return loc.t('kyc.trip.vehicle_required');
                 }
                 return null;
               },

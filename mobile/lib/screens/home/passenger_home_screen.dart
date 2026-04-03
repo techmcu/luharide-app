@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/app_language_provider.dart';
 import '../../widgets/brand_app_bar_title.dart';
 import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
@@ -194,6 +195,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<AppLanguageProvider>();
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
     final t = AppLocalizations.of(context);
@@ -749,18 +751,19 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         _searchTrips(); // Refresh after creating
       });
     } else if (status == 'pending') {
+      final loc = AppLocalizations.of(context);
       _showVerifyPopup(
         context,
-        'Your driver verification is pending. Admin usually reviews within 24–48 hours.\n\n'
-        'Agar isse zyada delay ho jaye, to aap ${BrandConfig.supportEmail} par politely email karke '
-        'apni request ka status pooch sakte hain (subject mein apna naam aur phone number likh kar).',
+        loc.tReplace('profile.verify.pending_body', {'supportEmail': BrandConfig.supportEmail}),
+        allowOpenForm: false,
       );
     } else {
-      _showVerifyPopup(context, 'Please verify your documents first to create rides.');
+      _showVerifyPopup(context, AppLocalizations.of(context).t('profile.verify.need_docs'));
     }
   }
 
-  void _showVerifyPopup(BuildContext context, String message) {
+  void _showVerifyPopup(BuildContext context, String message, {bool allowOpenForm = true}) {
+    final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -769,35 +772,39 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           children: [
             Icon(Icons.verified_user_outlined, color: Colors.orange[700], size: 28),
             const SizedBox(width: 10),
-            const Text('Verify First', style: TextStyle(fontSize: 18)),
+            Expanded(child: Text(loc.t('profile.verify.dialog_title'), style: const TextStyle(fontSize: 18))),
           ],
         ),
         content: Text(message),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              final auth = context.read<AuthProvider>();
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
-              ).then((refresh) {
-                if (refresh == true && mounted) {
-                  auth.refreshUser();
-                }
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          if (allowOpenForm)
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(loc.t('app.cancel')),
             ),
-            child: const Text('Verify Documents'),
-          ),
+          if (!allowOpenForm)
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.ok')))
+          else
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                final auth = context.read<AuthProvider>();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
+                ).then((refresh) {
+                  if (refresh == true && mounted) {
+                    auth.refreshUser();
+                  }
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(loc.t('profile.verify_docs_btn')),
+            ),
         ],
       ),
     );

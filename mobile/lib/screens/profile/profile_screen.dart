@@ -489,13 +489,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context,
         authProvider,
         loc.tReplace('profile.verify.pending_body', {'supportEmail': BrandConfig.supportEmail}),
+        allowOpenForm: false,
       );
     } else {
       _showVerifyDialog(context, authProvider, loc.t('profile.verify.need_docs'));
     }
   }
 
-  void _showVerifyDialog(BuildContext context, AuthProvider authProvider, String message) {
+  void _showVerifyDialog(
+    BuildContext context,
+    AuthProvider authProvider,
+    String message, {
+    bool allowOpenForm = true,
+  }) {
     final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
@@ -512,18 +518,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
-              ).then((_) => authProvider.refreshUser());
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
-            child: Text(loc.t('profile.verify_docs_btn')),
-          ),
+          if (allowOpenForm)
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
+          if (!allowOpenForm)
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.ok')))
+          else
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
+                ).then((_) => authProvider.refreshUser());
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
+              child: Text(loc.t('profile.verify_docs_btn')),
+            ),
         ],
       ),
     );

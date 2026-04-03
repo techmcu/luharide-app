@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/app_language_provider.dart';
 import '../../services/union_service.dart';
 import '../../services/upload_service.dart';
 import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/role_exclusivity.dart';
 import '../../core/utils/kyc_image_picker.dart';
-import '../../providers/app_language_provider.dart';
 import 'union_dashboard_screen.dart';
 
 class UnionRegistrationScreen extends StatefulWidget {
@@ -113,9 +113,8 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
         _ownerAadhaarBackFile == null ||
         _officePhotoFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-              'Union leader ka Aadhaar front/back aur union ki photo upload karna zaroori hai.'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).t('kyc.union.snack.missing_docs')),
           backgroundColor: Colors.orange,
         ),
       );
@@ -319,13 +318,14 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
 
     // Approved — auto-navigates to dashboard via _loadStatus; show loading state here
     if (_status == 'approved') {
-      return const Center(
+      final loc = AppLocalizations.of(context);
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.green),
-            SizedBox(height: 16),
-            Text('Union approved! Opening dashboard...', style: TextStyle(fontSize: 15)),
+            const CircularProgressIndicator(color: Colors.green),
+            const SizedBox(height: 16),
+            Text(loc.t('kyc.union.approved_nav'), style: const TextStyle(fontSize: 15)),
           ],
         ),
       );
@@ -360,6 +360,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     }
 
     // Default: show registration form
+    final loc = AppLocalizations.of(context);
     return Form(
       key: _formKey,
       child: ListView(
@@ -374,60 +375,59 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             ),
             const SizedBox(height: 12),
           ],
-          const Text(
-            'Union Details',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Text(
+            loc.t('kyc.union.details_section'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _ownerNameController,
-            decoration: const InputDecoration(
-              labelText: 'Union leader name',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: loc.t('kyc.union.leader_name'),
+              border: const OutlineInputBorder(),
             ),
             validator: (v) {
               final value = v?.trim() ?? '';
-              if (value.isEmpty) return 'Please enter union head name';
-              if (value.length < 2) return 'Name must be at least 2 characters';
+              if (value.isEmpty) return loc.t('kyc.union.name_required');
+              if (value.length < 2) return loc.t('kyc.union.name_short');
               return null;
             },
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Union name',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: loc.t('kyc.union.union_name'),
+              border: const OutlineInputBorder(),
             ),
             validator: (v) {
               final value = v?.trim() ?? '';
-              if (value.isEmpty) return 'Please enter union name';
-              if (value.length < 3) return 'Name must be at least 3 characters';
+              if (value.isEmpty) return loc.t('kyc.union.union_name_required');
+              if (value.length < 3) return loc.t('kyc.union.union_name_short');
               return null;
             },
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _locationController,
-            decoration: const InputDecoration(
-              labelText: 'Union location (town / stand)',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: loc.t('kyc.union.location'),
+              border: const OutlineInputBorder(),
             ),
             validator: (v) {
               final value = v?.trim() ?? '';
-              if (value.isEmpty) return 'Please enter location';
+              if (value.isEmpty) return loc.t('kyc.union.location_required');
               return null;
             },
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Upload documents',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          Text(
+            loc.t('kyc.union.upload_heading'),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
-            'Zaroori: union leader ka Aadhaar front/back, union ki ek saaf photo.\n'
-            'Har file 50 KB se 10 MB ke beech (photo ya PDF). Zyada chhoti/badi file mat bhejein.',
+            loc.t('kyc.union.upload_note'),
             style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.35),
           ),
           const SizedBox(height: 8),
@@ -436,7 +436,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             runSpacing: 8,
             children: [
               _DocChip(
-                label: 'Leader Aadhaar front *',
+                label: loc.t('kyc.union.chip.aadhaar_front'),
                 selected: _ownerAadhaarFrontFile != null,
                 onTap: _isSubmitting
                     ? null
@@ -447,7 +447,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                       },
               ),
               _DocChip(
-                label: 'Leader Aadhaar back *',
+                label: loc.t('kyc.union.chip.aadhaar_back'),
                 selected: _ownerAadhaarBackFile != null,
                 onTap: _isSubmitting
                     ? null
@@ -458,7 +458,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                       },
               ),
               _DocChip(
-                label: 'Union photo *',
+                label: loc.t('kyc.union.chip.photo'),
                 selected: _officePhotoFile != null,
                 onTap: _isSubmitting
                     ? null
@@ -474,14 +474,14 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Union leader contact number',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: loc.t('kyc.union.label.leader_phone'),
+              border: const OutlineInputBorder(),
             ),
             validator: (v) {
               final value = (v ?? '').trim();
-              if (value.isEmpty) return 'Leader ka phone zaroori hai';
-              if (value.length < 10) return 'Phone kam se kam 10 digits';
+              if (value.isEmpty) return loc.t('kyc.union.val.phone');
+              if (value.length < 10) return loc.t('kyc.union.val.phone_len');
               return null;
             },
           ),
@@ -489,15 +489,15 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Union leader email ID',
-              border: OutlineInputBorder(),
+            decoration: InputDecoration(
+              labelText: loc.t('kyc.union.label.leader_email'),
+              border: const OutlineInputBorder(),
             ),
             validator: (v) {
               final value = (v ?? '').trim();
-              if (value.isEmpty) return 'Leader ka email zaroori hai';
+              if (value.isEmpty) return loc.t('kyc.union.val.email');
               final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
-              if (!ok) return 'Sahi email likhein';
+              if (!ok) return loc.t('kyc.union.val.email_invalid');
               return null;
             },
           ),
@@ -523,9 +523,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                             AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                  : const Text(
-                      'Submit for Approval',
-                      style: TextStyle(
+                  : Text(
+                      loc.t('kyc.union.submit'),
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),

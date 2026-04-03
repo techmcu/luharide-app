@@ -28,7 +28,7 @@ class DriverVerificationService {
 
   /// Submit driver verification
   Future<Map<String, dynamic>> submitVerification({
-    required String drivingLicenseNumber,
+    String? drivingLicenseNumber,
     String? drivingLicenseUrl,
     required String vehicleRegistration,
     required String vehicleType,
@@ -52,7 +52,8 @@ class DriverVerificationService {
       final response = await _apiService.post(
         ApiConstants.driverVerification,
         data: {
-          'driving_license_number': drivingLicenseNumber,
+          if (drivingLicenseNumber != null && drivingLicenseNumber.trim().isNotEmpty)
+            'driving_license_number': drivingLicenseNumber.trim(),
           if (drivingLicenseUrl != null) 'driving_license_url': drivingLicenseUrl,
           'vehicle_registration': vehicleRegistration,
           'vehicle_type': vehicleType,
