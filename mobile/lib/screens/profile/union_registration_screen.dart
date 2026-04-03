@@ -27,7 +27,6 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _ownerNameController = TextEditingController();
-  final _shareNotesController = TextEditingController();
   bool _isSubmitting = false;
   bool _loadingStatus = true;
   bool _checkingStatus = false; // for manual check button
@@ -38,11 +37,6 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   XFile? _ownerAadhaarFrontFile;
   XFile? _ownerAadhaarBackFile;
   XFile? _officePhotoFile;
-  XFile? _driverListPhotoFile;
-  XFile? _leaderDlFrontFile;
-  XFile? _leaderDlBackFile;
-  XFile? _ownerRcFrontFile;
-  XFile? _ownerRcBackFile;
 
   @override
   void initState() {
@@ -61,7 +55,6 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _ownerNameController.dispose();
-    _shareNotesController.dispose();
     super.dispose();
   }
 
@@ -116,10 +109,13 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_ownerAadhaarFrontFile == null || _ownerAadhaarBackFile == null) {
+    if (_ownerAadhaarFrontFile == null ||
+        _ownerAadhaarBackFile == null ||
+        _officePhotoFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Union leader ka Aadhaar front/back upload karna zaroori hai.'),
+          content: Text(
+              'Union leader ka Aadhaar front/back aur union ki photo upload karna zaroori hai.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -131,33 +127,13 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     String? ownerAadhaarFrontUrl;
     String? ownerAadhaarBackUrl;
     String? officePhotoUrl;
-    String? driverListPhotoUrl;
-    String? leaderDlFrontUrl;
-    String? leaderDlBackUrl;
-    String? ownerRcFrontUrl;
-    String? ownerRcBackUrl;
 
     try {
-      ownerAadhaarFrontUrl = await _uploadService.uploadUnionDocument(_ownerAadhaarFrontFile!);
-      ownerAadhaarBackUrl = await _uploadService.uploadUnionDocument(_ownerAadhaarBackFile!);
-      if (_officePhotoFile != null) {
-        officePhotoUrl = await _uploadService.uploadUnionDocument(_officePhotoFile!);
-      }
-      if (_driverListPhotoFile != null) {
-        driverListPhotoUrl = await _uploadService.uploadUnionDocument(_driverListPhotoFile!);
-      }
-      if (_leaderDlFrontFile != null) {
-        leaderDlFrontUrl = await _uploadService.uploadUnionDocument(_leaderDlFrontFile!);
-      }
-      if (_leaderDlBackFile != null) {
-        leaderDlBackUrl = await _uploadService.uploadUnionDocument(_leaderDlBackFile!);
-      }
-      if (_ownerRcFrontFile != null) {
-        ownerRcFrontUrl = await _uploadService.uploadUnionDocument(_ownerRcFrontFile!);
-      }
-      if (_ownerRcBackFile != null) {
-        ownerRcBackUrl = await _uploadService.uploadUnionDocument(_ownerRcBackFile!);
-      }
+      ownerAadhaarFrontUrl =
+          await _uploadService.uploadUnionDocument(_ownerAadhaarFrontFile!);
+      ownerAadhaarBackUrl =
+          await _uploadService.uploadUnionDocument(_ownerAadhaarBackFile!);
+      officePhotoUrl = await _uploadService.uploadUnionDocument(_officePhotoFile!);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -182,13 +158,6 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       ownerAadhaarBackUrl: ownerAadhaarBackUrl,
       officePhotoUrl: officePhotoUrl,
       unionPhotoUrl: officePhotoUrl,
-      unionDriverListPhotoUrl: driverListPhotoUrl,
-      leaderDrivingLicenseFrontUrl: leaderDlFrontUrl,
-      leaderDrivingLicenseBackUrl: leaderDlBackUrl,
-      ownerVehicleRcUrl: ownerRcFrontUrl,
-      ownerVehicleRcFrontUrl: ownerRcFrontUrl,
-      ownerVehicleRcBackUrl: ownerRcBackUrl,
-      unionShareNotes: _shareNotesController.text.trim(),
     );
 
     if (!mounted) return;
@@ -413,7 +382,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           TextFormField(
             controller: _ownerNameController,
             decoration: const InputDecoration(
-              labelText: 'Union head name',
+              labelText: 'Union leader name',
               border: OutlineInputBorder(),
             ),
             validator: (v) {
@@ -441,7 +410,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           TextFormField(
             controller: _locationController,
             decoration: const InputDecoration(
-              labelText: 'Location (town / stand)',
+              labelText: 'Union location (town / stand)',
               border: OutlineInputBorder(),
             ),
             validator: (v) {
@@ -452,13 +421,14 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            'Upload documents (photos)',
+            'Upload documents',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
-            'Required: Leader Aadhaar front/back. Optional: union photo, driver list photo, leader DL front/back, RC front/back.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            'Zaroori: union leader ka Aadhaar front/back, union ki ek saaf photo.\n'
+            'Har file 50 KB se 10 MB ke beech (photo ya PDF). Zyada chhoti/badi file mat bhejein.',
+            style: TextStyle(fontSize: 12, color: Colors.grey[700], height: 1.35),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -488,7 +458,7 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                       },
               ),
               _DocChip(
-                label: 'Union photo',
+                label: 'Union photo *',
                 selected: _officePhotoFile != null,
                 onTap: _isSubmitting
                     ? null
@@ -498,85 +468,20 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
                         setState(() => _officePhotoFile = img);
                       },
               ),
-              _DocChip(
-                label: 'Driver list photo',
-                selected: _driverListPhotoFile != null,
-                onTap: _isSubmitting
-                    ? null
-                    : () async {
-                        final img = await pickKycGalleryPhoto();
-                        if (img == null) return;
-                        setState(() => _driverListPhotoFile = img);
-                      },
-              ),
-              _DocChip(
-                label: 'Leader DL front',
-                selected: _leaderDlFrontFile != null,
-                onTap: _isSubmitting
-                    ? null
-                    : () async {
-                        final img = await pickKycGalleryPhoto();
-                        if (img == null) return;
-                        setState(() => _leaderDlFrontFile = img);
-                      },
-              ),
-              _DocChip(
-                label: 'Leader DL back',
-                selected: _leaderDlBackFile != null,
-                onTap: _isSubmitting
-                    ? null
-                    : () async {
-                        final img = await pickKycGalleryPhoto();
-                        if (img == null) return;
-                        setState(() => _leaderDlBackFile = img);
-                      },
-              ),
-              _DocChip(
-                label: 'Any cab RC front',
-                selected: _ownerRcFrontFile != null,
-                onTap: _isSubmitting
-                    ? null
-                    : () async {
-                        final img = await pickKycGalleryPhoto();
-                        if (img == null) return;
-                        setState(() => _ownerRcFrontFile = img);
-                      },
-              ),
-              _DocChip(
-                label: 'Any cab RC back',
-                selected: _ownerRcBackFile != null,
-                onTap: _isSubmitting
-                    ? null
-                    : () async {
-                        final img = await pickKycGalleryPhoto();
-                        if (img == null) return;
-                        setState(() => _ownerRcBackFile = img);
-                      },
-              ),
             ],
           ),
           const SizedBox(height: 24),
           TextFormField(
-            controller: _shareNotesController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Stand / share point details (optional)',
-              hintText: 'e.g. Near bus stand, morning timings, landmark',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              labelText: 'Contact phone',
+              labelText: 'Union leader contact number',
               border: OutlineInputBorder(),
             ),
             validator: (v) {
               final value = (v ?? '').trim();
-              if (value.isEmpty) return 'Please enter contact phone';
-              if (value.length < 8) return 'Phone must be at least 8 digits';
+              if (value.isEmpty) return 'Leader ka phone zaroori hai';
+              if (value.length < 10) return 'Phone kam se kam 10 digits';
               return null;
             },
           ),
@@ -585,14 +490,14 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             decoration: const InputDecoration(
-              labelText: 'Contact email',
+              labelText: 'Union leader email ID',
               border: OutlineInputBorder(),
             ),
             validator: (v) {
               final value = (v ?? '').trim();
-              if (value.isEmpty) return 'Please enter contact email';
+              if (value.isEmpty) return 'Leader ka email zaroori hai';
               final ok = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
-              if (!ok) return 'Please enter a valid email';
+              if (!ok) return 'Sahi email likhein';
               return null;
             },
           ),

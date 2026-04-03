@@ -4,7 +4,8 @@ const fs = require('fs');
 const multer = require('multer');
 const { authenticate } = require('../middleware/auth');
 const { uploadDocLimiter } = require('../middleware/rateLimiter');
-const { maxFileBytes } = require('../config/uploadLimits');
+const { maxFileBytes, minFileBytes, limitsPayload } = require('../config/uploadLimits');
+const { applyKycWatermark } = require('../utils/kycImageWatermark');
 
 const router = express.Router();
 
@@ -66,23 +67,96 @@ const unionUpload = multer({
   fileFilter: kycFileFilter,
 });
 
+function multerErrorResponse(err, res) {
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({
+      success: false,
+      message: `File too large. Maximum size is ${limitsPayload.maxFileMb} MB.`,
+      limits: limitsPayload,
+    });
+  }
+  const msg =
+    err && err.message
+      ? err.message
+      : 'Upload failed';
+  return res.status(400).json({
+    success: false,
+    message: msg,
+    limits: limitsPayload,
+  });
+}
+
+async function finalizeKycFile(file) {
+  const absolutePath = path.join(file.destination, file.filename);
+  let st;
+  try {
+    st = await fs.promises.stat(absolutePath);
+  } catch (_) {
+    return { ok: false, status: 500, message: 'Upload save failed' };
+  }
+  if (st.size < minFileBytes) {
+    try {
+      await fs.promises.unlink(absolutePath);
+    } catch (_) {
+      // ignore
+    }
+    return {
+      ok: false,
+      status: 400,
+      message: `File too small (minimum ${limitsPayload.minFileKb} KB). Please upload a clear photo or PDF.`,
+    };
+  }
+  const mimetype = String(file.mimetype || '').toLowerCase();
+  try {
+    if (mimetype.startsWith('image/')) {
+      await applyKycWatermark(absolutePath, mimetype);
+    }
+  } catch (wmErr) {
+    try {
+      await fs.promises.unlink(absolutePath);
+    } catch (_) {
+      // ignore
+    }
+    return {
+      ok: false,
+      status: 500,
+      message: 'Could not process image. Try another photo (JPEG/PNG).',
+    };
+  }
+  return { ok: true };
+}
+
 // POST /api/uploads/driver-doc
 router.post(
   '/driver-doc',
   authenticate,
   uploadDocLimiter,
-  driverUpload.single('file'),
   (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded',
+    driverUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        return multerErrorResponse(err, res);
+      }
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file uploaded',
+          limits: limitsPayload,
+        });
+      }
+      const done = await finalizeKycFile(req.file);
+      if (!done.ok) {
+        return res.status(done.status).json({
+          success: false,
+          message: done.message,
+          limits: limitsPayload,
+        });
+      }
+      const relativeUrl = `/uploads/driver-docs/${req.file.filename}`;
+      res.json({
+        success: true,
+        url: relativeUrl,
+        limits: limitsPayload,
       });
-    }
-    const relativeUrl = `/uploads/driver-docs/${req.file.filename}`;
-    res.json({
-      success: true,
-      url: relativeUrl,
     });
   }
 );
@@ -92,18 +166,32 @@ router.post(
   '/union-doc',
   authenticate,
   uploadDocLimiter,
-  unionUpload.single('file'),
   (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded',
+    unionUpload.single('file')(req, res, async (err) => {
+      if (err) {
+        return multerErrorResponse(err, res);
+      }
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: 'No file uploaded',
+          limits: limitsPayload,
+        });
+      }
+      const done = await finalizeKycFile(req.file);
+      if (!done.ok) {
+        return res.status(done.status).json({
+          success: false,
+          message: done.message,
+          limits: limitsPayload,
+        });
+      }
+      const relativeUrl = `/uploads/union-docs/${req.file.filename}`;
+      res.json({
+        success: true,
+        url: relativeUrl,
+        limits: limitsPayload,
       });
-    }
-    const relativeUrl = `/uploads/union-docs/${req.file.filename}`;
-    res.json({
-      success: true,
-      url: relativeUrl,
     });
   }
 );

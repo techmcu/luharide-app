@@ -29,7 +29,22 @@ const submitVerification = asyncHandler(async (req, res) => {
     rc_back_url,
     driving_license_front_url,
     driving_license_back_url,
+    contact_phone,
+    contact_email,
   } = req.body;
+
+  const contactPhoneVal =
+    contact_phone != null
+      ? String(contact_phone).replace(/\s+/g, '').trim().slice(0, 20)
+      : '';
+  const contactEmailVal =
+    contact_email != null ? String(contact_email).trim().slice(0, 150) : '';
+  if (contactPhoneVal.length < 10) {
+    throw ApiError.badRequest('Contact phone is required (at least 10 digits).');
+  }
+  if (!contactEmailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmailVal)) {
+    throw ApiError.badRequest('Valid contact email is required.');
+  }
 
   // Check if already approved
   const userCheck = await pool.query(
@@ -87,6 +102,8 @@ const submitVerification = asyncHandler(async (req, res) => {
     rc_back_url || null,
     driving_license_front_url || null,
     driving_license_back_url || null,
+    contactPhoneVal,
+    contactEmailVal,
   ];
 
   let result;
@@ -97,8 +114,9 @@ const submitVerification = asyncHandler(async (req, res) => {
         vehicle_registration, vehicle_type, vehicle_model, vehicle_model_id, vehicle_capacity,
         rc_document_url, permit_document_url, insurance_document_url, aadhaar_document_url,
         aadhaar_front_url, aadhaar_back_url, rc_front_url, rc_back_url, driving_license_front_url, driving_license_back_url,
+        contact_phone, contact_email,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'pending')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'pending')
       ON CONFLICT (user_id) DO UPDATE SET
         driving_license_number = EXCLUDED.driving_license_number,
         driving_license_url = EXCLUDED.driving_license_url,
@@ -117,6 +135,8 @@ const submitVerification = asyncHandler(async (req, res) => {
         rc_back_url = EXCLUDED.rc_back_url,
         driving_license_front_url = EXCLUDED.driving_license_front_url,
         driving_license_back_url = EXCLUDED.driving_license_back_url,
+        contact_phone = EXCLUDED.contact_phone,
+        contact_email = EXCLUDED.contact_email,
         status = 'pending',
         rejection_reason = NULL,
         reviewed_by = NULL,
@@ -126,8 +146,22 @@ const submitVerification = asyncHandler(async (req, res) => {
       params
     );
   } catch (err) {
+    if (
+      err.code === '42703' &&
+      /contact_phone|contact_email/i.test(err.message || '')
+    ) {
+      logger.error('driver_verification_requests missing contact columns (run migration 034).', {
+        message: err.message,
+      });
+      throw ApiError.serviceUnavailable(
+        'Database migration required: run `npm run migrate` on the server (adds driver verification contact fields).'
+      );
+    }
     // If vehicle_model_id column does not exist (migration 008 not run), retry without it
-    if (err.code === '42703') {
+    if (
+      err.code === '42703' &&
+      (err.message || '').includes('vehicle_model_id')
+    ) {
       logger.warn('driver_verification_requests schema outdated, inserting with legacy columns.');
       result = await pool.query(
         `INSERT INTO driver_verification_requests (

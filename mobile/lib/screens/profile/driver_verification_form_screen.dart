@@ -29,12 +29,12 @@ class _DriverVerificationFormScreenState
   final _uploadService = UploadService();
   final _licenseController = TextEditingController();
   final _vehicleRegController = TextEditingController();
+  final _contactPhoneController = TextEditingController();
+  final _contactEmailController = TextEditingController();
   bool _isLoading = false;
   VehicleDropdownOption? _selectedVehicle;
   XFile? _aadhaarFrontFile;
   XFile? _aadhaarBackFile;
-  XFile? _rcFrontFile;
-  XFile? _rcBackFile;
   XFile? _licenseFrontFile;
   XFile? _licenseBackFile;
   bool _checkingUnionPath = true;
@@ -43,8 +43,12 @@ class _DriverVerificationFormScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _checkUnionExclusivity());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      _contactPhoneController.text = (auth.user?.phone ?? '').trim();
+      _contactEmailController.text = (auth.user?.email ?? '').trim();
+      _checkUnionExclusivity();
+    });
   }
 
   Future<void> _checkUnionExclusivity() async {
@@ -78,6 +82,8 @@ class _DriverVerificationFormScreenState
   void dispose() {
     _licenseController.dispose();
     _vehicleRegController.dispose();
+    _contactPhoneController.dispose();
+    _contactEmailController.dispose();
     super.dispose();
   }
 
@@ -100,14 +106,12 @@ class _DriverVerificationFormScreenState
 
     if (_aadhaarFrontFile == null ||
         _aadhaarBackFile == null ||
-        _rcFrontFile == null ||
-        _rcBackFile == null ||
         _licenseFrontFile == null ||
         _licenseBackFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-                Text('Please upload Aadhaar, RC and License front/back photos'),
+            content: Text(
+                'Aadhaar front/back aur Driving License front/back ki photos zaroori hain.'),
             backgroundColor: Colors.orange),
       );
       return;
@@ -117,8 +121,6 @@ class _DriverVerificationFormScreenState
 
     String? aadhaarFrontUrl;
     String? aadhaarBackUrl;
-    String? rcFrontUrl;
-    String? rcBackUrl;
     String? licenseFrontUrl;
     String? licenseBackUrl;
 
@@ -127,8 +129,6 @@ class _DriverVerificationFormScreenState
           await _uploadService.uploadDriverDocument(_aadhaarFrontFile!);
       aadhaarBackUrl =
           await _uploadService.uploadDriverDocument(_aadhaarBackFile!);
-      rcFrontUrl = await _uploadService.uploadDriverDocument(_rcFrontFile!);
-      rcBackUrl = await _uploadService.uploadDriverDocument(_rcBackFile!);
       licenseFrontUrl =
           await _uploadService.uploadDriverDocument(_licenseFrontFile!);
       licenseBackUrl =
@@ -160,14 +160,13 @@ class _DriverVerificationFormScreenState
       vehicleModel: vehicleModel,
       vehicleModelId: v.id,
       vehicleCapacity: v.capacity,
-      rcDocumentUrl: rcFrontUrl,
+      contactPhone: _contactPhoneController.text.replaceAll(' ', '').trim(),
+      contactEmail: _contactEmailController.text.trim(),
       permitDocumentUrl: null,
       insuranceDocumentUrl: null,
       aadhaarDocumentUrl: aadhaarFrontUrl,
       aadhaarFrontUrl: aadhaarFrontUrl,
       aadhaarBackUrl: aadhaarBackUrl,
-      rcFrontUrl: rcFrontUrl,
-      rcBackUrl: rcBackUrl,
       drivingLicenseFrontUrl: licenseFrontUrl,
       drivingLicenseBackUrl: licenseBackUrl,
     );
@@ -255,25 +254,41 @@ class _DriverVerificationFormScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Consumer<AuthProvider>(
-                  builder: (_, auth, __) {
-                    final phone = (auth.user?.phone ?? '').trim();
-                    if (phone.isEmpty) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: TextFormField(
-                        initialValue: phone,
-                        enabled: false,
-                        decoration: InputDecoration(
-                          labelText: 'Profile phone (used for contact)',
-                          prefixIcon: const Icon(Icons.phone_outlined),
-                          border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    );
+                TextFormField(
+                  controller: _contactPhoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText: 'Contact number (driver)',
+                    prefixIcon: const Icon(Icons.phone_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (v) {
+                    final s = (v ?? '').replaceAll(' ', '').trim();
+                    if (s.length < 10) return 'Valid phone number zaroori hai';
+                    return null;
                   },
                 ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _contactEmailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email ID (driver)',
+                    prefixIcon: const Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  validator: (v) {
+                    final s = (v ?? '').trim();
+                    if (s.isEmpty) return 'Email zaroori hai';
+                    if (!s.contains('@') || !s.contains('.')) {
+                      return 'Sahi email likhein';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
                 Card(
                   color: Colors.blue[50],
                   child: Padding(
@@ -309,8 +324,14 @@ class _DriverVerificationFormScreenState
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Upload documents (photos) — sirf basic zaruri docs',
+                  'Upload documents',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Har file ka size kam se kam 50 KB aur zyada se zyada 10 MB ho (photo ya PDF). Is se chhoti ya bahut badi file upload na karein.\n'
+                  'Images par server "Verified by LuhaRide" ka watermark laga sakta hai — sirf verification ke liye.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[800], height: 1.35),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -318,7 +339,7 @@ class _DriverVerificationFormScreenState
                   runSpacing: 8,
                   children: [
                     _DocChip(
-                      label: 'Aadhaar front',
+                      label: 'Aadhaar front *',
                       selected: _aadhaarFrontFile != null,
                       onTap: _isLoading
                           ? null
@@ -326,7 +347,7 @@ class _DriverVerificationFormScreenState
                               (f) => setState(() => _aadhaarFrontFile = f)),
                     ),
                     _DocChip(
-                      label: 'Aadhaar back',
+                      label: 'Aadhaar back *',
                       selected: _aadhaarBackFile != null,
                       onTap: _isLoading
                           ? null
@@ -334,23 +355,7 @@ class _DriverVerificationFormScreenState
                               (f) => setState(() => _aadhaarBackFile = f)),
                     ),
                     _DocChip(
-                      label: 'RC front',
-                      selected: _rcFrontFile != null,
-                      onTap: _isLoading
-                          ? null
-                          : () => _pickDocument(
-                              (f) => setState(() => _rcFrontFile = f)),
-                    ),
-                    _DocChip(
-                      label: 'RC back',
-                      selected: _rcBackFile != null,
-                      onTap: _isLoading
-                          ? null
-                          : () => _pickDocument(
-                              (f) => setState(() => _rcBackFile = f)),
-                    ),
-                    _DocChip(
-                      label: 'License front',
+                      label: 'Driving licence front *',
                       selected: _licenseFrontFile != null,
                       onTap: _isLoading
                           ? null
@@ -358,7 +363,7 @@ class _DriverVerificationFormScreenState
                               (f) => setState(() => _licenseFrontFile = f)),
                     ),
                     _DocChip(
-                      label: 'License back',
+                      label: 'Driving licence back *',
                       selected: _licenseBackFile != null,
                       onTap: _isLoading
                           ? null

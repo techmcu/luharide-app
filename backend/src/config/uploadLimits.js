@@ -1,9 +1,28 @@
 /**
- * KYC document uploads — cap per file (driver + union).
- * Override: UPLOAD_MAX_FILE_MB in .env (5–50, default 20).
+ * KYC document uploads — min/max per file (driver + union).
+ * UPLOAD_MAX_FILE_MB: 5–50, default 10.
+ * UPLOAD_MIN_FILE_KB: 1–512, default 50 (reject tiny / corrupt-looking files).
  */
-const raw = parseInt(process.env.UPLOAD_MAX_FILE_MB || '20', 10);
-const maxFileMb = Math.min(50, Math.max(5, Number.isFinite(raw) && raw > 0 ? raw : 20));
+const rawMax = parseInt(process.env.UPLOAD_MAX_FILE_MB || '10', 10);
+const maxFileMb = Math.min(50, Math.max(5, Number.isFinite(rawMax) && rawMax > 0 ? rawMax : 10));
 const maxFileBytes = maxFileMb * 1024 * 1024;
 
-module.exports = { maxFileMb, maxFileBytes };
+const rawMinKb = parseInt(process.env.UPLOAD_MIN_FILE_KB || '50', 10);
+const minFileKb = Math.min(512, Math.max(1, Number.isFinite(rawMinKb) && rawMinKb > 0 ? rawMinKb : 50));
+const minFileBytes = minFileKb * 1024;
+
+/** Included in upload API responses for clients */
+const limitsPayload = {
+  minFileKb,
+  maxFileMb,
+  minFileBytes,
+  maxFileBytes,
+};
+
+module.exports = {
+  maxFileMb,
+  maxFileBytes,
+  minFileKb,
+  minFileBytes,
+  limitsPayload,
+};

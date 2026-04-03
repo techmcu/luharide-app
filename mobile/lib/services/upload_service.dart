@@ -5,11 +5,25 @@ import '../core/constants/api_constants.dart';
 import 'api_service.dart';
 
 /// Uses [XFile] + bytes so uploads work on **Web** (no dart:io / fromFile).
+/// Keep min/max in sync with backend [uploadLimits.js] (default 50 KB min, 10 MB max).
 class UploadService {
   final ApiService _api = ApiService();
 
-  Future<MultipartFile> _filePart(XFile file) async {
+  static const int kUploadMinBytes = 50 * 1024;
+  static const int kUploadMaxBytes = 10 * 1024 * 1024;
+
+  Future<MultipartFile> _filePartFromBytes(XFile file) async {
     final bytes = await file.readAsBytes();
+    if (bytes.length < kUploadMinBytes) {
+      throw Exception(
+        'File too small (minimum about 50 KB). Please upload a clear photo or PDF.',
+      );
+    }
+    if (bytes.length > kUploadMaxBytes) {
+      throw Exception(
+        'File too large (maximum 10 MB). Choose a smaller file.',
+      );
+    }
     final name = file.name;
     return MultipartFile.fromBytes(
       bytes,
@@ -17,9 +31,17 @@ class UploadService {
     );
   }
 
+  String? _dioMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map && data['message'] is String) {
+      return data['message'] as String;
+    }
+    return null;
+  }
+
   Future<String> uploadDriverDocument(XFile file) async {
     final formData = FormData.fromMap({
-      'file': await _filePart(file),
+      'file': await _filePartFromBytes(file),
     });
     try {
       final response = await _api.post(
@@ -34,7 +56,13 @@ class UploadService {
     } on DioException catch (e) {
       if (e.response?.statusCode == 413) {
         throw Exception(
-          'Photo file too large for server. Please choose the photo again (smaller size).',
+          _dioMessage(e) ??
+              'File too large for server (max 10 MB). Choose a smaller file.',
+        );
+      }
+      if (e.response?.statusCode == 400) {
+        throw Exception(
+          _dioMessage(e) ?? 'Upload rejected. Check file type and size.',
         );
       }
       rethrow;
@@ -43,7 +71,7 @@ class UploadService {
 
   Future<String> uploadUnionDocument(XFile file) async {
     final formData = FormData.fromMap({
-      'file': await _filePart(file),
+      'file': await _filePartFromBytes(file),
     });
     try {
       final response = await _api.post(
@@ -58,11 +86,16 @@ class UploadService {
     } on DioException catch (e) {
       if (e.response?.statusCode == 413) {
         throw Exception(
-          'Photo file too large for server. Please choose the photo again (smaller size).',
+          _dioMessage(e) ??
+              'File too large for server (max 10 MB). Choose a smaller file.',
+        );
+      }
+      if (e.response?.statusCode == 400) {
+        throw Exception(
+          _dioMessage(e) ?? 'Upload rejected. Check file type and size.',
         );
       }
       rethrow;
     }
   }
 }
-

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../services/driver_verification_service.dart';
 import '../../services/trip_service.dart';
 
 class CreateTripScreen extends StatefulWidget {
@@ -12,6 +13,7 @@ class CreateTripScreen extends StatefulWidget {
 class _CreateTripScreenState extends State<CreateTripScreen> {
   final _formKey = GlobalKey<FormState>();
   final _tripService = TripService();
+  final _verificationService = DriverVerificationService();
 
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
@@ -25,6 +27,35 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   List<String> _toSuggestions = [];
   bool _isLoading = false;
   bool _requireApproval = true;
+  /// When driver is approved, vehicle number comes from KYC (same as verification).
+  bool _vehicleLockedFromVerification = false;
+  bool _loadingVerifiedVehicle = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadVerifiedVehicleNumber());
+  }
+
+  Future<void> _loadVerifiedVehicleNumber() async {
+    final r = await _verificationService.getMyStatus();
+    if (!mounted) return;
+    final ok = r['success'] == true;
+    final status = (r['status'] ?? '').toString();
+    final req = r['request'];
+    String reg = '';
+    if (ok && status == 'approved' && req is Map) {
+      final v = req['vehicle_registration'];
+      reg = v != null ? v.toString().trim() : '';
+    }
+    setState(() {
+      _loadingVerifiedVehicle = false;
+      if (reg.isNotEmpty) {
+        _vehicleNumberController.text = reg;
+        _vehicleLockedFromVerification = true;
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -267,9 +298,15 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Vehicle Number
+            // Vehicle Number (prefilled from KYC when approved — backend also uses verified RC)
+            if (_loadingVerifiedVehicle)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: LinearProgressIndicator(minHeight: 3),
+              ),
             TextFormField(
               controller: _vehicleNumberController,
+              readOnly: _vehicleLockedFromVerification,
               decoration: InputDecoration(
                 labelText: 'Vehicle Number',
                 prefixIcon: const Icon(Icons.directions_car),
@@ -277,9 +314,17 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 hintText: 'e.g., UK 07 AB 1234',
+                helperText: _vehicleLockedFromVerification
+                    ? 'Ye number aapke driver verification (RC) se liya gaya hai — ride par yahi use hoga.'
+                    : null,
+                filled: _vehicleLockedFromVerification,
+                fillColor: _vehicleLockedFromVerification
+                    ? Colors.grey.shade100
+                    : null,
               ),
               textCapitalization: TextCapitalization.characters,
               validator: (value) {
+                if (_vehicleLockedFromVerification) return null;
                 if (value == null || value.isEmpty) {
                   return 'Please enter vehicle number';
                 }

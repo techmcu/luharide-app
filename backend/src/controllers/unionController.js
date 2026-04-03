@@ -234,8 +234,10 @@ function sanitizeDocumentUrl(raw) {
   if (raw == null || raw === '') return null;
   const s = String(raw).trim();
   if (s.length > 2048) return null;
-  if (!/^https?:\/\//i.test(s)) return null;
-  return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  // API-relative paths from our upload endpoints
+  if (s.startsWith('/uploads/')) return s;
+  return null;
 }
 
 const registerUnion = asyncHandler(async (req, res) => {
