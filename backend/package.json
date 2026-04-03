@@ -20,6 +20,7 @@
     "dev:stack": "npm run develop:luharide-microservices-local-five-services",
     "dev": "nodemon server.js",
     "migrate": "node migrations/run-migrations.js",
+    "create-admin": "node scripts/create-admin.js",
     "seed": "node seeders/run-seeders.js",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
