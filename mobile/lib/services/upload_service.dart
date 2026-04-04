@@ -15,14 +15,10 @@ class UploadService {
   Future<MultipartFile> _filePartFromBytes(XFile file) async {
     final bytes = await file.readAsBytes();
     if (bytes.length < kUploadMinBytes) {
-      throw Exception(
-        'File too small (minimum about 50 KB). Please upload a clear JPEG or PNG.',
-      );
+      throw Exception('Too small — use at least ~50 KB.');
     }
     if (bytes.length > kUploadMaxBytes) {
-      throw Exception(
-        'File too large (maximum 20 MB). Choose a smaller file.',
-      );
+      throw Exception('Too large — max 20 MB.');
     }
     final name = file.name;
     return MultipartFile.fromBytes(
@@ -55,10 +51,7 @@ class UploadService {
       throw Exception(response.data['message'] ?? 'Failed to upload document');
     } on DioException catch (e) {
       if (e.response?.statusCode == 413) {
-        throw Exception(
-          _dioMessage(e) ??
-              'File too large for server (max 20 MB). Choose a smaller file.',
-        );
+        throw Exception(_dioMessage(e) ?? 'Too large — max 20 MB.');
       }
       if (e.response?.statusCode == 400) {
         throw Exception(
@@ -85,10 +78,7 @@ class UploadService {
       throw Exception(response.data['message'] ?? 'Failed to upload document');
     } on DioException catch (e) {
       if (e.response?.statusCode == 413) {
-        throw Exception(
-          _dioMessage(e) ??
-              'File too large for server (max 20 MB). Choose a smaller file.',
-        );
+        throw Exception(_dioMessage(e) ?? 'Too large — max 20 MB.');
       }
       if (e.response?.statusCode == 400) {
         throw Exception(

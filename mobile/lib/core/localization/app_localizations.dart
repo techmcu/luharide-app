@@ -1000,10 +1000,8 @@ class AppLocalizations {
       'hi': 'दस्तावेज़ अपलोड करें',
     },
     'kyc.driver.upload_note': {
-      'en':
-          'Photos only: JPEG or PNG, 50 KB–20 MB each. No PDF. Server merges front+back into one watermarked PDF for admin.',
-      'hi':
-          'केवल फोटो: JPEG या PNG, प्रत्येक 50 KB–20 MB। PDF नहीं। सर्वर आगे-पीछे को एक वॉटरमार्क PDF में जोड़ता है।',
+      'en': '50 KB–20 MB per file · JPEG or PNG (photos from gallery).',
+      'hi': 'प्रति फ़ाइल 50 KB–20 MB · JPEG या PNG (गैलरी से फोटो)।',
     },
     'kyc.driver.snack.missing_docs': {
       'en': 'Please upload Aadhaar (front and back) and driving licence (front and back).',
@@ -1090,9 +1088,8 @@ class AppLocalizations {
       'hi': 'कृपया यूनियन प्रमुख का आधार (आगे-पीछे) और स्पष्ट यूनियन फोटो अपलोड करें।',
     },
     'kyc.union.upload_note': {
-      'en': 'JPEG/PNG only, 50 KB–20 MB each; no PDF. Aadhaar front+back are merged into one PDF for admin.',
-      'hi':
-          'केवल JPEG/PNG, 50 KB–20 MB; PDF नहीं। आधार आगे-पीछे एडमिन के लिए एक PDF में जुड़ेंगे।',
+      'en': '50 KB–20 MB per file · JPEG or PNG (photos from gallery).',
+      'hi': 'प्रति फ़ाइल 50 KB–20 MB · JPEG या PNG (गैलरी से फोटो)।',
     },
     'kyc.union.val.phone': {
       'en': 'Leader phone is required.',
@@ -1190,6 +1187,18 @@ class AppLocalizations {
     'admin.stat.drivers': {
       'en': 'Drivers',
       'hi': 'ड्राइवर',
+    },
+    'admin.stat.pending_drivers': {
+      'en': 'Pending drivers',
+      'hi': 'लंबित ड्राइवर',
+    },
+    'admin.stat.pending_unions': {
+      'en': 'Pending unions',
+      'hi': 'लंबित संघ',
+    },
+    'admin.stat.pending_total': {
+      'en': 'Total pending',
+      'hi': 'कुल लंबित',
     },
     'admin.action.reject': {
       'en': 'Reject',

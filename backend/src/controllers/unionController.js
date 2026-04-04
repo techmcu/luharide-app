@@ -138,22 +138,32 @@ const getMyUnion = asyncHandler(async (req, res) => {
  * GET /api/admin/union-requests
  */
 const getPendingUnionRequests = asyncHandler(async (req, res) => {
+  // One row per union even if multiple union_admins exist (avoids duplicate cards / client confusion).
   const result = await pool.query(
-    `SELECT 
-       u.*,
-       ua.user_id,
-       usr.name   AS applicant_name,
-       usr.email  AS applicant_email,
-       usr.phone  AS applicant_phone
-     FROM unions u
-     LEFT JOIN union_admins ua ON ua.union_id = u.id
-     LEFT JOIN users usr ON usr.id = ua.user_id
-     WHERE u.status = 'pending'
-     ORDER BY u.created_at ASC`
+    `SELECT * FROM (
+       SELECT
+         u.*,
+         ua.user_id AS registrar_user_id,
+         usr.name   AS applicant_name,
+         usr.email  AS applicant_email,
+         usr.phone  AS applicant_phone,
+         ROW_NUMBER() OVER (
+           PARTITION BY u.id
+           ORDER BY ua.user_id ASC NULLS LAST
+         ) AS _rn
+       FROM unions u
+       LEFT JOIN union_admins ua ON ua.union_id = u.id
+       LEFT JOIN users usr ON usr.id = ua.user_id
+       WHERE u.status = 'pending'
+     ) sub
+     WHERE sub._rn = 1
+     ORDER BY sub.created_at ASC`
   );
 
+  const requests = result.rows.map(({ _rn, ...row }) => row);
+
   ApiResponse.success(
-    { requests: result.rows },
+    { requests },
     'Pending union requests retrieved'
   ).send(res);
 });

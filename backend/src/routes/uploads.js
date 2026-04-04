@@ -40,11 +40,7 @@ function kycFileFilter(req, file, cb) {
   if (ALLOWED_DOC_MIMES.has(m)) {
     return cb(null, true);
   }
-  cb(
-    new Error(
-      'Invalid file type. Use JPEG or PNG only (no PDF).'
-    )
-  );
+  cb(new Error('Use JPEG or PNG only.'));
 }
 
 const driverUpload = multer({
@@ -99,7 +95,7 @@ async function finalizeKycFile(file) {
     return {
       ok: false,
       status: 400,
-      message: `File too small (minimum ${limitsPayload.minFileKb} KB). Please upload a clear photo.`,
+      message: `Too small — minimum ${limitsPayload.minFileKb} KB.`,
     };
   }
   const mimetype = String(file.mimetype || '').toLowerCase();
@@ -120,8 +116,7 @@ async function finalizeKycFile(file) {
     return {
       ok: false,
       status: 500,
-      message:
-        'Could not process image. Try another JPEG or PNG (clear, not corrupted).',
+      message: 'Could not process file. Try another JPEG or PNG.',
     };
   }
   return { ok: true };

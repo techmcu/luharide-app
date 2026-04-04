@@ -2,6 +2,15 @@ import 'package:dio/dio.dart';
 import '../core/constants/api_constants.dart';
 import 'api_service.dart';
 
+/// Normalizes API `requests` to a growable list (handles rare single-map payloads).
+List<dynamic> coerceAdminRequestList(dynamic raw) {
+  if (raw == null) return <dynamic>[];
+  if (raw is List<dynamic>) return List<dynamic>.from(raw);
+  if (raw is List) return List<dynamic>.from(raw);
+  if (raw is Map) return <dynamic>[raw];
+  return <dynamic>[];
+}
+
 class AdminService {
   final ApiService _apiService = ApiService();
 
@@ -42,7 +51,7 @@ class AdminService {
       final data = response.data['data'] ?? {};
       return {
         'success': true,
-        'requests': data['requests'] ?? [],
+        'requests': coerceAdminRequestList(data['requests']),
       };
     } on DioException catch (e) {
       return {
@@ -62,7 +71,7 @@ class AdminService {
       final data = response.data['data'] ?? {};
       return {
         'success': true,
-        'requests': data['requests'] ?? [],
+        'requests': coerceAdminRequestList(data['requests']),
       };
     } on DioException catch (e) {
       return {

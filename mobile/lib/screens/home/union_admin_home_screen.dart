@@ -26,9 +26,6 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   List<dynamic> _driverRequests = [];
   List<dynamic> _unionRequests = [];
   bool _loading = true;
-  int _totalTrips = 0;
-  int _totalBookings = 0;
-  int _driversVerified = 0;
 
   @override
   void initState() {
@@ -38,7 +35,6 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final statsResult = await _adminService.getUnionDashboardStats();
     final driverResult = await _adminService.getDriverRequests();
     final unionResult = await _adminService.getUnionRequests();
 
@@ -46,13 +42,8 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
     setState(() {
       _loading = false;
-      _driverRequests = driverResult['requests'] ?? [];
-      _unionRequests = unionResult['requests'] ?? [];
-      if (statsResult['success'] == true) {
-        _totalTrips = statsResult['total_trips'] ?? 0;
-        _totalBookings = statsResult['total_bookings'] ?? 0;
-        _driversVerified = statsResult['drivers_verified'] ?? 0;
-      }
+      _driverRequests = coerceAdminRequestList(driverResult['requests']);
+      _unionRequests = coerceAdminRequestList(unionResult['requests']);
     });
 
     if (driverResult['success'] != true && driverResult['message'] != null) {
@@ -177,15 +168,30 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: _buildStatCard(loc.t('admin.stat.trips'), _totalTrips, Icons.directions_car, Colors.blue),
+                        child: _buildStatCard(
+                          loc.t('admin.stat.pending_unions'),
+                          _unionRequests.length,
+                          Icons.apartment,
+                          Colors.blue,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildStatCard(loc.t('admin.stat.bookings'), _totalBookings, Icons.book_online, Colors.green),
+                        child: _buildStatCard(
+                          loc.t('admin.stat.pending_drivers'),
+                          _driverRequests.length,
+                          Icons.badge,
+                          Colors.green,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildStatCard(loc.t('admin.stat.drivers'), _driversVerified, Icons.verified_user, Colors.orange),
+                        child: _buildStatCard(
+                          loc.t('admin.stat.pending_total'),
+                          _unionRequests.length + _driverRequests.length,
+                          Icons.pending_actions,
+                          Colors.orange,
+                        ),
                       ),
                     ],
                   ),
@@ -195,6 +201,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                   child: RefreshIndicator(
                     onRefresh: _load,
                     child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(16),
                       children: [
                         if (_unionRequests.isEmpty && _driverRequests.isEmpty)
