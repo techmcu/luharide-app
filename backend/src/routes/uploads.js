@@ -6,6 +6,8 @@ const { authenticate } = require('../middleware/auth');
 const { uploadDocLimiter } = require('../middleware/rateLimiter');
 const { maxFileBytes, minFileBytes, limitsPayload } = require('../config/uploadLimits');
 const { applyKycWatermark } = require('../utils/kycImageWatermark');
+const { applyKycPdfWatermark } = require('../utils/kycPdfWatermark');
+const logger = require('../config/logger');
 
 const router = express.Router();
 
@@ -110,8 +112,14 @@ async function finalizeKycFile(file) {
   try {
     if (mimetype.startsWith('image/')) {
       await applyKycWatermark(absolutePath, mimetype);
+    } else if (mimetype === 'application/pdf') {
+      await applyKycPdfWatermark(absolutePath);
     }
   } catch (wmErr) {
+    logger.warn('KYC file watermark failed', {
+      message: wmErr && wmErr.message,
+      mimetype,
+    });
     try {
       await fs.promises.unlink(absolutePath);
     } catch (_) {
@@ -120,7 +128,8 @@ async function finalizeKycFile(file) {
     return {
       ok: false,
       status: 500,
-      message: 'Could not process image. Try another photo (JPEG/PNG).',
+      message:
+        'Could not process file. Try another JPEG, PNG, WebP, or PDF (not password-protected).',
     };
   }
   return { ok: true };
