@@ -9,6 +9,7 @@ import '../../widgets/brand_app_bar_title.dart';
 import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../models/trip_model.dart';
+import '../../utils/trip_self_book_guard.dart';
 import '../../services/trip_service.dart';
 import '../../services/notification_service.dart';
 import '../trips/trip_details_screen.dart';
@@ -961,6 +962,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
+                  final uid = context.read<AuthProvider>().user?.id;
+                  if (trip.isCreatedByUserId(uid)) {
+                    await showCannotBookOwnTripDialog(context);
+                    return;
+                  }
                   final result = await Navigator.push(
                     context,
                     MaterialPageRoute(

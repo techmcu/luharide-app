@@ -6,6 +6,7 @@ import '../../core/localization/app_localizations.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
+import '../../utils/trip_self_book_guard.dart';
 import '../auth/simple_login_screen.dart';
 import '../../widgets/brand_app_bar_title.dart';
 import 'trip_details_screen.dart';
@@ -718,10 +719,17 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
         _SectionLabel(label: 'Independent driver rides', count: _trips.length),
         ..._trips.map((t) => _TripCard(
               trip: t,
-              onBook: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => TripDetailsScreen(tripId: t.id, initialTrip: t)),
-              ),
+              onBook: () {
+                final uid = context.read<AuthProvider>().user?.id;
+                if (t.isCreatedByUserId(uid)) {
+                  showCannotBookOwnTripDialog(context);
+                  return;
+                }
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => TripDetailsScreen(tripId: t.id, initialTrip: t)),
+                );
+              },
             )),
         const SizedBox(height: 8),
       ],

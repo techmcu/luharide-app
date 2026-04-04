@@ -8,6 +8,7 @@ import '../../providers/app_language_provider.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
+import '../../utils/trip_self_book_guard.dart';
 import '../auth/simple_login_screen.dart';
 import '../auth/simple_signup_screen.dart';
 import '../trips/trip_details_screen.dart';
@@ -105,6 +106,11 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   void _onTripTap(TripModel trip) async {
+    final uid = context.read<AuthProvider>().user?.id;
+    if (trip.isCreatedByUserId(uid)) {
+      await showCannotBookOwnTripDialog(context);
+      return;
+    }
     final result = await Navigator.push(
       context,
       MaterialPageRoute(

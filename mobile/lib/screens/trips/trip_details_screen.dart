@@ -138,6 +138,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     context.watch<AppLanguageProvider>();
+    context.watch<AuthProvider>();
     final loc = AppLocalizations.of(context);
 
     return Scaffold(
@@ -171,10 +172,50 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           : _displayTrip == null
               ? Center(child: Text(loc.t('trip.details.not_found')))
               : _buildTripDetails(loc),
-      bottomNavigationBar:
-          _displayTrip != null && _displayTrip!.availableSeats > 0
-              ? _buildBookButton(loc)
-              : null,
+      bottomNavigationBar: _tripDetailsBottomBar(loc),
+    );
+  }
+
+  /// Book CTA, or info bar if the current user is the trip owner (same user id as driver).
+  Widget? _tripDetailsBottomBar(AppLocalizations loc) {
+    final t = _displayTrip;
+    if (t == null || t.availableSeats <= 0) return null;
+    final uid = context.read<AuthProvider>().user?.id;
+    if (t.isCreatedByUserId(uid)) {
+      return _buildOwnRideBottomBar(loc);
+    }
+    return _buildBookButton(loc);
+  }
+
+  Widget _buildOwnRideBottomBar(AppLocalizations loc) {
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.zero,
+      child: Material(
+        color: Colors.amber[50],
+        elevation: 8,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, color: Colors.amber[900], size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  loc.t('trip.details.own_ride_hint'),
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.35,
+                    color: Colors.amber[900],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

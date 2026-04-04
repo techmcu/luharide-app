@@ -88,6 +88,13 @@ const createBooking = asyncHandler(async (req, res) => {
     const availableSeats = trip.available_seats ?? trip.total_capacity ?? 0;
     const requireApproval = trip.require_approval === false ? false : true;
 
+    if (trip.driver_id != null && String(trip.driver_id) === String(passengerId)) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest(
+        'You cannot book seats on a ride you created. Use another account to book as a passenger.'
+      );
+    }
+
     const validSeats = seat_numbers.filter(s => Number.isInteger(s) && s >= 1 && s <= totalSeats);
     const uniqueSeats = [...new Set(validSeats)];
 

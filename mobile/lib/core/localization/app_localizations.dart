@@ -672,6 +672,20 @@ class AppLocalizations {
       'en': 'Book ride',
       'hi': 'राइड बुक करें',
     },
+    'trip.self_book.title': {
+      'en': 'Cannot book your own ride',
+      'hi': 'अपनी ही राइड बुक नहीं कर सकते',
+    },
+    'trip.self_book.body': {
+      'en':
+          'This ride was posted from your account. You cannot book seats on it with the same account. This avoids misuse and payment issues. Ask a passenger to book, or use a different account if you need a test booking.',
+      'hi':
+          'यह राइड आपके खाते से पोस्ट की गई है। उसी खाते से इस पर सीट बुक नहीं कर सकते। दुरुपयोग और भुगतान समस्याओं से बचने के लिए ऐसा है। यात्री को बुक करवाएँ, या टेस्ट के लिए अलग खाता उपयोग करें।',
+    },
+    'trip.details.own_ride_hint': {
+      'en': 'You posted this ride — booking your own seats is not allowed on this account.',
+      'hi': 'आपने यह राइड पोस्ट की है — इसी खाते से अपनी सीटें बुक करना अनुमत नहीं है।',
+    },
     'trip.details.login_required_title': {
       'en': 'Login required',
       'hi': 'लॉग इन आवश्यक',

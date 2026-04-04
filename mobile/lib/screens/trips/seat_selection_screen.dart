@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/trip_model.dart';
+import '../../utils/trip_self_book_guard.dart';
 import '../../models/seat_layout.dart';
 import '../../services/realtime_socket_service.dart';
 import '../../services/trip_service.dart';
@@ -58,6 +60,15 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     super.initState();
     _initLayout();
     _loadSeatStatus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final uid = context.read<AuthProvider>().user?.id;
+      if (widget.trip.isCreatedByUserId(uid)) {
+        showCannotBookOwnTripDialog(context).then((_) {
+          if (mounted) Navigator.of(context).pop();
+        });
+      }
+    });
     final id = widget.trip.id;
     RealtimeSocketService.instance.joinTrip(id);
     _tripSocketSub = RealtimeSocketService.instance.tripUpdatedStream.listen((e) {

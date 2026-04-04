@@ -113,6 +113,14 @@ class TripModel {
     return null;
   }
 
+  /// Independent-driver trips: same user cannot book their own seats (fraud / payment hygiene).
+  bool isCreatedByUserId(String? userId) {
+    if (userId == null || userId.isEmpty) return false;
+    final did = driver?.id;
+    if (did == null || did.isEmpty) return false;
+    return did == userId;
+  }
+
   String get formattedDuration {
     final duration = estimatedDuration;
     if (duration == null) return 'N/A';
