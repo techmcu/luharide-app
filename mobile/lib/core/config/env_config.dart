@@ -64,6 +64,16 @@ class EnvConfig {
     return _productionSocket;
   }
 
+  /// Origin for `/uploads/...` links (same host as API, without `/api`).
+  /// Prefer this over [socketUrl] when REST and Socket hosts might differ.
+  static String get publicFileBaseUrl {
+    final api = apiBaseUrl;
+    if (api.endsWith('/api')) {
+      return _trimEndSlashes(api.substring(0, api.length - 4));
+    }
+    return socketUrl;
+  }
+
   /// Non-empty when this build should show a channel tag after `version (build)` in About.
   static String get versionDisplaySuffix {
     if (_stableRelease) return '';

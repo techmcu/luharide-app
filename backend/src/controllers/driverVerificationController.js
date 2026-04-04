@@ -1,9 +1,58 @@
+const path = require('path');
+const fs = require('fs').promises;
 const { pool } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
+const { minFileBytes } = require('../config/uploadLimits');
+const { resolveVerifiedUploadPath } = require('../utils/resolveVerifiedUploadPath');
+const { mergeImagePathsToWatermarkedPdf } = require('../utils/kycMergeImagesToPdf');
+
+function sanitizeDocUrl(raw) {
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim();
+  if (s.length > 2048) return null;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('/uploads/')) return s;
+  return null;
+}
+
+async function mergeDriverDocPair(frontUrl, backUrl, filePrefix) {
+  const f = sanitizeDocUrl(frontUrl);
+  const b = sanitizeDocUrl(backUrl);
+  if (!f || !b) return null;
+  const absF = resolveVerifiedUploadPath(f, 'driver-docs');
+  const absB = resolveVerifiedUploadPath(b, 'driver-docs');
+  if (!absF || !absB) {
+    throw ApiError.badRequest('Invalid document path. Upload documents again from the app.');
+  }
+  try {
+    await fs.access(absF);
+    await fs.access(absB);
+  } catch {
+    throw ApiError.badRequest('Uploaded file not found. Please try uploading again.');
+  }
+  const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'driver-docs');
+  const outName = `${filePrefix}_${Date.now()}.pdf`;
+  const outAbs = path.join(uploadsDir, outName);
+  try {
+    await mergeImagePathsToWatermarkedPdf([absF, absB], outAbs);
+  } catch (err) {
+    logger.warn('Driver KYC merge to PDF failed', { message: err && err.message });
+    await fs.unlink(outAbs).catch(() => {});
+    throw ApiError.badRequest(
+      'Could not combine document photos into one PDF. Try clearer JPEG or PNG images.'
+    );
+  }
+  const st = await fs.stat(outAbs);
+  if (st.size < minFileBytes) {
+    await fs.unlink(outAbs).catch(() => {});
+    throw ApiError.badRequest('Combined document too small. Please upload clearer photos.');
+  }
+  return `/uploads/driver-docs/${outName}`;
+}
 
 /**
  * Submit driver verification request
@@ -82,11 +131,30 @@ const submitVerification = asyncHandler(async (req, res) => {
   if (capNum != null && (Number.isNaN(capNum) || capNum < 1)) capNum = null;
   if (capNum != null && capNum > MAX_SEATS) capNum = MAX_SEATS;
 
+  let aadhaarDoc = sanitizeDocUrl(aadhaar_document_url);
+  let aadhaarFront = sanitizeDocUrl(aadhaar_front_url);
+  let aadhaarBack = sanitizeDocUrl(aadhaar_back_url);
+  let dlLegacy = sanitizeDocUrl(driving_license_url);
+  let dlFront = sanitizeDocUrl(driving_license_front_url);
+  let dlBack = sanitizeDocUrl(driving_license_back_url);
+
+  if (aadhaarFront && aadhaarBack) {
+    aadhaarDoc = await mergeDriverDocPair(aadhaarFront, aadhaarBack, 'aadhaar_merged');
+    aadhaarFront = null;
+    aadhaarBack = null;
+  }
+
+  if (dlFront && dlBack) {
+    dlLegacy = await mergeDriverDocPair(dlFront, dlBack, 'dl_merged');
+    dlFront = null;
+    dlBack = null;
+  }
+
   // Upsert verification request (vehicle_model_id = catalog ID for exact seat layout)
   const params = [
     userId,
     driving_license_number || null,
-    driving_license_url || null,
+    dlLegacy,
     vehicle_registration || null,
     vehicle_type || null,
     vehicle_model || null,
@@ -95,13 +163,13 @@ const submitVerification = asyncHandler(async (req, res) => {
     rc_document_url || null,
     permit_document_url || null,
     insurance_document_url || null,
-    aadhaar_document_url || null,
-    aadhaar_front_url || null,
-    aadhaar_back_url || null,
+    aadhaarDoc,
+    aadhaarFront,
+    aadhaarBack,
     rc_front_url || null,
     rc_back_url || null,
-    driving_license_front_url || null,
-    driving_license_back_url || null,
+    dlFront,
+    dlBack,
     contactPhoneVal,
     contactEmailVal,
   ];

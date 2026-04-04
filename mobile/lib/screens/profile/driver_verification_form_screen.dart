@@ -170,7 +170,6 @@ class _DriverVerificationFormScreenState
       contactEmail: _contactEmailController.text.trim(),
       permitDocumentUrl: null,
       insuranceDocumentUrl: null,
-      aadhaarDocumentUrl: aadhaarFrontUrl,
       aadhaarFrontUrl: aadhaarFrontUrl,
       aadhaarBackUrl: aadhaarBackUrl,
       drivingLicenseFrontUrl: licenseFrontUrl,

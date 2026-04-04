@@ -285,12 +285,40 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     }
 
     final out = <Widget>[];
-    add(out, 'admin.kyc.aadhaar_front', _urlStr(r, 'aadhaar_front_url'));
-    add(out, 'admin.kyc.aadhaar_back', _urlStr(r, 'aadhaar_back_url'));
-    add(out, 'admin.kyc.aadhaar_legacy', _urlStr(r, 'aadhaar_document_url'));
-    add(out, 'admin.kyc.dl_front', _urlStr(r, 'driving_license_front_url'));
-    add(out, 'admin.kyc.dl_back', _urlStr(r, 'driving_license_back_url'));
-    add(out, 'admin.kyc.dl_legacy', _urlStr(r, 'driving_license_url'));
+    final aPdf = _urlStr(r, 'aadhaar_document_url');
+    final aFront = _urlStr(r, 'aadhaar_front_url');
+    final aBack = _urlStr(r, 'aadhaar_back_url');
+    if (aFront != null || aBack != null) {
+      add(out, 'admin.kyc.aadhaar_front', aFront);
+      add(out, 'admin.kyc.aadhaar_back', aBack);
+      if (aPdf != null && aPdf != aFront && aPdf != aBack) {
+        add(out, 'admin.kyc.aadhaar_legacy', aPdf);
+      }
+    } else if (aPdf != null) {
+      if (aPdf.toLowerCase().endsWith('.pdf')) {
+        add(out, 'admin.kyc.aadhaar_combined', aPdf);
+      } else {
+        add(out, 'admin.kyc.aadhaar_legacy', aPdf);
+      }
+    }
+
+    final dlPdf = _urlStr(r, 'driving_license_url');
+    final dlFront = _urlStr(r, 'driving_license_front_url');
+    final dlBack = _urlStr(r, 'driving_license_back_url');
+    if (dlFront != null || dlBack != null) {
+      add(out, 'admin.kyc.dl_front', dlFront);
+      add(out, 'admin.kyc.dl_back', dlBack);
+      if (dlPdf != null && dlPdf != dlFront && dlPdf != dlBack) {
+        add(out, 'admin.kyc.dl_legacy', dlPdf);
+      }
+    } else if (dlPdf != null) {
+      if (dlPdf.toLowerCase().endsWith('.pdf')) {
+        add(out, 'admin.kyc.dl_combined', dlPdf);
+      } else {
+        add(out, 'admin.kyc.dl_legacy', dlPdf);
+      }
+    }
+
     add(out, 'admin.kyc.rc_front', _urlStr(r, 'rc_front_url'));
     add(out, 'admin.kyc.rc_back', _urlStr(r, 'rc_back_url'));
     add(out, 'admin.kyc.rc', _urlStr(r, 'rc_document_url'));
@@ -305,11 +333,35 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     }
 
     final out = <Widget>[];
-    add(out, 'admin.kyc.union_aadhaar_front', _urlStr(r, 'owner_aadhaar_front_url'));
-    add(out, 'admin.kyc.union_aadhaar_back', _urlStr(r, 'owner_aadhaar_back_url'));
-    add(out, 'admin.kyc.union_leader_aadhaar', _urlStr(r, 'owner_aadhaar_url'));
-    add(out, 'admin.kyc.union_leader_dl_front', _urlStr(r, 'leader_driving_license_front_url'));
-    add(out, 'admin.kyc.union_leader_dl_back', _urlStr(r, 'leader_driving_license_back_url'));
+    final oa = _urlStr(r, 'owner_aadhaar_url');
+    final oaf = _urlStr(r, 'owner_aadhaar_front_url');
+    final oab = _urlStr(r, 'owner_aadhaar_back_url');
+    if (oaf != null || oab != null) {
+      add(out, 'admin.kyc.union_aadhaar_front', oaf);
+      add(out, 'admin.kyc.union_aadhaar_back', oab);
+      if (oa != null && oa != oaf && oa != oab) {
+        add(out, 'admin.kyc.union_leader_aadhaar', oa);
+      }
+    } else if (oa != null) {
+      if (oa.toLowerCase().endsWith('.pdf')) {
+        add(out, 'admin.kyc.union_aadhaar_combined', oa);
+      } else {
+        add(out, 'admin.kyc.union_leader_aadhaar', oa);
+      }
+    }
+
+    final ldf = _urlStr(r, 'leader_driving_license_front_url');
+    final ldb = _urlStr(r, 'leader_driving_license_back_url');
+    if (ldf != null || ldb != null) {
+      if (ldf != null) {
+        if (ldb == null && ldf.toLowerCase().endsWith('.pdf')) {
+          add(out, 'admin.kyc.union_leader_dl_combined', ldf);
+        } else {
+          add(out, 'admin.kyc.union_leader_dl_front', ldf);
+        }
+      }
+      add(out, 'admin.kyc.union_leader_dl_back', ldb);
+    }
     add(out, 'admin.kyc.office_photo', _urlStr(r, 'office_photo_url'));
     add(out, 'admin.kyc.union_photo', _urlStr(r, 'union_photo_url'));
     add(out, 'admin.kyc.union_driver_list_photo', _urlStr(r, 'union_driver_list_photo_url'));
@@ -576,8 +628,8 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     final raw = url.trim();
     if (raw.isEmpty) return raw;
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    if (raw.startsWith('/')) return '${EnvConfig.socketUrl}$raw';
-    return '${EnvConfig.socketUrl}/$raw';
+    if (raw.startsWith('/')) return '${EnvConfig.publicFileBaseUrl}$raw';
+    return '${EnvConfig.publicFileBaseUrl}/$raw';
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {

@@ -1001,9 +1001,9 @@ class AppLocalizations {
     },
     'kyc.driver.upload_note': {
       'en':
-          'Each file must be between 50 KB and 10 MB (photo or PDF). Images may receive a “Verified by LuhaRide” watermark for verification only.',
+          'Photos only: JPEG or PNG, 50 KB–20 MB each. No PDF. Server merges front+back into one watermarked PDF for admin.',
       'hi':
-          'हर फ़ाइल 50 KB से 10 MB के बीच हो (फोटो या PDF)। छवियों पर केवल सत्यापन हेतु “Verified by LuhaRide” वॉटरमार्क लग सकता है।',
+          'केवल फोटो: JPEG या PNG, प्रत्येक 50 KB–20 MB। PDF नहीं। सर्वर आगे-पीछे को एक वॉटरमार्क PDF में जोड़ता है।',
     },
     'kyc.driver.snack.missing_docs': {
       'en': 'Please upload Aadhaar (front and back) and driving licence (front and back).',
@@ -1090,9 +1090,9 @@ class AppLocalizations {
       'hi': 'कृपया यूनियन प्रमुख का आधार (आगे-पीछे) और स्पष्ट यूनियन फोटो अपलोड करें।',
     },
     'kyc.union.upload_note': {
-      'en': 'Required: leader Aadhaar (front and back) and one clear union photo. Each file 50 KB–10 MB (photo or PDF).',
+      'en': 'JPEG/PNG only, 50 KB–20 MB each; no PDF. Aadhaar front+back are merged into one PDF for admin.',
       'hi':
-          'आवश्यक: प्रमुख का आधार (आगे-पीछे) और एक स्पष्ट यूनियन फोटो। प्रत्येक फ़ाइल 50 KB–10 MB (फोटो या PDF)।',
+          'केवल JPEG/PNG, 50 KB–20 MB; PDF नहीं। आधार आगे-पीछे एडमिन के लिए एक PDF में जुड़ेंगे।',
     },
     'kyc.union.val.phone': {
       'en': 'Leader phone is required.',
@@ -1295,6 +1295,10 @@ class AppLocalizations {
       'en': 'Aadhaar (back)',
       'hi': 'आधार (पिछला)',
     },
+    'admin.kyc.aadhaar_combined': {
+      'en': 'Aadhaar (PDF — front & back)',
+      'hi': 'आधार (PDF — आगे व पीछे)',
+    },
     'admin.kyc.dl_front': {
       'en': 'Driving licence (front)',
       'hi': 'डीएल (अगला)',
@@ -1306,6 +1310,10 @@ class AppLocalizations {
     'admin.kyc.dl_legacy': {
       'en': 'Driving licence (file)',
       'hi': 'डीएल फ़ाइल',
+    },
+    'admin.kyc.dl_combined': {
+      'en': 'Driving licence (PDF — front & back)',
+      'hi': 'डीएल (PDF — आगे व पीछे)',
     },
     'admin.kyc.rc': {
       'en': 'RC / registration file',
@@ -1338,6 +1346,14 @@ class AppLocalizations {
     'admin.kyc.union_aadhaar_back': {
       'en': 'Leader Aadhaar (back)',
       'hi': 'प्रमुख आधार पिछला',
+    },
+    'admin.kyc.union_aadhaar_combined': {
+      'en': 'Leader Aadhaar (PDF — front & back)',
+      'hi': 'प्रमुख आधार (PDF — आगे व पीछे)',
+    },
+    'admin.kyc.union_leader_dl_combined': {
+      'en': 'Leader driving licence (PDF — front & back)',
+      'hi': 'प्रमुख डीएल (PDF — आगे व पीछे)',
     },
     'admin.kyc.office_photo': {
       'en': 'Office / union photo',

@@ -1,9 +1,14 @@
+const path = require('path');
+const fs = require('fs').promises;
 const { pool } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const PDFDocument = require('pdfkit');
+const { minFileBytes } = require('../config/uploadLimits');
+const { resolveVerifiedUploadPath } = require('../utils/resolveVerifiedUploadPath');
+const { mergeImagePathsToWatermarkedPdf } = require('../utils/kycMergeImagesToPdf');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -240,6 +245,41 @@ function sanitizeDocumentUrl(raw) {
   return null;
 }
 
+async function mergeUnionDocPair(frontUrl, backUrl, filePrefix) {
+  const f = sanitizeDocumentUrl(frontUrl);
+  const b = sanitizeDocumentUrl(backUrl);
+  if (!f || !b) return null;
+  const absF = resolveVerifiedUploadPath(f, 'union-docs');
+  const absB = resolveVerifiedUploadPath(b, 'union-docs');
+  if (!absF || !absB) {
+    throw ApiError.badRequest('Invalid document path. Upload documents again from the app.');
+  }
+  try {
+    await fs.access(absF);
+    await fs.access(absB);
+  } catch {
+    throw ApiError.badRequest('Uploaded file not found. Please try uploading again.');
+  }
+  const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'union-docs');
+  const outName = `${filePrefix}_${Date.now()}.pdf`;
+  const outAbs = path.join(uploadsDir, outName);
+  try {
+    await mergeImagePathsToWatermarkedPdf([absF, absB], outAbs);
+  } catch (err) {
+    logger.warn('Union KYC merge to PDF failed', { message: err && err.message });
+    await fs.unlink(outAbs).catch(() => {});
+    throw ApiError.badRequest(
+      'Could not combine document photos into one PDF. Try clearer JPEG or PNG images.'
+    );
+  }
+  const st = await fs.stat(outAbs);
+  if (st.size < minFileBytes) {
+    await fs.unlink(outAbs).catch(() => {});
+    throw ApiError.badRequest('Combined document too small. Please upload clearer photos.');
+  }
+  return `/uploads/union-docs/${outName}`;
+}
+
 const registerUnion = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const {
@@ -292,6 +332,30 @@ const registerUnion = asyncHandler(async (req, res) => {
   const notesRaw = union_share_notes != null ? String(union_share_notes).trim() : '';
   const notesVal = notesRaw.length > 0 ? notesRaw.slice(0, 500) : null;
 
+  let ownerAadhaarUrl = sanitizeDocumentUrl(owner_aadhaar_url);
+  let ownerAadhaarFront = sanitizeDocumentUrl(owner_aadhaar_front_url);
+  let ownerAadhaarBack = sanitizeDocumentUrl(owner_aadhaar_back_url);
+  if (ownerAadhaarFront && ownerAadhaarBack) {
+    ownerAadhaarUrl = await mergeUnionDocPair(
+      owner_aadhaar_front_url,
+      owner_aadhaar_back_url,
+      'union_owner_aadhaar_merged'
+    );
+    ownerAadhaarFront = null;
+    ownerAadhaarBack = null;
+  }
+
+  let leaderDlFront = sanitizeDocumentUrl(leader_driving_license_front_url);
+  let leaderDlBack = sanitizeDocumentUrl(leader_driving_license_back_url);
+  if (leaderDlFront && leaderDlBack) {
+    leaderDlFront = await mergeUnionDocPair(
+      leader_driving_license_front_url,
+      leader_driving_license_back_url,
+      'union_leader_dl_merged'
+    );
+    leaderDlBack = null;
+  }
+
   let insertRes;
   try {
     insertRes = await pool.query(
@@ -324,14 +388,14 @@ const registerUnion = asyncHandler(async (req, res) => {
         contact_phone || null,
         contact_email || null,
         owner_name ? String(owner_name).trim() : null,
-        sanitizeDocumentUrl(owner_aadhaar_url),
-        sanitizeDocumentUrl(owner_aadhaar_front_url),
-        sanitizeDocumentUrl(owner_aadhaar_back_url),
+        ownerAadhaarUrl,
+        ownerAadhaarFront,
+        ownerAadhaarBack,
         sanitizeDocumentUrl(office_photo_url),
         sanitizeDocumentUrl(union_photo_url),
         sanitizeDocumentUrl(union_driver_list_photo_url),
-        sanitizeDocumentUrl(leader_driving_license_front_url),
-        sanitizeDocumentUrl(leader_driving_license_back_url),
+        leaderDlFront,
+        leaderDlBack,
         sanitizeDocumentUrl(owner_vehicle_rc_url),
         sanitizeDocumentUrl(owner_vehicle_rc_front_url),
         sanitizeDocumentUrl(owner_vehicle_rc_back_url),

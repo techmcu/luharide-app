@@ -5,23 +5,23 @@ import '../core/constants/api_constants.dart';
 import 'api_service.dart';
 
 /// Uses [XFile] + bytes so uploads work on **Web** (no dart:io / fromFile).
-/// Keep min/max in sync with backend [uploadLimits.js] (default 50 KB min, 10 MB max).
+/// Keep min/max in sync with backend [uploadLimits.js] (default 50 KB min, 20 MB max).
 class UploadService {
   final ApiService _api = ApiService();
 
   static const int kUploadMinBytes = 50 * 1024;
-  static const int kUploadMaxBytes = 10 * 1024 * 1024;
+  static const int kUploadMaxBytes = 20 * 1024 * 1024;
 
   Future<MultipartFile> _filePartFromBytes(XFile file) async {
     final bytes = await file.readAsBytes();
     if (bytes.length < kUploadMinBytes) {
       throw Exception(
-        'File too small (minimum about 50 KB). Please upload a clear photo or PDF.',
+        'File too small (minimum about 50 KB). Please upload a clear JPEG or PNG.',
       );
     }
     if (bytes.length > kUploadMaxBytes) {
       throw Exception(
-        'File too large (maximum 10 MB). Choose a smaller file.',
+        'File too large (maximum 20 MB). Choose a smaller file.',
       );
     }
     final name = file.name;
@@ -57,7 +57,7 @@ class UploadService {
       if (e.response?.statusCode == 413) {
         throw Exception(
           _dioMessage(e) ??
-              'File too large for server (max 10 MB). Choose a smaller file.',
+              'File too large for server (max 20 MB). Choose a smaller file.',
         );
       }
       if (e.response?.statusCode == 400) {
@@ -87,7 +87,7 @@ class UploadService {
       if (e.response?.statusCode == 413) {
         throw Exception(
           _dioMessage(e) ??
-              'File too large for server (max 10 MB). Choose a smaller file.',
+              'File too large for server (max 20 MB). Choose a smaller file.',
         );
       }
       if (e.response?.statusCode == 400) {

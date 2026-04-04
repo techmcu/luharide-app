@@ -152,7 +152,6 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       contactPhone: _phoneController.text.trim(),
       contactEmail: _emailController.text.trim(),
       ownerName: _ownerNameController.text.trim(),
-      ownerAadhaarUrl: ownerAadhaarFrontUrl,
       ownerAadhaarFrontUrl: ownerAadhaarFrontUrl,
       ownerAadhaarBackUrl: ownerAadhaarBackUrl,
       officePhotoUrl: officePhotoUrl,

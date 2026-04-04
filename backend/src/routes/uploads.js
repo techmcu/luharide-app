@@ -6,18 +6,12 @@ const { authenticate } = require('../middleware/auth');
 const { uploadDocLimiter } = require('../middleware/rateLimiter');
 const { maxFileBytes, minFileBytes, limitsPayload } = require('../config/uploadLimits');
 const { applyKycWatermark } = require('../utils/kycImageWatermark');
-const { applyKycPdfWatermark } = require('../utils/kycPdfWatermark');
 const logger = require('../config/logger');
 
 const router = express.Router();
 
-/** KYC uploads: images + PDF only (reduces malware / odd file hosting risk). */
-const ALLOWED_DOC_MIMES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'application/pdf',
-]);
+/** KYC uploads: JPEG/PNG only; server builds watermarked PDFs for admin when needed. */
+const ALLOWED_DOC_MIMES = new Set(['image/jpeg', 'image/png']);
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
@@ -48,7 +42,7 @@ function kycFileFilter(req, file, cb) {
   }
   cb(
     new Error(
-      'Invalid file type. Allowed: JPEG, PNG, WebP, or PDF only.'
+      'Invalid file type. Use JPEG or PNG only (no PDF).'
     )
   );
 }
@@ -105,15 +99,13 @@ async function finalizeKycFile(file) {
     return {
       ok: false,
       status: 400,
-      message: `File too small (minimum ${limitsPayload.minFileKb} KB). Please upload a clear photo or PDF.`,
+      message: `File too small (minimum ${limitsPayload.minFileKb} KB). Please upload a clear photo.`,
     };
   }
   const mimetype = String(file.mimetype || '').toLowerCase();
   try {
     if (mimetype.startsWith('image/')) {
       await applyKycWatermark(absolutePath, mimetype);
-    } else if (mimetype === 'application/pdf') {
-      await applyKycPdfWatermark(absolutePath);
     }
   } catch (wmErr) {
     logger.warn('KYC file watermark failed', {
@@ -129,7 +121,7 @@ async function finalizeKycFile(file) {
       ok: false,
       status: 500,
       message:
-        'Could not process file. Try another JPEG, PNG, WebP, or PDF (not password-protected).',
+        'Could not process image. Try another JPEG or PNG (clear, not corrupted).',
     };
   }
   return { ok: true };
