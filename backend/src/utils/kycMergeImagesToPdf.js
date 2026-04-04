@@ -1,14 +1,13 @@
 const fs = require('fs');
 const sharp = require('sharp');
 const { PDFDocument } = require('pdf-lib');
-const { applyKycPdfWatermark } = require('./kycPdfWatermark');
 
 const SHARP_READ_OPTS = { failOn: 'none' };
 const MAX_EDGE = 2200;
 
 /**
  * Build a multi-page PDF from image files (already watermarked on upload).
- * Applies the same PDF stamp as other KYC PDFs, then writes to outputPath.
+ * Does not add a second PDF-layer stamp — avoids repeating VERIFY / Verified by LuhaRide.
  *
  * @param {string[]} absoluteImagePaths
  * @param {string} outputPath
@@ -38,7 +37,6 @@ async function mergeImagePathsToWatermarkedPdf(absoluteImagePaths, outputPath) {
   const tmp = `${outputPath}.part.${process.pid}.${Date.now()}`;
   await fs.promises.writeFile(tmp, pdfBytes);
   await fs.promises.rename(tmp, outputPath);
-  await applyKycPdfWatermark(outputPath);
 }
 
 module.exports = { mergeImagePathsToWatermarkedPdf };

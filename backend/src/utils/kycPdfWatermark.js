@@ -13,7 +13,7 @@ function fitFontSize(text, font, maxWidth, startSize, minSize) {
 }
 
 /**
- * Strong, readable stamps on every page (no fragile diagonal rotation).
+ * One VERIFY at top + one footer (Verified by LuhaRide + disclaimer). No centre band / duplicate primary.
  * Overwrites file in place via temp file.
  */
 async function applyKycPdfWatermark(absolutePath) {
@@ -32,55 +32,24 @@ async function applyKycPdfWatermark(absolutePath) {
     const height = page.getHeight();
     const minSide = Math.min(width, height);
     const marginX = Math.max(12, minSide * 0.02);
+    const maxTextW = width - marginX * 2;
 
-    // --- Large header mark (top of page in PDF coords) ---
-    const topMarkSize = Math.max(44, minSide * 0.22);
+    const topMarkSize = Math.max(40, minSide * 0.18);
     const wTop = fontBold.widthOfTextAtSize(LINE_TOP_MARK, topMarkSize);
     page.drawText(LINE_TOP_MARK, {
       x: (width - wTop) / 2,
-      y: height - topMarkSize * 1.2,
+      y: height - topMarkSize * 1.15,
       size: topMarkSize,
       font: fontBold,
-      color: rgb(0.12, 0.12, 0.12),
-      opacity: 0.78,
-    });
-
-    // --- Horizontal centre band (high contrast; always visible) ---
-    const stripH = Math.max(minSide * 0.16, 48);
-    const cy = height / 2;
-    const stripBottom = cy - stripH / 2;
-
-    page.drawRectangle({
-      x: 0,
-      y: stripBottom,
-      width,
-      height: stripH,
-      color: rgb(0, 0, 0),
+      color: rgb(0.15, 0.15, 0.15),
       opacity: 0.72,
     });
 
-    const maxTextW = width - marginX * 2;
-    let primarySize = Math.max(14, minSide * 0.045);
-    primarySize = fitFontSize(LINE_PRIMARY, fontBold, maxTextW, primarySize, 10);
-    const wPrimary = fontBold.widthOfTextAtSize(LINE_PRIMARY, primarySize);
-    const hPrimary = fontBold.heightAtSize(primarySize);
-    const textBaseY = cy - hPrimary * 0.35;
-
-    page.drawText(LINE_PRIMARY, {
-      x: (width - wPrimary) / 2,
-      y: textBaseY,
-      size: primarySize,
-      font: fontBold,
-      color: rgb(1, 1, 1),
-      opacity: 1,
-    });
-
-    // --- Bottom legal band ---
     let fontLarge = Math.max(12, minSide * 0.04);
     let fontSmall = Math.max(8, fontLarge * 0.48);
     fontSmall = fitFontSize(LINE_SECONDARY, fontRegular, maxTextW, fontSmall, 6.5);
 
-    const bandH = fontLarge * 1.4 + fontSmall * 1.35 + 22;
+    const bandH = fontLarge * 1.45 + fontSmall * 1.35 + 22;
 
     page.drawRectangle({
       x: 0,
@@ -88,7 +57,7 @@ async function applyKycPdfWatermark(absolutePath) {
       width,
       height: bandH,
       color: rgb(0, 0, 0),
-      opacity: 0.75,
+      opacity: 0.72,
     });
 
     const wFoot1 = fontBold.widthOfTextAtSize(LINE_PRIMARY, fontLarge);

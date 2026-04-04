@@ -24,7 +24,7 @@ function renderOverlayWithResvg(svg, width) {
 }
 
 /**
- * Centre diagonal watermark + bottom legal banner on KYC images (JPEG/PNG/WebP).
+ * One VERIFY at top + one footer band (Verified by LuhaRide + disclaimer). No repeated centre text.
  * PDFs are skipped. Overwrites the file in place via a temp file.
  */
 async function applyKycWatermark(absolutePath, mimetype) {
@@ -43,13 +43,7 @@ async function applyKycWatermark(absolutePath, mimetype) {
   const bandH = padY * 2 + fontLarge + fontSmall + Math.round(fontLarge * 0.35);
 
   const cx = w / 2;
-  const cy = h / 2;
-  const angle = -34;
-  const centerFont = Math.max(36, Math.round(minSide * 0.14));
-  const centerSubFont = Math.max(15, Math.round(centerFont * 0.28));
-  const centerGap = Math.round(centerFont * 0.55);
-
-  const topMarkFont = Math.max(48, Math.round(minSide * 0.2));
+  const topMarkFont = Math.max(44, Math.round(minSide * 0.18));
   const topMarkY = Math.round(topMarkFont * 0.9);
 
   const svg = `
@@ -69,26 +63,6 @@ async function applyKycWatermark(absolutePath, mimetype) {
         stroke="rgba(255,255,255,0.35)"
         stroke-width="${Math.max(2, Math.round(topMarkFont * 0.028))}"
         paint-order="stroke fill">${escapeXml(LINE_TOP_MARK)}</text>
-  <g transform="translate(${cx}, ${cy}) rotate(${angle})">
-    <text x="0" y="${-centerGap / 2}"
-          text-anchor="middle" dominant-baseline="middle"
-          fill="rgba(255,255,255,0.72)"
-          font-family="Arial, Helvetica, Liberation Sans, sans-serif"
-          font-size="${centerFont}"
-          font-weight="800"
-          stroke="rgba(0,0,0,0.65)"
-          stroke-width="${Math.max(2, Math.round(centerFont * 0.045))}"
-          paint-order="stroke fill">${escapeXml(LINE_PRIMARY)}</text>
-    <text x="0" y="${centerGap / 2}"
-          text-anchor="middle" dominant-baseline="middle"
-          fill="rgba(255,255,255,0.62)"
-          font-family="Arial, Helvetica, Liberation Sans, sans-serif"
-          font-size="${centerSubFont}"
-          font-weight="600"
-          stroke="rgba(0,0,0,0.55)"
-          stroke-width="2"
-          paint-order="stroke fill">${escapeXml(LINE_SECONDARY)}</text>
-  </g>
   <rect x="0" y="${h - bandH}" width="${w}" height="${bandH}" fill="url(#band)"/>
   <text x="${w / 2}" y="${h - padY - fontSmall - Math.round(fontLarge * 0.15)}"
         text-anchor="middle"
