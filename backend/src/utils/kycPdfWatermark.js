@@ -43,8 +43,8 @@ async function applyKycPdfWatermark(absolutePath) {
       y: height - topMarkSize * 1.15,
       size: topMarkSize,
       font: fontBold,
-      color: rgb(0.35, 0.35, 0.35),
-      opacity: 0.22,
+      color: rgb(0.32, 0.32, 0.32),
+      opacity: 0.4,
     });
 
     const bigSize = Math.max(26, minSide * 0.11);
@@ -57,8 +57,8 @@ async function applyKycPdfWatermark(absolutePath) {
       y: height / 2 + bigSize * 0.15,
       size: bigSize,
       font: fontBold,
-      color: rgb(0.45, 0.45, 0.45),
-      opacity: 0.42,
+      color: rgb(0.4, 0.4, 0.4),
+      opacity: 0.58,
       rotate: degrees(-34),
     });
 
@@ -67,8 +67,8 @@ async function applyKycPdfWatermark(absolutePath) {
       y: height / 2 - bigSize * 0.45,
       size: subSize,
       font: fontRegular,
-      color: rgb(0.42, 0.42, 0.42),
-      opacity: 0.36,
+      color: rgb(0.38, 0.38, 0.38),
+      opacity: 0.5,
       rotate: degrees(-34),
     });
 

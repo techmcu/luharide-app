@@ -47,30 +47,30 @@ async function applyKycWatermark(absolutePath, mimetype) {
   </defs>
   <text x="${cx}" y="${topMarkY}"
         text-anchor="middle" dominant-baseline="middle"
-        fill="rgba(80,80,80,0.2)"
+        fill="rgba(55,55,55,0.42)"
         font-family="Arial, Helvetica, sans-serif"
         font-size="${topMarkFont}"
         font-weight="900"
-        stroke="rgba(0,0,0,0.25)"
+        stroke="rgba(0,0,0,0.38)"
         stroke-width="${Math.max(2, Math.round(topMarkFont * 0.03))}"
         paint-order="stroke fill">${escapeXml(LINE_TOP_MARK)}</text>
   <g transform="translate(${cx}, ${cy}) rotate(${angle})">
     <text x="0" y="${-centerGap / 2}"
           text-anchor="middle" dominant-baseline="middle"
-          fill="rgba(255,255,255,0.26)"
+          fill="rgba(255,255,255,0.44)"
           font-family="Arial, Helvetica, sans-serif"
           font-size="${centerFont}"
           font-weight="800"
-          stroke="rgba(0,0,0,0.45)"
+          stroke="rgba(0,0,0,0.55)"
           stroke-width="${Math.max(2, Math.round(centerFont * 0.04))}"
           paint-order="stroke fill">${escapeXml(LINE_PRIMARY)}</text>
     <text x="0" y="${centerGap / 2}"
           text-anchor="middle" dominant-baseline="middle"
-          fill="rgba(255,255,255,0.2)"
+          fill="rgba(255,255,255,0.36)"
           font-family="Arial, Helvetica, sans-serif"
           font-size="${centerSubFont}"
           font-weight="600"
-          stroke="rgba(0,0,0,0.4)"
+          stroke="rgba(0,0,0,0.48)"
           stroke-width="1.5"
           paint-order="stroke fill">${escapeXml(LINE_SECONDARY)}</text>
   </g>

@@ -11,13 +11,17 @@ class RoleExclusivity {
     return s == 'pending' || s == 'approved';
   }
 
-  /// Cannot submit independent driver verification if user is union admin or union is pending/approved.
+  /// Cannot submit independent driver verification if union is pending/approved.
+  /// When [unionStatusFromApi] is set (from GET /union/me), it wins over JWT role so a
+  /// rejected/cancelled union does not block after admin action.
   static bool blocksIndependentDriver({
     required UserModel? user,
     required String? unionStatusFromApi,
   }) {
-    if (user?.role == 'union_admin') return true;
-    final u = unionStatusFromApi ?? 'none';
-    return u == 'pending' || u == 'approved';
+    if (unionStatusFromApi != null) {
+      final s = unionStatusFromApi;
+      return s == 'pending' || s == 'approved';
+    }
+    return user?.role == 'union_admin';
   }
 }

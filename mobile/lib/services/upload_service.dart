@@ -35,6 +35,19 @@ class UploadService {
     return null;
   }
 
+  String? _extractUploadUrl(dynamic body) {
+    if (body is! Map) return null;
+    final m = Map<String, dynamic>.from(body);
+    final top = m['url'];
+    if (top is String && top.trim().isNotEmpty) return top.trim();
+    final inner = m['data'];
+    if (inner is Map) {
+      final u = Map<String, dynamic>.from(inner)['url'];
+      if (u is String && u.trim().isNotEmpty) return u.trim();
+    }
+    return null;
+  }
+
   Future<String> uploadDriverDocument(XFile file) async {
     final formData = FormData.fromMap({
       'file': await _filePartFromBytes(file),
@@ -45,10 +58,15 @@ class UploadService {
         data: formData,
         options: Options(contentType: 'multipart/form-data'),
       );
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        return response.data['url'] as String;
-      }
-      throw Exception(response.data['message'] ?? 'Failed to upload document');
+      final ok = (response.statusCode == 200 || response.statusCode == 201) &&
+          response.data is Map &&
+          response.data['success'] == true;
+      final url = _extractUploadUrl(response.data);
+      if (ok && url != null) return url;
+      final msg = response.data is Map
+          ? response.data['message'] as String?
+          : null;
+      throw Exception(msg ?? 'Failed to upload document');
     } on DioException catch (e) {
       if (e.response?.statusCode == 413) {
         throw Exception(_dioMessage(e) ?? 'Too large — max 20 MB.');
@@ -72,10 +90,15 @@ class UploadService {
         data: formData,
         options: Options(contentType: 'multipart/form-data'),
       );
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        return response.data['url'] as String;
-      }
-      throw Exception(response.data['message'] ?? 'Failed to upload document');
+      final ok = (response.statusCode == 200 || response.statusCode == 201) &&
+          response.data is Map &&
+          response.data['success'] == true;
+      final url = _extractUploadUrl(response.data);
+      if (ok && url != null) return url;
+      final msg = response.data is Map
+          ? response.data['message'] as String?
+          : null;
+      throw Exception(msg ?? 'Failed to upload document');
     } on DioException catch (e) {
       if (e.response?.statusCode == 413) {
         throw Exception(_dioMessage(e) ?? 'Too large — max 20 MB.');

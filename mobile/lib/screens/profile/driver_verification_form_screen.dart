@@ -39,6 +39,7 @@ class _DriverVerificationFormScreenState
   bool _checkingUnionPath = true;
   bool _unionPathBlocksIndependent = false;
   bool _verificationAlreadyPending = false;
+  bool _recheckingPending = false;
 
   @override
   void initState() {
@@ -87,6 +88,29 @@ class _DriverVerificationFormScreenState
         });
       }
     }
+  }
+
+  /// One server round-trip after admin reject — no polling.
+  Future<void> _recheckVerificationStatus() async {
+    if (_recheckingPending) return;
+    setState(() => _recheckingPending = true);
+    final auth = context.read<AuthProvider>();
+    await auth.refreshUser();
+    if (!mounted) return;
+    final dv = auth.user?.driverVerificationStatus ?? 'none';
+    if (dv == 'pending') {
+      setState(() {
+        _recheckingPending = false;
+        _verificationAlreadyPending = true;
+      });
+      return;
+    }
+    setState(() {
+      _verificationAlreadyPending = false;
+      _checkingUnionPath = true;
+      _recheckingPending = false;
+    });
+    await _checkUnionExclusivity();
   }
 
   @override
@@ -236,6 +260,18 @@ class _DriverVerificationFormScreenState
               Text(
                 loc.t('kyc.driver.already_pending_body'),
                 style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _recheckingPending ? null : _recheckVerificationStatus,
+                icon: _recheckingPending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                label: Text(loc.t('kyc.driver.check_status')),
               ),
               const Spacer(),
               OutlinedButton(

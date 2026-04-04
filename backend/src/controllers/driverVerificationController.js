@@ -5,15 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 const { buildWatermarkedPdfFromUploadUrls } = require('../utils/kycBuildPdfFromUploadUrls');
-
-function sanitizeDocUrl(raw) {
-  if (raw == null || raw === '') return null;
-  const s = String(raw).trim();
-  if (s.length > 2048) return null;
-  if (/^https?:\/\//i.test(s)) return s;
-  if (s.startsWith('/uploads/')) return s;
-  return null;
-}
+const { sanitizeKycUploadUrl: sanitizeDocUrl } = require('../utils/sanitizeKycUploadUrl');
 
 /** Preserve order; drop empty. */
 function orderedSanitizedDocUrls(urlList) {
@@ -75,12 +67,6 @@ const submitVerification = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('You are already a verified driver');
   }
 
-  if (req.user.role === 'union_admin') {
-    throw ApiError.badRequest(
-      'Union admin accounts cannot submit independent driver verification.'
-    );
-  }
-
   // Block if user has any union that is still pending or approved (not only rows[0] — multiple unions possible).
   const unionActive = await pool.query(
     `SELECT 1 FROM unions u
@@ -136,14 +122,14 @@ const submitVerification = asyncHandler(async (req, res) => {
     vehicle_model || null,
     vehicle_model_id || null,
     capNum,
-    rc_document_url || null,
-    permit_document_url || null,
-    insurance_document_url || null,
+    sanitizeDocUrl(rc_document_url),
+    sanitizeDocUrl(permit_document_url),
+    sanitizeDocUrl(insurance_document_url),
     aadhaarDoc,
     aadhaarFront,
     aadhaarBack,
-    rc_front_url || null,
-    rc_back_url || null,
+    sanitizeDocUrl(rc_front_url),
+    sanitizeDocUrl(rc_back_url),
     dlFront,
     dlBack,
     contactPhoneVal,

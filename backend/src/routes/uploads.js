@@ -151,6 +151,7 @@ router.post(
       res.json({
         success: true,
         url: relativeUrl,
+        data: { url: relativeUrl },
         limits: limitsPayload,
       });
     });
@@ -186,6 +187,7 @@ router.post(
       res.json({
         success: true,
         url: relativeUrl,
+        data: { url: relativeUrl },
         limits: limitsPayload,
       });
     });

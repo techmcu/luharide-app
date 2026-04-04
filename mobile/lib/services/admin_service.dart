@@ -11,6 +11,71 @@ List<dynamic> coerceAdminRequestList(dynamic raw) {
   return <dynamic>[];
 }
 
+String _camelToSnakeKey(String input) {
+  var s = input.replaceAllMapped(RegExp(r'([a-z\d])([A-Z])'), (m) => '${m[1]}_${m[2]}');
+  s = s.replaceAllMapped(RegExp(r'([A-Z]+)([A-Z][a-z])'), (m) => '${m[1]}_${m[2]}');
+  return s.toLowerCase();
+}
+
+/// Merges nested `data`, copies camelCase fields to snake_case for KYC *_url columns
+/// (admin list may arrive as raw PG rows or partially transformed JSON).
+Map<String, dynamic> normalizeAdminKycMap(dynamic raw) {
+  if (raw is! Map) return <String, dynamic>{};
+  final src = Map<dynamic, dynamic>.from(raw);
+  final out = <String, dynamic>{};
+
+  void mergeIn(Map<dynamic, dynamic> m) {
+    for (final e in m.entries) {
+      out[e.key.toString()] = e.value;
+    }
+  }
+
+  mergeIn(src);
+  final nested = src['data'];
+  if (nested is Map) mergeIn(Map<dynamic, dynamic>.from(nested));
+  final reqNest = src['request'];
+  if (reqNest is Map) mergeIn(Map<dynamic, dynamic>.from(reqNest));
+
+  final keysCopy = List<String>.from(out.keys);
+  for (final key in keysCopy) {
+    if (!key.contains('_')) {
+      final snake = _camelToSnakeKey(key);
+      if (snake == key) continue;
+      final v = out[key];
+      if (v == null || v.toString().trim().isEmpty) continue;
+      final cur = out[snake];
+      if (cur == null || cur.toString().trim().isEmpty) {
+        out[snake] = v;
+      }
+    }
+  }
+
+  return out;
+}
+
+List<dynamic> normalizeAdminRequestList(dynamic raw) {
+  return coerceAdminRequestList(raw).map((e) => normalizeAdminKycMap(e)).toList();
+}
+
+/// Resolves `{ data: { requests } }`, `{ requests }`, or rows nested under `request`.
+Map<String, dynamic> _adminResponseLayer(dynamic raw) {
+  if (raw is! Map) return <String, dynamic>{};
+  final root = Map<String, dynamic>.from(raw);
+  final inner = root['data'];
+  if (inner is Map) {
+    return Map<String, dynamic>.from(inner);
+  }
+  return root;
+}
+
+dynamic _adminRequestsRaw(dynamic responseData) {
+  final root = responseData is Map
+      ? Map<String, dynamic>.from(responseData)
+      : <String, dynamic>{};
+  final layer = _adminResponseLayer(responseData);
+  return layer['requests'] ?? root['requests'];
+}
+
 class AdminService {
   final ApiService _apiService = ApiService();
 
@@ -48,10 +113,9 @@ class AdminService {
   Future<Map<String, dynamic>> getDriverRequests() async {
     try {
       final response = await _apiService.get(ApiConstants.adminDriverRequests);
-      final data = response.data['data'] ?? {};
       return {
         'success': true,
-        'requests': coerceAdminRequestList(data['requests']),
+        'requests': normalizeAdminRequestList(_adminRequestsRaw(response.data)),
       };
     } on DioException catch (e) {
       return {
@@ -68,10 +132,9 @@ class AdminService {
   Future<Map<String, dynamic>> getUnionRequests() async {
     try {
       final response = await _apiService.get(ApiConstants.adminUnionRequests);
-      final data = response.data['data'] ?? {};
       return {
         'success': true,
-        'requests': coerceAdminRequestList(data['requests']),
+        'requests': normalizeAdminRequestList(_adminRequestsRaw(response.data)),
       };
     } on DioException catch (e) {
       return {

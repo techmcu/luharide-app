@@ -348,17 +348,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   : driverStatus == 'rejected'
                       ? loc.t('driver.tile.rejected.sub')
                       : loc.t('profile.share.sub.need_verify'),
-              onTap: driverStatus == 'pending'
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
-                      ).then((_) {
-                        authProvider.refreshUser();
-                        _loadUnionStatus();
-                      });
-                    },
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
+                ).then((_) {
+                  authProvider.refreshUser();
+                  _loadUnionStatus();
+                });
+              },
             ),
           ],
           const SizedBox(height: 24),
@@ -529,7 +527,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const DriverVerificationFormScreen()),
-                ).then((_) => authProvider.refreshUser());
+                ).then((_) {
+                  authProvider.refreshUser();
+                  _loadUnionStatus();
+                });
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
               child: Text(loc.t('profile.verify_docs_btn')),

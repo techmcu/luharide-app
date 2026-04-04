@@ -981,6 +981,10 @@ class AppLocalizations {
       'en': 'Back',
       'hi': 'वापस',
     },
+    'kyc.driver.check_status': {
+      'en': 'Check status',
+      'hi': 'स्थिति देखें',
+    },
     'kyc.driver.contact_phone': {
       'en': 'Contact phone',
       'hi': 'संपर्क फ़ोन',

@@ -5,6 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const PDFDocument = require('pdfkit');
 const { buildWatermarkedPdfFromUploadUrls } = require('../utils/kycBuildPdfFromUploadUrls');
+const { sanitizeKycUploadUrl: sanitizeDocumentUrl } = require('../utils/sanitizeKycUploadUrl');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -14,6 +15,35 @@ function ensurePlatformAdmin(user) {
   const email = user?.email ? String(user.email).toLowerCase().trim() : null;
   if (!adminEmail || !email || email !== adminEmail) {
     throw ApiError.forbidden('Only app admin can perform this action');
+  }
+}
+
+/**
+ * After union reject/cancel: demote union_admin users who have no remaining
+ * pending/approved union (stale role otherwise blocks independent driver + APIs).
+ */
+async function demoteUnionAdminsOrphanedByReject(unionId) {
+  const r = await pool.query(
+    `UPDATE users u
+     SET role = CASE
+       WHEN u.driver_verification_status = 'approved' THEN 'driver'
+       ELSE 'passenger'
+     END
+     WHERE u.role = 'union_admin'
+       AND u.id IN (SELECT user_id FROM union_admins WHERE union_id = $1)
+       AND NOT EXISTS (
+         SELECT 1
+         FROM union_admins ua2
+         INNER JOIN unions u2 ON u2.id = ua2.union_id
+         WHERE ua2.user_id = u.id
+           AND u2.status IN ('pending', 'approved')
+       )`,
+    [unionId]
+  );
+  if (r.rowCount > 0) {
+    logger.info(
+      `Demoted ${r.rowCount} user(s) from union_admin after union ${unionId} rejection`
+    );
   }
 }
 
@@ -228,6 +258,8 @@ const rejectUnionRequest = asyncHandler(async (req, res) => {
     [id]
   );
 
+  await demoteUnionAdminsOrphanedByReject(id);
+
   logger.info(`Union rejected from admin panel ${id} by user ${req.user.id}`);
 
   ApiResponse.success(
@@ -240,17 +272,6 @@ const rejectUnionRequest = asyncHandler(async (req, res) => {
  * Register a new union for the current user.
  * POST /api/union/register
  */
-/** Sanitize document URL: trim, length cap, http(s) only */
-function sanitizeDocumentUrl(raw) {
-  if (raw == null || raw === '') return null;
-  const s = String(raw).trim();
-  if (s.length > 2048) return null;
-  if (/^https?:\/\//i.test(s)) return s;
-  // API-relative paths from our upload endpoints
-  if (s.startsWith('/uploads/')) return s;
-  return null;
-}
-
 function orderedUnionDocUrls(urlList) {
   const out = [];
   for (const u of urlList) {
@@ -580,6 +601,8 @@ const rejectUnion = asyncHandler(async (req, res) => {
      WHERE id = $1`,
     [id]
   );
+
+  await demoteUnionAdminsOrphanedByReject(id);
 
   logger.info(`Union rejected ${id} by platform admin ${req.user.id}`);
 
