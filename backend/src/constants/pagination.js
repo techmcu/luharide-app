@@ -5,9 +5,13 @@
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
 
-/** Reviews list: BlaBlaCar-style smaller pages; all rows kept in DB, only paginated in API. */
-const DEFAULT_REVIEW_PAGE_SIZE = 20;
-const MAX_REVIEW_PAGE_SIZE = 30;
+/**
+ * Reviews: all rows stay in DB forever; API only returns a sliding window of the latest N
+ * (newest first). No deep pagination past this window — avoids huge payloads / load.
+ */
+const REVIEWS_WINDOW_MAX = 50;
+const DEFAULT_REVIEW_PAGE_SIZE = 50;
+const MAX_REVIEW_PAGE_SIZE = 50;
 
 function clampPage(page) {
   return Math.max(1, parseInt(page, 10) || 1);
@@ -31,6 +35,7 @@ function offset(page, limit) {
 module.exports = {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
+  REVIEWS_WINDOW_MAX,
   DEFAULT_REVIEW_PAGE_SIZE,
   MAX_REVIEW_PAGE_SIZE,
   clampPage,

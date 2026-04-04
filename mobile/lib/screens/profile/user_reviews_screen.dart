@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/review_service.dart';
 
-/// Shows rating summary + paginated reviews for a user (e.g. driver on trip details).
+/// Rating summary + latest reviews for another user (e.g. driver on trip details).
 class UserReviewsScreen extends StatefulWidget {
   final String userId;
   final String displayName;
@@ -19,60 +19,33 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
   double _avgRating = 0;
   bool _summaryLoaded = false;
   bool _isLoading = true;
-  bool _loadingMore = false;
-  int _page = 1;
-  bool _hasMore = true;
-  static const int _pageSize = 20;
+  bool _hasMore = false;
+  int _windowMax = 50;
+  bool _fromCache = false;
 
   @override
   void initState() {
     super.initState();
-    _loadSummary();
-    _loadPage();
+    _loadBundle();
   }
 
-  Future<void> _loadSummary() async {
-    final result = await _reviewService.getUserRatingSummary(widget.userId);
-    if (mounted) {
-      setState(() {
-        _summaryLoaded = true;
-        _total = (result['total_ratings'] as num?)?.toInt() ?? 0;
-        _avgRating = (result['average_rating'] as num?)?.toDouble() ?? 0.0;
-      });
-    }
-  }
-
-  Future<void> _loadPage() async {
+  Future<void> _loadBundle() async {
     setState(() => _isLoading = true);
-    final result = await _reviewService.getReviewsForUser(widget.userId, page: 1, limit: _pageSize);
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        _reviews.clear();
-        if (result['success'] == true && result['reviews'] != null) {
-          _reviews.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
-        }
-        _hasMore = result['has_more'] == true;
-        _page = 1;
-      });
-    }
-  }
-
-  Future<void> _loadMore() async {
-    if (_loadingMore || !_hasMore) return;
-    setState(() => _loadingMore = true);
-    final nextPage = _page + 1;
-    final result = await _reviewService.getReviewsForUser(widget.userId, page: nextPage, limit: _pageSize);
-    if (mounted) {
-      setState(() {
-        _loadingMore = false;
-        if (result['success'] == true && result['reviews'] != null) {
-          _reviews.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
-        }
-        _hasMore = result['has_more'] == true;
-        _page = nextPage;
-      });
-    }
+    final result = await _reviewService.loadUserReviewBundleWithCache(widget.userId);
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      _summaryLoaded = true;
+      _total = (result['total'] as num?)?.toInt() ?? 0;
+      _avgRating = (result['average_rating'] as num?)?.toDouble() ?? 0.0;
+      _hasMore = result['has_more'] == true;
+      _windowMax = (result['reviews_window_max'] as num?)?.toInt() ?? 50;
+      _fromCache = result['from_cache'] == true;
+      _reviews.clear();
+      if (result['success'] == true && result['reviews'] != null) {
+        _reviews.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
+      }
+    });
   }
 
   @override
@@ -88,29 +61,29 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
           : _reviews.isEmpty && _total == 0
               ? _buildEmptyState()
               : RefreshIndicator(
-                  onRefresh: () async {
-                    await _loadSummary();
-                    await _loadPage();
-                  },
+                  onRefresh: _loadBundle,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
                       if (_summaryLoaded) _buildSummaryChip(),
-                      const SizedBox(height: 16),
-                      ..._reviews.map((r) => _buildRatingCard(r)),
                       if (_hasMore)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Center(
-                            child: _loadingMore
-                                ? const SizedBox(height: 32, width: 32, child: CircularProgressIndicator(strokeWidth: 2))
-                                : TextButton.icon(
-                                    onPressed: _loadMore,
-                                    icon: const Icon(Icons.expand_more),
-                                    label: const Text('More'),
-                                  ),
+                          padding: const EdgeInsets.only(top: 8, bottom: 8),
+                          child: Text(
+                            'Showing latest $_windowMax of $_total reviews.',
+                            style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
                           ),
                         ),
+                      if (_fromCache)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Cached — pull to refresh.',
+                            style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                      ..._reviews.map((r) => _buildRatingCard(r)),
                     ],
                   ),
                 ),
@@ -130,9 +103,11 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
         children: [
           Icon(Icons.star, color: Colors.amber[700], size: 28),
           const SizedBox(width: 12),
-          Text(
-            _total == 0 ? 'No ratings yet' : '$avgStr ★ ($_total reviews)',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.amber[900]),
+          Expanded(
+            child: Text(
+              _total == 0 ? 'No ratings yet' : '$avgStr ★ ($_total reviews)',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.amber[900]),
+            ),
           ),
         ],
       ),
@@ -173,7 +148,7 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
                 CircleAvatar(
                   backgroundColor: Colors.amber[100],
                   child: Text(
-                    fromName[0].toUpperCase(),
+                    fromName.isNotEmpty ? fromName[0].toUpperCase() : '?',
                     style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -189,11 +164,14 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
                   ),
                 ),
                 Row(
-                  children: List.generate(5, (i) => Icon(
-                    i < rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                    size: 20,
-                  )),
+                  children: List.generate(
+                    5,
+                    (i) => Icon(
+                      i < rating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
+                  ),
                 ),
               ],
             ),

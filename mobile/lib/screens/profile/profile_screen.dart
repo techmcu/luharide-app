@@ -193,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => RatingsScreen(userRole: role),
+                        builder: (_) => RatingsScreen(userRole: role, userId: user?.id),
                       ),
                     );
                   },
@@ -287,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => RatingsScreen(userRole: role),
+                  builder: (context) => RatingsScreen(userRole: role, userId: user?.id),
                 ),
               );
             },

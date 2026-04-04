@@ -5,6 +5,7 @@
  */
 const ApiError = require('../utils/ApiError');
 const { RATING, RATING_COMMENT_MAX_WORDS, ROLES } = require('../constants/validation');
+const { REVIEWS_WINDOW_MAX } = require('../constants/pagination');
 const rideRatingsRepository = require('../repositories/rideRatingsRepository');
 const bookingRepository = require('../repositories/bookingRepository');
 
@@ -84,21 +85,45 @@ async function submitRating(bookingId, userId, { rating, comment }) {
     tripContext: buildTripContext(booking),
   });
 
-  return { message: 'Rating submitted' };
+  return { message: 'Rating submitted', rated_user_id: ratedUserId };
 }
 
 /**
- * Get paginated reviews for a user (rated_user_id)
+ * Latest reviews for a user (rated_user_id). DB keeps full history; only the newest
+ * REVIEWS_WINDOW_MAX rows are addressable through this API (offset must stay within window).
  */
 async function getReviewsForUser(ratedUserId, page, limit) {
   await rideRatingsRepository.ensureTable();
   const total = await rideRatingsRepository.countByRatedUserId(ratedUserId);
-  const reviews = await rideRatingsRepository.listByRatedUserId(ratedUserId, page, limit);
-  return { reviews, total, page, limit, has_more: (page - 1) * limit + reviews.length < total };
+  const lim = Math.max(1, Math.min(limit, REVIEWS_WINDOW_MAX));
+  const p = Math.max(1, page);
+  const off = (p - 1) * lim;
+  if (off >= REVIEWS_WINDOW_MAX) {
+    return {
+      reviews: [],
+      total,
+      page: p,
+      limit: lim,
+      has_more: false,
+      reviews_window_max: REVIEWS_WINDOW_MAX,
+    };
+  }
+  const take = Math.min(lim, REVIEWS_WINDOW_MAX - off);
+  const reviews = await rideRatingsRepository.listByRatedUserId(ratedUserId, take, off);
+  const loadedThrough = off + reviews.length;
+  const hasMoreInWindow = loadedThrough < Math.min(total, REVIEWS_WINDOW_MAX);
+  return {
+    reviews,
+    total,
+    page: p,
+    limit: lim,
+    has_more: hasMoreInWindow,
+    reviews_window_max: REVIEWS_WINDOW_MAX,
+  };
 }
 
 /**
- * Get rating summary for a user
+ * Get rating summary for a user (full totals from DB + latest review time for cache sync)
  */
 async function getRatingSummary(userId) {
   await rideRatingsRepository.ensureTable();
@@ -107,6 +132,29 @@ async function getRatingSummary(userId) {
     user_id: userId,
     total_ratings: raw.total_ratings,
     average_rating: Math.round(raw.average_rating * 100) / 100,
+    latest_review_at: raw.latest_review_at,
+    reviews_window_max: REVIEWS_WINDOW_MAX,
+  };
+}
+
+/**
+ * One round-trip friendly payload: summary + up to REVIEWS_WINDOW_MAX newest reviews.
+ */
+async function getReviewBundleForUser(userId) {
+  await rideRatingsRepository.ensureTable();
+  const [raw, reviews] = await Promise.all([
+    rideRatingsRepository.getSummaryByUserId(userId),
+    rideRatingsRepository.listByRatedUserId(userId, REVIEWS_WINDOW_MAX, 0),
+  ]);
+  const total = raw.total_ratings;
+  return {
+    user_id: userId,
+    total_ratings: total,
+    average_rating: Math.round(raw.average_rating * 100) / 100,
+    latest_review_at: raw.latest_review_at,
+    reviews,
+    reviews_window_max: REVIEWS_WINDOW_MAX,
+    has_more: total > reviews.length,
   };
 }
 
@@ -114,5 +162,6 @@ module.exports = {
   submitRating,
   getReviewsForUser,
   getRatingSummary,
+  getReviewBundleForUser,
   RATING_COMMENT_MAX_WORDS,
 };

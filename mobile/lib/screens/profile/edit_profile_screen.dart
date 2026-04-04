@@ -22,7 +22,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _whatsappController;
   late TextEditingController _bioController;
-  late TextEditingController _luggageController;
   bool _isLoading = false;
   /// Picked image bytes (works on Web + mobile; avoids dart:io FileImage).
   Uint8List? _localImageBytes;
@@ -37,7 +36,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _phoneController = TextEditingController(text: user?.phone ?? '');
     _whatsappController = TextEditingController(text: user?.whatsappNumber ?? '');
     _bioController = TextEditingController(text: user?.bio ?? '');
-    _luggageController = TextEditingController(text: user?.luggageAllowancePerPassenger ?? '');
   }
 
   @override
@@ -47,7 +45,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _phoneController.dispose();
     _whatsappController.dispose();
     _bioController.dispose();
-    _luggageController.dispose();
     super.dispose();
   }
 
@@ -80,7 +77,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       whatsappNumber: _whatsappController.text.trim().isEmpty ? null : _whatsappController.text.trim(),
       profileImageUrl: profileImageUrl,
       bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
-      luggageAllowancePerPassenger: _luggageController.text.trim().isEmpty ? null : _luggageController.text.trim(),
     );
     
     if (!mounted) return;
@@ -106,7 +102,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = context.watch<AuthProvider>().user;
     final isDriver = user?.role == 'driver';
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        final focus = FocusManager.instance.primaryFocus;
+        if (focus != null && focus.hasFocus) {
+          focus.unfocus();
+          return;
+        }
+        Navigator.of(context).pop(result);
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
         backgroundColor: isDriver ? Colors.green : Colors.blue,
@@ -283,22 +290,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 return null;
               },
             ),
-            if (isDriver) ...[
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _luggageController,
-                decoration: const InputDecoration(
-                  labelText: 'Luggage per passenger',
-                  hintText: 'e.g. 1 bag, 2 bags (shown to passengers)',
-                  prefixIcon: Icon(Icons.luggage),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) => null,
-              ),
-            ],
           ],
         ),
       ),
+    ),
     );
   }
 }

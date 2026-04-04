@@ -22,6 +22,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   final _toController = TextEditingController();
   final _vehicleNumberController = TextEditingController();
   final _fareController = TextEditingController();
+  final _luggageController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
@@ -66,6 +67,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     _toController.dispose();
     _vehicleNumberController.dispose();
     _fareController.dispose();
+    _luggageController.dispose();
     super.dispose();
   }
 
@@ -151,6 +153,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       vehicleNumber: _vehicleNumberController.text.trim(),
       totalSeats: totalSeats,
       requireApproval: _requireApproval,
+      luggageAllowancePerPassenger: _luggageController.text.trim().isEmpty
+          ? null
+          : _luggageController.text.trim(),
     );
 
     if (!mounted) return;
@@ -358,6 +363,20 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _luggageController,
+              decoration: InputDecoration(
+                labelText: 'Luggage per passenger (optional)',
+                hintText: 'e.g. 1 small bag — shown to passengers for this ride only',
+                prefixIcon: const Icon(Icons.luggage_outlined),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              maxLines: 2,
+              textCapitalization: TextCapitalization.sentences,
             ),
             const SizedBox(height: 20),
 

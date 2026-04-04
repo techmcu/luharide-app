@@ -17,8 +17,9 @@ class BrandConfig {
   /// Public-facing grievance inbox (same as support unless you split later).
   static const String grievContactEmail = 'supportluharide@gmail.com';
 
-  /// Host `docs/PRIVACY_AND_GRIEVANCE.md` content at this URL on `luharide.cloud`.
-  static const String privacyPolicyUrl = 'https://luharide.cloud/privacy';
+  /// When empty, the app shows “coming soon” for the public privacy page (no link).
+  /// Set to a full URL when the policy is hosted (e.g. on luharide.cloud).
+  static const String privacyPolicyUrl = '';
 
   static Uri? get privacyPolicyUri {
     final s = privacyPolicyUrl.trim();

@@ -21,9 +21,15 @@ const createTrip = asyncHandler(async (req, res) => {
     stops = [],
     require_approval = true,
     route_id: rawRouteId,
+    luggage_allowance_per_passenger: rawTripLuggage,
   } = req.body;
 
   const driverId = req.user.id;
+
+  const tripLuggage =
+    rawTripLuggage != null && String(rawTripLuggage).trim() !== ''
+      ? String(rawTripLuggage).trim().slice(0, 200)
+      : null;
 
   // Sanitize: trim, limit length, ensure non-empty so DB never gets invalid data
   const from_location = (rawFrom != null ? String(rawFrom).trim() : '').slice(0, 200);
@@ -104,33 +110,96 @@ const createTrip = asyncHandler(async (req, res) => {
         `INSERT INTO trips (
           driver_id, from_location, to_location, departure_time, arrival_time,
           fare_per_seat, total_capacity, available_seats,
-          vehicle_number, vehicle_model_id, stops, status, require_approval, route_id, created_source
+          vehicle_number, vehicle_model_id, stops, status, require_approval, route_id,
+          luggage_allowance_per_passenger, created_source
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         RETURNING *`,
         [
           driverId, from_location, to_location, departureStr, arrivalStr,
           fare_per_seat, totalSeats, totalSeats,
           vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+          tripLuggage,
           'independent_driver',
         ]
       );
     } catch (eCreated) {
-      if (eCreated.code === '42703' && (eCreated.message || '').includes('created_source')) {
-        result = await runInsert(
-          `INSERT INTO trips (
-            driver_id, from_location, to_location, departure_time, arrival_time,
-            fare_per_seat, total_capacity, available_seats,
-            vehicle_number, vehicle_model_id, stops, status, require_approval, route_id
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-          RETURNING *`,
-          [
-            driverId, from_location, to_location, departureStr, arrivalStr,
-            fare_per_seat, totalSeats, totalSeats,
-            vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
-          ]
-        );
+      const emsg = (eCreated.message || '').toString();
+      if (eCreated.code === '42703' && emsg.includes('luggage_allowance_per_passenger')) {
+        try {
+          result = await runInsert(
+            `INSERT INTO trips (
+              driver_id, from_location, to_location, departure_time, arrival_time,
+              fare_per_seat, total_capacity, available_seats,
+              vehicle_number, vehicle_model_id, stops, status, require_approval, route_id, created_source
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            RETURNING *`,
+            [
+              driverId, from_location, to_location, departureStr, arrivalStr,
+              fare_per_seat, totalSeats, totalSeats,
+              vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+              'independent_driver',
+            ]
+          );
+        } catch (e2) {
+          if (e2.code === '42703' && (e2.message || '').includes('created_source')) {
+            result = await runInsert(
+              `INSERT INTO trips (
+                driver_id, from_location, to_location, departure_time, arrival_time,
+                fare_per_seat, total_capacity, available_seats,
+                vehicle_number, vehicle_model_id, stops, status, require_approval, route_id
+              )
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+              RETURNING *`,
+              [
+                driverId, from_location, to_location, departureStr, arrivalStr,
+                fare_per_seat, totalSeats, totalSeats,
+                vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+              ]
+            );
+          } else {
+            throw e2;
+          }
+        }
+      } else if (eCreated.code === '42703' && emsg.includes('created_source')) {
+        try {
+          result = await runInsert(
+            `INSERT INTO trips (
+              driver_id, from_location, to_location, departure_time, arrival_time,
+              fare_per_seat, total_capacity, available_seats,
+              vehicle_number, vehicle_model_id, stops, status, require_approval, route_id,
+              luggage_allowance_per_passenger
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            RETURNING *`,
+            [
+              driverId, from_location, to_location, departureStr, arrivalStr,
+              fare_per_seat, totalSeats, totalSeats,
+              vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+              tripLuggage,
+            ]
+          );
+        } catch (e3) {
+          if (e3.code === '42703' && (e3.message || '').includes('luggage_allowance_per_passenger')) {
+            result = await runInsert(
+              `INSERT INTO trips (
+                driver_id, from_location, to_location, departure_time, arrival_time,
+                fare_per_seat, total_capacity, available_seats,
+                vehicle_number, vehicle_model_id, stops, status, require_approval, route_id
+              )
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+              RETURNING *`,
+              [
+                driverId, from_location, to_location, departureStr, arrivalStr,
+                fare_per_seat, totalSeats, totalSeats,
+                vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+              ]
+            );
+          } else {
+            throw e3;
+          }
+        }
       } else {
         throw eCreated;
       }
@@ -367,7 +436,7 @@ const searchTrips = asyncHandler(async (req, res) => {
       whatsapp_number: trip.driver_whatsapp ?? null,
       isVerified: trip.driver_verified === 'approved',
       bio: trip.driver_bio ?? null,
-      luggage_allowance_per_passenger: trip.driver_luggage_allowance ?? null
+      luggage_allowance_per_passenger: trip.luggage_allowance_per_passenger ?? null
     }
   }));
 
@@ -626,7 +695,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
           whatsapp_number: contactVisible ? (trip.driver_whatsapp ?? null) : null,
           isVerified: trip.driver_verified === 'approved',
           bio: trip.driver_bio ?? null,
-          luggage_allowance_per_passenger: trip.driver_luggage_allowance ?? null
+          luggage_allowance_per_passenger: trip.luggage_allowance_per_passenger ?? null
         }
       },
       booked_seats: [...bookedSet].sort((a, b) => a - b),

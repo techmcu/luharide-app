@@ -4,7 +4,7 @@
  */
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
-const { clampPage, clampReviewLimit, MAX_REVIEW_PAGE_SIZE } = require('../constants/pagination');
+const { clampPage, clampReviewLimit, MAX_REVIEW_PAGE_SIZE, REVIEWS_WINDOW_MAX } = require('../constants/pagination');
 const reviewService = require('../services/reviewService');
 
 /**
@@ -35,7 +35,11 @@ const getMyReviews = asyncHandler(async (req, res) => {
   const data = await reviewService.getReviewsForUser(userId, page, limit);
 
   ApiResponse.success(
-    { ...data, reviews_api_max_per_page: MAX_REVIEW_PAGE_SIZE },
+    {
+      ...data,
+      reviews_api_max_per_page: MAX_REVIEW_PAGE_SIZE,
+      reviews_window_max: data.reviews_window_max ?? REVIEWS_WINDOW_MAX,
+    },
     'Reviews retrieved'
   ).send(res);
 });
@@ -51,7 +55,11 @@ const getReviewsForUser = asyncHandler(async (req, res) => {
   const data = await reviewService.getReviewsForUser(userId, page, limit);
 
   ApiResponse.success(
-    { ...data, reviews_api_max_per_page: MAX_REVIEW_PAGE_SIZE },
+    {
+      ...data,
+      reviews_api_max_per_page: MAX_REVIEW_PAGE_SIZE,
+      reviews_window_max: data.reviews_window_max ?? REVIEWS_WINDOW_MAX,
+    },
     'Reviews retrieved'
   ).send(res);
 });
@@ -65,9 +73,19 @@ const getUserRatingSummary = asyncHandler(async (req, res) => {
   ApiResponse.success(data, 'Rating summary').send(res);
 });
 
+/**
+ * GET /api/reviews/user/:userId/bundle — summary + latest reviews in one response (client cache friendly)
+ */
+const getUserReviewBundle = asyncHandler(async (req, res) => {
+  const userId = req.params.userId;
+  const data = await reviewService.getReviewBundleForUser(userId);
+  ApiResponse.success(data, 'Reviews bundle').send(res);
+});
+
 module.exports = {
   submitRating,
   getMyReviews,
   getReviewsForUser,
   getUserRatingSummary,
+  getUserReviewBundle,
 };

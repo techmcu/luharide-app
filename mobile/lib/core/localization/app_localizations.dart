@@ -293,12 +293,16 @@ class AppLocalizations {
       'hi': 'गोपनीयता नीति',
     },
     'help.about.privacy_hint': {
-      'en': 'Link will appear here once published.',
-      'hi': 'प्रकाशित होने पर यहाँ लिंक दिखेगा।',
+      'en': 'Coming soon — the policy page link will be added here when it goes live. For privacy questions, use Help → email support.',
+      'hi': 'जल्द आ रहा है — नीति पृष्ठ का लिंक लाइव होने पर यहाँ जोड़ा जाएगा। गोपनीयता प्रश्नों के लिए सहायता → ईमेल से संपर्क करें।',
     },
     'help.about.privacy_updating': {
       'en': 'This page will be updated soon with the full policy.',
       'hi': 'पूर्ण नीति के साथ यह पृष्ठ जल्द अपडेट किया जाएगा।',
+    },
+    'signup.privacy_coming_soon': {
+      'en': 'Privacy policy page — coming soon. A link will be added when it is live.',
+      'hi': 'गोपनीयता नीति पृष्ठ — जल्द आ रहा है। लाइव होने पर लिंक जोड़ा जाएगा।',
     },
     'profile.logout': {
       'en': 'Sign out',

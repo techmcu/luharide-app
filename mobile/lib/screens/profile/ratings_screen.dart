@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../services/review_service.dart';
 
-/// Ratings - User can see all ratings they received (from passengers/drivers)
+/// Ratings you received — latest window from server; full history stays in DB.
 class RatingsScreen extends StatefulWidget {
   final String? userRole;
+  final String? userId;
 
-  const RatingsScreen({super.key, this.userRole});
+  const RatingsScreen({super.key, this.userRole, this.userId});
 
   @override
   State<RatingsScreen> createState() => _RatingsScreenState();
@@ -15,10 +16,11 @@ class _RatingsScreenState extends State<RatingsScreen> {
   final ReviewService _reviewService = ReviewService();
   final List<Map<String, dynamic>> _ratings = [];
   bool _isLoading = true;
-  bool _loadingMore = false;
-  int _page = 1;
-  bool _hasMore = true;
-  static const int _pageSize = 20;
+  int _total = 0;
+  int _windowMax = 50;
+  bool _hasMore = false;
+  bool _fromCache = false;
+  String? _loadError;
 
   @override
   void initState() {
@@ -27,36 +29,37 @@ class _RatingsScreenState extends State<RatingsScreen> {
   }
 
   Future<void> _loadReviews() async {
-    setState(() { _isLoading = true; _page = 1; _hasMore = true; });
-    final result = await _reviewService.getMyReviews(page: 1, limit: _pageSize);
-    if (mounted) {
+    final uid = widget.userId?.trim();
+    if (uid == null || uid.isEmpty) {
       setState(() {
         _isLoading = false;
+        _loadError = 'Not signed in';
+      });
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+    final result = await _reviewService.loadUserReviewBundleWithCache(uid);
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+      if (result['success'] == true) {
         _ratings.clear();
-        if (result['success'] == true && result['reviews'] != null) {
-          _ratings.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
+        if (result['reviews'] != null) {
+          _ratings.addAll(
+            List<Map<String, dynamic>>.from(result['reviews'] as List),
+          );
         }
+        _total = (result['total'] as num?)?.toInt() ?? 0;
         _hasMore = result['has_more'] == true;
-        _page = 1;
-      });
-    }
-  }
-
-  Future<void> _loadMore() async {
-    if (_loadingMore || !_hasMore) return;
-    setState(() => _loadingMore = true);
-    final nextPage = _page + 1;
-    final result = await _reviewService.getMyReviews(page: nextPage, limit: _pageSize);
-    if (mounted) {
-      setState(() {
-        _loadingMore = false;
-        if (result['success'] == true && result['reviews'] != null) {
-          _ratings.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
-        }
-        _hasMore = result['has_more'] == true;
-        _page = nextPage;
-      });
-    }
+        _windowMax = (result['reviews_window_max'] as num?)?.toInt() ?? 50;
+        _fromCache = result['from_cache'] == true;
+      } else {
+        _loadError = 'Could not load ratings';
+      }
+    });
   }
 
   @override
@@ -87,32 +90,44 @@ class _RatingsScreenState extends State<RatingsScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _ratings.isEmpty
-              ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _loadReviews,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _ratings.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, i) {
-                      if (i == _ratings.length) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          child: Center(
-                            child: _loadingMore
-                                ? const SizedBox(height: 32, width: 32, child: CircularProgressIndicator(strokeWidth: 2))
-                                : TextButton.icon(
-                                    onPressed: _hasMore ? _loadMore : null,
-                                    icon: const Icon(Icons.expand_more),
-                                    label: const Text('More'),
+          : _loadError != null
+              ? Center(child: Text(_loadError!, style: TextStyle(color: Colors.grey[700])))
+              : _ratings.isEmpty && _total == 0
+                  ? _buildEmptyState()
+                  : RefreshIndicator(
+                      onRefresh: _loadReviews,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _ratings.length + 1,
+                        itemBuilder: (context, i) {
+                          if (i == 0) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (_hasMore)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: Text(
+                                      'Showing latest $_windowMax of $_total reviews. '
+                                      'Older ones stay on the server for trust & safety.',
+                                      style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
+                                    ),
                                   ),
-                          ),
-                        );
-                      }
-                      return _buildRatingCard(_ratings[i]);
-                    },
-                  ),
-                ),
+                                if (_fromCache)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      'Offline or cached — pull to refresh.',
+                                      style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          }
+                          return _buildRatingCard(_ratings[i - 1]);
+                        },
+                      ),
+                    ),
     );
   }
 
@@ -173,7 +188,7 @@ class _RatingsScreenState extends State<RatingsScreen> {
                 CircleAvatar(
                   backgroundColor: Colors.amber[100],
                   child: Text(
-                    fromName[0].toUpperCase(),
+                    fromName.isNotEmpty ? fromName[0].toUpperCase() : '?',
                     style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -189,11 +204,14 @@ class _RatingsScreenState extends State<RatingsScreen> {
                   ),
                 ),
                 Row(
-                  children: List.generate(5, (i) => Icon(
-                    i < rating ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                    size: 20,
-                  )),
+                  children: List.generate(
+                    5,
+                    (i) => Icon(
+                      i < rating ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 20,
+                    ),
+                  ),
                 ),
               ],
             ),

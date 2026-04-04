@@ -5,7 +5,6 @@
  */
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
-const { offset } = require('../constants/pagination');
 
 const TABLE = 'ride_ratings';
 
@@ -78,8 +77,9 @@ async function countByRatedUserId(ratedUserId) {
   return parseInt(result.rows[0]?.total || 0, 10);
 }
 
-async function listByRatedUserId(ratedUserId, page, limit) {
-  const off = offset(page, limit);
+async function listByRatedUserId(ratedUserId, limit, off) {
+  const lim = Math.max(1, Math.min(512, parseInt(limit, 10) || 50));
+  const offsetN = Math.max(0, parseInt(off, 10) || 0);
   let result;
   try {
     result = await pool.query(
@@ -89,7 +89,7 @@ async function listByRatedUserId(ratedUserId, page, limit) {
        WHERE r.rated_user_id = $1
        ORDER BY r.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [ratedUserId, limit, off]
+      [ratedUserId, lim, offsetN]
     );
   } catch (e) {
     if (e.code !== '42703') throw e;
@@ -100,7 +100,7 @@ async function listByRatedUserId(ratedUserId, page, limit) {
        WHERE r.rated_user_id = $1
        ORDER BY r.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [ratedUserId, limit, off]
+      [ratedUserId, lim, offsetN]
     );
   }
   return result.rows.map((row) => ({
@@ -116,14 +116,18 @@ async function listByRatedUserId(ratedUserId, page, limit) {
 
 async function getSummaryByUserId(userId) {
   const result = await pool.query(
-    `SELECT COUNT(*)::int AS total_ratings, COALESCE(AVG(rating), 0)::decimal(3,2) AS average_rating
+    `SELECT COUNT(*)::int AS total_ratings,
+            COALESCE(AVG(rating), 0)::decimal(3,2) AS average_rating,
+            MAX(created_at) AS latest_review_at
      FROM ride_ratings WHERE rated_user_id = $1`,
     [userId]
   );
   const row = result.rows[0];
+  const latest = row?.latest_review_at;
   return {
     total_ratings: parseInt(row?.total_ratings || 0, 10),
     average_rating: parseFloat(row?.average_rating || 0),
+    latest_review_at: latest instanceof Date ? latest.toISOString() : (latest || null),
   };
 }
 

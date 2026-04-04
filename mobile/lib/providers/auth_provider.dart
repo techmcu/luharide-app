@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import '../core/utils/api_error_messages.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/realtime_socket_service.dart';
+import '../services/review_cache_store.dart';
+import '../services/review_service.dart';
 
 enum AuthStatus {
   initial,
@@ -60,6 +64,10 @@ class AuthProvider with ChangeNotifier {
         }
         notifyListeners();
         await RealtimeSocketService.instance.connect();
+        final uid = _user?.id;
+        if (uid != null && uid.isNotEmpty) {
+          unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
+        }
       } else {
         _status = AuthStatus.unauthenticated;
         await RealtimeSocketService.instance.disconnect();
@@ -112,6 +120,10 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
+      final uid = _user?.id;
+      if (uid != null && uid.isNotEmpty) {
+        unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
+      }
       _setLoading(false);
       return true;
     } catch (e) {
@@ -161,6 +173,10 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
+      final uid = _user?.id;
+      if (uid != null && uid.isNotEmpty) {
+        unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
+      }
       _setLoading(false);
       return true;
     } catch (e) {
@@ -175,9 +191,14 @@ class AuthProvider with ChangeNotifier {
   Future<void> logout() async {
     try {
       _setLoading(true);
+      final uid = _user?.id;
       await RealtimeSocketService.instance.disconnect();
       await _authService.logout();
-      
+      if (uid != null && uid.isNotEmpty) {
+        await ReviewCacheStore.clearBundle(uid);
+      }
+      ReviewService.clearAllMemoryCache();
+
       _user = null;
       _status = AuthStatus.unauthenticated;
       _error = null;
@@ -332,6 +353,10 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       _error = null;
       await RealtimeSocketService.instance.connect();
+      final uid = _user?.id;
+      if (uid != null && uid.isNotEmpty) {
+        unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
+      }
       _setLoading(false);
       notifyListeners(); // Ensure UI rebuilds
       return true;
@@ -376,6 +401,10 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       _error = null;
       await RealtimeSocketService.instance.connect();
+      final uid = _user?.id;
+      if (uid != null && uid.isNotEmpty) {
+        unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
+      }
       _setLoading(false);
       notifyListeners(); // Ensure UI rebuilds
       return true;

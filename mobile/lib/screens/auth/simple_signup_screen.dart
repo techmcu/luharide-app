@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_navigator.dart';
-import '../../core/brand_config.dart';
 import '../../core/legal_document_info.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/auth_provider.dart';
@@ -251,19 +249,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      onPressed: () async {
-                        final u = BrandConfig.privacyPolicyUri;
-                        if (u != null && await canLaunchUrl(u)) {
-                          await launchUrl(u, mode: LaunchMode.externalApplication);
-                          return;
-                        }
-                        if (!mounted) return;
+                      onPressed: () {
+                        final loc = AppLocalizations.of(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(BrandConfig.privacyPolicyUrl.isNotEmpty
-                                ? BrandConfig.privacyPolicyUrl
-                                : 'Open Help for privacy'),
-                          ),
+                          SnackBar(content: Text(loc.t('signup.privacy_coming_soon'))),
                         );
                       },
                       child: const Text('Privacy policy'),
@@ -438,19 +427,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        onPressed: () async {
-                          final u = BrandConfig.privacyPolicyUri;
-                          if (u != null && await canLaunchUrl(u)) {
-                            await launchUrl(u, mode: LaunchMode.externalApplication);
-                            return;
-                          }
-                          if (!mounted) return;
+                        onPressed: () {
+                          final loc = AppLocalizations.of(context);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(BrandConfig.privacyPolicyUrl.isNotEmpty
-                                  ? BrandConfig.privacyPolicyUrl
-                                  : 'Open Help for privacy'),
-                            ),
+                            SnackBar(content: Text(loc.t('signup.privacy_coming_soon'))),
                           );
                         },
                         child: const Text('Privacy policy'),

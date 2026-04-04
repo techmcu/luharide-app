@@ -131,41 +131,34 @@ class HelpScreen extends StatelessWidget {
               );
             },
           ),
-          Builder(
-            builder: (ctx) {
-              final u = BrandConfig.privacyPolicyUri;
-              if (u != null) {
-                return ListTile(
-                  leading: const Icon(Icons.privacy_tip_outlined),
-                  title: Text(loc.t('help.about.privacy')),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        u.toString(),
-                        style: TextStyle(fontSize: 13, color: Colors.blue[700]),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        loc.t('help.about.privacy_updating'),
-                        style: TextStyle(fontSize: 12.5, height: 1.35, color: Colors.grey[700]),
-                      ),
-                    ],
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: Text(loc.t('help.about.privacy')),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loc.t('help.about.privacy_hint'),
+                  style: TextStyle(fontSize: 13, height: 1.35, color: Colors.grey[800]),
+                ),
+                if (BrandConfig.privacyPolicyUri != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    BrandConfig.privacyPolicyUrl,
+                    style: TextStyle(fontSize: 13, color: Colors.blue[700]),
                   ),
-                  isThreeLine: true,
-                  onTap: () async {
+                ],
+              ],
+            ),
+            isThreeLine: true,
+            onTap: BrandConfig.privacyPolicyUri == null
+                ? null
+                : () async {
+                    final u = BrandConfig.privacyPolicyUri!;
                     if (await canLaunchUrl(u)) {
                       await launchUrl(u, mode: LaunchMode.externalApplication);
                     }
                   },
-                );
-              }
-              return ListTile(
-                leading: const Icon(Icons.privacy_tip_outlined),
-                title: Text(loc.t('help.about.privacy')),
-                subtitle: Text(loc.t('help.about.privacy_hint')),
-              );
-            },
           ),
         ],
       ),

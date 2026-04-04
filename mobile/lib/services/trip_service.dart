@@ -17,20 +17,26 @@ class TripService {
     int totalSeats = 7,
     List<String> stops = const [],
     bool requireApproval = true,
+    String? luggageAllowancePerPassenger,
   }) async {
     try {
+      final data = <String, dynamic>{
+        'from_location': fromLocation,
+        'to_location': toLocation,
+        'departure_time': departureTime.toUtc().toIso8601String(),
+        'fare_per_seat': farePerSeat,
+        'total_seats': totalSeats,
+        'vehicle_number': vehicleNumber,
+        'stops': stops,
+        'require_approval': requireApproval,
+      };
+      final lug = luggageAllowancePerPassenger?.trim();
+      if (lug != null && lug.isNotEmpty) {
+        data['luggage_allowance_per_passenger'] = lug;
+      }
       final response = await _apiService.post(
         ApiConstants.trips,
-        data: {
-          'from_location': fromLocation,
-          'to_location': toLocation,
-          'departure_time': departureTime.toUtc().toIso8601String(),
-          'fare_per_seat': farePerSeat,
-          'total_seats': totalSeats,
-          'vehicle_number': vehicleNumber,
-          'stops': stops,
-          'require_approval': requireApproval,
-        },
+        data: data,
       );
 
       return {

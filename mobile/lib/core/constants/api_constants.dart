@@ -65,6 +65,7 @@ class ApiConstants {
   static const String driverReviews = '/reviews/driver/{id}';
   static const String myReviews = '/reviews/my-reviews';
   static String userRatingSummary(String userId) => '/reviews/summary/$userId';
+  static String userReviewBundle(String userId) => '/reviews/user/$userId/bundle';
   static String userReviews(String userId, {int page = 1, int limit = 20}) =>
       '/reviews/user/$userId/reviews?page=$page&limit=$limit';
   static String rateBooking(String bookingId) => '/bookings/$bookingId/rate';
