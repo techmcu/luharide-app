@@ -4,7 +4,7 @@
  */
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
-const { clampPage, clampLimit } = require('../constants/pagination');
+const { clampPage, clampReviewLimit, MAX_REVIEW_PAGE_SIZE } = require('../constants/pagination');
 const reviewService = require('../services/reviewService');
 
 /**
@@ -30,11 +30,14 @@ const submitRating = asyncHandler(async (req, res) => {
 const getMyReviews = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const page = clampPage(req.query.page);
-  const limit = clampLimit(req.query.limit);
+  const limit = clampReviewLimit(req.query.limit);
 
   const data = await reviewService.getReviewsForUser(userId, page, limit);
 
-  ApiResponse.success(data, 'Reviews retrieved').send(res);
+  ApiResponse.success(
+    { ...data, reviews_api_max_per_page: MAX_REVIEW_PAGE_SIZE },
+    'Reviews retrieved'
+  ).send(res);
 });
 
 /**
@@ -43,11 +46,14 @@ const getMyReviews = asyncHandler(async (req, res) => {
 const getReviewsForUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const page = clampPage(req.query.page);
-  const limit = clampLimit(req.query.limit);
+  const limit = clampReviewLimit(req.query.limit);
 
   const data = await reviewService.getReviewsForUser(userId, page, limit);
 
-  ApiResponse.success(data, 'Reviews retrieved').send(res);
+  ApiResponse.success(
+    { ...data, reviews_api_max_per_page: MAX_REVIEW_PAGE_SIZE },
+    'Reviews retrieved'
+  ).send(res);
 });
 
 /**

@@ -4,6 +4,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitNotificationToUser, emitTripUpdated } = require('../socket/realtimeEmitter');
+const retentionConfig = require('../config/retentionConfig');
 
 /**
  * Create a new trip (Driver only)
@@ -223,6 +224,10 @@ const searchTrips = asyncHandler(async (req, res) => {
   const limit = Math.min(MAX_SEARCH_LIMIT, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : DEFAULT_SEARCH_LIMIT));
   const offset = Math.min(MAX_SEARCH_OFFSET, Math.max(0, Number.isFinite(rawOffset) ? rawOffset : 0));
 
+  const graceMin = retentionConfig.tripSearchGraceMinutesAfterDeparture;
+  const depStillVisible = `(t.departure_time AT TIME ZONE 'UTC') + (${graceMin} * INTERVAL '1 minute') > (NOW() AT TIME ZONE 'UTC')`;
+  const unionDepStillVisible = `(s.departure_time AT TIME ZONE 'UTC') + (${graceMin} * INTERVAL '1 minute') > (NOW() AT TIME ZONE 'UTC')`;
+
   // Normalize: lowercase; strip spaces, commas, dots, dashes, slashes so search matches more typos
   const normLoc = (s) => s.toLowerCase().replace(/[\s,.\-_:;/\\]+/g, '');
   const fromNorm = normLoc(from);
@@ -244,6 +249,7 @@ const searchTrips = asyncHandler(async (req, res) => {
            AND (t.departure_time AT TIME ZONE 'UTC') < (($2::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
            AND t.status = 'scheduled'
            AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+           AND ${depStillVisible}
          ORDER BY t.departure_time ASC
          OFFSET $3 LIMIT $4`,
         [routeId, dateStr, offset, limit]
@@ -262,6 +268,7 @@ const searchTrips = asyncHandler(async (req, res) => {
              AND t.departure_time <  ($3::date)::timestamp + interval '1 day'
              AND t.status = 'scheduled'
              AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+             AND ${depStillVisible}
            ORDER BY t.departure_time ASC
            OFFSET $4 LIMIT $5`,
           [fromPat, toPat, dateStr, offset, limit]
@@ -282,6 +289,7 @@ const searchTrips = asyncHandler(async (req, res) => {
                AND (t.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
              AND t.status = 'scheduled'
              AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+             AND ${depStillVisible}
              ORDER BY t.departure_time ASC OFFSET $4 LIMIT $5`,
             [fromPat, toPat, dateStr, offset, limit]
           );
@@ -303,6 +311,7 @@ const searchTrips = asyncHandler(async (req, res) => {
            AND s.from_location_norm LIKE $1 AND s.to_location_norm LIKE $2
            AND s.departure_time >= ($3::date)::timestamp
            AND s.departure_time <  ($3::date)::timestamp + interval '1 day'
+           AND ${unionDepStillVisible}
          ORDER BY s.departure_time ASC OFFSET $4 LIMIT $5`,
         [fromPat, toPat, dateStr, offset, limit]
       );
@@ -322,6 +331,7 @@ const searchTrips = asyncHandler(async (req, res) => {
                AND regexp_replace(LOWER(TRIM(s.to_location)),   '\s+', '', 'g') LIKE $2
                AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
                AND (s.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+               AND ${unionDepStillVisible}
              ORDER BY s.departure_time ASC OFFSET $4 LIMIT $5`,
             [fromPat, toPat, dateStr, offset, limit]
           );

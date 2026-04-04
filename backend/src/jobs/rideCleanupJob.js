@@ -1,38 +1,18 @@
 /**
- * Ride Cleanup Job — Tiered Data Retention Policy
+ * Ride / union schedule retention — single evening batch (~midnight IST = 18:30 UTC).
  *
- * Industry standard approach (BlaBlaCar / Ola style):
+ * - Passenger search hides past departures immediately (tripController + retentionConfig grace).
+ * - This job: auto-complete stale scheduled trips, purge old completed/cancelled trips,
+ *   trim per-driver FIFO cap, union_schedules age + FIFO cap.
+ * - ride_ratings are NOT deleted (booking_id SET NULL via migration); trust/reviews kept forever.
  *
- *  Stage 1 — union_schedules (union rides, no bookings):
- *    DELETE immediately after departure day passes (midnight).
- *    Safe: no booking records reference union_schedules.
- *
- *  Stage 2 — trips: auto-complete past scheduled rides:
- *    UPDATE status='completed' for trips whose departure passed > 1 hour ago.
- *    1-hour grace: driver who started late still shows as active.
- *    Completed trips hidden from passenger search (filter: status='scheduled').
- *
- *  Stage 3 — trips: hard purge after 90-day retention window:
- *    DELETE completed/cancelled trips older than 90 days.
- *    Cascades: bookings → ride_ratings → pending_rate_notifications all deleted.
- *    Why 90 days?
- *      - Covers disputes and refund windows.
- *      - Driver history still visible for 3 months.
- *      - 1000+ rides won't accumulate forever.
- *      - Standard: Ola keeps 90 days, Uber keeps 6 months.
- *
- * Schedule: runs at midnight IST (18:30 UTC) + 06:00 IST safety net.
- * Also runs once on server startup to process any missed window.
- *
- * Phase 5: runs under PostgreSQL advisory lock so duplicate core instances cannot double-run.
- *
- * Also calls tokenService.cleanupExpiredTokens() after each run (startup + crons) so the
- * refresh_tokens table does not grow forever with expired rows.
+ * Startup: refresh_tokens cleanup only (no trip purge) to avoid load on every deploy.
  */
 
 const cron = require('node-cron');
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
+const retentionConfig = require('../config/retentionConfig');
 const {
   withPgAdvisoryTryLock,
   JOB_NS,
@@ -40,50 +20,93 @@ const {
 } = require('./pgAdvisoryTryLock');
 const { cleanupExpiredTokens } = require('../services/tokenService');
 
-// How long to keep completed/cancelled trip records (bookings cascade-delete with them)
-const TRIP_RETENTION_DAYS = 60;
-
-async function runCleanup() {
+async function runEveningMaintenance() {
   const label = '[RideCleanup]';
-  let totalDeleted = 0;
-  let totalCompleted = 0;
-  let totalPurged = 0;
+  const rc = retentionConfig;
+  let unionAge = 0;
+  let unionFifo = 0;
+  let tripsCompleted = 0;
+  let tripsAge = 0;
+  let tripsFifo = 0;
 
   try {
     const ran = await withPgAdvisoryTryLock(pool, JOB_NS, JOB_RIDE_CLEANUP, async (client) => {
-      const unionDel = await client.query(
+      const u1 = await client.query(
         `DELETE FROM union_schedules
-         WHERE departure_time < CURRENT_DATE::timestamp
-         RETURNING id`
+         WHERE departure_time < NOW() - ($1::int * INTERVAL '1 day')
+         RETURNING id`,
+        [rc.unionScheduleRetentionDays]
       );
-      totalDeleted = unionDel.rowCount;
+      unionAge = u1.rowCount;
 
-      const tripsDone = await client.query(
+      const u2 = await client.query(
+        `WITH past AS (
+           SELECT id, union_id,
+             ROW_NUMBER() OVER (PARTITION BY union_id ORDER BY departure_time DESC) AS rn
+           FROM union_schedules
+           WHERE departure_time < NOW()
+         )
+         DELETE FROM union_schedules s
+         USING past p
+         WHERE s.id = p.id AND p.rn > $1
+         RETURNING s.id`,
+        [rc.unionScheduleMaxPerUnion]
+      );
+      unionFifo = u2.rowCount;
+
+      const completeH = rc.tripAutoCompleteAfterDepartureHours;
+      const td = await client.query(
         `UPDATE trips
          SET status = 'completed', updated_at = NOW()
          WHERE status = 'scheduled'
-           AND departure_time < NOW() - INTERVAL '1 hour'
-         RETURNING id`
+           AND departure_time < NOW() - ($1::int * INTERVAL '1 hour')
+         RETURNING id`,
+        [completeH]
       );
-      totalCompleted = tripsDone.rowCount;
+      tripsCompleted = td.rowCount;
 
-      const tripsPurge = await client.query(
-        `DELETE FROM trips
-         WHERE status IN ('completed', 'cancelled')
-           AND departure_time < NOW() - INTERVAL '${TRIP_RETENTION_DAYS} days'
-         RETURNING id`
+      const tp = await client.query(
+        `DELETE FROM trips t
+         WHERE t.status IN ('completed', 'cancelled')
+           AND (
+             (COALESCE(t.created_source, '') <> 'union_admin'
+               AND t.departure_time < NOW() - ($1::int * INTERVAL '1 day'))
+             OR (t.created_source = 'union_admin'
+               AND t.departure_time < NOW() - ($2::int * INTERVAL '1 day'))
+           )
+         RETURNING t.id`,
+        [rc.tripRetentionDaysIndependent, rc.tripRetentionDaysUnion]
       );
-      totalPurged = tripsPurge.rowCount;
+      tripsAge = tp.rowCount;
+
+      const tf = await client.query(
+        `WITH ranked AS (
+           SELECT id,
+             ROW_NUMBER() OVER (
+               PARTITION BY driver_id
+               ORDER BY departure_time DESC NULLS LAST, created_at DESC NULLS LAST
+             ) AS rn
+           FROM trips
+           WHERE status IN ('completed', 'cancelled')
+         )
+         DELETE FROM trips t
+         USING ranked r
+         WHERE t.id = r.id AND r.rn > $1
+         RETURNING t.id`,
+        [rc.tripHistoryMaxPerDriver]
+      );
+      tripsFifo = tf.rowCount;
     });
 
     if (ran === false) {
       logger.debug(`${label} skipped — another instance holds cleanup lock`);
     } else {
       const parts = [];
-      if (totalDeleted > 0) parts.push(`deleted ${totalDeleted} union ride(s)`);
-      if (totalCompleted > 0) parts.push(`completed ${totalCompleted} trip(s)`);
-      if (totalPurged > 0) parts.push(`purged ${totalPurged} old trip(s) (>${TRIP_RETENTION_DAYS}d)`);
-
+      if (unionAge > 0) parts.push(`union_schedules age ${unionAge}`);
+      if (unionFifo > 0) parts.push(`union_schedules fifo ${unionFifo}`);
+      if (tripsCompleted > 0) parts.push(`auto-completed ${tripsCompleted} trip(s)`);
+      if (tripsAge > 0) parts.push(`purged ${tripsAge} trip(s) by retention`);
+      if (tripsFifo > 0) parts.push(`fifo-trimmed ${tripsFifo} trip(s)`);
       if (parts.length > 0) {
         logger.info(`${label} ${parts.join(', ')}`);
       } else {
@@ -103,22 +126,25 @@ async function runCleanup() {
   }
 }
 
+async function runStartupTokenCleanupOnly() {
+  try {
+    await cleanupExpiredTokens();
+  } catch (e) {
+    logger.warn('[RideCleanup] startup refresh_tokens cleanup failed:', e.message);
+  }
+}
+
 function start() {
-  runCleanup();
+  runStartupTokenCleanupOnly();
 
   cron.schedule('30 18 * * *', () => {
-    logger.info('[RideCleanup] Midnight IST cleanup triggered');
-    runCleanup();
-  });
-
-  cron.schedule('30 0 * * *', () => {
-    logger.info('[RideCleanup] 06:00 IST safety cleanup triggered');
-    runCleanup();
+    logger.info('[RideCleanup] Evening IST maintenance (trips, union_schedules, tokens)');
+    runEveningMaintenance();
   });
 
   logger.info(
-    `[RideCleanup] Scheduled — midnight IST daily. Trip retention: ${TRIP_RETENTION_DAYS} days. PG advisory lock.`
+    `[RideCleanup] Evening batch 18:30 UTC (~midnight IST). Retention: independent ${retentionConfig.tripRetentionDaysIndependent}d / union ${retentionConfig.tripRetentionDaysUnion}d; driver fifo ${retentionConfig.tripHistoryMaxPerDriver}; union fifo ${retentionConfig.unionScheduleMaxPerUnion}. Startup: tokens only.`
   );
 }
 
-module.exports = { start, runCleanup };
+module.exports = { start, runCleanup: runEveningMaintenance, runEveningMaintenance };

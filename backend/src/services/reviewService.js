@@ -8,6 +8,17 @@ const { RATING, RATING_COMMENT_MAX_WORDS, ROLES } = require('../constants/valida
 const rideRatingsRepository = require('../repositories/rideRatingsRepository');
 const bookingRepository = require('../repositories/bookingRepository');
 
+function buildTripContext(booking) {
+  const from = (booking.from_location || '').trim();
+  const to = (booking.to_location || '').trim();
+  const route = from && to ? `${from} → ${to}` : (from || to || 'Ride');
+  if (!booking.departure_time) return route;
+  const d = new Date(booking.departure_time);
+  if (Number.isNaN(d.getTime())) return route;
+  const stamp = `${d.toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+  return `${route} · ${stamp}`;
+}
+
 function trimCommentToMaxWords(comment, maxWords = RATING_COMMENT_MAX_WORDS) {
   if (!comment || typeof comment !== 'string') return '';
   const trimmed = comment.trim();
@@ -70,6 +81,7 @@ async function submitRating(bookingId, userId, { rating, comment }) {
     fromRole,
     rating,
     comment: safeComment,
+    tripContext: buildTripContext(booking),
   });
 
   return { message: 'Rating submitted' };

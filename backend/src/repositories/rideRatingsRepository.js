@@ -18,12 +18,13 @@ async function ensureTable() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ride_ratings (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      booking_id UUID NOT NULL REFERENCES bookings(id) ON DELETE CASCADE,
+      booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
       from_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       rated_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       from_role VARCHAR(20) NOT NULL CHECK (from_role IN ('passenger', 'driver')),
       rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
       comment TEXT,
+      trip_context TEXT,
       created_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(booking_id, from_role)
     );
@@ -41,12 +42,32 @@ async function findByBookingAndRole(bookingId, fromRole) {
   return result.rows[0] || null;
 }
 
-async function create({ bookingId, fromUserId, ratedUserId, fromRole, rating, comment }) {
-  await pool.query(
-    `INSERT INTO ride_ratings (booking_id, from_user_id, rated_user_id, from_role, rating, comment)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [bookingId, fromUserId, ratedUserId, fromRole, rating, comment]
-  );
+async function create({
+  bookingId,
+  fromUserId,
+  ratedUserId,
+  fromRole,
+  rating,
+  comment,
+  tripContext,
+}) {
+  try {
+    await pool.query(
+      `INSERT INTO ride_ratings (booking_id, from_user_id, rated_user_id, from_role, rating, comment, trip_context)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [bookingId, fromUserId, ratedUserId, fromRole, rating, comment, tripContext || null]
+    );
+  } catch (e) {
+    if (e.code === '42703') {
+      await pool.query(
+        `INSERT INTO ride_ratings (booking_id, from_user_id, rated_user_id, from_role, rating, comment)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [bookingId, fromUserId, ratedUserId, fromRole, rating, comment]
+      );
+      return;
+    }
+    throw e;
+  }
 }
 
 async function countByRatedUserId(ratedUserId) {
@@ -59,15 +80,29 @@ async function countByRatedUserId(ratedUserId) {
 
 async function listByRatedUserId(ratedUserId, page, limit) {
   const off = offset(page, limit);
-  const result = await pool.query(
-    `SELECT r.id, r.rating, r.comment, r.created_at, r.from_role, u.name AS from_name
-     FROM ride_ratings r
-     JOIN users u ON u.id = r.from_user_id
-     WHERE r.rated_user_id = $1
-     ORDER BY r.created_at DESC
-     LIMIT $2 OFFSET $3`,
-    [ratedUserId, limit, off]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      `SELECT r.id, r.rating, r.comment, r.created_at, r.from_role, r.trip_context, u.name AS from_name
+       FROM ride_ratings r
+       JOIN users u ON u.id = r.from_user_id
+       WHERE r.rated_user_id = $1
+       ORDER BY r.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [ratedUserId, limit, off]
+    );
+  } catch (e) {
+    if (e.code !== '42703') throw e;
+    result = await pool.query(
+      `SELECT r.id, r.rating, r.comment, r.created_at, r.from_role, u.name AS from_name
+       FROM ride_ratings r
+       JOIN users u ON u.id = r.from_user_id
+       WHERE r.rated_user_id = $1
+       ORDER BY r.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [ratedUserId, limit, off]
+    );
+  }
   return result.rows.map((row) => ({
     id: row.id,
     rating: row.rating,
@@ -75,6 +110,7 @@ async function listByRatedUserId(ratedUserId, page, limit) {
     created_at: row.created_at,
     from_name: row.from_name || 'User',
     from_role: row.from_role,
+    trip_context: row.trip_context || null,
   }));
 }
 
