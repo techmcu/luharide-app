@@ -224,6 +224,7 @@ const searchTrips = asyncHandler(async (req, res) => {
   const limit = Math.min(MAX_SEARCH_LIMIT, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : DEFAULT_SEARCH_LIMIT));
   const offset = Math.min(MAX_SEARCH_OFFSET, Math.max(0, Number.isFinite(rawOffset) ? rawOffset : 0));
 
+  // Each trip/schedule row: still list only if (that row's departure + grace) is in the future.
   const graceMin = retentionConfig.tripSearchGraceMinutesAfterDeparture;
   const depStillVisible = `(t.departure_time AT TIME ZONE 'UTC') + (${graceMin} * INTERVAL '1 minute') > (NOW() AT TIME ZONE 'UTC')`;
   const unionDepStillVisible = `(s.departure_time AT TIME ZONE 'UTC') + (${graceMin} * INTERVAL '1 minute') > (NOW() AT TIME ZONE 'UTC')`;

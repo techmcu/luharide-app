@@ -10,7 +10,11 @@ function intEnv(name, fallback, min, max) {
 }
 
 module.exports = {
-  /** Hide from passenger search after departure + this many minutes (no cron needed). */
+  /**
+   * Per-ride: hide from search when NOW() is past that row's departure_time + N minutes.
+   * (Not a fixed clock time like "10am" — every trip uses its own scheduled departure.)
+   * Example: dep 10:00 with N=1 → hidden from 10:01 onward. Default N=15 is lenient for late bookers.
+   */
   tripSearchGraceMinutesAfterDeparture: intEnv(
     'TRIP_SEARCH_GRACE_MINUTES_AFTER_DEPARTURE',
     15,
