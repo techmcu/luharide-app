@@ -81,19 +81,18 @@ const submitVerification = asyncHandler(async (req, res) => {
     );
   }
 
-  const unionRow = await pool.query(
-    `SELECT u.status FROM unions u
+  // Block if user has any union that is still pending or approved (not only rows[0] — multiple unions possible).
+  const unionActive = await pool.query(
+    `SELECT 1 FROM unions u
      INNER JOIN union_admins ua ON ua.union_id = u.id
-     WHERE ua.user_id = $1`,
+     WHERE ua.user_id = $1 AND u.status IN ('pending', 'approved')
+     LIMIT 1`,
     [userId]
   );
-  if (unionRow.rows.length > 0) {
-    const st = unionRow.rows[0].status;
-    if (st === 'pending' || st === 'approved') {
-      throw ApiError.badRequest(
-        'Taxi union registration is active on this account. Independent driver verification is not available.'
-      );
-    }
+  if (unionActive.rows.length > 0) {
+    throw ApiError.badRequest(
+      'Taxi union registration is active on this account. Independent driver verification is not available.'
+    );
   }
 
   // Independent driver: max 32 seats (cap for seat layout and booking)
