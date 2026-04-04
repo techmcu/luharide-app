@@ -1299,6 +1299,11 @@ class AppLocalizations {
       'en': 'Open this document in your browser.',
       'hi': 'यह दस्तावेज़ ब्राउज़र में खोलें।',
     },
+    'admin.kyc.no_document_links': {
+      'en':
+          'No document links in this request. If uploads exist, check server/DB or ask the applicant to re-submit KYC.',
+      'hi': 'इस अनुरोध में कोई दस्तावेज़ लिंक नहीं है।',
+    },
     'admin.kyc.aadhaar_front': {
       'en': 'Aadhaar (front)',
       'hi': 'आधार (अगला)',
@@ -1406,6 +1411,10 @@ class AppLocalizations {
     'home.shell.tab.driver': {
       'en': 'Driver',
       'hi': 'ड्राइवर',
+    },
+    'home.shell.tab.approvals': {
+      'en': 'Approvals',
+      'hi': 'मंज़ूरी',
     },
   };
 

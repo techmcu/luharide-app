@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/config/env_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -278,15 +282,52 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     return s.isEmpty ? null : s;
   }
 
+  /// API may send snake_case or camelCase keys.
+  String? _adminDocUrl(Map<String, dynamic> r, String snakeKey) {
+    return _urlStr(r, snakeKey) ?? _urlStr(r, _snakeToLowerCamel(snakeKey));
+  }
+
+  String _snakeToLowerCamel(String snake) {
+    final parts = snake.split('_').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return snake;
+    final head = parts.first;
+    final tail = parts.skip(1).map((w) => w[0].toUpperCase() + w.substring(1)).join();
+    return '$head$tail';
+  }
+
+  String _resolvePublicFileUrl(String url) {
+    final raw = url.trim();
+    if (raw.isEmpty) return raw;
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    if (raw.startsWith('/')) return '${EnvConfig.publicFileBaseUrl}$raw';
+    return '${EnvConfig.publicFileBaseUrl}/$raw';
+  }
+
+  Future<void> _openAdminDocumentUrl(String storageUrl) async {
+    final resolved = _resolvePublicFileUrl(storageUrl);
+    final uri = Uri.tryParse(resolved);
+    if (uri == null) return;
+    if (kIsWeb) {
+      await launchUrl(uri, webOnlyWindowName: '_blank');
+    } else {
+      if (!mounted) return;
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => KycDocumentViewerScreen(storageUrl: storageUrl),
+        ),
+      );
+    }
+  }
+
   List<Widget> _driverKycLinks(AppLocalizations loc, Map<String, dynamic> r) {
     void add(List<Widget> list, String labelKey, String? url) {
       if (url != null) list.add(_linkRow(loc, labelKey, url));
     }
 
     final out = <Widget>[];
-    final aPdf = _urlStr(r, 'aadhaar_document_url');
-    final aFront = _urlStr(r, 'aadhaar_front_url');
-    final aBack = _urlStr(r, 'aadhaar_back_url');
+    final aPdf = _adminDocUrl(r, 'aadhaar_document_url');
+    final aFront = _adminDocUrl(r, 'aadhaar_front_url');
+    final aBack = _adminDocUrl(r, 'aadhaar_back_url');
     if (aFront != null || aBack != null) {
       add(out, 'admin.kyc.aadhaar_front', aFront);
       add(out, 'admin.kyc.aadhaar_back', aBack);
@@ -301,9 +342,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       }
     }
 
-    final dlPdf = _urlStr(r, 'driving_license_url');
-    final dlFront = _urlStr(r, 'driving_license_front_url');
-    final dlBack = _urlStr(r, 'driving_license_back_url');
+    final dlPdf = _adminDocUrl(r, 'driving_license_url');
+    final dlFront = _adminDocUrl(r, 'driving_license_front_url');
+    final dlBack = _adminDocUrl(r, 'driving_license_back_url');
     if (dlFront != null || dlBack != null) {
       add(out, 'admin.kyc.dl_front', dlFront);
       add(out, 'admin.kyc.dl_back', dlBack);
@@ -318,11 +359,11 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       }
     }
 
-    add(out, 'admin.kyc.rc_front', _urlStr(r, 'rc_front_url'));
-    add(out, 'admin.kyc.rc_back', _urlStr(r, 'rc_back_url'));
-    add(out, 'admin.kyc.rc', _urlStr(r, 'rc_document_url'));
-    add(out, 'admin.kyc.permit', _urlStr(r, 'permit_document_url'));
-    add(out, 'admin.kyc.insurance', _urlStr(r, 'insurance_document_url'));
+    add(out, 'admin.kyc.rc_front', _adminDocUrl(r, 'rc_front_url'));
+    add(out, 'admin.kyc.rc_back', _adminDocUrl(r, 'rc_back_url'));
+    add(out, 'admin.kyc.rc', _adminDocUrl(r, 'rc_document_url'));
+    add(out, 'admin.kyc.permit', _adminDocUrl(r, 'permit_document_url'));
+    add(out, 'admin.kyc.insurance', _adminDocUrl(r, 'insurance_document_url'));
     return out;
   }
 
@@ -332,9 +373,9 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     }
 
     final out = <Widget>[];
-    final oa = _urlStr(r, 'owner_aadhaar_url');
-    final oaf = _urlStr(r, 'owner_aadhaar_front_url');
-    final oab = _urlStr(r, 'owner_aadhaar_back_url');
+    final oa = _adminDocUrl(r, 'owner_aadhaar_url');
+    final oaf = _adminDocUrl(r, 'owner_aadhaar_front_url');
+    final oab = _adminDocUrl(r, 'owner_aadhaar_back_url');
     if (oaf != null || oab != null) {
       add(out, 'admin.kyc.union_aadhaar_front', oaf);
       add(out, 'admin.kyc.union_aadhaar_back', oab);
@@ -349,8 +390,8 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       }
     }
 
-    final ldf = _urlStr(r, 'leader_driving_license_front_url');
-    final ldb = _urlStr(r, 'leader_driving_license_back_url');
+    final ldf = _adminDocUrl(r, 'leader_driving_license_front_url');
+    final ldb = _adminDocUrl(r, 'leader_driving_license_back_url');
     if (ldf != null || ldb != null) {
       if (ldf != null) {
         if (ldb == null && ldf.toLowerCase().endsWith('.pdf')) {
@@ -361,12 +402,12 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       }
       add(out, 'admin.kyc.union_leader_dl_back', ldb);
     }
-    add(out, 'admin.kyc.office_photo', _urlStr(r, 'office_photo_url'));
-    add(out, 'admin.kyc.union_photo', _urlStr(r, 'union_photo_url'));
-    add(out, 'admin.kyc.union_driver_list_photo', _urlStr(r, 'union_driver_list_photo_url'));
-    add(out, 'admin.kyc.union_rc_front', _urlStr(r, 'owner_vehicle_rc_front_url'));
-    add(out, 'admin.kyc.union_rc_back', _urlStr(r, 'owner_vehicle_rc_back_url'));
-    add(out, 'admin.kyc.union_rc', _urlStr(r, 'owner_vehicle_rc_url'));
+    add(out, 'admin.kyc.office_photo', _adminDocUrl(r, 'office_photo_url'));
+    add(out, 'admin.kyc.union_photo', _adminDocUrl(r, 'union_photo_url'));
+    add(out, 'admin.kyc.union_driver_list_photo', _adminDocUrl(r, 'union_driver_list_photo_url'));
+    add(out, 'admin.kyc.union_rc_front', _adminDocUrl(r, 'owner_vehicle_rc_front_url'));
+    add(out, 'admin.kyc.union_rc_back', _adminDocUrl(r, 'owner_vehicle_rc_back_url'));
+    add(out, 'admin.kyc.union_rc', _adminDocUrl(r, 'owner_vehicle_rc_url'));
     return out;
   }
 
@@ -434,7 +475,16 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
             Text(loc.t('admin.kyc.documents'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
             if (vehicleLine.isNotEmpty) _docRow(loc.t('admin.kyc.vehicle'), vehicleLine),
-            ...docLinks,
+            if (docLinks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  loc.t('admin.kyc.no_document_links'),
+                  style: TextStyle(fontSize: 13, color: Colors.orange[900]),
+                ),
+              )
+            else
+              ...docLinks,
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -545,7 +595,16 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
             const Divider(height: 24),
             Text(loc.t('admin.kyc.documents'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
-            ...docLinks,
+            if (docLinks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  loc.t('admin.kyc.no_document_links'),
+                  style: TextStyle(fontSize: 13, color: Colors.orange[900]),
+                ),
+              )
+            else
+              ...docLinks,
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -589,29 +648,36 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   }
 
   Widget _linkRow(AppLocalizations loc, String labelKey, String url) {
+    final label = '${loc.t('admin.kyc.view_prefix')}: ${loc.t(labelKey)}';
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: InkWell(
-        onTap: () {
-          if (!mounted) return;
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => KycDocumentViewerScreen(storageUrl: url),
-            ),
-          );
-        },
-        child: Row(
-          children: [
-            Icon(Icons.link, size: 16, color: Colors.blue[700]),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                '${loc.t('admin.kyc.view_prefix')}: ${loc.t(labelKey)}',
-                style: TextStyle(fontSize: 13, color: Colors.blue[700], decoration: TextDecoration.underline),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: kIsWeb
+            ? FilledButton.tonalIcon(
+                onPressed: () => _openAdminDocumentUrl(url),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: Text(label, style: const TextStyle(fontSize: 13)),
+              )
+            : InkWell(
+                onTap: () => _openAdminDocumentUrl(url),
+                child: Row(
+                  children: [
+                    Icon(Icons.link, size: 16, color: Colors.blue[700]),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue[700],
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
