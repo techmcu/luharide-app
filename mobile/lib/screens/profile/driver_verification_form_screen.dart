@@ -43,10 +43,13 @@ class _DriverVerificationFormScreenState
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final auth = context.read<AuthProvider>();
       _contactPhoneController.text = (auth.user?.phone ?? '').trim();
       _contactEmailController.text = (auth.user?.email ?? '').trim();
+      // Sync with server so admin reject → user sees form again (not stale "pending").
+      await auth.refreshUser();
+      if (!mounted) return;
       final dv = auth.user?.driverVerificationStatus ?? 'none';
       if (dv == 'pending') {
         setState(() {

@@ -294,16 +294,18 @@ const registerUnion = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Union name must be at least 3 characters');
   }
 
-  // Basic: ensure user does not already have a union request
-  const existing = await pool.query(
-    `SELECT u.*
+  // Block only active union applications (pending/approved). Rejected unions may re-apply.
+  const existingActive = await pool.query(
+    `SELECT u.id, u.status
      FROM unions u
      JOIN union_admins ua ON ua.union_id = u.id
-     WHERE ua.user_id = $1`,
+     WHERE ua.user_id = $1 AND u.status IN ('pending', 'approved')`,
     [userId]
   );
-  if (existing.rows.length > 0) {
-    throw ApiError.badRequest('You already manage or requested a taxi union');
+  if (existingActive.rows.length > 0) {
+    throw ApiError.badRequest(
+      'You already have a union registration pending or approved.'
+    );
   }
 
   const userDv = await pool.query(

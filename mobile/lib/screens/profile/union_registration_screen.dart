@@ -66,6 +66,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       });
     }
 
+    await context.read<AuthProvider>().refreshUser();
+    if (!mounted) return;
+
     final service = UnionService();
     final result = await service.getMyUnion();
 
