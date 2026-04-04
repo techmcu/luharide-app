@@ -229,7 +229,9 @@ const cleanupExpiredTokens = async () => {
     const result = await pool.query(
       'DELETE FROM refresh_tokens WHERE expires_at < CURRENT_TIMESTAMP'
     );
-    logger.info(`Cleaned up ${result.rowCount} expired tokens`);
+    if (result.rowCount > 0) {
+      logger.info(`Cleaned up ${result.rowCount} expired refresh_token row(s)`);
+    }
     return result.rowCount;
   } catch (error) {
     logger.error('Error cleaning up tokens:', error);

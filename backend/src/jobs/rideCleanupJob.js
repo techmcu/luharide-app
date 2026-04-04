@@ -25,6 +25,9 @@
  * Also runs once on server startup to process any missed window.
  *
  * Phase 5: runs under PostgreSQL advisory lock so duplicate core instances cannot double-run.
+ *
+ * Also calls tokenService.cleanupExpiredTokens() after each run (startup + crons) so the
+ * refresh_tokens table does not grow forever with expired rows.
  */
 
 const cron = require('node-cron');
@@ -35,6 +38,7 @@ const {
   JOB_NS,
   JOB_RIDE_CLEANUP,
 } = require('./pgAdvisoryTryLock');
+const { cleanupExpiredTokens } = require('../services/tokenService');
 
 // How long to keep completed/cancelled trip records (bookings cascade-delete with them)
 const TRIP_RETENTION_DAYS = 60;
@@ -74,22 +78,28 @@ async function runCleanup() {
 
     if (ran === false) {
       logger.debug(`${label} skipped — another instance holds cleanup lock`);
-      return;
-    }
-
-    const parts = [];
-    if (totalDeleted > 0) parts.push(`deleted ${totalDeleted} union ride(s)`);
-    if (totalCompleted > 0) parts.push(`completed ${totalCompleted} trip(s)`);
-    if (totalPurged > 0) parts.push(`purged ${totalPurged} old trip(s) (>${TRIP_RETENTION_DAYS}d)`);
-
-    if (parts.length > 0) {
-      logger.info(`${label} ${parts.join(', ')}`);
     } else {
-      logger.info(`${label} Nothing to clean up`);
+      const parts = [];
+      if (totalDeleted > 0) parts.push(`deleted ${totalDeleted} union ride(s)`);
+      if (totalCompleted > 0) parts.push(`completed ${totalCompleted} trip(s)`);
+      if (totalPurged > 0) parts.push(`purged ${totalPurged} old trip(s) (>${TRIP_RETENTION_DAYS}d)`);
+
+      if (parts.length > 0) {
+        logger.info(`${label} ${parts.join(', ')}`);
+      } else {
+        logger.info(`${label} Nothing to clean up`);
+      }
     }
   } catch (err) {
-    if (err.code === '42P01') return;
-    logger.warn(`${label} Error: ${err.message}`);
+    if (err.code !== '42P01') {
+      logger.warn(`${label} Error: ${err.message}`);
+    }
+  }
+
+  try {
+    await cleanupExpiredTokens();
+  } catch (e) {
+    logger.warn(`${label} refresh_tokens cleanup failed: ${e.message}`);
   }
 }
 

@@ -7,7 +7,17 @@ const {
   JOB_RATE_NOTIFICATIONS,
 } = require('./pgAdvisoryTryLock');
 
-const INTERVAL_MS = 60 * 1000; // 1 minute
+/**
+ * How often we scan `pending_rate_notifications` (due rows). Default 15 minutes to cut server/DB load;
+ * notifications may arrive up to this late after `send_after`. Override ms via env, e.g. 600000 = 10 min.
+ *
+ * Non-polling options (if you outgrow this): Redis/Bull delayed jobs per booking; or pg_cron calling
+ * a small SQL function; or INSERT trigger + LISTEN/NOTIFY (still need a worker to sleep until send_after).
+ */
+const INTERVAL_MS =
+  Number(process.env.RATE_NOTIFICATION_JOB_INTERVAL_MS) > 0
+    ? Number(process.env.RATE_NOTIFICATION_JOB_INTERVAL_MS)
+    : 15 * 60 * 1000;
 
 async function sendAndDelete(client, row) {
   const dataJson = JSON.stringify({ booking_id: row.booking_id });
@@ -53,7 +63,7 @@ function start() {
     run().catch((e) => logger.warn('Rate notification job error:', e.message));
   }, INTERVAL_MS);
   logger.info(
-    'Rate notification job started (independent trips: scheduled departure + 4h; others: after confirm/accept; runs every 1 min; PG advisory lock)'
+    `Rate notification job started (scan every ${Math.round(INTERVAL_MS / 1000)}s; PG advisory lock). Override: RATE_NOTIFICATION_JOB_INTERVAL_MS`
   );
 }
 
