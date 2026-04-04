@@ -13,7 +13,7 @@ const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 const unionRoutes = require('../src/routes/union');
 
 const app = createBaseApp('union');
-// Merged union KYC PDFs are written here; gateway proxies GET /uploads/union-docs → this service.
+// Merged union KYC PDFs under uploads/union-merged (and legacy union-docs); gateway proxies those paths here.
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/union', unionRoutes);
 attachErrorHandlers(app);

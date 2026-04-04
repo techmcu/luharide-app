@@ -282,11 +282,30 @@ const apiProxy = (target, pathFilter) =>
     ...proxyOpts(target),
   });
 
-// After gateway static (missing file → next): merged union KYC lives on union service disk.
+// Static may miss; then route uploads to the service that actually stores the files.
+// Raw union JPEG/PNG live on platform (/uploads/union-raw); merged KYC PDFs on union (/uploads/union-merged + legacy /uploads/union-docs/*.pdf).
+app.use(
+  createProxyMiddleware({
+    pathFilter: (pathname) => pathname.startsWith('/uploads/union-merged'),
+    ...proxyOpts(UNION_URL),
+  })
+);
 app.use(
   createProxyMiddleware({
     pathFilter: (pathname) => pathname.startsWith('/uploads/union-docs'),
     ...proxyOpts(UNION_URL),
+  })
+);
+app.use(
+  createProxyMiddleware({
+    pathFilter: (pathname) => pathname.startsWith('/uploads/union-raw'),
+    ...proxyOpts(PLATFORM_URL),
+  })
+);
+app.use(
+  createProxyMiddleware({
+    pathFilter: (pathname) => pathname.startsWith('/uploads/driver-docs'),
+    ...proxyOpts(PLATFORM_URL),
   })
 );
 

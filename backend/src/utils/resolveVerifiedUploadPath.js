@@ -5,7 +5,7 @@ const path = require('path');
  * Rejects traversal and nested paths.
  *
  * @param {string} relativeUrl e.g. /uploads/driver-docs/file.jpg
- * @param {'driver-docs'|'union-docs'} subdir
+ * @param {'driver-docs'|'union-docs'|'union-raw'|'union-merged'} subdir
  * @returns {string|null}
  */
 function resolveVerifiedUploadPath(relativeUrl, subdir) {

@@ -52,7 +52,7 @@ const driverUpload = multer({
 });
 
 const unionUpload = multer({
-  storage: createStorage('union-docs'),
+  storage: createStorage('union-raw'),
   limits: {
     fileSize: maxFileBytes,
   },
@@ -183,7 +183,7 @@ router.post(
           limits: limitsPayload,
         });
       }
-      const relativeUrl = `/uploads/union-docs/${req.file.filename}`;
+      const relativeUrl = `/uploads/union-raw/${req.file.filename}`;
       res.json({
         success: true,
         url: relativeUrl,

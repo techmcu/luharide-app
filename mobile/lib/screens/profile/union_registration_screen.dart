@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cross_file/cross_file.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -472,6 +474,28 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
               ),
             ],
           ),
+          if (_ownerAadhaarFrontFile != null ||
+              _ownerAadhaarBackFile != null ||
+              _officePhotoFile != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              loc.t('kyc.union.preview_label'),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (_ownerAadhaarFrontFile != null)
+                  _KycPickedThumb(label: loc.t('kyc.union.chip.aadhaar_front'), file: _ownerAadhaarFrontFile!),
+                if (_ownerAadhaarBackFile != null)
+                  _KycPickedThumb(label: loc.t('kyc.union.chip.aadhaar_back'), file: _ownerAadhaarBackFile!),
+                if (_officePhotoFile != null)
+                  _KycPickedThumb(label: loc.t('kyc.union.chip.photo'), file: _officePhotoFile!),
+              ],
+            ),
+          ],
           const SizedBox(height: 24),
           TextFormField(
             controller: _phoneController,
@@ -536,6 +560,62 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Works on web (no dart:io) and mobile via [XFile.readAsBytes].
+class _KycPickedThumb extends StatelessWidget {
+  const _KycPickedThumb({required this.label, required this.file});
+
+  final String label;
+  final XFile file;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[700])),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: FutureBuilder<Uint8List>(
+            future: file.readAsBytes(),
+            builder: (context, snap) {
+              if (snap.connectionState != ConnectionState.done) {
+                return const SizedBox(
+                  width: 96,
+                  height: 72,
+                  child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+                );
+              }
+              if (snap.hasError || !snap.hasData) {
+                return Container(
+                  width: 96,
+                  height: 72,
+                  color: Colors.grey[200],
+                  child: Icon(Icons.broken_image_outlined, color: Colors.grey[600]),
+                );
+              }
+              return Image.memory(
+                snap.data!,
+                width: 96,
+                height: 72,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 96,
+                  height: 72,
+                  color: Colors.grey[200],
+                  child: Icon(Icons.broken_image_outlined, color: Colors.grey[600]),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

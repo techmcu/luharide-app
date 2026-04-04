@@ -1179,6 +1179,10 @@ class AppLocalizations {
       'en': 'Upload documents',
       'hi': 'दस्तावेज़ अपलोड करें',
     },
+    'kyc.union.preview_label': {
+      'en': 'Selected photos',
+      'hi': 'चुनी गई तस्वीरें',
+    },
     // Admin — platform KYC review (follows app language)
     'admin.stat.trips': {
       'en': 'Trips',
