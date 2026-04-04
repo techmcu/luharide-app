@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'passenger_home_screen.dart';
 import 'role_home_shell.dart';
+import 'union_admin_home_screen.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -19,15 +21,21 @@ class HomeScreen extends StatelessWidget {
       print('🔍 HomeScreen - User: ${user?.email}, Role: $role, isAppAdmin: $isAppAdmin');
     }
 
-    // Union admin: find rides + union dashboard; app admin also gets an "Approvals" tab (KYC panel)
-    if (role == 'union_admin') {
-      return RoleHomeShell(
+    // Union head (not platform admin): find rides + union dashboard only — no global KYC mixed in.
+    if (role == 'union_admin' && !isAppAdmin) {
+      return const RoleHomeShell(
         mode: RoleHomeShellMode.unionAdmin,
-        showApprovalsTab: isAppAdmin,
+        showApprovalsTab: false,
       );
     }
 
-    // Independent driver: find rides + driver hub (create trip, my rides, etc.)
+    // Platform admin (ADMIN_EMAIL): moderation-only home — no passenger search / union ops / driver hub here.
+    // Avoids showing the same shell as union leaders (no "Driver" tab or independent-driver UI for this account).
+    if (role == 'union_admin' && isAppAdmin) {
+      return const UnionAdminHomeScreen();
+    }
+
+    // Independent driver: find rides + driver hub; rare: same user is app admin → Approvals tab added.
     if (role == 'driver') {
       return RoleHomeShell(
         mode: RoleHomeShellMode.driver,

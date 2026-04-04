@@ -35,7 +35,13 @@ class _RoleHomeShellState extends State<RoleHomeShell> {
   @override
   void didUpdateWidget(RoleHomeShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.showApprovalsTab && !widget.showApprovalsTab && _tabIndex == 2) {
+    final maxIx = widget.showApprovalsTab ? 2 : 1;
+    // Union ↔ driver mode swap: avoid keeping a stale tab index pointing at wrong hub.
+    if (oldWidget.mode != widget.mode) {
+      _tabIndex = 0;
+    } else if (_tabIndex > maxIx) {
+      _tabIndex = maxIx;
+    } else if (oldWidget.showApprovalsTab && !widget.showApprovalsTab && _tabIndex == 2) {
       _tabIndex = 0;
     }
   }
