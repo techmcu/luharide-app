@@ -1284,8 +1284,20 @@ class AppLocalizations {
       'hi': 'वाहन',
     },
     'admin.kyc.view_prefix': {
-      'en': 'Open',
-      'hi': 'खोलें',
+      'en': 'View',
+      'hi': 'देखें',
+    },
+    'admin.kyc.viewer_title': {
+      'en': 'Document',
+      'hi': 'दस्तावेज़',
+    },
+    'admin.kyc.viewer_open_browser': {
+      'en': 'Open in browser',
+      'hi': 'ब्राउज़र में खोलें',
+    },
+    'admin.kyc.viewer_web_hint': {
+      'en': 'Open this document in your browser.',
+      'hi': 'यह दस्तावेज़ ब्राउज़र में खोलें।',
     },
     'admin.kyc.aadhaar_front': {
       'en': 'Aadhaar (front)',

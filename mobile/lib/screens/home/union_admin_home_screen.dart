@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../../core/config/env_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/app_language_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -9,6 +7,7 @@ import '../../services/admin_service.dart';
 import '../../core/app_navigator.dart';
 import '../landing/landing_screen.dart';
 import '../../widgets/brand_app_bar_title.dart';
+import '../admin/kyc_document_viewer_screen.dart';
 
 /// Admin Panel - Simple: Driver verification requests only. No search bar.
 class UnionAdminHomeScreen extends StatefulWidget {
@@ -593,20 +592,13 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: InkWell(
-        onTap: () async {
-          final resolved = _resolveDocUrl(url);
-          final uri = Uri.tryParse(resolved);
-          if (uri != null && await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-          } else if (mounted) {
-            final snackLoc = AppLocalizations.of(context);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(snackLoc.t('admin.snack.cannot_open')),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+        onTap: () {
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => KycDocumentViewerScreen(storageUrl: url),
+            ),
+          );
         },
         child: Row(
           children: [
@@ -622,14 +614,6 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
         ),
       ),
     );
-  }
-
-  String _resolveDocUrl(String url) {
-    final raw = url.trim();
-    if (raw.isEmpty) return raw;
-    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
-    if (raw.startsWith('/')) return '${EnvConfig.publicFileBaseUrl}$raw';
-    return '${EnvConfig.publicFileBaseUrl}/$raw';
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {

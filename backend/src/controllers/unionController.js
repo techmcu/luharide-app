@@ -1,14 +1,10 @@
-const path = require('path');
-const fs = require('fs').promises;
 const { pool } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const PDFDocument = require('pdfkit');
-const { minFileBytes } = require('../config/uploadLimits');
-const { resolveVerifiedUploadPath } = require('../utils/resolveVerifiedUploadPath');
-const { mergeImagePathsToWatermarkedPdf } = require('../utils/kycMergeImagesToPdf');
+const { buildWatermarkedPdfFromUploadUrls } = require('../utils/kycBuildPdfFromUploadUrls');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -245,39 +241,21 @@ function sanitizeDocumentUrl(raw) {
   return null;
 }
 
-async function mergeUnionDocPair(frontUrl, backUrl, filePrefix) {
-  const f = sanitizeDocumentUrl(frontUrl);
-  const b = sanitizeDocumentUrl(backUrl);
-  if (!f || !b) return null;
-  const absF = resolveVerifiedUploadPath(f, 'union-docs');
-  const absB = resolveVerifiedUploadPath(b, 'union-docs');
-  if (!absF || !absB) {
-    throw ApiError.badRequest('Invalid document path. Upload documents again from the app.');
+function orderedUnionDocUrls(urlList) {
+  const out = [];
+  for (const u of urlList) {
+    const s = sanitizeDocumentUrl(u);
+    if (s) out.push(s);
   }
-  try {
-    await fs.access(absF);
-    await fs.access(absB);
-  } catch {
-    throw ApiError.badRequest('Uploaded file not found. Please try uploading again.');
-  }
-  const uploadsDir = path.join(__dirname, '..', '..', 'uploads', 'union-docs');
-  const outName = `${filePrefix}_${Date.now()}.pdf`;
-  const outAbs = path.join(uploadsDir, outName);
-  try {
-    await mergeImagePathsToWatermarkedPdf([absF, absB], outAbs);
-  } catch (err) {
-    logger.warn('Union KYC merge to PDF failed', { message: err && err.message });
-    await fs.unlink(outAbs).catch(() => {});
-    throw ApiError.badRequest(
-      'Could not combine document photos into one PDF. Try clearer JPEG or PNG images.'
-    );
-  }
-  const st = await fs.stat(outAbs);
-  if (st.size < minFileBytes) {
-    await fs.unlink(outAbs).catch(() => {});
-    throw ApiError.badRequest('Combined document too small. Please upload clearer photos.');
-  }
-  return `/uploads/union-docs/${outName}`;
+  return out;
+}
+
+/** Non-PDF image under /uploads/union-docs → one watermarked PDF; PDF passthrough. */
+async function unionImageFieldToPdfIfNeeded(url, prefix) {
+  const s = sanitizeDocumentUrl(url);
+  if (!s) return null;
+  if (s.toLowerCase().endsWith('.pdf')) return s;
+  return buildWatermarkedPdfFromUploadUrls([s], 'union-docs', prefix);
 }
 
 const registerUnion = asyncHandler(async (req, res) => {
@@ -335,25 +313,76 @@ const registerUnion = asyncHandler(async (req, res) => {
   let ownerAadhaarUrl = sanitizeDocumentUrl(owner_aadhaar_url);
   let ownerAadhaarFront = sanitizeDocumentUrl(owner_aadhaar_front_url);
   let ownerAadhaarBack = sanitizeDocumentUrl(owner_aadhaar_back_url);
-  if (ownerAadhaarFront && ownerAadhaarBack) {
-    ownerAadhaarUrl = await mergeUnionDocPair(
-      owner_aadhaar_front_url,
-      owner_aadhaar_back_url,
+  const ownerPieces = orderedUnionDocUrls([owner_aadhaar_front_url, owner_aadhaar_back_url]);
+  if (ownerPieces.length > 0) {
+    ownerAadhaarUrl = await buildWatermarkedPdfFromUploadUrls(
+      ownerPieces,
+      'union-docs',
       'union_owner_aadhaar_merged'
     );
     ownerAadhaarFront = null;
     ownerAadhaarBack = null;
+  } else if (ownerAadhaarUrl && !ownerAadhaarUrl.toLowerCase().endsWith('.pdf')) {
+    ownerAadhaarUrl = await buildWatermarkedPdfFromUploadUrls(
+      [ownerAadhaarUrl],
+      'union-docs',
+      'union_owner_aadhaar_single'
+    );
   }
 
   let leaderDlFront = sanitizeDocumentUrl(leader_driving_license_front_url);
   let leaderDlBack = sanitizeDocumentUrl(leader_driving_license_back_url);
-  if (leaderDlFront && leaderDlBack) {
-    leaderDlFront = await mergeUnionDocPair(
-      leader_driving_license_front_url,
-      leader_driving_license_back_url,
+  const leaderPieces = orderedUnionDocUrls([
+    leader_driving_license_front_url,
+    leader_driving_license_back_url,
+  ]);
+  if (leaderPieces.length > 0) {
+    leaderDlFront = await buildWatermarkedPdfFromUploadUrls(
+      leaderPieces,
+      'union-docs',
       'union_leader_dl_merged'
     );
     leaderDlBack = null;
+  }
+
+  const origOfficeSan = sanitizeDocumentUrl(office_photo_url);
+  let officePhoto = await unionImageFieldToPdfIfNeeded(office_photo_url, 'union_office');
+  const origUnionPhotoSan = sanitizeDocumentUrl(union_photo_url);
+  let unionPhoto = origUnionPhotoSan;
+  if (origUnionPhotoSan && !origUnionPhotoSan.toLowerCase().endsWith('.pdf')) {
+    unionPhoto =
+      origOfficeSan && origUnionPhotoSan === origOfficeSan && officePhoto
+        ? officePhoto
+        : await buildWatermarkedPdfFromUploadUrls(
+            [origUnionPhotoSan],
+            'union-docs',
+            'union_photo'
+          );
+  }
+
+  let unionDriverListPhoto = await unionImageFieldToPdfIfNeeded(
+    union_driver_list_photo_url,
+    'union_driver_list'
+  );
+
+  let rcUrl = sanitizeDocumentUrl(owner_vehicle_rc_url);
+  let rcFront = sanitizeDocumentUrl(owner_vehicle_rc_front_url);
+  let rcBack = sanitizeDocumentUrl(owner_vehicle_rc_back_url);
+  const rcPieces = orderedUnionDocUrls([owner_vehicle_rc_front_url, owner_vehicle_rc_back_url]);
+  if (rcPieces.length > 0) {
+    rcUrl = await buildWatermarkedPdfFromUploadUrls(
+      rcPieces,
+      'union-docs',
+      'union_vehicle_rc_merged'
+    );
+    rcFront = null;
+    rcBack = null;
+  } else if (rcUrl && !rcUrl.toLowerCase().endsWith('.pdf')) {
+    rcUrl = await buildWatermarkedPdfFromUploadUrls(
+      [rcUrl],
+      'union-docs',
+      'union_vehicle_rc'
+    );
   }
 
   let insertRes;
@@ -391,14 +420,14 @@ const registerUnion = asyncHandler(async (req, res) => {
         ownerAadhaarUrl,
         ownerAadhaarFront,
         ownerAadhaarBack,
-        sanitizeDocumentUrl(office_photo_url),
-        sanitizeDocumentUrl(union_photo_url),
-        sanitizeDocumentUrl(union_driver_list_photo_url),
+        officePhoto,
+        unionPhoto,
+        unionDriverListPhoto,
         leaderDlFront,
         leaderDlBack,
-        sanitizeDocumentUrl(owner_vehicle_rc_url),
-        sanitizeDocumentUrl(owner_vehicle_rc_front_url),
-        sanitizeDocumentUrl(owner_vehicle_rc_back_url),
+        rcUrl,
+        rcFront,
+        rcBack,
         notesVal,
       ]
     );

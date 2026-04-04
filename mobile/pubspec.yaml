@@ -1,7 +1,7 @@
 name: luharide
 description: Uttarakhand taxi booking platform - Legal taxi aggregator with seat booking system
 publish_to: 'none'
-version: 1.0.0+12
+version: 1.0.0+13
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -58,6 +58,7 @@ dependencies:
   intl: ^0.20.2
   flutter_typeahead: ^5.2.0
   url_launcher: ^6.2.3
+  webview_flutter: ^4.10.0
   share_plus: ^7.2.1
   
   # Authentication
