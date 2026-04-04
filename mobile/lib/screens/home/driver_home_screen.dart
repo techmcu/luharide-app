@@ -268,7 +268,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).bottom),
           ],
         ),
       ),

@@ -21,12 +21,18 @@ import 'seat_selection_screen.dart';
 
 class TripDetailsScreen extends StatefulWidget {
   final String tripId;
+
   /// From search result - show immediately, no "Trip not found" while loading
   final TripModel? initialTrip;
+
   /// When true, prompt login before seat selection (e.g. from landing)
   final bool requireLogin;
 
-  const TripDetailsScreen({super.key, required this.tripId, this.initialTrip, this.requireLogin = false});
+  const TripDetailsScreen(
+      {super.key,
+      required this.tripId,
+      this.initialTrip,
+      this.requireLogin = false});
 
   @override
   State<TripDetailsScreen> createState() => _TripDetailsScreenState();
@@ -38,6 +44,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   List<int> _bookedSeats = [];
   List<int> _pendingSeats = [];
   bool _isLoading = true;
+
   /// null = not booked, 'pending' = waiting, 'confirmed' = confirmed
   String? _userBookingStatus;
 
@@ -54,7 +61,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     }
     _loadTripDetails();
     RealtimeSocketService.instance.joinTrip(widget.tripId);
-    _tripSocketSub = RealtimeSocketService.instance.tripUpdatedStream.listen((e) {
+    _tripSocketSub =
+        RealtimeSocketService.instance.tripUpdatedStream.listen((e) {
       final tid = e['tripId']?.toString();
       if (tid == widget.tripId && mounted) {
         _loadTripDetails();
@@ -107,9 +115,11 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     if (t == null) return;
     final from = t.fromLocation;
     final to = t.toLocation;
-    final date = DateFormat('dd MMM yyyy, hh:mm a').format(t.departureTime.toLocal());
+    final date =
+        DateFormat('dd MMM yyyy, hh:mm a').format(t.departureTime.toLocal());
     final shareUrl = '${ApiConstants.baseUrl}/trips/${widget.tripId}';
-    final text = '${BrandConfig.appName}: $from → $to on $date. Book or view: $shareUrl';
+    final text =
+        '${BrandConfig.appName}: $from → $to on $date. Book or view: $shareUrl';
     Share.share(text, subject: '${BrandConfig.appName} trip');
   }
 
@@ -119,7 +129,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     if (!mounted) return;
     final loc = AppLocalizations.of(context);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(loc.t('trip.details.link_copied')), duration: const Duration(seconds: 2)),
+      SnackBar(
+          content: Text(loc.t('trip.details.link_copied')),
+          duration: const Duration(seconds: 2)),
     );
   }
 
@@ -139,12 +151,17 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               icon: const Icon(Icons.share),
               tooltip: loc.t('trip.details.share_tooltip'),
               onSelected: (v) {
-                if (v == 'share') _shareTrip();
+                if (v == 'share')
+                  _shareTrip();
                 else if (v == 'copy') _copyTripLink();
               },
               itemBuilder: (ctx) => [
-                PopupMenuItem(value: 'share', child: Text(loc.t('trip.details.share_link'))),
-                PopupMenuItem(value: 'copy', child: Text(loc.t('trip.details.copy_link'))),
+                PopupMenuItem(
+                    value: 'share',
+                    child: Text(loc.t('trip.details.share_link'))),
+                PopupMenuItem(
+                    value: 'copy',
+                    child: Text(loc.t('trip.details.copy_link'))),
               ],
             ),
         ],
@@ -154,9 +171,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           : _displayTrip == null
               ? Center(child: Text(loc.t('trip.details.not_found')))
               : _buildTripDetails(loc),
-      bottomNavigationBar: _displayTrip != null && _displayTrip!.availableSeats > 0
-          ? _buildBookButton(loc)
-          : null,
+      bottomNavigationBar:
+          _displayTrip != null && _displayTrip!.availableSeats > 0
+              ? _buildBookButton(loc)
+              : null,
     );
   }
 
@@ -169,7 +187,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           // Route Card
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -196,7 +215,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           // Time & Date Card
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -204,12 +224,14 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                 children: [
                   Text(
                     loc.t('trip.details.schedule'),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today, size: 20, color: Colors.blue),
+                      const Icon(Icons.calendar_today,
+                          size: 20, color: Colors.blue),
                       const SizedBox(width: 8),
                       Text(
                         _displayTrip!.formattedDate,
@@ -220,7 +242,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.access_time, size: 20, color: Colors.blue),
+                      const Icon(Icons.access_time,
+                          size: 20, color: Colors.blue),
                       const SizedBox(width: 8),
                       Text(
                         _displayTrip!.formattedDepartureTime,
@@ -230,7 +253,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         const SizedBox(width: 8),
                         Text(
                           '(${_displayTrip!.formattedDuration})',
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[600]),
                         ),
                       ],
                     ],
@@ -244,7 +268,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           // Vehicle & Seats Card
           Card(
             elevation: 2,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -252,24 +277,28 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                 children: [
                   Text(
                     loc.t('trip.details.vehicle_details'),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   if (_displayTrip!.vehicleNumber != null)
                     Row(
                       children: [
-                        const Icon(Icons.directions_car, size: 20, color: Colors.grey),
+                        const Icon(Icons.directions_car,
+                            size: 20, color: Colors.grey),
                         const SizedBox(width: 8),
                         Text(
                           _displayTrip!.vehicleNumber!,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w500),
                         ),
                       ],
                     ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.event_seat, size: 20, color: Colors.grey),
+                      const Icon(Icons.event_seat,
+                          size: 20, color: Colors.grey),
                       const SizedBox(width: 8),
                       Text(
                         loc.tReplace('trip.details.seats_available', {
@@ -278,7 +307,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         }),
                         style: TextStyle(
                           fontSize: 16,
-                          color: _displayTrip!.availableSeats > 0 ? Colors.green : Colors.red,
+                          color: _displayTrip!.availableSeats > 0
+                              ? Colors.green
+                              : Colors.red,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -294,7 +325,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           if (_displayTrip!.driver != null)
             Card(
               elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -302,7 +334,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                   children: [
                     Text(
                       loc.t('trip.details.driver_section'),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     InkWell(
@@ -343,14 +376,16 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                     ),
                                     if (_displayTrip!.driver!.isVerified) ...[
                                       const SizedBox(width: 6),
-                                      Icon(Icons.verified, color: Colors.blue[700], size: 20),
+                                      Icon(Icons.verified,
+                                          color: Colors.blue[700], size: 20),
                                     ],
                                   ],
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   'Tap to see ratings & reviews',
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey[600]),
                                 ),
                               ],
                             ),
@@ -367,10 +402,13 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     // Contact only visible after confirmed booking
                     if (_userBookingStatus == 'confirmed' &&
                         _displayTrip!.driver!.contactNumber != null &&
-                        _displayTrip!.driver!.contactNumber!.trim().isNotEmpty) ...[
+                        _displayTrip!.driver!.contactNumber!
+                            .trim()
+                            .isNotEmpty) ...[
                       const SizedBox(height: 12),
                       OutlinedButton.icon(
-                        onPressed: () => launchWhatsApp(_displayTrip!.driver!.contactNumber),
+                        onPressed: () =>
+                            launchWhatsApp(_displayTrip!.driver!.contactNumber),
                         icon: const Icon(Icons.chat, size: 18),
                         label: Text(loc.t('trip.details.whatsapp')),
                         style: OutlinedButton.styleFrom(
@@ -381,7 +419,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     ] else if (_userBookingStatus == 'pending') ...[
                       const SizedBox(height: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.orange[50],
                           borderRadius: BorderRadius.circular(8),
@@ -389,12 +428,14 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.lock_clock, size: 16, color: Colors.orange[700]),
+                            Icon(Icons.lock_clock,
+                                size: 16, color: Colors.orange[700]),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 'Booking pending — driver contact will be shared once confirmed.',
-                                style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.orange[800]),
                               ),
                             ),
                           ],
@@ -411,7 +452,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           Card(
             elevation: 2,
             color: Colors.blue[50],
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -419,11 +461,13 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                 children: [
                   Text(
                     loc.t('trip.details.fare_per_seat'),
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Row(
                     children: [
-                      const Icon(Icons.currency_rupee, size: 24, color: Colors.blue),
+                      const Icon(Icons.currency_rupee,
+                          size: 24, color: Colors.blue),
                       Text(
                         _displayTrip!.farePerSeat.toStringAsFixed(0),
                         style: const TextStyle(
@@ -464,7 +508,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               const SizedBox(height: 4),
               Text(
                 value,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -474,82 +519,88 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   }
 
   Widget _buildBookButton(AppLocalizations loc) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withValues(alpha: 0.2),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        height: 56,
-        child: ElevatedButton.icon(
-          onPressed: () async {
-            final authProvider = context.read<AuthProvider>();
-            if (widget.requireLogin && !authProvider.isAuthenticated) {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: Text(loc.t('trip.details.login_required_title')),
-                  content: Text(loc.t('trip.details.login_required_body')),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
-                        );
-                      },
-                      child: Text(loc.t('trip.details.login_cta')),
-                    ),
-                  ],
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.zero,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.2),
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              final authProvider = context.read<AuthProvider>();
+              if (widget.requireLogin && !authProvider.isAuthenticated) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text(loc.t('trip.details.login_required_title')),
+                    content: Text(loc.t('trip.details.login_required_body')),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(loc.t('app.cancel'))),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const SimpleLoginScreen()),
+                          );
+                        },
+                        child: Text(loc.t('trip.details.login_cta')),
+                      ),
+                    ],
+                  ),
+                );
+                return;
+              }
+              // Independent driver: open seat selection (dynamic layout by trip totalSeats)
+              final t = _displayTrip!;
+              final booked = List<int>.from(_bookedSeats);
+              final pending = List<int>.from(_pendingSeats);
+              final result = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SeatSelectionScreen(
+                    trip: t,
+                    initialBookedSeats: booked.isEmpty ? null : booked,
+                    initialPendingSeats: pending.isEmpty ? null : pending,
+                  ),
                 ),
               );
-              return;
-            }
-            // Independent driver: open seat selection (dynamic layout by trip totalSeats)
-            final t = _displayTrip!;
-            final booked = List<int>.from(_bookedSeats);
-            final pending = List<int>.from(_pendingSeats);
-            final result = await Navigator.push<bool>(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SeatSelectionScreen(
-                  trip: t,
-                  initialBookedSeats: booked.isEmpty ? null : booked,
-                  initialPendingSeats: pending.isEmpty ? null : pending,
-                ),
+              if (result == true) await _loadTripDetails();
+              if (mounted && result == true && Navigator.canPop(context)) {
+                Navigator.pop(context, true);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-            );
-            if (result == true) await _loadTripDetails();
-            if (mounted && result == true && Navigator.canPop(context)) {
-              Navigator.pop(context, true);
-            }
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          icon: const Icon(Icons.directions_bus, size: 24),
-          label: Text(
-            loc.t('trip.details.book_ride'),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            icon: const Icon(Icons.directions_bus, size: 24),
+            label: Text(
+              loc.t('trip.details.book_ride'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           ),
         ),
       ),
     );
   }
-
 }
 
 class _DriverRatingRow extends StatelessWidget {
@@ -570,10 +621,14 @@ class _DriverRatingRow extends StatelessWidget {
         return Row(
           children: [
             if (snapshot.connectionState == ConnectionState.waiting)
-              const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(strokeWidth: 2))
+              const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2))
             else if (total > 0 && avgStr != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.amber[50],
                   borderRadius: BorderRadius.circular(20),
@@ -584,19 +639,25 @@ class _DriverRatingRow extends StatelessWidget {
                   children: [
                     Icon(Icons.star, color: Colors.amber[700], size: 18),
                     const SizedBox(width: 6),
-                    Text('$avgStr ($total)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.amber[900])),
+                    Text('$avgStr ($total)',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.amber[900])),
                   ],
                 ),
               )
             else
-              Text(loc.t('trip.details.no_ratings'), style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              Text(loc.t('trip.details.no_ratings'),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600])),
             const SizedBox(width: 12),
             TextButton(
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => UserReviewsScreen(userId: driverId, displayName: driverName),
+                    builder: (_) => UserReviewsScreen(
+                        userId: driverId, displayName: driverName),
                   ),
                 );
               },

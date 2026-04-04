@@ -631,6 +631,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 ),
               ),
 
+            // Space above custom footer so last cards / Book are not tight against nav row.
+            SizedBox(height: 12 + MediaQuery.viewPaddingOf(context).bottom),
           ],
         ),
       ),

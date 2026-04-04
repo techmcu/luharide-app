@@ -344,7 +344,7 @@ class TripService {
     }
   }
 
-  /// Complete trip (Driver only) - in_progress → completed
+  /// Complete trip (Driver only) — backend accepts scheduled or in_progress → completed.
   Future<Map<String, dynamic>> completeTrip(String tripId) async {
     try {
       final response = await _apiService.put(

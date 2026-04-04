@@ -153,21 +153,6 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
     }
   }
 
-  Future<void> _startTrip() async {
-    final result = await _tripService.startTrip(widget.tripId);
-    if (!mounted) return;
-    if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Ride started'), backgroundColor: Colors.green),
-      );
-      _loadTripDetails();
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Could not start'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
   Future<void> _completeTrip() async {
     final result = await _tripService.completeTrip(widget.tripId);
     if (!mounted) return;
@@ -336,33 +321,22 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
             ),
           ),
 
-          // Start / Complete ride (Driver)
+          // Complete ride (Driver) — scheduled or in_progress (no separate "start" step in UI).
           if (_trip!.status == 'scheduled' || _trip!.status == 'in_progress')
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: SizedBox(
                 width: double.infinity,
-                child: _trip!.status == 'scheduled'
-                    ? ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _startTrip,
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Start ride'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      )
-                    : ElevatedButton.icon(
-                        onPressed: _isLoading ? null : _completeTrip,
-                        icon: const Icon(Icons.check_circle),
-                        label: const Text('Complete ride'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green[700],
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                        ),
-                      ),
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _completeTrip,
+                  icon: const Icon(Icons.check_circle),
+                  label: const Text('Complete ride'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
               ),
             ),
 

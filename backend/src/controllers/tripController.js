@@ -854,8 +854,11 @@ const completeTrip = asyncHandler(async (req, res) => {
   }
 
   const trip = tripResult.rows[0];
-  if (trip.status !== 'in_progress') {
-    throw ApiError.badRequest(`Cannot complete trip. Current status: ${trip.status}. Only in-progress trips can be completed.`);
+  // Allow complete from scheduled (no separate "start ride" step in app) or in_progress.
+  if (trip.status !== 'in_progress' && trip.status !== 'scheduled') {
+    throw ApiError.badRequest(
+      `Cannot complete trip. Current status: ${trip.status}. Only scheduled or in-progress trips can be completed.`
+    );
   }
 
   await pool.query(
