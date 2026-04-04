@@ -1,6 +1,6 @@
 const fs = require('fs');
 const sharp = require('sharp');
-const { LINE_PRIMARY, LINE_SECONDARY } = require('./kycWatermarkStrings');
+const { LINE_PRIMARY, LINE_SECONDARY, LINE_TOP_MARK } = require('./kycWatermarkStrings');
 
 const SHARP_READ_OPTS = { failOn: 'none' };
 
@@ -34,6 +34,9 @@ async function applyKycWatermark(absolutePath, mimetype) {
   const centerSubFont = Math.max(14, Math.round(centerFont * 0.28));
   const centerGap = Math.round(centerFont * 0.55);
 
+  const topMarkFont = Math.max(40, Math.round(minSide * 0.19));
+  const topMarkY = Math.round(topMarkFont * 0.85);
+
   const svg = `
 <svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -42,6 +45,15 @@ async function applyKycWatermark(absolutePath, mimetype) {
       <stop offset="1" stop-color="rgba(0,0,0,0.28)"/>
     </linearGradient>
   </defs>
+  <text x="${cx}" y="${topMarkY}"
+        text-anchor="middle" dominant-baseline="middle"
+        fill="rgba(80,80,80,0.2)"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="${topMarkFont}"
+        font-weight="900"
+        stroke="rgba(0,0,0,0.25)"
+        stroke-width="${Math.max(2, Math.round(topMarkFont * 0.03))}"
+        paint-order="stroke fill">${escapeXml(LINE_TOP_MARK)}</text>
   <g transform="translate(${cx}, ${cy}) rotate(${angle})">
     <text x="0" y="${-centerGap / 2}"
           text-anchor="middle" dominant-baseline="middle"

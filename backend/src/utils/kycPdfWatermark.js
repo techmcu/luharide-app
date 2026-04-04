@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { PDFDocument, rgb, degrees, StandardFonts } = require('pdf-lib');
-const { LINE_PRIMARY, LINE_SECONDARY } = require('./kycWatermarkStrings');
+const { LINE_PRIMARY, LINE_SECONDARY, LINE_TOP_MARK } = require('./kycWatermarkStrings');
 
 const MAX_PAGES = 40;
 
@@ -34,6 +34,18 @@ async function applyKycPdfWatermark(absolutePath) {
     const width = page.getWidth();
     const height = page.getHeight();
     const minSide = Math.min(width, height);
+
+    // Very large semi-transparent mark at upper area (readable at a glance).
+    const topMarkSize = Math.max(36, minSide * 0.2);
+    const wTop = fontBold.widthOfTextAtSize(LINE_TOP_MARK, topMarkSize);
+    page.drawText(LINE_TOP_MARK, {
+      x: (width - wTop) / 2,
+      y: height - topMarkSize * 1.15,
+      size: topMarkSize,
+      font: fontBold,
+      color: rgb(0.35, 0.35, 0.35),
+      opacity: 0.22,
+    });
 
     const bigSize = Math.max(26, minSide * 0.11);
     const subSize = Math.max(8, bigSize * 0.26);
