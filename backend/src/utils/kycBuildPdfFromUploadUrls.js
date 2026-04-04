@@ -8,6 +8,7 @@ const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 const { resolveVerifiedUploadPath } = require('./resolveVerifiedUploadPath');
 const { mergeImagePathsToWatermarkedPdf } = require('./kycMergeImagesToPdf');
+const { applyKycPdfWatermark } = require('./kycPdfWatermark');
 
 /**
  * Microservices: uploads are stored on the platform service; union/core merge on their own disk.
@@ -100,6 +101,7 @@ async function buildWatermarkedPdfFromUploadUrls(
     const uploadsDir = path.join(__dirname, '..', '..', 'uploads', subdir);
     const outName = `${filePrefix}_${Date.now()}.pdf`;
     const outAbs = path.join(uploadsDir, outName);
+    await fs.mkdir(uploadsDir, { recursive: true });
 
     try {
       await mergeImagePathsToWatermarkedPdf(paths, outAbs);
@@ -129,4 +131,37 @@ async function buildWatermarkedPdfFromUploadUrls(
   }
 }
 
-module.exports = { buildWatermarkedPdfFromUploadUrls };
+/**
+ * Copy an existing stored PDF and apply KYC stamps (legacy PDF URLs otherwise skipped watermark).
+ */
+async function copyAndWatermarkExistingPdf(sanitizedRelativeUrl, subdir, filePrefix) {
+  const tempCleanup = [];
+  try {
+    const abs = await resolveReadablePath(sanitizedRelativeUrl, subdir, tempCleanup);
+    const lower = abs.toLowerCase();
+    if (!lower.endsWith('.pdf')) {
+      return sanitizedRelativeUrl;
+    }
+    const uploadsDir = path.join(__dirname, '..', '..', 'uploads', subdir);
+    const outName = `${filePrefix}_${Date.now()}.pdf`;
+    const outAbs = path.join(uploadsDir, outName);
+    await fs.mkdir(uploadsDir, { recursive: true });
+    await fs.copyFile(abs, outAbs);
+    await applyKycPdfWatermark(outAbs);
+    const st = await fs.stat(outAbs);
+    if (st.size < minFileBytes) {
+      await fs.unlink(outAbs).catch(() => {});
+      throw ApiError.badRequest('Watermarked PDF too small.');
+    }
+    return `/uploads/${subdir}/${outName}`;
+  } finally {
+    for (const t of tempCleanup) {
+      await fs.unlink(t).catch(() => {});
+    }
+  }
+}
+
+module.exports = {
+  buildWatermarkedPdfFromUploadUrls,
+  copyAndWatermarkExistingPdf,
+};

@@ -1312,6 +1312,10 @@ class AppLocalizations {
       'en': 'Open this document in your browser.',
       'hi': 'यह दस्तावेज़ ब्राउज़र में खोलें।',
     },
+    'admin.kyc.viewer_image_error': {
+      'en': 'Could not load this image. Try opening in browser.',
+      'hi': 'छवि लोड नहीं हो सकी। ब्राउज़र में खोलें।',
+    },
     'admin.kyc.no_document_links': {
       'en':
           'No document links in this request. If uploads exist, check server/DB or ask the applicant to re-submit KYC.',

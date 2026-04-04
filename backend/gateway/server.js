@@ -282,6 +282,14 @@ const apiProxy = (target, pathFilter) =>
     ...proxyOpts(target),
   });
 
+// After gateway static (missing file → next): merged union KYC lives on union service disk.
+app.use(
+  createProxyMiddleware({
+    pathFilter: (pathname) => pathname.startsWith('/uploads/union-docs'),
+    ...proxyOpts(UNION_URL),
+  })
+);
+
 // Global rate limit for /api (same behaviour as monolith)
 app.use('/api', apiLimiter);
 

@@ -31,11 +31,25 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
     return '${EnvConfig.publicFileBaseUrl}/$raw';
   }
 
+  static bool _isRasterImageUrl(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+    return path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png') ||
+        path.endsWith('.gif') ||
+        path.endsWith('.webp') ||
+        path.endsWith('.bmp');
+  }
+
   @override
   void initState() {
     super.initState();
     _resolved = _resolveUrl(widget.storageUrl);
     if (kIsWeb) {
+      _loading = false;
+      return;
+    }
+    if (_isRasterImageUrl(_resolved)) {
       _loading = false;
       return;
     }
@@ -104,38 +118,100 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
                 ),
               ),
             )
-          : Stack(
-              children: [
-                if (_controller != null && _error == null)
-                  WebViewWidget(controller: _controller!),
-                if (_error != null)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey[600]),
-                          const SizedBox(height: 12),
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey[800]),
+          : _isRasterImageUrl(_resolved)
+              ? _RasterKycPreview(
+                  url: _resolved,
+                  onOpenExternal: _openExternal,
+                  loc: loc,
+                )
+              : Stack(
+                  children: [
+                    if (_controller != null && _error == null)
+                      WebViewWidget(controller: _controller!),
+                    if (_error != null)
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey[600]),
+                              const SizedBox(height: 12),
+                              Text(
+                                _error!,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.grey[800]),
+                              ),
+                              const SizedBox(height: 16),
+                              FilledButton.icon(
+                                onPressed: _openExternal,
+                                icon: const Icon(Icons.open_in_browser),
+                                label: Text(loc.t('admin.kyc.viewer_open_browser')),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          FilledButton.icon(
-                            onPressed: _openExternal,
-                            icon: const Icon(Icons.open_in_browser),
-                            label: Text(loc.t('admin.kyc.viewer_open_browser')),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                    if (_loading && _error == null)
+                      const Center(child: CircularProgressIndicator()),
+                  ],
+                ),
+    );
+  }
+}
+
+class _RasterKycPreview extends StatelessWidget {
+  const _RasterKycPreview({
+    required this.url,
+    required this.onOpenExternal,
+    required this.loc,
+  });
+
+  final String url;
+  final VoidCallback onOpenExternal;
+  final AppLocalizations loc;
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer(
+      minScale: 0.5,
+      maxScale: 4,
+      child: Center(
+        child: Image.network(
+          url,
+          fit: BoxFit.contain,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child ?? const SizedBox.shrink();
+            return const Padding(
+              padding: EdgeInsets.all(48),
+              child: CircularProgressIndicator(),
+            );
+          },
+          errorBuilder: (context, err, stack) {
+            return Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey[600]),
+                  const SizedBox(height: 12),
+                  Text(
+                    loc.t('admin.kyc.viewer_image_error'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[800]),
                   ),
-                if (_loading && _error == null)
-                  const Center(child: CircularProgressIndicator()),
-              ],
-            ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: onOpenExternal,
+                    icon: const Icon(Icons.open_in_browser),
+                    label: Text(loc.t('admin.kyc.viewer_open_browser')),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

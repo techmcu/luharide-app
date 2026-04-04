@@ -6,11 +6,15 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { validateConfig } = require('../src/config/env');
 validateConfig();
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-union';
+const path = require('path');
+const express = require('express');
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 
 const unionRoutes = require('../src/routes/union');
 
 const app = createBaseApp('union');
+// Merged union KYC PDFs are written here; gateway proxies GET /uploads/union-docs → this service.
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/union', unionRoutes);
 attachErrorHandlers(app);
 

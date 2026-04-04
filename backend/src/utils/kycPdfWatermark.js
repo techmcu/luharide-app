@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { PDFDocument, rgb, degrees, StandardFonts } = require('pdf-lib');
+const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const { LINE_PRIMARY, LINE_SECONDARY, LINE_TOP_MARK } = require('./kycWatermarkStrings');
 
 const MAX_PAGES = 40;
@@ -13,11 +13,8 @@ function fitFontSize(text, font, maxWidth, startSize, minSize) {
 }
 
 /**
- * Stamp each page: diagonal centre text + bottom banner (same messaging as image watermark).
+ * Strong, readable stamps on every page (no fragile diagonal rotation).
  * Overwrites file in place via temp file.
- *
- * @param {string} absolutePath
- * @returns {Promise<boolean>}
  */
 async function applyKycPdfWatermark(absolutePath) {
   const bytes = await fs.promises.readFile(absolutePath);
@@ -34,51 +31,56 @@ async function applyKycPdfWatermark(absolutePath) {
     const width = page.getWidth();
     const height = page.getHeight();
     const minSide = Math.min(width, height);
+    const marginX = Math.max(12, minSide * 0.02);
 
-    // Very large semi-transparent mark at upper area (readable at a glance).
-    const topMarkSize = Math.max(36, minSide * 0.2);
+    // --- Large header mark (top of page in PDF coords) ---
+    const topMarkSize = Math.max(44, minSide * 0.22);
     const wTop = fontBold.widthOfTextAtSize(LINE_TOP_MARK, topMarkSize);
     page.drawText(LINE_TOP_MARK, {
       x: (width - wTop) / 2,
-      y: height - topMarkSize * 1.15,
+      y: height - topMarkSize * 1.2,
       size: topMarkSize,
       font: fontBold,
-      color: rgb(0.32, 0.32, 0.32),
-      opacity: 0.4,
+      color: rgb(0.12, 0.12, 0.12),
+      opacity: 0.78,
     });
 
-    const bigSize = Math.max(26, minSide * 0.11);
-    const subSize = Math.max(8, bigSize * 0.26);
-    const wPrimary = fontBold.widthOfTextAtSize(LINE_PRIMARY, bigSize);
-    const wSecondary = fontRegular.widthOfTextAtSize(LINE_SECONDARY, subSize);
+    // --- Horizontal centre band (high contrast; always visible) ---
+    const stripH = Math.max(minSide * 0.16, 48);
+    const cy = height / 2;
+    const stripBottom = cy - stripH / 2;
+
+    page.drawRectangle({
+      x: 0,
+      y: stripBottom,
+      width,
+      height: stripH,
+      color: rgb(0, 0, 0),
+      opacity: 0.72,
+    });
+
+    const maxTextW = width - marginX * 2;
+    let primarySize = Math.max(14, minSide * 0.045);
+    primarySize = fitFontSize(LINE_PRIMARY, fontBold, maxTextW, primarySize, 10);
+    const wPrimary = fontBold.widthOfTextAtSize(LINE_PRIMARY, primarySize);
+    const hPrimary = fontBold.heightAtSize(primarySize);
+    const textBaseY = cy - hPrimary * 0.35;
 
     page.drawText(LINE_PRIMARY, {
       x: (width - wPrimary) / 2,
-      y: height / 2 + bigSize * 0.15,
-      size: bigSize,
+      y: textBaseY,
+      size: primarySize,
       font: fontBold,
-      color: rgb(0.4, 0.4, 0.4),
-      opacity: 0.58,
-      rotate: degrees(-34),
+      color: rgb(1, 1, 1),
+      opacity: 1,
     });
 
-    page.drawText(LINE_SECONDARY, {
-      x: (width - wSecondary) / 2,
-      y: height / 2 - bigSize * 0.45,
-      size: subSize,
-      font: fontRegular,
-      color: rgb(0.38, 0.38, 0.38),
-      opacity: 0.5,
-      rotate: degrees(-34),
-    });
+    // --- Bottom legal band ---
+    let fontLarge = Math.max(12, minSide * 0.04);
+    let fontSmall = Math.max(8, fontLarge * 0.48);
+    fontSmall = fitFontSize(LINE_SECONDARY, fontRegular, maxTextW, fontSmall, 6.5);
 
-    const fontLarge = Math.max(11, minSide * 0.038);
-    let fontSmall = Math.max(7.5, fontLarge * 0.48);
-    const marginX = 14;
-    const maxTextW = width - marginX * 2;
-    fontSmall = fitFontSize(LINE_SECONDARY, fontRegular, maxTextW, fontSmall, 6);
-
-    const bandH = fontLarge * 1.35 + fontSmall * 1.25 + 20;
+    const bandH = fontLarge * 1.4 + fontSmall * 1.35 + 22;
 
     page.drawRectangle({
       x: 0,
@@ -86,27 +88,28 @@ async function applyKycPdfWatermark(absolutePath) {
       width,
       height: bandH,
       color: rgb(0, 0, 0),
-      opacity: 0.58,
+      opacity: 0.75,
     });
 
     const wFoot1 = fontBold.widthOfTextAtSize(LINE_PRIMARY, fontLarge);
     page.drawText(LINE_PRIMARY, {
       x: (width - wFoot1) / 2,
-      y: bandH - fontLarge - 6,
+      y: bandH - fontLarge - 8,
       size: fontLarge,
       font: fontBold,
       color: rgb(1, 1, 1),
-      opacity: 0.96,
+      opacity: 1,
     });
 
-    const wFoot2 = fontRegular.widthOfTextAtSize(LINE_SECONDARY, fontSmall);
     page.drawText(LINE_SECONDARY, {
-      x: (width - wFoot2) / 2,
-      y: 8,
+      x: marginX,
+      y: 10,
       size: fontSmall,
       font: fontRegular,
       color: rgb(0.94, 0.94, 0.94),
-      opacity: 0.92,
+      opacity: 1,
+      maxWidth: maxTextW,
+      lineHeight: fontSmall * 1.12,
     });
   }
 

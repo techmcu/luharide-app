@@ -4,7 +4,10 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const PDFDocument = require('pdfkit');
-const { buildWatermarkedPdfFromUploadUrls } = require('../utils/kycBuildPdfFromUploadUrls');
+const {
+  buildWatermarkedPdfFromUploadUrls,
+  copyAndWatermarkExistingPdf,
+} = require('../utils/kycBuildPdfFromUploadUrls');
 const { sanitizeKycUploadUrl: sanitizeDocumentUrl } = require('../utils/sanitizeKycUploadUrl');
 
 const adminEmail = process.env.ADMIN_EMAIL
@@ -45,6 +48,11 @@ async function demoteUnionAdminsOrphanedByReject(unionId) {
       `Demoted ${r.rowCount} user(s) from union_admin after union ${unionId} rejection`
     );
   }
+}
+
+/** Remove registrar links so getMyUnion / clients see no union after reject (re-apply works). */
+async function unlinkUnionAdminsForRejectedUnion(unionId) {
+  await pool.query('DELETE FROM union_admins WHERE union_id = $1', [unionId]);
 }
 
 /**
@@ -259,6 +267,7 @@ const rejectUnionRequest = asyncHandler(async (req, res) => {
   );
 
   await demoteUnionAdminsOrphanedByReject(id);
+  await unlinkUnionAdminsForRejectedUnion(id);
 
   logger.info(`Union rejected from admin panel ${id} by user ${req.user.id}`);
 
@@ -281,11 +290,13 @@ function orderedUnionDocUrls(urlList) {
   return out;
 }
 
-/** Non-PDF image under /uploads/union-docs → one watermarked PDF; PDF passthrough. */
+/** Image → watermarked PDF; existing PDF → copied + stamped (never raw passthrough). */
 async function unionImageFieldToPdfIfNeeded(url, prefix) {
   const s = sanitizeDocumentUrl(url);
   if (!s) return null;
-  if (s.toLowerCase().endsWith('.pdf')) return s;
+  if (s.toLowerCase().endsWith('.pdf')) {
+    return copyAndWatermarkExistingPdf(s, 'union-docs', prefix);
+  }
   return buildWatermarkedPdfFromUploadUrls([s], 'union-docs', prefix);
 }
 
@@ -361,6 +372,12 @@ const registerUnion = asyncHandler(async (req, res) => {
       'union-docs',
       'union_owner_aadhaar_single'
     );
+  } else if (ownerAadhaarUrl && ownerAadhaarUrl.toLowerCase().endsWith('.pdf')) {
+    ownerAadhaarUrl = await copyAndWatermarkExistingPdf(
+      ownerAadhaarUrl,
+      'union-docs',
+      'union_owner_aadhaar_pdf'
+    );
   }
 
   let leaderDlFront = sanitizeDocumentUrl(leader_driving_license_front_url);
@@ -416,6 +433,8 @@ const registerUnion = asyncHandler(async (req, res) => {
       'union-docs',
       'union_vehicle_rc'
     );
+  } else if (rcUrl && rcUrl.toLowerCase().endsWith('.pdf')) {
+    rcUrl = await copyAndWatermarkExistingPdf(rcUrl, 'union-docs', 'union_vehicle_rc_pdf');
   }
 
   let insertRes;
@@ -603,6 +622,7 @@ const rejectUnion = asyncHandler(async (req, res) => {
   );
 
   await demoteUnionAdminsOrphanedByReject(id);
+  await unlinkUnionAdminsForRejectedUnion(id);
 
   logger.info(`Union rejected ${id} by platform admin ${req.user.id}`);
 
