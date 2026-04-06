@@ -1,7 +1,11 @@
 name: Deploy to VPS
 
+# PR → backend + mobile quality only (no deploy).
+# push main → same gates, then VPS deploy + rollback on failure.
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -41,6 +45,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Install mobile dependencies
         working-directory: mobile
@@ -56,6 +61,7 @@ jobs:
 
   deploy:
     name: Deploy to VPS
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: vps
     needs:
