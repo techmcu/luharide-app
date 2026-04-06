@@ -1,0 +1,43 @@
+# Runs on every PR and on pushes to main — catches mobile breakages before deploy.
+# (deploy-vps.yml also runs these gates on main before VPS deploy; this workflow adds PR coverage.)
+
+name: Flutter CI
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter_ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/flutter_ci.yml'
+
+jobs:
+  mobile:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      # Fail on analyzer *errors*; infos/warnings listed but do not fail (matches deploy-vps mobile_quality).
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Tests
+        run: flutter test

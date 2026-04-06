@@ -10,9 +10,9 @@ import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../utils/trip_self_book_guard.dart';
-import '../../../../screens/auth/simple_login_screen.dart';
-import '../../../../screens/auth/simple_signup_screen.dart';
-import '../../../../screens/trips/trip_details_screen.dart';
+import '../../../auth/presentation/screens/simple_login_screen.dart';
+import '../../../auth/presentation/screens/simple_signup_screen.dart';
+import '../../../trips/presentation/screens/trip_details_screen.dart';
 
 /// BlaBlaCar-style landing screen - search first, no login required to browse
 class LandingScreen extends StatefulWidget {

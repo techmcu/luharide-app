@@ -92,6 +92,6 @@ class EnvConfig {
 
   static Future<void> init() async {
     // Initialize any async configurations here
-    // e.g., Firebase, Hive, SharedPreferences, etc.
+    // e.g., SharedPreferences, secure storage, etc.
   }
 }
