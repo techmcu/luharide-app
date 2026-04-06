@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/auth_provider.dart';
 import 'otp_verification_screen.dart';
 
@@ -64,12 +65,10 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
         ),
       );
     } else if (mounted) {
-      // Show error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Failed to send OTP'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        authProvider.error ?? 'Failed to send OTP',
+        kind: AppFeedbackKind.error,
       );
     }
   }

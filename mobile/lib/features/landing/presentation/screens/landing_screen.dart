@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/brand_config.dart';
-import '../../core/localization/app_localizations.dart';
-import '../../providers/app_language_provider.dart';
-import '../../models/trip_model.dart';
-import '../../providers/auth_provider.dart';
-import '../../services/trip_service.dart';
-import '../../utils/trip_self_book_guard.dart';
-import '../auth/simple_login_screen.dart';
-import '../auth/simple_signup_screen.dart';
-import '../trips/trip_details_screen.dart';
+import '../../../../core/brand_config.dart';
+import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/localization/app_localizations.dart';
+import '../../../../providers/app_language_provider.dart';
+import '../../../../models/trip_model.dart';
+import '../../../../providers/auth_provider.dart';
+import '../../../../services/trip_service.dart';
+import '../../../../utils/trip_self_book_guard.dart';
+import '../../../../screens/auth/simple_login_screen.dart';
+import '../../../../screens/auth/simple_signup_screen.dart';
+import '../../../../screens/trips/trip_details_screen.dart';
 
 /// BlaBlaCar-style landing screen - search first, no login required to browse
 class LandingScreen extends StatefulWidget {
@@ -60,11 +61,10 @@ class _LandingScreenState extends State<LandingScreen> {
   Future<void> _searchTrips() async {
     final loc = AppLocalizations.of(context);
     if (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.t('landing.both_locations')),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        loc.t('landing.both_locations'),
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -96,11 +96,10 @@ class _LandingScreenState extends State<LandingScreen> {
 
     if (!result['success'] && mounted) {
       final msg = result['message']?.toString();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text((msg != null && msg.isNotEmpty) ? msg : loc.t('landing.search_failed')),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        (msg != null && msg.isNotEmpty) ? msg : loc.t('landing.search_failed'),
+        kind: AppFeedbackKind.error,
       );
     }
   }

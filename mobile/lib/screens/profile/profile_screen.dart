@@ -8,7 +8,7 @@ import '../../providers/app_language_provider.dart';
 import '../../core/app_navigator.dart';
 import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
-import '../landing/landing_screen.dart';
+import '../../features/landing/presentation/screens/landing_screen.dart';
 import '../trips/passenger_my_rides_screen.dart';
 import '../trips/my_rides_screen.dart';
 import '../trips/create_trip_screen.dart';
@@ -23,6 +23,7 @@ import 'union_dashboard_screen.dart';
 import '../../services/union_service.dart';
 import '../../services/review_service.dart';
 import '../../core/role_exclusivity.dart';
+import '../../core/feedback/app_feedback.dart';
 
 /// User Profile - BlaBlaCar style, simple & easy
 class ProfileScreen extends StatefulWidget {
@@ -575,8 +576,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     await langProvider.setLanguage(v);
                     if (context.mounted) {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(loc.t('app.language.saved'))),
+                      AppFeedback.show(
+                        context,
+                        loc.t('app.language.saved'),
+                        kind: AppFeedbackKind.success,
                       );
                     }
                   },
@@ -585,8 +588,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await langProvider.setLanguage(AppLanguageCode.en);
                   if (context.mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(loc.t('app.language.saved'))),
+                    AppFeedback.show(
+                      context,
+                      loc.t('app.language.saved'),
+                      kind: AppFeedbackKind.success,
                     );
                   }
                 },
@@ -601,8 +606,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     await langProvider.setLanguage(v);
                     if (context.mounted) {
                       Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(loc.t('app.language.saved'))),
+                      AppFeedback.show(
+                        context,
+                        loc.t('app.language.saved'),
+                        kind: AppFeedbackKind.success,
                       );
                     }
                   },
@@ -611,8 +618,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   await langProvider.setLanguage(AppLanguageCode.hi);
                   if (context.mounted) {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(loc.t('app.language.saved'))),
+                    AppFeedback.show(
+                      context,
+                      loc.t('app.language.saved'),
+                      kind: AppFeedbackKind.success,
                     );
                   }
                 },
@@ -752,17 +761,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     // Show brief loading indicator
     final loc = AppLocalizations.of(context);
-    final snack = ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-            const SizedBox(width: 12),
-            Expanded(child: Text(loc.t('union.checking_snackbar'))),
-          ],
-        ),
-        duration: const Duration(seconds: 5),
-      ),
+    final snack = AppFeedback.showLoading(
+      context,
+      loc.t('union.checking_snackbar'),
+      duration: const Duration(seconds: 5),
     );
 
     try {

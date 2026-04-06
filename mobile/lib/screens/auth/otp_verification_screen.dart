@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:pinput/pinput.dart';
 import 'dart:async';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/auth_provider.dart';
 import '../home/home_screen.dart';
 import 'role_selection_screen.dart';
@@ -50,11 +51,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
 
   Future<void> _verifyOTP() async {
     if (_otpController.text.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter complete OTP'),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        'Please enter complete OTP',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -92,12 +92,10 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         );
       }
     } else if (mounted) {
-      // Show error
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Invalid OTP'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        authProvider.error ?? 'Invalid OTP',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -108,19 +106,17 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
     final success = await authProvider.sendOTP(widget.phone, purpose: 'login');
     
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('OTP sent successfully'),
-          backgroundColor: Colors.green,
-        ),
+      AppFeedback.show(
+        context,
+        'OTP sent successfully',
+        kind: AppFeedbackKind.success,
       );
       _startResendTimer();
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Failed to resend OTP'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        authProvider.error ?? 'Failed to resend OTP',
+        kind: AppFeedbackKind.error,
       );
     }
   }

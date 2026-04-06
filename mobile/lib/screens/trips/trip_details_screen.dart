@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/app_language_provider.dart';
 import '../../core/brand_config.dart';
 import '../../core/constants/api_constants.dart';
@@ -128,10 +129,11 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     Clipboard.setData(ClipboardData(text: shareUrl));
     if (!mounted) return;
     final loc = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(loc.t('trip.details.link_copied')),
-          duration: const Duration(seconds: 2)),
+    AppFeedback.show(
+      context,
+      loc.t('trip.details.link_copied'),
+      kind: AppFeedbackKind.success,
+      duration: const Duration(seconds: 2),
     );
   }
 

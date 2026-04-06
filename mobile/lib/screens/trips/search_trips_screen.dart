@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../models/trip_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/trip_service.dart';
@@ -523,7 +524,11 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     final from = _fromCtrl.text.trim();
     final to   = _toCtrl.text.trim();
     if (from.isEmpty || to.isEmpty) {
-      _showSnack('Please enter both From and To locations', Colors.orange);
+      AppFeedback.show(
+        context,
+        'Please enter both From and To locations',
+        kind: AppFeedbackKind.warning,
+      );
       return;
     }
     setState(() { _loading = true; _searched = true; });
@@ -538,15 +543,12 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     });
 
     if (result['success'] != true) {
-      _showSnack(result['message'] ?? 'Search failed', Colors.red);
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Search failed',
+        kind: AppFeedbackKind.error,
+      );
     }
-  }
-
-  void _showSnack(String msg, Color color) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating),
-    );
   }
 
   // ── Build ────────────────────────────────────────────────────────────────

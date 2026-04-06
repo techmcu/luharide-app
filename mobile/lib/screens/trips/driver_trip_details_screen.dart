@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../models/trip_model.dart';
 import '../../services/trip_service.dart';
 import '../../services/review_service.dart';
@@ -127,13 +128,17 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
     final result = await _tripService.deleteTrip(widget.tripId);
     if (!mounted) return;
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Ride deleted'), backgroundColor: Colors.green),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Ride deleted',
+        kind: AppFeedbackKind.success,
       );
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Cannot delete'), backgroundColor: Colors.red),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Cannot delete',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -142,13 +147,17 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
     final result = await _tripService.respondToBooking(bookingId, action);
     if (!mounted) return;
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Done'), backgroundColor: Colors.green),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Done',
+        kind: AppFeedbackKind.success,
       );
       _loadTripDetails();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed'), backgroundColor: Colors.red),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Failed',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -157,13 +166,17 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
     final result = await _tripService.completeTrip(widget.tripId);
     if (!mounted) return;
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Ride completed'), backgroundColor: Colors.green),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Ride completed',
+        kind: AppFeedbackKind.success,
       );
       _loadTripDetails();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Could not complete'), backgroundColor: Colors.red),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Could not complete',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -187,13 +200,17 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
     final result = await _tripService.cancelTrip(widget.tripId);
     if (!mounted) return;
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Trip cancelled'), backgroundColor: Colors.green),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Trip cancelled',
+        kind: AppFeedbackKind.success,
       );
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Could not cancel'), backgroundColor: Colors.red),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Could not cancel',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -220,8 +237,10 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
                 final msg = confirmed > 0
                     ? 'Cannot delete. $confirmed seat(s) booked. Use "Cancel trip" to cancel ride and bookings.'
                     : 'Cannot delete. $pending request(s) pending. Accept or reject first.';
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(msg), backgroundColor: Colors.orange),
+                AppFeedback.show(
+                  context,
+                  msg,
+                  kind: AppFeedbackKind.warning,
                 );
               }
             },

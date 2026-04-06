@@ -49,8 +49,8 @@ String userMessageFromDio(DioException e) {
   }
 
   if (code == 404) {
-    return 'Server par API nahi mila (404). VPS par latest backend deploy + restart karein. '
-        'Local test: `node server.js` phir Flutter `--dart-define=USE_LOCAL_API=true`.';
+    return serverMsg ??
+        'Yeh service abhi uplabdh nahi (404). Thodi der baad try karein. (Service not found.)';
   }
   if (code == 502 || code == 503 || code == 504) {
     return serverMsg ??

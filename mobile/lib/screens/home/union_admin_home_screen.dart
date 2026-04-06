@@ -9,8 +9,9 @@ import '../../providers/app_language_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
 import '../../core/app_navigator.dart';
-import '../landing/landing_screen.dart';
+import '../../features/landing/presentation/screens/landing_screen.dart';
 import '../../widgets/brand_app_bar_title.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../admin/kyc_document_viewer_screen.dart';
 
 /// Admin Panel - Simple: Driver verification requests only. No search bar.
@@ -46,20 +47,29 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       _unionRequests = coerceAdminRequestList(unionResult['requests']);
     });
 
-    if (driverResult['success'] != true && driverResult['message'] != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(driverResult['message'] ?? 'Failed to load driver requests'),
-          backgroundColor: Colors.red,
-        ),
+    final driverFail =
+        driverResult['success'] != true && driverResult['message'] != null;
+    final unionFail =
+        unionResult['success'] != true && unionResult['message'] != null;
+    if (driverFail && unionFail) {
+      AppFeedback.show(
+        context,
+        '${_adminPanelLoadErrLine(driverResult['message'], 'Driver requests')}\n'
+        '${_adminPanelLoadErrLine(unionResult['message'], 'Union requests')}',
+        kind: AppFeedbackKind.error,
+        duration: const Duration(seconds: 7),
       );
-    }
-    if (unionResult['success'] != true && unionResult['message'] != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(unionResult['message'] ?? 'Failed to load union requests'),
-          backgroundColor: Colors.red,
-        ),
+    } else if (driverFail) {
+      AppFeedback.show(
+        context,
+        driverResult['message'] ?? 'Failed to load driver requests',
+        kind: AppFeedbackKind.error,
+      );
+    } else if (unionFail) {
+      AppFeedback.show(
+        context,
+        unionResult['message'] ?? 'Failed to load union requests',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -67,11 +77,12 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   Future<void> _approve(String id) async {
     final result = await _adminService.approveDriver(id);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? ''),
-          backgroundColor: result['success'] == true ? Colors.green : Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        result['message'] ?? '',
+        kind: result['success'] == true
+            ? AppFeedbackKind.success
+            : AppFeedbackKind.error,
       );
       if (result['success'] == true) _load();
     }
@@ -80,11 +91,12 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   Future<void> _approveUnion(String id) async {
     final result = await _adminService.approveUnion(id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message'] ?? ''),
-        backgroundColor: result['success'] == true ? Colors.green : Colors.red,
-      ),
+    AppFeedback.show(
+      context,
+      result['message'] ?? '',
+      kind: result['success'] == true
+          ? AppFeedbackKind.success
+          : AppFeedbackKind.error,
     );
     if (result['success'] == true) _load();
   }
@@ -112,11 +124,12 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     if (reason == null) return;
     final result = await _adminService.rejectDriver(id, reason: reason.isEmpty ? null : reason);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? ''),
-          backgroundColor: result['success'] == true ? Colors.orange : Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        result['message'] ?? '',
+        kind: result['success'] == true
+            ? AppFeedbackKind.warning
+            : AppFeedbackKind.error,
       );
       if (result['success'] == true) _load();
     }
@@ -125,11 +138,12 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   Future<void> _rejectUnion(String id) async {
     final result = await _adminService.rejectUnion(id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result['message'] ?? ''),
-        backgroundColor: result['success'] == true ? Colors.orange : Colors.red,
-      ),
+    AppFeedback.show(
+      context,
+      result['message'] ?? '',
+      kind: result['success'] == true
+          ? AppFeedbackKind.warning
+          : AppFeedbackKind.error,
     );
     if (result['success'] == true) _load();
   }
@@ -719,4 +733,10 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       ),
     );
   }
+}
+
+String _adminPanelLoadErrLine(Object? msg, String shortLabel) {
+  final s = msg?.toString().trim() ?? '';
+  if (s.isEmpty) return '$shortLabel: load failed';
+  return s;
 }

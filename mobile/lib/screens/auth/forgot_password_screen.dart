@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/auth_provider.dart';
 import 'simple_login_screen.dart';
 
@@ -33,11 +34,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (_isLoading) return;
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a valid email'),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        'Enter a valid email',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -50,18 +50,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     if (ok) {
       setState(() => _step = 2);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('OTP sent to your email. Check inbox or spam.'),
-          backgroundColor: Colors.green,
-        ),
+      AppFeedback.show(
+        context,
+        'OTP sent to your email. Check inbox or spam.',
+        kind: AppFeedbackKind.success,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Failed to request password reset'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        authProvider.error ?? 'Failed to request password reset',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -75,11 +73,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final newPassword = _passwordController.text;
 
     if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter 6-digit OTP'),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        'Enter 6-digit OTP',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -95,22 +92,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = false);
 
     if (ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password updated. Please login with your new password.'),
-          backgroundColor: Colors.green,
-        ),
+      AppFeedback.show(
+        context,
+        'Password updated. Please login with your new password.',
+        kind: AppFeedbackKind.success,
       );
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
         (route) => false,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Failed to reset password'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        authProvider.error ?? 'Failed to reset password',
+        kind: AppFeedbackKind.error,
       );
     }
   }

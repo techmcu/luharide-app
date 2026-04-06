@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/app_language_provider.dart';
 import '../../services/trip_service.dart';
 
@@ -365,8 +366,10 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     final numberToUse = (whatsapp != null && whatsapp.isNotEmpty) ? whatsapp : phone;
     if (numberToUse.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.t('my_rides.contact_unavailable'))),
+      AppFeedback.show(
+        context,
+        loc.t('my_rides.contact_unavailable'),
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -384,8 +387,10 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.t('my_rides.open_chat_failed'))),
+      AppFeedback.show(
+        context,
+        loc.t('my_rides.open_chat_failed'),
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -454,23 +459,19 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                       );
                       if (!mounted) return;
                       if (result['success'] == true) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              result['message']?.toString() ?? loc.t('my_rides.booking_cancelled_fallback'),
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
+                        AppFeedback.show(
+                          context,
+                          result['message']?.toString() ??
+                              loc.t('my_rides.booking_cancelled_fallback'),
+                          kind: AppFeedbackKind.success,
                         );
                         _loadBookings();
                       } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              result['message']?.toString() ?? loc.t('my_rides.cancel_failed_fallback'),
-                            ),
-                            backgroundColor: Colors.red,
-                          ),
+                        AppFeedback.show(
+                          context,
+                          result['message']?.toString() ??
+                              loc.t('my_rides.cancel_failed_fallback'),
+                          kind: AppFeedbackKind.error,
                         );
                       }
                     },
@@ -529,13 +530,12 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 Navigator.pop(ctx);
                 if (!mounted) return;
                 final empty = controller.text.trim().isEmpty;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      empty ? loc.t('my_rides.question_snackbar_empty') : loc.t('my_rides.question_snackbar_note'),
-                    ),
-                    backgroundColor: Colors.blueGrey.shade700,
-                  ),
+                AppFeedback.show(
+                  context,
+                  empty
+                      ? loc.t('my_rides.question_snackbar_empty')
+                      : loc.t('my_rides.question_snackbar_note'),
+                  kind: AppFeedbackKind.info,
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),

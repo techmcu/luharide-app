@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/app_language_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/trip_model.dart';
@@ -169,12 +170,11 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   void _toggleSeat(int seatNumber) {
     final loc = AppLocalizations.of(context);
     if (_driverSeatIndices.contains(seatNumber)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.t('seat.select.driver_reserved')),
-          backgroundColor: Colors.orange,
-          duration: const Duration(seconds: 2),
-        ),
+      AppFeedback.show(
+        context,
+        loc.t('seat.select.driver_reserved'),
+        kind: AppFeedbackKind.warning,
+        duration: const Duration(seconds: 2),
       );
       return;
     }
@@ -183,12 +183,11 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       final msg = _pendingSeats.contains(logicalNum)
           ? loc.tReplace('seat.select.seat_pending_other', {'n': '$logicalNum'})
           : loc.tReplace('seat.select.seat_booked', {'n': '$logicalNum'});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
+      AppFeedback.show(
+        context,
+        msg,
+        kind: AppFeedbackKind.error,
+        duration: const Duration(seconds: 2),
       );
       return;
     }
@@ -272,12 +271,11 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       final m = result['message']?.toString();
       final successText =
           (m != null && m.isNotEmpty) ? m : loc.t('seat.select.booking_confirmed_fallback');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(successText),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
+      AppFeedback.show(
+        context,
+        successText,
+        kind: AppFeedbackKind.success,
+        duration: const Duration(seconds: 3),
       );
     } else {
       final raw = result['message']?.toString();
@@ -287,12 +285,11 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       final isAlreadyBooked = msg.toLowerCase().contains('already') ||
           msg.toLowerCase().contains('conflict') ||
           msg.toLowerCase().contains('pending');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(isAlreadyBooked ? loc.t('seat.select.already_booking') : msg),
-          backgroundColor: isAlreadyBooked ? Colors.orange : Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
+      AppFeedback.show(
+        context,
+        isAlreadyBooked ? loc.t('seat.select.already_booking') : msg,
+        kind: isAlreadyBooked ? AppFeedbackKind.warning : AppFeedbackKind.error,
+        duration: const Duration(seconds: 4),
       );
       // Reload seat status so UI shows updated booked seats
       _loadSeatStatus(forceRefresh: true);
@@ -302,11 +299,10 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   void _confirmBooking() {
     final loc = AppLocalizations.of(context);
     if (_selectedSeats.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.t('seat.select.pick_one')),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        loc.t('seat.select.pick_one'),
+        kind: AppFeedbackKind.warning,
       );
       return;
     }

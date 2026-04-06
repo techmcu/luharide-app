@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/auth_provider.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -37,11 +38,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (!mounted) return;
     setState(() => _loading = false);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(ok ? 'Password updated successfully' : (authProvider.error ?? 'Failed to update password')),
-        backgroundColor: ok ? Colors.green : Colors.red,
-      ),
+    AppFeedback.show(
+      context,
+      ok ? 'Password updated successfully' : (authProvider.error ?? 'Failed to update password'),
+      kind: ok ? AppFeedbackKind.success : AppFeedbackKind.error,
     );
 
     if (ok) Navigator.pop(context);

@@ -19,6 +19,7 @@ import '../trips/my_rides_screen.dart';
 import '../profile/profile_screen.dart';
 import '../profile/driver_verification_form_screen.dart';
 import '../notifications/notifications_screen.dart';
+import '../../core/feedback/app_feedback.dart';
 
 class PassengerHomeScreen extends StatefulWidget {
   const PassengerHomeScreen({super.key});
@@ -70,18 +71,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final verificationApproved = unreadList.any((n) => n is Map && n['type'] == 'verification_approved');
     if (verificationApproved && mounted) {
       context.read<AuthProvider>().refreshUser();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(child: Text('Verification approved! You can now create rides.')),
-            ],
-          ),
-          backgroundColor: Colors.green[600],
-          duration: const Duration(seconds: 5),
-        ),
+      AppFeedback.show(
+        context,
+        'Verification approved! You can now create rides.',
+        kind: AppFeedbackKind.success,
+        icon: Icons.check_circle_outline,
+        duration: const Duration(seconds: 5),
       );
     }
   }
@@ -137,11 +132,10 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   Future<void> _searchTrips() async {
     if (_fromController.text.trim().isEmpty || _toController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter both From and To locations'),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        'Please enter both From and To locations',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -185,11 +179,10 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     }
 
     if (!result['success'] && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        result['message'].toString(),
+        kind: AppFeedbackKind.error,
       );
     }
   }

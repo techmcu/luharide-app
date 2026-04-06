@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/feedback/app_feedback.dart';
 import '../services/review_service.dart';
 
 const int _maxCommentWords = 20;
@@ -44,17 +45,18 @@ class _RateRideDialogState extends State<RateRideDialog> {
 
   Future<void> _submit() async {
     if (_rating < 1 || _rating > 5) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a rating (1-5 stars)'), backgroundColor: Colors.orange),
+      AppFeedback.show(
+        context,
+        'Please select a rating (1-5 stars)',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
     if (_wordCount > _maxCommentWords) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Comment cannot exceed $_maxCommentWords words'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        'Comment cannot exceed $_maxCommentWords words',
+        kind: AppFeedbackKind.error,
       );
       return;
     }
@@ -72,13 +74,19 @@ class _RateRideDialogState extends State<RateRideDialog> {
     setState(() => _submitting = false);
 
     if (result['success'] == true) {
+      final messenger = ScaffoldMessenger.of(context);
+      final msg = result['message'] ?? 'Thank you!';
       Navigator.of(context).pop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Thank you!'), backgroundColor: Colors.green),
+      AppFeedback.showFromMessenger(
+        messenger,
+        msg,
+        kind: AppFeedbackKind.success,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result['message'] ?? 'Failed'), backgroundColor: Colors.red),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Failed',
+        kind: AppFeedbackKind.error,
       );
     }
   }

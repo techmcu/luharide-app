@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/app_language_provider.dart';
 import '../../services/driver_verification_service.dart';
 import '../../services/trip_service.dart';
@@ -127,8 +128,10 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     if (fromLocation.length < 2 || toLocation.length < 2) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('From and To locations must be at least 2 characters')),
+        AppFeedback.show(
+          context,
+          'From and To locations must be at least 2 characters',
+          kind: AppFeedbackKind.warning,
         );
       }
       return;
@@ -162,21 +165,18 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     setState(() => _isLoading = false);
 
     if (result['success']) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message']),
-          backgroundColor: Colors.green,
-        ),
+      AppFeedback.show(
+        context,
+        result['message'].toString(),
+        kind: AppFeedbackKind.success,
       );
       Navigator.pop(context, true); // Return true to indicate success
     } else {
       final msg = result['message'] ?? 'Failed to create trip';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        ),
+      AppFeedback.show(
+        context,
+        msg.toString(),
+        kind: AppFeedbackKind.error,
       );
     }
   }

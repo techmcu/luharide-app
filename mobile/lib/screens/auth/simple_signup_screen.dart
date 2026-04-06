@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/app_navigator.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../core/legal_document_info.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../providers/auth_provider.dart';
@@ -43,18 +44,19 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
   Future<void> _sendOtp() async {
     if (_isLoading) return;
     if (!_acceptedTermsAndPrivacy) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please accept Terms & Privacy policy to continue.'),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        'Please accept Terms & Privacy policy to continue.',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
     final email = _emailController.text.trim();
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid email'), backgroundColor: Colors.orange),
+      AppFeedback.show(
+        context,
+        'Enter a valid email',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -67,28 +69,29 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
 
     if (success) {
       setState(() => _step = 2);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP sent to your email. Check inbox or spam.'), backgroundColor: Colors.green),
+      AppFeedback.show(
+        context,
+        'OTP sent to your email. Check inbox or spam.',
+        kind: AppFeedbackKind.success,
       );
     } else {
       final err = authProvider.error ?? 'Failed to send OTP';
       final isAlreadyRegistered = err.toLowerCase().contains('already registered');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(err),
-          backgroundColor: Colors.red,
-          action: isAlreadyRegistered
-              ? SnackBarAction(
-                  label: 'Login',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
-                    );
-                  },
-                )
-              : null,
-        ),
+      AppFeedback.show(
+        context,
+        err,
+        kind: AppFeedbackKind.error,
+        action: isAlreadyRegistered
+            ? SnackBarAction(
+                label: 'Login',
+                textColor: Colors.white,
+                onPressed: () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const SimpleLoginScreen()),
+                  );
+                },
+              )
+            : null,
       );
     }
   }
@@ -96,11 +99,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
   Future<void> _verifyAndSignup() async {
     if (_isLoading) return;
     if (!_acceptedTermsAndPrivacy) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please accept Terms & Privacy policy to continue.'),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        'Please accept Terms & Privacy policy to continue.',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -112,8 +114,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
     final password = _passwordController.text;
 
     if (otp.length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter 6-digit OTP'), backgroundColor: Colors.orange),
+      AppFeedback.show(
+        context,
+        'Enter 6-digit OTP',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -138,11 +142,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
         );
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Verification failed'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        authProvider.error ?? 'Verification failed',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -251,8 +254,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                       ),
                       onPressed: () {
                         final loc = AppLocalizations.of(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(loc.t('signup.privacy_coming_soon'))),
+                        AppFeedback.show(
+                          context,
+                          loc.t('signup.privacy_coming_soon'),
+                          kind: AppFeedbackKind.info,
                         );
                       },
                       child: const Text('Privacy policy'),
@@ -429,8 +434,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                         ),
                         onPressed: () {
                           final loc = AppLocalizations.of(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(loc.t('signup.privacy_coming_soon'))),
+                          AppFeedback.show(
+                            context,
+                            loc.t('signup.privacy_coming_soon'),
+                            kind: AppFeedbackKind.info,
                           );
                         },
                         child: const Text('Privacy policy'),

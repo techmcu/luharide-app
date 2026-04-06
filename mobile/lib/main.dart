@@ -10,7 +10,7 @@ import 'providers/app_language_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'screens/home/home_screen.dart';
-import 'screens/landing/landing_screen.dart';
+import 'features/landing/presentation/screens/landing_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

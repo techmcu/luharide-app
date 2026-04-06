@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../services/union_service.dart';
 
 class UnionManageDriversScreen extends StatefulWidget {
@@ -75,7 +76,6 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
         whatsappCtrl: whatsappCtrl,
         onSave: (submitting) async {
           if (!formKey.currentState!.validate()) return;
-          final messenger = ScaffoldMessenger.of(context);
           submitting(true);
           final result = await _service.addDriver(
             name: nameCtrl.text.trim(),
@@ -87,27 +87,18 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
           if (!context.mounted) return;
           if (result['success'] == true) {
             Navigator.pop(ctx);
-            messenger.showSnackBar(
-              SnackBar(
-                content: const Row(children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text('Driver added successfully'),
-                ]),
-                backgroundColor: _green,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+            AppFeedback.show(
+              context,
+              'Driver added successfully',
+              kind: AppFeedbackKind.success,
+              icon: Icons.check_circle_rounded,
             );
             _load();
           } else {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(result['message']?.toString() ?? 'Failed to add driver'),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+            AppFeedback.show(
+              context,
+              result['message']?.toString() ?? 'Failed to add driver',
+              kind: AppFeedbackKind.error,
             );
           }
         },

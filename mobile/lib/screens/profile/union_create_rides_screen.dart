@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/brand_config.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../services/union_service.dart';
 
 class UnionCreateRidesScreen extends StatefulWidget {
@@ -119,11 +120,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
   Future<void> _pickDriverRoute(String driverId) async {
     if (_routes.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No routes yet. Please add a route first.'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        'No routes yet. Please add a route first.',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -235,11 +235,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
   Future<void> _createRides() async {
     if (_selectedDriverIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select at least one driver'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        'Please select at least one driver',
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -258,11 +257,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           );
 
       if (routeId == null || route.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please set route for all selected drivers'),
-            backgroundColor: Colors.red,
-          ),
+        AppFeedback.show(
+          context,
+          'Please set route for all selected drivers',
+          kind: AppFeedbackKind.warning,
         );
         return;
       }
@@ -272,11 +270,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       final dt   = _driverTimes[id] ?? _selectedDateTime;
 
       if (dt == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please set time for all selected drivers'),
-            backgroundColor: Colors.red,
-          ),
+        AppFeedback.show(
+          context,
+          'Please set time for all selected drivers',
+          kind: AppFeedbackKind.warning,
         );
         return;
       }
@@ -309,28 +306,18 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
       // Auto-download combined poster for all created rides
       if (createdIds.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(children: [
-              const SizedBox(
-                width: 18, height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text('${createdIds.length} rides created — generating poster...'),
-            ]),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
+        final snack = AppFeedback.showLoading(
+          context,
+          '${createdIds.length} rides created — generating poster...',
         );
         await _downloadCombinedPoster(createdIds);
+        snack.close();
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
+      AppFeedback.show(
+        context,
+        error,
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -343,11 +330,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     if (res['success'] == true) {
       final bytes  = (res['bytes'] as List<int>? ?? <int>[]);
       if (bytes.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Poster could not be generated'),
-            backgroundColor: Colors.red,
-          ),
+        AppFeedback.show(
+          context,
+          'Poster could not be generated',
+          kind: AppFeedbackKind.error,
         );
         return;
       }
@@ -358,11 +344,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         text: 'Daily taxi schedule — ${BrandConfig.appName} · ${BrandConfig.parentBrand}',
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(res['message']?.toString() ?? 'Failed to generate poster'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        res['message']?.toString() ?? 'Failed to generate poster',
+        kind: AppFeedbackKind.error,
       );
     }
   }
@@ -376,11 +361,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     if (!mounted) return;
 
     setState(() => _cancelLoadingIds.remove(id));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(res['message']?.toString() ?? ''),
-        backgroundColor: res['success'] == true ? Colors.green : Colors.red,
-      ),
+    AppFeedback.show(
+      context,
+      res['message']?.toString() ?? '',
+      kind: res['success'] == true ? AppFeedbackKind.success : AppFeedbackKind.error,
     );
     if (res['success'] == true) {
       _loadAll();
@@ -691,12 +675,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                           isSet: routeSet,
                           actionLabel: routeSet ? 'Change' : 'Set Route',
                           onTap: _routes.isEmpty
-                              ? () => ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                          'No routes yet. Add routes first.'),
-                                      backgroundColor: Colors.orange,
-                                    ),
+                              ? () => AppFeedback.show(
+                                    context,
+                                    'No routes yet. Add routes first.',
+                                    kind: AppFeedbackKind.warning,
                                   )
                               : () => _pickDriverRoute(id),
                         ),

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/auth_provider.dart';
 
 /// Edit Profile - Name, Email, Profile Picture
@@ -83,16 +84,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isLoading = false);
     
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated'), backgroundColor: Colors.green),
+      AppFeedback.show(
+        context,
+        'Profile updated',
+        kind: AppFeedbackKind.success,
       );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.error ?? 'Failed to update'),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        authProvider.error ?? 'Failed to update',
+        kind: AppFeedbackKind.error,
       );
     }
   }

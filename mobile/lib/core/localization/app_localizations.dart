@@ -1004,8 +1004,10 @@ class AppLocalizations {
       'hi': 'दस्तावेज़ अपलोड करें',
     },
     'kyc.driver.upload_note': {
-      'en': '50 KB–20 MB per file · JPEG or PNG (photos from gallery).',
-      'hi': 'प्रति फ़ाइल 50 KB–20 MB · JPEG या PNG (गैलरी से फोटो)।',
+      'en':
+          'JPEG or PNG photos only — PDF and Word files are not accepted. 50 KB–20 MB per file (from gallery or camera).',
+      'hi':
+          'केवल JPEG या PNG फ़ोटो — PDF और Word फ़ाइल स्वीकार नहीं। प्रति फ़ाइल 50 KB–20 MB (गैलरी या कैमरा से)।',
     },
     'kyc.driver.snack.missing_docs': {
       'en': 'Please upload Aadhaar (front and back) and driving licence (front and back).',
@@ -1092,8 +1094,10 @@ class AppLocalizations {
       'hi': 'कृपया यूनियन प्रमुख का आधार (आगे-पीछे) और स्पष्ट यूनियन फोटो अपलोड करें।',
     },
     'kyc.union.upload_note': {
-      'en': '50 KB–20 MB per file · JPEG or PNG (photos from gallery).',
-      'hi': 'प्रति फ़ाइल 50 KB–20 MB · JPEG या PNG (गैलरी से फोटो)।',
+      'en':
+          'JPEG or PNG photos only — PDF and Word files are not accepted. 50 KB–20 MB per file (from gallery or camera).',
+      'hi':
+          'केवल JPEG या PNG फ़ोटो — PDF और Word फ़ाइल स्वीकार नहीं। प्रति फ़ाइल 50 KB–20 MB (गैलरी या कैमरा से)।',
     },
     'kyc.union.val.phone': {
       'en': 'Leader phone is required.',

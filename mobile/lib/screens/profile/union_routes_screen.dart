@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../services/union_service.dart';
 
 class UnionRoutesScreen extends StatefulWidget {
@@ -16,7 +17,6 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
 
   static const _orange = Color(0xFFFF6B00);
   static const _blue   = Color(0xFF1E88E5);
-  static const _green  = Color(0xFF43A047);
 
   // Color pairs for route cards — cycles
   static const _cardSchemes = [
@@ -61,7 +61,6 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
         toCtrl: toCtrl,
         onSave: (submitting) async {
           if (!formKey.currentState!.validate()) return;
-          final messenger = ScaffoldMessenger.of(context);
           submitting(true);
           final res = await _service.addRoute(
             fromLocation: fromCtrl.text.trim(),
@@ -71,27 +70,18 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
           if (!context.mounted) return;
           if (res['success'] == true) {
             Navigator.pop(ctx);
-            messenger.showSnackBar(
-              SnackBar(
-                content: const Row(children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text('Route saved'),
-                ]),
-                backgroundColor: _green,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+            AppFeedback.show(
+              context,
+              'Route saved',
+              kind: AppFeedbackKind.success,
+              icon: Icons.check_circle_rounded,
             );
             _load();
           } else {
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text(res['message']?.toString() ?? 'Failed to add route'),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+            AppFeedback.show(
+              context,
+              res['message']?.toString() ?? 'Failed to add route',
+              kind: AppFeedbackKind.error,
             );
           }
         },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/localization/app_localizations.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../models/notification_model.dart';
 import '../../providers/app_language_provider.dart';
 import '../../services/notification_service.dart';
@@ -42,12 +43,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             icon: const Icon(Icons.done_all),
             tooltip: loc.t('notifications.mark_all_tooltip'),
             onPressed: () async {
-              final messenger = ScaffoldMessenger.of(context);
               final ok = await _notificationService.markAllAsRead();
               if (!mounted) return;
               if (ok) {
-                messenger.showSnackBar(
-                  SnackBar(content: Text(loc.t('notifications.mark_all_read'))),
+                AppFeedback.show(
+                  context,
+                  loc.t('notifications.mark_all_read'),
+                  kind: AppFeedbackKind.success,
                 );
                 _refresh();
               }

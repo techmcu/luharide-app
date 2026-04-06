@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/config/env_config.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../core/utils/kyc_image_picker.dart';
 import '../../services/union_service.dart';
 import '../../services/upload_service.dart';
@@ -72,8 +73,10 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
       setUrl(url);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e'), backgroundColor: Colors.red),
+        AppFeedback.show(
+          context,
+          '$e',
+          kind: AppFeedbackKind.error,
         );
       }
     } finally {
@@ -92,11 +95,10 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
     );
     if (!mounted) return;
     setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(r['success'] == true ? (r['message'] ?? 'Saved') : (r['message'] ?? 'Error')),
-        backgroundColor: r['success'] == true ? Colors.green : Colors.red,
-      ),
+    AppFeedback.show(
+      context,
+      r['success'] == true ? (r['message'] ?? 'Saved') : (r['message'] ?? 'Error'),
+      kind: r['success'] == true ? AppFeedbackKind.success : AppFeedbackKind.error,
     );
     if (r['success'] == true) Navigator.pop(context, true);
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/config/env_config.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../services/union_service.dart';
 import 'union_create_rides_screen.dart';
 import 'union_documents_screen.dart';
@@ -1323,7 +1324,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     onPressed: saving
                         ? null
                         : () async {
-                            final messenger = ScaffoldMessenger.of(context);
                             setSheet(() => saving = true);
                             final result = await UnionService().updateBranding(
                               posterHeader: ctrl.text.trim(),
@@ -1342,26 +1342,17 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                 _posterTheme = selectedTheme;
                               });
                               if (ctx.mounted) Navigator.pop(ctx);
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: const Row(children: [
-                                    Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                    SizedBox(width: 8),
-                                    Text('Poster branding saved'),
-                                  ]),
-                                  backgroundColor: _purple,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
+                              AppFeedback.show(
+                                context,
+                                'Poster branding saved',
+                                kind: AppFeedbackKind.success,
+                                icon: Icons.check_circle_rounded,
                               );
                             } else {
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(result['message']?.toString() ?? 'Failed to save'),
-                                  backgroundColor: Colors.red,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
+                              AppFeedback.show(
+                                context,
+                                result['message']?.toString() ?? 'Failed to save',
+                                kind: AppFeedbackKind.error,
                               );
                             }
                           },

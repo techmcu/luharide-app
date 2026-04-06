@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../core/role_exclusivity.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/utils/kyc_image_picker.dart';
+import '../../core/feedback/app_feedback.dart';
 import '../../providers/app_language_provider.dart';
 
 /// Form to submit driver verification documents.
@@ -131,10 +132,10 @@ class _DriverVerificationFormScreenState
     if (!_formKey.currentState!.validate()) return;
     final loc = AppLocalizations.of(context);
     if (_selectedVehicle == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(loc.t('kyc.driver.snack.select_vehicle')),
-            backgroundColor: Colors.orange),
+      AppFeedback.show(
+        context,
+        loc.t('kyc.driver.snack.select_vehicle'),
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -143,10 +144,10 @@ class _DriverVerificationFormScreenState
         _aadhaarBackFile == null ||
         _licenseFrontFile == null ||
         _licenseBackFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(loc.t('kyc.driver.snack.missing_docs')),
-            backgroundColor: Colors.orange),
+      AppFeedback.show(
+        context,
+        loc.t('kyc.driver.snack.missing_docs'),
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -170,11 +171,10 @@ class _DriverVerificationFormScreenState
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-          ),
+        AppFeedback.show(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+          kind: AppFeedbackKind.error,
         );
       }
       return;
@@ -207,19 +207,18 @@ class _DriverVerificationFormScreenState
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(
-                result['message']?.toString() ??
-                    AppLocalizations.of(context).t('kyc.driver.snack.submitted')),
-            backgroundColor: Colors.green),
+      AppFeedback.show(
+        context,
+        result['message']?.toString() ??
+            AppLocalizations.of(context).t('kyc.driver.snack.submitted'),
+        kind: AppFeedbackKind.success,
       );
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(result['message'] ?? 'Failed'),
-            backgroundColor: Colors.red),
+      AppFeedback.show(
+        context,
+        result['message'] ?? 'Failed',
+        kind: AppFeedbackKind.error,
       );
     }
   }

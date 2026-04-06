@@ -12,6 +12,7 @@ import '../../core/brand_config.dart';
 import '../../core/localization/app_localizations.dart';
 import '../../core/role_exclusivity.dart';
 import '../../core/utils/kyc_image_picker.dart';
+import '../../core/feedback/app_feedback.dart';
 import 'union_dashboard_screen.dart';
 
 class UnionRegistrationScreen extends StatefulWidget {
@@ -117,11 +118,10 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     if (_ownerAadhaarFrontFile == null ||
         _ownerAadhaarBackFile == null ||
         _officePhotoFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocalizations.of(context).t('kyc.union.snack.missing_docs')),
-          backgroundColor: Colors.orange,
-        ),
+      AppFeedback.show(
+        context,
+        AppLocalizations.of(context).t('kyc.union.snack.missing_docs'),
+        kind: AppFeedbackKind.warning,
       );
       return;
     }
@@ -141,11 +141,10 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        e.toString().replaceAll('Exception: ', ''),
+        kind: AppFeedbackKind.error,
       );
       return;
     }
@@ -173,23 +172,17 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       // Refresh user so role/flags are up to date if backend sets them.
       await auth.refreshUser();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['message']?.toString() ?? 'Union registered',
-          ),
-          backgroundColor: Colors.green,
-        ),
+      AppFeedback.show(
+        context,
+        result['message']?.toString() ?? 'Union registered',
+        kind: AppFeedbackKind.success,
       );
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['message']?.toString() ?? 'Failed to register union',
-          ),
-          backgroundColor: Colors.red,
-        ),
+      AppFeedback.show(
+        context,
+        result['message']?.toString() ?? 'Failed to register union',
+        kind: AppFeedbackKind.error,
       );
     }
   }
