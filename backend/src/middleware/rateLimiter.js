@@ -3,19 +3,12 @@ const rateLimit = require('express-rate-limit');
 const ApiError = require('../utils/ApiError');
 const { createRateLimitRedisStore } = require('../config/redis');
 const { otpSendIdentifierKey, otpVerifyIdentifierKey } = require('./otpRateLimitKeys');
+const { parseLimitEnv } = require('./parseLimitEnv');
 
 /** Optional Redis-backed store (multi-process / multi-node); else in-memory */
 function withStore(name, opts) {
   const store = createRateLimitRedisStore(name);
   return store ? { ...opts, store } : opts;
-}
-
-function parseLimitEnv(name, defaultVal, min, max) {
-  const raw = process.env[name];
-  if (raw === undefined || raw === '') return defaultVal;
-  const v = parseInt(String(raw), 10);
-  if (!Number.isFinite(v)) return defaultVal;
-  return Math.min(max, Math.max(min, v));
 }
 
 /**

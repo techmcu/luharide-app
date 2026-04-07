@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/config/env_config.dart';
+import '../../../../core/kyc/kyc_public_document_url.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/submitted_documents_service.dart';
 import '../../../admin/presentation/screens/kyc_document_viewer_screen.dart';
@@ -28,7 +29,9 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load({bool forceRefresh = false}) async {
@@ -36,7 +39,8 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
       _loading = true;
       _error = null;
     });
-    final r = await _service.load(forceRefresh: forceRefresh);
+    final uid = context.read<AuthProvider>().user?.id;
+    final r = await _service.load(userId: uid, forceRefresh: forceRefresh);
     if (!mounted) return;
     if (r['success'] == true) {
       final data = r['data'] as Map<String, dynamic>?;
@@ -61,13 +65,8 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
     }
   }
 
-  String _thumbUrl(String relativeOrAbsolute) {
-    final u = relativeOrAbsolute.trim();
-    if (u.startsWith('http://') || u.startsWith('https://')) return u;
-    final base = EnvConfig.publicFileBaseUrl.replaceAll(RegExp(r'/+$'), '');
-    if (u.startsWith('/')) return '$base$u';
-    return '$base/$u';
-  }
+  String _thumbUrl(String relativeOrAbsolute) =>
+      KycPublicDocumentUrl.resolve(relativeOrAbsolute, EnvConfig.publicFileBaseUrl);
 
   bool _isRasterUrl(String url) {
     final p = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
@@ -227,7 +226,10 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                 ),
                               );
                               if (changed == true && mounted) {
-                                await _service.clearCache();
+                                final id = auth.user?.id;
+                                if (id != null && id.isNotEmpty) {
+                                  await _service.clearCacheForUser(id);
+                                }
                                 await _load(forceRefresh: true);
                               }
                             },
@@ -250,7 +252,10 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                 );
                                 if (mounted) {
                                   await auth.refreshUser();
-                                  await _service.clearCache();
+                                  final id = auth.user?.id;
+                                  if (id != null && id.isNotEmpty) {
+                                    await _service.clearCacheForUser(id);
+                                  }
                                   await _load(forceRefresh: true);
                                 }
                               },
