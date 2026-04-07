@@ -7,14 +7,14 @@ const { validateConfig } = require('../src/config/env');
 validateConfig();
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-union';
 const path = require('path');
-const express = require('express');
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
+const { mountUploadsStatic } = require('../src/config/staticUploads');
 
 const unionRoutes = require('../src/routes/union');
 
 const app = createBaseApp('union');
 // Merged union KYC PDFs under uploads/union-merged (and legacy union-docs); gateway proxies those paths here.
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+mountUploadsStatic(app, path.join(__dirname, '../uploads'));
 app.use('/api/union', unionRoutes);
 attachErrorHandlers(app);
 

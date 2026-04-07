@@ -13,6 +13,7 @@ const path = require('path');
 const os = require('os');
 const http = require('http');
 const express = require('express');
+const { mountUploadsStatic } = require('../src/config/staticUploads');
 const compression = require('compression');
 const { createHelmetMiddleware } = require('../src/config/helmetConfig');
 const {
@@ -113,7 +114,7 @@ app.use((req, res, next) => {
 morgan.token('reqId', (req) => req.id || '-');
 app.use(morgan(':reqId :method :url :status :response-time ms'));
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+mountUploadsStatic(app, path.join(__dirname, '../uploads'));
 
 app.get('/health', async (req, res) => {
   try {
@@ -321,6 +322,7 @@ app.use(apiProxy(PLATFORM_URL, '/api/payments'));
 app.use(apiProxy(PLATFORM_URL, '/api/notifications'));
 app.use(apiProxy(PLATFORM_URL, '/api/reviews'));
 app.use(apiProxy(PLATFORM_URL, '/api/uploads'));
+app.use(apiProxy(CORE_URL, '/api/kyc'));
 app.use(apiProxy(CORE_URL, '/api/bookings'));
 app.use(apiProxy(CORE_URL, '/api/trips'));
 app.use(apiProxy(CORE_URL, '/api/drivers'));

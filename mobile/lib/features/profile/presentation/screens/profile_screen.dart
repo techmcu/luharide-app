@@ -20,6 +20,7 @@ import 'help_screen.dart';
 import 'terms_screen.dart';
 import 'union_registration_screen.dart';
 import 'union_dashboard_screen.dart';
+import 'submitted_documents_screen.dart';
 import '../../../../services/union_service.dart';
 import '../../../../services/review_service.dart';
 import '../../../../core/role_exclusivity.dart';
@@ -360,6 +361,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               },
             ),
           ],
+          const SizedBox(height: 24),
+
+          // ── Settings ──
+          _sectionLabel('Settings'),
+          const SizedBox(height: 8),
+          _buildMenuItem(
+            context,
+            icon: Icons.folder_shared_outlined,
+            title: 'Submitted documents',
+            subtitle: 'Watermarked copies LuhaRide keeps for verification',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SubmittedDocumentsScreen()),
+              );
+            },
+          ),
           const SizedBox(height: 24),
 
           // ── Section: Account ──

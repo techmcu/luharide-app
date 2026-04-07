@@ -23,6 +23,7 @@
     "create-admin": "node scripts/create-admin.js",
     "seed": "node seeders/run-seeders.js",
     "test": "jest --coverage",
+    "test:ci": "jest --ci",
     "test:watch": "jest --watch",
     "test-db": "node test-connection.js",
     "setup-db": "node setup-database.js"

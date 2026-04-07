@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -177,39 +178,34 @@ class _RasterKycPreview extends StatelessWidget {
       minScale: 0.5,
       maxScale: 4,
       child: Center(
-        child: Image.network(
-          url,
+        child: CachedNetworkImage(
+          imageUrl: url,
           fit: BoxFit.contain,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child ?? const SizedBox.shrink();
-            return const Padding(
-              padding: EdgeInsets.all(48),
-              child: CircularProgressIndicator(),
-            );
-          },
-          errorBuilder: (context, err, stack) {
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey[600]),
-                  const SizedBox(height: 12),
-                  Text(
-                    loc.t('admin.kyc.viewer_image_error'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[800]),
-                  ),
-                  const SizedBox(height: 16),
-                  FilledButton.icon(
-                    onPressed: onOpenExternal,
-                    icon: const Icon(Icons.open_in_browser),
-                    label: Text(loc.t('admin.kyc.viewer_open_browser')),
-                  ),
-                ],
-              ),
-            );
-          },
+          placeholder: (_, __) => const Padding(
+            padding: EdgeInsets.all(48),
+            child: CircularProgressIndicator(),
+          ),
+          errorWidget: (_, __, ___) => Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey[600]),
+                const SizedBox(height: 12),
+                Text(
+                  loc.t('admin.kyc.viewer_image_error'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[800]),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: onOpenExternal,
+                  icon: const Icon(Icons.open_in_browser),
+                  label: Text(loc.t('admin.kyc.viewer_open_browser')),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

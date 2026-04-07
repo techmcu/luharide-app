@@ -25,6 +25,8 @@ const tripRoutes = require('./src/routes/trips');
 const driverRoutes = require('./src/routes/drivers');
 const { authenticate } = require('./src/middleware/auth');
 const { submitVerification, getMyStatus } = require('./src/controllers/driverVerificationController');
+const { getMySubmittedDocuments } = require('./src/controllers/kycDocumentsController');
+const { mountUploadsStatic } = require('./src/config/staticUploads');
 const adminRoutes = require('./src/routes/admin');
 const unionRoutes = require('./src/routes/union');
 const paymentRoutes = require('./src/routes/payments');
@@ -114,8 +116,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 morgan.token('reqId', (req) => req.id || '-');
 app.use(morgan(':reqId :method :url :status :response-time ms'));
-// Static assets for uploaded documents
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Static assets for uploaded documents (cache-friendly headers)
+mountUploadsStatic(app, path.join(__dirname, 'uploads'));
 
 // Health check endpoint
 app.get('/health', async (req, res) => {
@@ -145,6 +147,7 @@ app.use('/api/drivers', driverRoutes);
 // Driver verification - explicit routes (avoids router mount 404)
 app.get('/api/driver-verification', authenticate, getMyStatus);
 app.post('/api/driver-verification', authenticate, submitVerification);
+app.get('/api/kyc/submitted-documents', authenticate, getMySubmittedDocuments);
 app.use('/api/admin', adminRoutes);
 app.use('/api/union', unionRoutes);
 if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {

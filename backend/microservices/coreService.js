@@ -10,6 +10,7 @@ process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-core';
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 const { authenticate } = require('../src/middleware/auth');
 const { submitVerification, getMyStatus } = require('../src/controllers/driverVerificationController');
+const { getMySubmittedDocuments } = require('../src/controllers/kycDocumentsController');
 
 const bookingRoutes = require('../src/routes/bookings');
 const tripRoutes = require('../src/routes/trips');
@@ -25,6 +26,7 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/drivers', driverRoutes);
 app.get('/api/driver-verification', authenticate, getMyStatus);
 app.post('/api/driver-verification', authenticate, submitVerification);
+app.get('/api/kyc/submitted-documents', authenticate, getMySubmittedDocuments);
 attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.CORE_SERVICE_PORT || '3002', 10);

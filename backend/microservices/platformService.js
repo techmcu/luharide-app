@@ -7,8 +7,8 @@ const { validateConfig } = require('../src/config/env');
 validateConfig();
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-platform';
 const path = require('path');
-const express = require('express');
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
+const { mountUploadsStatic } = require('../src/config/staticUploads');
 
 const adminRoutes = require('../src/routes/admin');
 const paymentRoutes = require('../src/routes/payments');
@@ -17,7 +17,7 @@ const reviewRoutes = require('../src/routes/reviews');
 const uploadRoutes = require('../src/routes/uploads');
 
 const app = createBaseApp('platform');
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+mountUploadsStatic(app, path.join(__dirname, '../uploads'));
 app.use('/api/admin', adminRoutes);
 if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {
   app.use('/api/payments', paymentRoutes);

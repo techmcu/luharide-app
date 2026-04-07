@@ -34,6 +34,10 @@ jobs:
       - name: JS syntax check
         run: git ls-files '*.js' | xargs -I{} node --check "{}"
 
+      - name: Unit tests (Jest)
+        working-directory: backend
+        run: npm run test:ci
+
   mobile_quality:
     name: Mobile Quality Gate
     runs-on: ubuntu-latest

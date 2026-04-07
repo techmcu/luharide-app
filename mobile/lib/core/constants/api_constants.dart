@@ -36,6 +36,8 @@ class ApiConstants {
   
   // Driver Verification
   static const String driverVerification = '/driver-verification';
+  /// Watermarked / processed doc URLs the user submitted (driver + union), JSON only — cheap for CI/clients.
+  static const String submittedDocuments = '/kyc/submitted-documents';
   static const String adminDriverRequests = '/admin/driver-requests';
   static const String adminUnionRequests = '/admin/union-requests';
 
