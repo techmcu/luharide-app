@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/realtime_socket_service.dart';
 import '../services/review_cache_store.dart';
 import '../services/review_service.dart';
+import '../services/submitted_documents_service.dart';
 
 enum AuthStatus {
   initial,
@@ -196,6 +197,7 @@ class AuthProvider with ChangeNotifier {
       await _authService.logout();
       if (uid != null && uid.isNotEmpty) {
         await ReviewCacheStore.clearBundle(uid);
+        await SubmittedDocumentsService().clearCacheForUser(uid);
       }
       ReviewService.clearAllMemoryCache();
 

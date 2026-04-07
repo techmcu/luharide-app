@@ -28,6 +28,21 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Release APK: arm64-v8a only (drop 32-bit + emulator ABIs from transitive AARs)
+            excludes += setOf(
+                "lib/armeabi-v7a/**",
+                "lib/armeabi/**",
+                "lib/x86/**",
+                "lib/x86_64/**",
+            )
+        }
     }
 
     buildTypes {
