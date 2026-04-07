@@ -2,6 +2,7 @@
 const rateLimit = require('express-rate-limit');
 const ApiError = require('../utils/ApiError');
 const { createRateLimitRedisStore } = require('../config/redis');
+const { otpSendIdentifierKey, otpVerifyIdentifierKey } = require('./otpRateLimitKeys');
 
 /** Optional Redis-backed store (multi-process / multi-node); else in-memory */
 function withStore(name, opts) {
@@ -90,19 +91,6 @@ const _otpSendIdentWindow = parseInt(
   10
 );
 
-/**
- * OTP send — per phone/email (on top of otpLimiter per IP). Stops targeted SMS/email burn from many IPs.
- * Run AFTER body validation so phone/email are present.
- */
-function otpSendIdentifierKey(req) {
-  const b = req.body || {};
-  const phone = String(b.phone || '').replace(/\D/g, '');
-  const email = String(b.email || '').trim().toLowerCase();
-  if (email && email.includes('@')) return `otp-send:email:${email}`;
-  if (phone.length >= 10) return `otp-send:phone:${phone.slice(-10)}`;
-  return `otp-send:empty:${req.ip}`;
-}
-
 const otpSendIdentifierLimiter = rateLimit(
   withStore('otp-send-ident', {
     windowMs: Number.isFinite(_otpSendIdentWindow) && _otpSendIdentWindow > 0 ? _otpSendIdentWindow : 60 * 60 * 1000,
@@ -117,19 +105,6 @@ const otpSendIdentifierLimiter = rateLimit(
     },
   })
 );
-
-/**
- * OTP verify — per phone/email failed attempts (on top of authLimiter per IP).
- * Run AFTER body validation.
- */
-function otpVerifyIdentifierKey(req) {
-  const b = req.body || {};
-  const phone = String(b.phone || '').replace(/\D/g, '');
-  const email = String(b.email || '').trim().toLowerCase();
-  if (email && email.includes('@')) return `otp-verify:email:${email}`;
-  if (phone.length >= 10) return `otp-verify:phone:${phone.slice(-10)}`;
-  return `otp-verify:empty:${req.ip}`;
-}
 
 const otpVerifyIdentifierLimiter = rateLimit(
   withStore('otp-verify-ident', {
