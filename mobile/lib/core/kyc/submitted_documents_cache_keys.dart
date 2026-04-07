@@ -1,4 +1,4 @@
-/// SharedPreferences keys for [SubmittedDocumentsService] (tested in CI).
+/// SharedPreferences keys for [SubmittedDocumentsService].
 class SubmittedDocumentsCacheKeys {
   SubmittedDocumentsCacheKeys._();
 
