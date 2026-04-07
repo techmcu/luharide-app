@@ -59,7 +59,10 @@ const getMySubmittedDocuments = asyncHandler(async (req, res) => {
   const seen = new Set();
 
   const dvrResult = await pool.query(
-    'SELECT * FROM driver_verification_requests WHERE user_id = $1',
+    `SELECT * FROM driver_verification_requests
+     WHERE user_id = $1
+     ORDER BY updated_at DESC NULLS LAST, created_at DESC NULLS LAST
+     LIMIT 1`,
     [userId]
   );
   collectFromDriverRow(dvrResult.rows[0], documents, seen);
@@ -73,10 +76,8 @@ const getMySubmittedDocuments = asyncHandler(async (req, res) => {
      LIMIT 1`,
     [userId]
   );
-  let unionRow = unionResult.rows[0];
-  if (unionRow && unionRow.status === 'rejected') {
-    unionRow = null;
-  }
+  const unionRow = unionResult.rows[0];
+  // Show union uploads for any status (pending / approved / rejected) so users always see on-file KYC.
   collectFromUnionRow(unionRow, documents, seen);
 
   const dvrTime = dvrResult.rows[0]?.updated_at || dvrResult.rows[0]?.created_at || '';
