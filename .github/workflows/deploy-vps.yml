@@ -113,7 +113,7 @@ jobs:
           pm2 save
 
           echo "Waiting for services..."
-          sleep 6
+          sleep 15
           curl -fsS --max-time 10 http://127.0.0.1:3000/health >/dev/null
           curl -fsS --max-time 10 http://127.0.0.1:3000/api/health >/dev/null
           npm run phase4:verify:stack
