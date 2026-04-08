@@ -57,6 +57,7 @@ dependencies:
   
   # Authentication
   pinput: ^3.0.1
+  pdfx: ^2.9.2
   
 dev_dependencies:
   flutter_test:
