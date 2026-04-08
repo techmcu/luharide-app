@@ -674,31 +674,34 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Align(
         alignment: Alignment.centerLeft,
-        child: kIsWeb
-            ? FilledButton.tonalIcon(
-                onPressed: () => _openAdminDocumentUrl(url),
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: Text(label, style: const TextStyle(fontSize: 13)),
-              )
-            : InkWell(
-                onTap: () => _openAdminDocumentUrl(url),
-                child: Row(
-                  children: [
-                    Icon(Icons.link, size: 16, color: Colors.blue[700]),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue[700],
-                          decoration: TextDecoration.underline,
-                        ),
+        child: Material(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () => _openAdminDocumentUrl(url),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.visibility_outlined, size: 20, color: Colors.grey.shade800),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade900,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: Colors.grey.shade600),
+                ],
               ),
+            ),
+          ),
+        ),
       ),
     );
   }

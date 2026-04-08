@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/config/env_config.dart';
 import '../../../../core/kyc/kyc_public_document_url.dart';
+import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/submitted_documents_service.dart';
 import '../../../admin/presentation/screens/kyc_document_viewer_screen.dart';
@@ -194,10 +195,10 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                     ),
                               title: Text(label),
                               subtitle: Text(
-                                url,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                raster
+                                    ? AppLocalizations.of(context).t('kyc.submitted_list.hint_image')
+                                    : AppLocalizations.of(context).t('kyc.submitted_list.hint_file'),
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                               ),
                               trailing: const Icon(Icons.chevron_right_rounded),
                               onTap: () {

@@ -324,6 +324,14 @@ class AppLocalizations {
       'en': 'Close',
       'hi': 'बंद करें',
     },
+    'app.retry': {
+      'en': 'Retry',
+      'hi': 'पुनः कोशिश',
+    },
+    'app.refresh': {
+      'en': 'Refresh',
+      'hi': 'रीफ़्रेश',
+    },
     'profile.complete_profile_btn': {
       'en': 'Complete profile',
       'hi': 'प्रोफ़ाइल पूरी करें',
@@ -1321,8 +1329,20 @@ class AppLocalizations {
       'hi': 'यह दस्तावेज़ ब्राउज़र में खोलें।',
     },
     'admin.kyc.viewer_image_error': {
-      'en': 'Could not load this image. Try opening in browser.',
-      'hi': 'छवि लोड नहीं हो सकी। ब्राउज़र में खोलें।',
+      'en': 'Could not load this image. Pull down or use refresh to try again.',
+      'hi': 'छवि लोड नहीं हो सकी। रिफ़्रेश करके फिर कोशिश करें।',
+    },
+    'admin.kyc.viewer_load_error': {
+      'en': 'Could not load this document. Check your connection and try again.',
+      'hi': 'दस्तावेज़ लोड नहीं हो सका। कनेक्शन जाँचकर फिर कोशिश करें।',
+    },
+    'kyc.submitted_list.hint_image': {
+      'en': 'Image · tap to view',
+      'hi': 'फ़ोटो · देखने के लिए टैप करें',
+    },
+    'kyc.submitted_list.hint_file': {
+      'en': 'File · tap to view in app',
+      'hi': 'फ़ाइल · ऐप में देखने के लिए टैप करें',
     },
     'admin.kyc.no_document_links': {
       'en':
