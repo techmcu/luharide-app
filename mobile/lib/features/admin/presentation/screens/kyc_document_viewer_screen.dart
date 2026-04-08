@@ -64,11 +64,11 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
       ..loadRequest(uri);
   }
 
-  void _retryPdf(Uri uri, AppLocalizations loc) {
+  void _retryPdf(Uri uri) {
     setState(() {
       _webViewFailed = false;
       _loading = true;
-      _controller = _buildPdfController(uri, loc);
+      _controller = _buildPdfController(uri);
     });
   }
 
