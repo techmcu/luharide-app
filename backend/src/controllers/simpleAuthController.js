@@ -36,7 +36,7 @@ const signup = asyncHandler(async (req, res) => {
   const result = await pool.query(
     `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone)
      VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
-     RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, driver_code, created_at`,
+     RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, driver_code, created_at`,
     [name, emailNorm, passwordHash, effectiveRole, phonePlaceholder]
   );
 
@@ -65,6 +65,7 @@ const signup = asyncHandler(async (req, res) => {
         isVerified: user.is_verified,
         isActive: user.is_active,
         driverVerificationStatus: user.driver_verification_status || 'none',
+        driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
         driverCode: user.driver_code || null,
         isAppAdmin
       },
@@ -146,6 +147,7 @@ const login = asyncHandler(async (req, res) => {
         isVerified: user.is_verified,
         isActive: user.is_active,
         driverVerificationStatus: user.driver_verification_status || 'none',
+        driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
         isAppAdmin
       },
       tokens

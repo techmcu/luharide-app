@@ -10,6 +10,13 @@ const {
   approveUnionRequest,
   rejectUnionRequest,
 } = require('../controllers/unionController');
+const {
+  grantDriverReverify,
+  grantUnionReverify,
+  listPendingUnionDocRequests,
+  approveUnionDocRequest,
+  rejectUnionDocRequest,
+} = require('../controllers/kycAdminController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 /**
@@ -82,6 +89,47 @@ router.post(
   authenticate,
   authorize('union_admin'),
   rejectUnionRequest
+);
+
+/**
+ * KYC admin utilities (union_admin only)
+ * - Driver reverify: revoke blue tick + open 1-time re-upload window
+ * - Union reverify: revoke union docs blue tick + open 1-time re-upload window
+ * - Union document review: approve/reject updates submitted by union admin
+ */
+router.post(
+  '/kyc/drivers/:userId/reverify',
+  authenticate,
+  authorize('union_admin'),
+  grantDriverReverify
+);
+
+router.post(
+  '/kyc/unions/:unionId/reverify',
+  authenticate,
+  authorize('union_admin'),
+  grantUnionReverify
+);
+
+router.get(
+  '/union-doc-requests',
+  authenticate,
+  authorize('union_admin'),
+  listPendingUnionDocRequests
+);
+
+router.post(
+  '/union-doc-requests/:id/approve',
+  authenticate,
+  authorize('union_admin'),
+  approveUnionDocRequest
+);
+
+router.post(
+  '/union-doc-requests/:id/reject',
+  authenticate,
+  authorize('union_admin'),
+  rejectUnionDocRequest
 );
 
 module.exports = router;

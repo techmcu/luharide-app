@@ -120,7 +120,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     const insertResult = await pool.query(
       `INSERT INTO users (name, phone, email, role, is_verified, is_active, password_hash)
        VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
-       RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status, created_at`,
+       RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, created_at`,
       [name.trim(), phonePlaceholder, emailVal, effectiveRole, passwordHash]
     );
     user = insertResult.rows[0];
@@ -169,6 +169,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
       isVerified: user.is_verified,
       isActive: user.is_active,
       driverVerificationStatus: user.driver_verification_status || 'none',
+      driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
       driverCode: user.driver_code || null,
       isAppAdmin
     },
@@ -261,7 +262,7 @@ const logoutController = asyncHandler(async (req, res) => {
  * Handles DB with or without bio/luggage columns (migration 013)
  */
 const getCurrentUserController = asyncHandler(async (req, res) => {
-  const baseCols = 'id, name, phone, email, role, profile_image_url, is_verified, is_active, driver_verification_status, whatsapp_number, last_login, created_at, updated_at, driver_code';
+  const baseCols = 'id, name, phone, email, role, profile_image_url, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, whatsapp_number, last_login, created_at, updated_at, driver_code';
   let userResult;
   try {
     userResult = await pool.query(
@@ -270,7 +271,9 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
     );
   } catch (err) {
     if (err.code === '42703') {
-      userResult = await pool.query(`SELECT ${baseCols} FROM users WHERE id = $1`, [req.user.id]);
+      // Backward compatible: older DBs may not have bio/luggage or driver_kyc_reupload_allowed.
+      const fallbackCols = baseCols.replace(', driver_kyc_reupload_allowed', '');
+      userResult = await pool.query(`SELECT ${fallbackCols} FROM users WHERE id = $1`, [req.user.id]);
     } else {
       throw err;
     }
@@ -283,6 +286,7 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
   const row = userResult.rows[0];
   if (row.bio === undefined) row.bio = null;
   if (row.luggage_allowance_per_passenger === undefined) row.luggage_allowance_per_passenger = null;
+  if (row.driver_kyc_reupload_allowed === undefined) row.driver_kyc_reupload_allowed = false;
 
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
   const emailNorm = row.email ? String(row.email).toLowerCase().trim() : null;

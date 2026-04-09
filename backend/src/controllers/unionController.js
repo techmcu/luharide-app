@@ -231,7 +231,12 @@ const approveUnionRequest = asyncHandler(async (req, res) => {
 
   await pool.query(
     `UPDATE unions
-     SET status = 'approved', is_active = TRUE, updated_at = NOW()
+     SET status = 'approved',
+         is_active = TRUE,
+         documents_status = 'approved',
+         documents_reupload_allowed = FALSE,
+         documents_reupload_deadline = NULL,
+         updated_at = NOW()
      WHERE id = $1`,
     [id]
   );
@@ -269,7 +274,12 @@ const rejectUnionRequest = asyncHandler(async (req, res) => {
 
   await pool.query(
     `UPDATE unions
-     SET status = 'rejected', is_active = FALSE, updated_at = NOW()
+     SET status = 'rejected',
+         is_active = FALSE,
+         documents_status = 'rejected',
+         documents_reupload_allowed = FALSE,
+         documents_reupload_deadline = NULL,
+         updated_at = NOW()
      WHERE id = $1`,
     [id]
   );
@@ -583,7 +593,12 @@ const approveUnion = asyncHandler(async (req, res) => {
 
   await pool.query(
     `UPDATE unions
-     SET status = 'approved', is_active = TRUE, updated_at = NOW()
+     SET status = 'approved',
+         is_active = TRUE,
+         documents_status = 'approved',
+         documents_reupload_allowed = FALSE,
+         documents_reupload_deadline = NULL,
+         updated_at = NOW()
      WHERE id = $1`,
     [id]
   );
@@ -623,7 +638,12 @@ const rejectUnion = asyncHandler(async (req, res) => {
 
   await pool.query(
     `UPDATE unions
-     SET status = 'rejected', is_active = FALSE, updated_at = NOW()
+     SET status = 'rejected',
+         is_active = FALSE,
+         documents_status = 'rejected',
+         documents_reupload_allowed = FALSE,
+         documents_reupload_deadline = NULL,
+         updated_at = NOW()
      WHERE id = $1`,
     [id]
   );
@@ -1082,7 +1102,7 @@ const updateUnionDocuments = asyncHandler(async (req, res) => {
   } = req.body;
 
   const resUnion = await pool.query(
-    `SELECT ua.union_id
+    `SELECT ua.union_id, u.documents_status, u.documents_reupload_allowed, u.documents_reupload_deadline
      FROM union_admins ua
      JOIN unions u ON u.id = ua.union_id
      WHERE ua.user_id = $1 AND u.status = 'approved'
@@ -1092,7 +1112,21 @@ const updateUnionDocuments = asyncHandler(async (req, res) => {
   if (resUnion.rows.length === 0) {
     throw ApiError.forbidden('No approved union found for this admin');
   }
-  const unionId = resUnion.rows[0].union_id;
+  const unionRow = resUnion.rows[0];
+  const unionId = unionRow.union_id;
+
+  // Once union docs are approved (blue tick), edits require an admin-granted re-upload window.
+  const docsStatus = (unionRow.documents_status || 'approved').toString();
+  const reuploadAllowed = unionRow.documents_reupload_allowed === true;
+  const deadline = unionRow.documents_reupload_deadline
+    ? new Date(unionRow.documents_reupload_deadline).getTime()
+    : null;
+  const deadlineExpired = deadline != null && Number.isFinite(deadline) && Date.now() > deadline;
+  if (docsStatus === 'approved' && (!reuploadAllowed || deadlineExpired)) {
+    throw ApiError.forbidden(
+      'Union documents are verified. Re-upload requires admin permission.'
+    );
+  }
 
   const fields = [];
   const values = [];
@@ -1125,6 +1159,9 @@ const updateUnionDocuments = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('No fields to update');
   }
 
+  fields.push("documents_status = 'pending'");
+  fields.push('documents_reupload_allowed = FALSE');
+  fields.push('documents_reupload_deadline = NULL');
   fields.push('updated_at = NOW()');
   values.push(unionId);
 

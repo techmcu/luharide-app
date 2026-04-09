@@ -484,6 +484,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     final user = authProvider.user;
     final status = user?.driverVerificationStatus ?? 'none';
+    final reuploadAllowed = user?.driverKycReuploadAllowed == true;
     final hasPhone = (user?.phone ?? '').trim().isNotEmpty;
     final hasEmail = (user?.email ?? '').trim().isNotEmpty;
     final hasProfilePic = (user?.profileImage ?? '').trim().isNotEmpty;
@@ -506,6 +507,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context,
         authProvider,
         loc.tReplace('profile.verify.pending_body', {'supportEmail': BrandConfig.supportEmail}),
+        allowOpenForm: false,
+      );
+    } else if (status == 'needs_reverify' && !reuploadAllowed) {
+      _showVerifyDialog(
+        context,
+        authProvider,
+        loc.tReplace('profile.verify.reverify_locked', {'supportEmail': BrandConfig.supportEmail}),
         allowOpenForm: false,
       );
     } else {

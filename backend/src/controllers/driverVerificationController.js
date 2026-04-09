@@ -17,6 +17,17 @@ function orderedSanitizedDocUrls(urlList) {
   return out;
 }
 
+function isDriverAllowedToReupload(userRow) {
+  if (!userRow) return false;
+  const allowed = userRow.driver_kyc_reupload_allowed === true;
+  const deadline = userRow.driver_kyc_reupload_deadline
+    ? new Date(userRow.driver_kyc_reupload_deadline).getTime()
+    : null;
+  if (!allowed) return false;
+  if (deadline != null && Number.isFinite(deadline) && Date.now() > deadline) return false;
+  return true;
+}
+
 /**
  * Submit driver verification request
  * POST /api/driver-verification
@@ -60,11 +71,16 @@ const submitVerification = asyncHandler(async (req, res) => {
 
   // Check if already approved
   const userCheck = await pool.query(
-    'SELECT driver_verification_status FROM users WHERE id = $1',
+    'SELECT driver_verification_status, driver_kyc_reupload_allowed, driver_kyc_reupload_deadline FROM users WHERE id = $1',
     [userId]
   );
-  if (userCheck.rows[0]?.driver_verification_status === 'approved') {
+  const userRow = userCheck.rows[0];
+  const currentStatus = userRow?.driver_verification_status || 'none';
+  if (currentStatus === 'approved' && !isDriverAllowedToReupload(userRow)) {
     throw ApiError.badRequest('You are already a verified driver');
+  }
+  if (currentStatus === 'needs_reverify' && !isDriverAllowedToReupload(userRow)) {
+    throw ApiError.forbidden('Re-upload is not enabled yet. Please wait for admin permission.');
   }
 
   // Block if user has any union that is still pending or approved (not only rows[0] — multiple unions possible).
@@ -230,7 +246,11 @@ const submitVerification = asyncHandler(async (req, res) => {
 
   // Update user status
   await pool.query(
-    "UPDATE users SET driver_verification_status = 'pending' WHERE id = $1",
+    `UPDATE users
+     SET driver_verification_status = 'pending',
+         driver_kyc_reupload_allowed = FALSE,
+         driver_kyc_reupload_deadline = NULL
+     WHERE id = $1`,
     [userId]
   );
 
@@ -317,7 +337,9 @@ const approveRequest = asyncHandler(async (req, res) => {
     `UPDATE users 
      SET driver_verification_status = 'approved',
          role = 'driver',
-         driver_code = COALESCE(driver_code, SUBSTRING(id::text, 1, 8))
+         driver_code = COALESCE(driver_code, SUBSTRING(id::text, 1, 8)),
+         driver_kyc_reupload_allowed = FALSE,
+         driver_kyc_reupload_deadline = NULL
      WHERE id = $1`,
     [request.user_id]
   );
@@ -373,7 +395,10 @@ const rejectRequest = asyncHandler(async (req, res) => {
   );
 
   await pool.query(
-    "UPDATE users SET driver_verification_status = 'rejected' WHERE id = $1",
+    `UPDATE users
+     SET driver_verification_status = 'rejected',
+         driver_kyc_reupload_allowed = TRUE
+     WHERE id = $1`,
     [request.user_id]
   );
 

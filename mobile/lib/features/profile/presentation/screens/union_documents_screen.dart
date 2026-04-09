@@ -23,6 +23,8 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
   String? _aadhaarUrl;
   String? _officeUrl;
   String? _rcUrl;
+  String _docsStatus = 'approved';
+  bool _docsReuploadAllowed = false;
 
   @override
   void initState() {
@@ -49,6 +51,8 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
         _officeUrl = u?['office_photo_url']?.toString();
         _rcUrl = u?['owner_vehicle_rc_url']?.toString();
         _notes.text = (u?['union_share_notes'] ?? '').toString();
+        _docsStatus = (u?['documents_status'] ?? 'approved').toString();
+        _docsReuploadAllowed = u?['documents_reupload_allowed'] == true;
         _loading = false;
       });
     } else {
@@ -65,6 +69,17 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
   }
 
   Future<void> _pick(void Function(String url) setUrl) async {
+    final locked = _docsStatus == 'approved' && !_docsReuploadAllowed;
+    if (locked) {
+      if (mounted) {
+        AppFeedback.show(
+          context,
+          'Documents are verified. Admin permission is required to re-upload.',
+          kind: AppFeedbackKind.warning,
+        );
+      }
+      return;
+    }
     final img = await pickKycGalleryPhoto();
     if (img == null) return;
     setState(() => _saving = true);
@@ -85,6 +100,15 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
   }
 
   Future<void> _save() async {
+    final locked = _docsStatus == 'approved' && !_docsReuploadAllowed;
+    if (locked) {
+      AppFeedback.show(
+        context,
+        'Admin permission is required to update verified documents.',
+        kind: AppFeedbackKind.warning,
+      );
+      return;
+    }
     setState(() => _saving = true);
     final r = await UnionService().updateUnionDocuments(
       ownerName: _ownerName.text.trim(),
@@ -105,6 +129,7 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locked = _docsStatus == 'approved' && !_docsReuploadAllowed;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Union documents'),
@@ -116,6 +141,17 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                if (locked)
+                  Card(
+                    color: Colors.orange.shade50,
+                    child: const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        'Documents are verified. If you need to update them, please contact admin to reopen re-upload.',
+                        style: TextStyle(height: 1.35),
+                      ),
+                    ),
+                  ),
                 TextField(
                   controller: _ownerName,
                   decoration: const InputDecoration(
@@ -129,17 +165,17 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
                 _thumbRow(
                   'Aadhaar',
                   _aadhaarUrl,
-                  () => _pick((u) => setState(() => _aadhaarUrl = u)),
+                  locked ? null : () => _pick((u) => setState(() => _aadhaarUrl = u)),
                 ),
                 _thumbRow(
                   'Union center / office',
                   _officeUrl,
-                  () => _pick((u) => setState(() => _officeUrl = u)),
+                  locked ? null : () => _pick((u) => setState(() => _officeUrl = u)),
                 ),
                 _thumbRow(
                   'Vehicle RC (sample)',
                   _rcUrl,
-                  () => _pick((u) => setState(() => _rcUrl = u)),
+                  locked ? null : () => _pick((u) => setState(() => _rcUrl = u)),
                 ),
                 const SizedBox(height: 12),
                 TextField(
@@ -155,7 +191,7 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
                 SizedBox(
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _saving ? null : _save,
+                    onPressed: (_saving || locked) ? null : _save,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFF6B00),
                       foregroundColor: Colors.white,
@@ -174,7 +210,7 @@ class _UnionDocumentsScreenState extends State<UnionDocumentsScreen> {
     );
   }
 
-  Widget _thumbRow(String label, String? url, VoidCallback onPick) {
+  Widget _thumbRow(String label, String? url, VoidCallback? onPick) {
     final full = _fullUrl(url);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

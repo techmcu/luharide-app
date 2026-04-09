@@ -12,6 +12,8 @@ class UserModel {
   final DateTime? createdAt;
   /// Driver verification: 'none' | 'pending' | 'approved' | 'rejected'
   final String driverVerificationStatus;
+  /// Admin-gated: when true, verified driver can re-upload once (then goes pending again).
+  final bool driverKycReuploadAllowed;
   /// Short bio, max 20 words (API enforced)
   final String? bio;
   /// Driver: e.g. "1 bag", "2 bags" – luggage per passenger
@@ -34,6 +36,7 @@ class UserModel {
     this.lastLogin,
     this.createdAt,
     this.driverVerificationStatus = 'none',
+    this.driverKycReuploadAllowed = false,
     this.bio,
     this.luggageAllowancePerPassenger,
     this.driverCode,
@@ -60,6 +63,8 @@ class UserModel {
           ? DateTime.tryParse((json['created_at'] ?? json['createdAt']).toString())
           : null,
       driverVerificationStatus: json['driver_verification_status'] ?? json['driverVerificationStatus'] ?? 'none',
+      driverKycReuploadAllowed: json['driver_kyc_reupload_allowed'] == true ||
+          json['driverKycReuploadAllowed'] == true,
       bio: json['bio']?.toString(),
       luggageAllowancePerPassenger: json['luggage_allowance_per_passenger'] ?? json['luggageAllowancePerPassenger']?.toString(),
       driverCode: json['driver_code']?.toString() ?? json['driverCode']?.toString(),
@@ -81,6 +86,7 @@ class UserModel {
       'lastLogin': lastLogin?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
       'driverVerificationStatus': driverVerificationStatus,
+      'driverKycReuploadAllowed': driverKycReuploadAllowed,
       'bio': bio,
       'luggageAllowancePerPassenger': luggageAllowancePerPassenger,
       'driverCode': driverCode,
@@ -101,6 +107,7 @@ class UserModel {
     DateTime? lastLogin,
     DateTime? createdAt,
     String? driverVerificationStatus,
+    bool? driverKycReuploadAllowed,
     String? bio,
     String? luggageAllowancePerPassenger,
     String? driverCode,
@@ -119,6 +126,7 @@ class UserModel {
       lastLogin: lastLogin ?? this.lastLogin,
       createdAt: createdAt ?? this.createdAt,
       driverVerificationStatus: driverVerificationStatus ?? this.driverVerificationStatus,
+      driverKycReuploadAllowed: driverKycReuploadAllowed ?? this.driverKycReuploadAllowed,
       bio: bio ?? this.bio,
       luggageAllowancePerPassenger: luggageAllowancePerPassenger ?? this.luggageAllowancePerPassenger,
       driverCode: driverCode ?? this.driverCode,

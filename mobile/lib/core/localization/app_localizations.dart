@@ -184,6 +184,12 @@ class AppLocalizations {
       'en': 'Please complete document verification before creating rides.',
       'hi': 'राइड बनाने से पहले कृपया दस्तावेज़ सत्यापन पूरा करें।',
     },
+    'profile.verify.reverify_locked': {
+      'en':
+          'Your documents need re-verification. Please wait for the admin to reopen upload in your profile.\n\nIf you have any issue, email {supportEmail}.',
+      'hi':
+          'आपके दस्तावेज़ों का पुनः सत्यापन आवश्यक है। कृपया एडमिन द्वारा प्रोफ़ाइल में अपलोड विकल्प खुलने का इंतज़ार करें।\n\nकिसी भी समस्या के लिए {supportEmail} पर ईमेल करें।',
+    },
     'profile.prereq.title': {
       'en': 'Complete your profile first',
       'hi': 'पहले प्रोफ़ाइल पूरी करें',
@@ -984,6 +990,22 @@ class AppLocalizations {
           'Your verification is already submitted. Please wait for the team to review it. You cannot send another request until it is approved or rejected.',
       'hi':
           'आपका सत्यापन पहले ही भेजा जा चुका है। कृपया टीम की समीक्षा की प्रतीक्षा करें। स्वीकृति या अस्वीकृति तक दोबारा आवेदन नहीं भेज सकते।',
+    },
+    'kyc.driver.verified_title': {
+      'en': 'Verified driver',
+      'hi': 'सत्यापित ड्राइवर',
+    },
+    'kyc.driver.verified_body': {
+      'en': 'Your documents are verified. If you need to update documents, the admin will reopen upload in your profile.',
+      'hi': 'आपके दस्तावेज़ सत्यापित हैं। अगर दस्तावेज़ अपडेट करने की जरूरत हो, तो एडमिन आपके प्रोफ़ाइल में अपलोड विकल्प खोलेंगे।',
+    },
+    'kyc.driver.reverify_required_title': {
+      'en': 'Re-verification required',
+      'hi': 'पुनः सत्यापन आवश्यक',
+    },
+    'kyc.driver.reverify_required_body': {
+      'en': 'The admin has requested re-verification. Please wait for upload access to be opened in your profile.',
+      'hi': 'एडमिन ने पुनः सत्यापन के लिए कहा है। कृपया प्रोफ़ाइल में अपलोड विकल्प खुलने की प्रतीक्षा करें।',
     },
     'kyc.driver.back': {
       'en': 'Back',

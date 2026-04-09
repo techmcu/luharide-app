@@ -227,6 +227,9 @@ class _DriverVerificationFormScreenState
   Widget build(BuildContext context) {
     context.watch<AppLanguageProvider>();
     final loc = AppLocalizations.of(context);
+    final auth = context.watch<AuthProvider>();
+    final dv = auth.user?.driverVerificationStatus ?? 'none';
+    final reuploadAllowed = auth.user?.driverKycReuploadAllowed == true;
     if (_checkingUnionPath) {
       return Scaffold(
         appBar: AppBar(
@@ -312,6 +315,76 @@ class _DriverVerificationFormScreenState
                 ),
               ],
             ),
+          ),
+        ),
+      );
+    }
+
+    // Blue tick (approved) drivers must not see re-upload unless admin explicitly opens it.
+    if (dv == 'approved' && !reuploadAllowed) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(loc.t('kyc.driver.title')),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Icon(Icons.verified_rounded, size: 56, color: Colors.green[700]),
+              const SizedBox(height: 16),
+              Text(
+                loc.t('kyc.driver.verified_title'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                loc.t('kyc.driver.verified_body'),
+                style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+              ),
+              const Spacer(),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(loc.t('app.close')),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // If admin marked re-verification required but hasn't opened the upload window.
+    if (dv == 'needs_reverify' && !reuploadAllowed) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(loc.t('kyc.driver.title')),
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Icon(Icons.error_outline, size: 56, color: Colors.orange[800]),
+              const SizedBox(height: 16),
+              Text(
+                loc.t('kyc.driver.reverify_required_title'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                loc.t('kyc.driver.reverify_required_body'),
+                style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+              ),
+              const Spacer(),
+              OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(loc.t('app.close')),
+              ),
+            ],
           ),
         ),
       );
