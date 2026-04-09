@@ -202,6 +202,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         icon = Icons.assignment_late_outlined;
         color = Colors.deepPurple;
         break;
+      case 'union_documents_approved':
+        icon = Icons.verified_outlined;
+        color = Colors.teal;
+        break;
       default:
         icon = Icons.notifications;
         color = Colors.orange;

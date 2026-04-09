@@ -26,6 +26,8 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   final _adminService = AdminService();
   List<dynamic> _driverRequests = [];
   List<dynamic> _unionRequests = [];
+  /// Approved unions with documents_status = pending (re-upload submitted).
+  List<dynamic> _unionDocRequests = [];
   bool _loading = true;
 
   final List<Map<String, dynamic>> _directoryDrivers = [];
@@ -117,6 +119,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     setState(() => _loading = true);
     final driverResult = await _adminService.getDriverRequests();
     final unionResult = await _adminService.getUnionRequests();
+    final unionDocResult = await _adminService.getUnionDocUpdateRequests();
 
     if (!mounted) return;
 
@@ -125,32 +128,46 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       _invalidateDirectory();
       _driverRequests = coerceAdminRequestList(driverResult['requests']);
       _unionRequests = coerceAdminRequestList(unionResult['requests']);
+      _unionDocRequests = coerceAdminRequestList(unionDocResult['requests']);
     });
 
     final driverFail =
         driverResult['success'] != true && driverResult['message'] != null;
     final unionFail =
         unionResult['success'] != true && unionResult['message'] != null;
-    if (driverFail && unionFail) {
+    final unionDocFail =
+        unionDocResult['success'] != true && unionDocResult['message'] != null;
+    if (driverFail && unionFail && unionDocFail) {
       AppFeedback.show(
         context,
         '${_adminPanelLoadErrLine(driverResult['message'], 'Driver requests')}\n'
-        '${_adminPanelLoadErrLine(unionResult['message'], 'Union requests')}',
+        '${_adminPanelLoadErrLine(unionResult['message'], 'Union requests')}\n'
+        '${_adminPanelLoadErrLine(unionDocResult['message'], 'Union doc updates')}',
         kind: AppFeedbackKind.error,
         duration: const Duration(seconds: 7),
       );
-    } else if (driverFail) {
-      AppFeedback.show(
-        context,
-        driverResult['message'] ?? 'Failed to load driver requests',
-        kind: AppFeedbackKind.error,
-      );
-    } else if (unionFail) {
-      AppFeedback.show(
-        context,
-        unionResult['message'] ?? 'Failed to load union requests',
-        kind: AppFeedbackKind.error,
-      );
+    } else {
+      if (driverFail) {
+        AppFeedback.show(
+          context,
+          driverResult['message'] ?? 'Failed to load driver requests',
+          kind: AppFeedbackKind.error,
+        );
+      }
+      if (unionFail) {
+        AppFeedback.show(
+          context,
+          unionResult['message'] ?? 'Failed to load union requests',
+          kind: AppFeedbackKind.error,
+        );
+      }
+      if (unionDocFail) {
+        AppFeedback.show(
+          context,
+          unionDocResult['message'] ?? 'Failed to load union document updates',
+          kind: AppFeedbackKind.error,
+        );
+      }
     }
   }
 
@@ -217,6 +234,58 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
   Future<void> _rejectUnion(String id) async {
     final result = await _adminService.rejectUnion(id);
+    if (!mounted) return;
+    AppFeedback.show(
+      context,
+      result['message'] ?? '',
+      kind: result['success'] == true
+          ? AppFeedbackKind.warning
+          : AppFeedbackKind.error,
+    );
+    if (result['success'] == true) _load();
+  }
+
+  Future<void> _approveUnionDocUpdate(String unionId) async {
+    final result = await _adminService.approveUnionDocUpdate(unionId);
+    if (!mounted) return;
+    AppFeedback.show(
+      context,
+      result['message'] ?? '',
+      kind: result['success'] == true
+          ? AppFeedbackKind.success
+          : AppFeedbackKind.error,
+    );
+    if (result['success'] == true) _load();
+  }
+
+  Future<void> _rejectUnionDocUpdate(String unionId) async {
+    final loc = AppLocalizations.of(context);
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        final c = TextEditingController();
+        return AlertDialog(
+          title: Text(loc.t('admin.reject.union_doc_title')),
+          content: TextField(
+            controller: c,
+            decoration: InputDecoration(hintText: loc.t('admin.reject.reason_hint')),
+            maxLines: 2,
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, c.text),
+              child: Text(loc.t('admin.action.reject')),
+            ),
+          ],
+        );
+      },
+    );
+    if (reason == null) return;
+    final result = await _adminService.rejectUnionDocUpdate(
+      unionId,
+      reason: reason.isEmpty ? null : reason,
+    );
     if (!mounted) return;
     AppFeedback.show(
       context,
@@ -386,38 +455,56 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Dashboard stats
+                // Dashboard stats (horizontal scroll: 4 cols on small screens)
                 Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          loc.t('admin.stat.pending_unions'),
-                          _unionRequests.length,
-                          Icons.apartment,
-                          Colors.blue,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 128,
+                          child: _buildStatCard(
+                            loc.t('admin.stat.pending_unions'),
+                            _unionRequests.length,
+                            Icons.apartment,
+                            Colors.blue,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          loc.t('admin.stat.pending_drivers'),
-                          _driverRequests.length,
-                          Icons.badge,
-                          Colors.green,
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 128,
+                          child: _buildStatCard(
+                            loc.t('admin.stat.pending_drivers'),
+                            _driverRequests.length,
+                            Icons.badge,
+                            Colors.green,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildStatCard(
-                          loc.t('admin.stat.pending_total'),
-                          _unionRequests.length + _driverRequests.length,
-                          Icons.pending_actions,
-                          Colors.orange,
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 128,
+                          child: _buildStatCard(
+                            loc.t('admin.stat.pending_union_docs'),
+                            _unionDocRequests.length,
+                            Icons.folder_special_outlined,
+                            Colors.deepPurple,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 128,
+                          child: _buildStatCard(
+                            loc.t('admin.stat.pending_total'),
+                            _unionRequests.length +
+                                _driverRequests.length +
+                                _unionDocRequests.length,
+                            Icons.pending_actions,
+                            Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const Divider(height: 1),
@@ -532,27 +619,45 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   Widget _pendingRegistrationsSection(AppLocalizations loc) {
     final pu = _unionRequests.length;
     final pd = _driverRequests.length;
+    final pDoc = _unionDocRequests.length;
+    final any = pu + pd + pDoc > 0;
     return Card(
       clipBehavior: Clip.antiAlias,
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
-        initiallyExpanded: pu + pd > 0,
+        initiallyExpanded: any,
         leading: Icon(Icons.pending_actions_outlined, color: Colors.orange[800]),
         title: Text(loc.t('admin.directory.pending_tile')),
         subtitle: Text(
-          loc.tReplace('admin.directory.pending_sub', {'unions': '$pu', 'drivers': '$pd'}),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          loc.tReplace('admin.directory.pending_sub', {
+            'unions': '$pu',
+            'drivers': '$pd',
+            'udocs': '$pDoc',
+          }),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
         children: [
-          if (pu == 0 && pd == 0)
+          if (!any)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               child: Text(loc.t('admin.directory.no_pending'), style: TextStyle(color: Colors.grey[600])),
             )
           else ...[
-            if (pu > 0) ...[
+            if (pDoc > 0) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text(
+                  loc.t('admin.section.union_doc_updates'),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              ..._unionDocRequests.map(
+                (r) => _buildUnionDocUpdateCard(loc, r as Map<String, dynamic>),
+              ),
+            ],
+            if (pu > 0) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Text(loc.t('admin.section.union'), style: const TextStyle(fontWeight: FontWeight.w600)),
               ),
               ..._unionRequests.map((r) => _buildUnionRequestCard(loc, r as Map<String, dynamic>)),
@@ -1075,6 +1180,160 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                     foregroundColor: Colors.white,
                   ),
                   child: Text(loc.t('admin.action.approve')),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Approved union re-submitted KYC documents; uses /admin/union-doc-requests/* (not new union registration).
+  Widget _buildUnionDocUpdateCard(AppLocalizations loc, Map<String, dynamic> r) {
+    final id = r['id']?.toString() ?? '';
+    final name = (r['name'] ?? '').toString();
+    final location = (r['address'] ?? '').toString();
+    final unionHeadName = (r['owner_name'] ?? '').toString();
+    final applicantName = (r['applicant_name'] ?? '').toString();
+    final applicantEmail = (r['applicant_email'] ?? '').toString();
+    final applicantPhone = (r['applicant_phone'] ?? '').toString();
+    final leadPhone = (r['contact_phone'] ?? '').toString().trim();
+    final leadEmail = (r['contact_email'] ?? '').toString().trim();
+
+    final docLinks = _unionKycLinks(loc, r);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: Colors.deepPurple.shade200, width: 1),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Chip(
+                avatar: Icon(Icons.folder_special_outlined, size: 18, color: Colors.deepPurple[800]),
+                label: Text(
+                  loc.t('admin.union_doc.badge'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.deepPurple[900],
+                  ),
+                ),
+                backgroundColor: Colors.deepPurple.shade50,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.deepPurple[100],
+                  child: Icon(Icons.apartment, color: Colors.deepPurple[800]),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        name.isNotEmpty ? name : loc.t('admin.kyc.fallback_union_name'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      if (location.isNotEmpty)
+                        Text(
+                          location,
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      if (id.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        SelectableText(
+                          '${loc.t('admin.kyc.union_id')}: $id',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              loc.t('admin.kyc.union.section_leader'),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            if (unionHeadName.isNotEmpty)
+              Text(
+                unionHeadName,
+                style: const TextStyle(fontSize: 13),
+              ),
+            if (leadPhone.isNotEmpty || leadEmail.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(loc.t('admin.kyc.union.contact_lead'), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey[800])),
+              const SizedBox(height: 4),
+              if (leadPhone.isNotEmpty) _docRow(loc.t('admin.kyc.phone'), leadPhone),
+              if (leadEmail.isNotEmpty) _docRow(loc.t('admin.kyc.email'), leadEmail),
+            ],
+            if (applicantName.isNotEmpty || applicantEmail.isNotEmpty || applicantPhone.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                loc.t('admin.kyc.union.section_applicant'),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(height: 4),
+              if (applicantName.isNotEmpty) Text(applicantName, style: const TextStyle(fontSize: 13)),
+            ],
+            if (applicantEmail.isNotEmpty)
+              Text(
+                applicantEmail,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            if (applicantPhone.isNotEmpty)
+              Text(
+                applicantPhone,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            const Divider(height: 24),
+            Text(loc.t('admin.kyc.documents'), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 8),
+            if (docLinks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  loc.t('admin.kyc.no_document_links'),
+                  style: TextStyle(fontSize: 13, color: Colors.orange[900]),
+                ),
+              )
+            else
+              ...docLinks,
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: () => _rejectUnionDocUpdate(id),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                  child: Text(loc.t('admin.action.reject_docs')),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () => _approveUnionDocUpdate(id),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: Text(loc.t('admin.action.approve_docs')),
                 ),
               ],
             ),

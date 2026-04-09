@@ -1,4 +1,4 @@
-const { pool, queryRead } = require('../config/database');
+const { pool } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
@@ -180,7 +180,8 @@ const listPendingUnionDocRequests = asyncHandler(async (req, res) => {
   const status = String(req.query.status || 'pending').toLowerCase();
   if (status !== 'pending') throw ApiError.badRequest('Only status=pending supported');
 
-  const result = await queryRead(
+  // Primary DB: admins must see new union doc submissions immediately (no replica lag).
+  const result = await pool.query(
     `SELECT * FROM (
        SELECT DISTINCT ON (u.id)
          u.*,
@@ -222,6 +223,15 @@ const approveUnionDocRequest = asyncHandler(async (req, res) => {
   if (result.rowCount === 0) {
     throw ApiError.notFound('No pending document request for this union');
   }
+
+  const title = 'Union documents approved';
+  const body =
+    'Your updated union documents have been approved. Re-upload is closed until admin requests again.';
+  await notifyUnionAdmins(id, 'union_documents_approved', title, body, {
+    scope: 'union',
+    unionId: id,
+  });
+
   ApiResponse.success({ id, status: 'approved' }, 'Union documents approved').send(res);
 });
 

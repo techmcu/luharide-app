@@ -1242,6 +1242,10 @@ class AppLocalizations {
       'en': 'Total pending',
       'hi': 'कुल लंबित',
     },
+    'admin.stat.pending_union_docs': {
+      'en': 'Union doc reviews',
+      'hi': 'संघ दस्तावेज़ समीक्षा',
+    },
     'admin.action.reject': {
       'en': 'Reject',
       'hi': 'अस्वीकार',
@@ -1381,8 +1385,8 @@ class AppLocalizations {
       'hi': 'लंबित पंजीकरण',
     },
     'admin.directory.pending_sub': {
-      'en': '{unions} unions · {drivers} drivers',
-      'hi': '{unions} यूनियन · {drivers} ड्राइवर',
+      'en': '{unions} new unions · {drivers} drivers · {udocs} union doc updates',
+      'hi': '{unions} नए यूनियन · {drivers} ड्राइवर · {udocs} दस्तावेज़ अपडेट',
     },
     'admin.directory.no_pending': {
       'en': 'Nothing pending right now.',
@@ -1407,6 +1411,26 @@ class AppLocalizations {
     'admin.section.driver': {
       'en': 'Pending driver requests',
       'hi': 'लंबित ड्राइवर अनुरोध',
+    },
+    'admin.section.union_doc_updates': {
+      'en': 'Union document updates (re-upload)',
+      'hi': 'यूनियन दस्तावेज़ अपडेट (पुनः अपलोड)',
+    },
+    'admin.union_doc.badge': {
+      'en': 'Awaiting your review',
+      'hi': 'समीक्षा लंबित',
+    },
+    'admin.action.approve_docs': {
+      'en': 'Approve documents',
+      'hi': 'दस्तावेज़ अनुमोदित करें',
+    },
+    'admin.action.reject_docs': {
+      'en': 'Send back',
+      'hi': 'वापस भेजें',
+    },
+    'admin.reject.union_doc_title': {
+      'en': 'Reject document update',
+      'hi': 'दस्तावेज़ अपडेट अस्वीकार',
     },
     'admin.kyc.documents': {
       'en': 'Documents',

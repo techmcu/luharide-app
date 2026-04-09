@@ -213,6 +213,52 @@ class AdminService {
     }
   }
 
+  /// Approved unions that re-submitted documents (documents_status = pending).
+  Future<Map<String, dynamic>> getUnionDocUpdateRequests() async {
+    try {
+      final response = await _apiService.get('${ApiConstants.adminUnionDocRequests}?status=pending');
+      return {
+        'success': true,
+        'requests': normalizeAdminRequestList(_adminRequestsRaw(response.data)),
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'requests': <dynamic>[],
+        'message': e.response?.data['message'] ?? 'Failed',
+      };
+    } catch (e) {
+      return {'success': false, 'requests': <dynamic>[], 'message': 'An error occurred'};
+    }
+  }
+
+  /// Approve union document update (after re-upload).
+  Future<Map<String, dynamic>> approveUnionDocUpdate(String unionId) async {
+    try {
+      await _apiService.post('${ApiConstants.adminUnionDocRequests}/$unionId/approve');
+      return {'success': true, 'message': 'Union documents approved'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Reject union document update (re-opens re-upload for union admins).
+  Future<Map<String, dynamic>> rejectUnionDocUpdate(String unionId, {String? reason}) async {
+    try {
+      await _apiService.post(
+        '${ApiConstants.adminUnionDocRequests}/$unionId/reject',
+        data: reason != null && reason.isNotEmpty ? {'reason': reason} : null,
+      );
+      return {'success': true, 'message': 'Union documents sent back for correction'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
   /// Approve driver request (JWT auth only; no extra approve password)
   Future<Map<String, dynamic>> approveDriver(String requestId) async {
     try {
