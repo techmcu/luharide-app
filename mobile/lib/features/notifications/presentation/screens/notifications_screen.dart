@@ -198,6 +198,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         icon = Icons.star;
         color = Colors.amber;
         break;
+      case 'kyc_reverify_required':
+        icon = Icons.assignment_late_outlined;
+        color = Colors.deepPurple;
+        break;
       default:
         icon = Icons.notifications;
         color = Colors.orange;

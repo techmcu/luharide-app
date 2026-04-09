@@ -1,9 +1,25 @@
-const { pool } = require('../config/database');
+const { pool, queryRead } = require('../config/database');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
+
+/** Default in-app copy (EN + HI) when admin does not pass a custom `message` body. */
+const DRIVER_REVERIFY_TITLE = 'Documents need re-verification';
+const DRIVER_REVERIFY_BODY =
+  'Your verified badge has been removed. Open Profile, then Driver verification, upload updated documents, and submit for review. The badge returns after admin approval.\n\n' +
+  'आपका वेरिफाइड बैज हटा दिया गया है। प्रोफ़ाइल → ड्राइवर वेरिफिकेशन में जाकर अपडेटेड दस्तावेज़ अपलोड कर समीक्षा के लिए भेजें। अप्रूवल के बाद बैज वापस मिलेगा।';
+
+const UNION_REVERIFY_TITLE = 'Union documents need re-verification';
+const UNION_REVERIFY_BODY =
+  'Your union verified status has been reset. Open Union documents in the app, upload updated files, and save. The badge returns after admin approval.\n\n' +
+  'संघ का वेरिफाइड स्टेटस रीसेट किया गया है। ऐप में Union documents खोलें, नए दस्तावेज़ अपलोड करें और सेव करें। अप्रूवल के बाद बैज वापस मिलेगा।';
+
+const UNION_DOC_REJECT_TITLE = 'Union documents need an update';
+const UNION_DOC_REJECT_BODY =
+  'Your recent document update could not be approved. Please upload correct documents under Union documents and submit again.\n\n' +
+  'आपके दस्तावेज़ स्वीकृत नहीं किए गए। कृपया Union documents में सही फ़ाइलें अपलोड कर पुनः भेजें।';
 
 function clampDays(days) {
   const n = parseInt(days, 10);
@@ -29,6 +45,28 @@ async function notifyUser(userId, type, title, body, data = null) {
 }
 
 /**
+ * Single INSERT for all union admins (avoids N notification round-trips).
+ */
+async function notifyUnionAdmins(unionId, type, title, body, data = null) {
+  const result = await pool.query(
+    `INSERT INTO notifications (user_id, type, title, body, data)
+     SELECT ua.user_id, $2, $3, $4, $5
+     FROM union_admins ua
+     WHERE ua.union_id = $1
+     RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+    [unionId, type, title, body, data]
+  );
+  for (const row of result.rows) {
+    try {
+      emitNotificationToUser(row.user_id, row);
+    } catch (e) {
+      logger.warn(`emit notification failed for user ${row.user_id}: ${e.message}`);
+    }
+  }
+  return result.rows;
+}
+
+/**
  * Admin: revoke driver blue-tick and open a 1-time re-upload window.
  * POST /api/admin/kyc/drivers/:userId/reverify
  * Body: { message?: string, days?: number }
@@ -48,7 +86,7 @@ const grantDriverReverify = asyncHandler(async (req, res) => {
   const user = u.rows[0];
   if (!user) throw ApiError.notFound('User not found');
 
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
   const last = user.driver_kyc_reupload_granted_on
     ? new Date(user.driver_kyc_reupload_granted_on).toISOString().slice(0, 10)
     : null;
@@ -68,16 +106,12 @@ const grantDriverReverify = asyncHandler(async (req, res) => {
     [userId, deadlineIso]
   );
 
-  const body =
-    (message && String(message).trim()) ||
-    'Your documents need re-verification. Please upload updated documents in the app.';
-  await notifyUser(
-    userId,
-    'kyc_reverify_required',
-    'Re-verify documents',
-    body,
-    { scope: 'driver', deadline: deadlineIso }
-  );
+  const custom = message && String(message).trim();
+  const body = custom || DRIVER_REVERIFY_BODY;
+  await notifyUser(userId, 'kyc_reverify_required', DRIVER_REVERIFY_TITLE, body, {
+    scope: 'driver',
+    deadline: deadlineIso,
+  });
 
   logger.info(`Admin ${adminId} granted driver reverify for user ${userId} until ${deadlineIso}`);
   ApiResponse.success(
@@ -89,9 +123,6 @@ const grantDriverReverify = asyncHandler(async (req, res) => {
 /**
  * Admin: revoke union documents blue-tick and open a 1-time re-upload window.
  * POST /api/admin/kyc/unions/:unionId/reverify
- * Body: { message?: string, days?: number }
- *
- * Rule: same union can be granted at most once per day.
  */
 const grantUnionReverify = asyncHandler(async (req, res) => {
   const { unionId } = req.params;
@@ -126,30 +157,13 @@ const grantUnionReverify = asyncHandler(async (req, res) => {
     [unionId, deadlineIso]
   );
 
-  // Notify all union admins linked to this union.
-  const admins = await pool.query(
-    `SELECT ua.user_id
-     FROM union_admins ua
-     WHERE ua.union_id = $1`,
-    [unionId]
-  );
-  const body =
-    (message && String(message).trim()) ||
-    'Your union documents need re-verification. Please upload updated documents in the app.';
-  for (const row of admins.rows) {
-    // best-effort
-    try {
-      await notifyUser(
-        row.user_id,
-        'kyc_reverify_required',
-        'Re-verify union documents',
-        body,
-        { scope: 'union', unionId, deadline: deadlineIso }
-      );
-    } catch (e) {
-      logger.warn(`Union reverify notify failed for user ${row.user_id}: ${e.message}`);
-    }
-  }
+  const custom = message && String(message).trim();
+  const body = custom || UNION_REVERIFY_BODY;
+  await notifyUnionAdmins(unionId, 'kyc_reverify_required', UNION_REVERIFY_TITLE, body, {
+    scope: 'union',
+    unionId,
+    deadline: deadlineIso,
+  });
 
   logger.info(`Admin ${adminId} granted union reverify for union ${unionId} until ${deadlineIso}`);
   ApiResponse.success(
@@ -166,18 +180,21 @@ const listPendingUnionDocRequests = asyncHandler(async (req, res) => {
   const status = String(req.query.status || 'pending').toLowerCase();
   if (status !== 'pending') throw ApiError.badRequest('Only status=pending supported');
 
-  const result = await pool.query(
-    `SELECT
-       u.*,
-       ua.user_id AS registrar_user_id,
-       usr.name   AS applicant_name,
-       usr.email  AS applicant_email,
-       usr.phone  AS applicant_phone
-     FROM unions u
-     LEFT JOIN union_admins ua ON ua.union_id = u.id
-     LEFT JOIN users usr ON usr.id = ua.user_id
-     WHERE u.status = 'approved' AND u.documents_status = 'pending'
-     ORDER BY u.updated_at DESC NULLS LAST, u.created_at DESC`
+  const result = await queryRead(
+    `SELECT * FROM (
+       SELECT DISTINCT ON (u.id)
+         u.*,
+         ua.user_id AS registrar_user_id,
+         usr.name   AS applicant_name,
+         usr.email  AS applicant_email,
+         usr.phone  AS applicant_phone
+       FROM unions u
+       LEFT JOIN union_admins ua ON ua.union_id = u.id
+       LEFT JOIN users usr ON usr.id = ua.user_id
+       WHERE u.status = 'approved' AND u.documents_status = 'pending'
+       ORDER BY u.id, u.updated_at DESC NULLS LAST, u.created_at DESC, ua.user_id NULLS LAST
+     ) q
+     ORDER BY q.updated_at DESC NULLS LAST, q.created_at DESC`
   );
 
   ApiResponse.success(
@@ -192,15 +209,19 @@ const listPendingUnionDocRequests = asyncHandler(async (req, res) => {
  */
 const approveUnionDocRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  await pool.query(
+  const result = await pool.query(
     `UPDATE unions
      SET documents_status = 'approved',
          documents_reupload_allowed = FALSE,
          documents_reupload_deadline = NULL,
          updated_at = NOW()
-     WHERE id = $1`,
+     WHERE id = $1 AND status = 'approved' AND documents_status = 'pending'
+     RETURNING id`,
     [id]
   );
+  if (result.rowCount === 0) {
+    throw ApiError.notFound('No pending document request for this union');
+  }
   ApiResponse.success({ id, status: 'approved' }, 'Union documents approved').send(res);
 });
 
@@ -213,39 +234,28 @@ const rejectUnionDocRequest = asyncHandler(async (req, res) => {
   const { reason, days } = req.body || {};
   const deadlineIso = deadlineFromNowDays(days ?? 7);
 
-  await pool.query(
+  const updated = await pool.query(
     `UPDATE unions
      SET documents_status = 'needs_reverify',
          documents_reupload_allowed = TRUE,
          documents_reupload_granted_on = CURRENT_DATE,
          documents_reupload_deadline = $2,
          updated_at = NOW()
-     WHERE id = $1`,
+     WHERE id = $1 AND status = 'approved' AND documents_status = 'pending'
+     RETURNING id`,
     [id, deadlineIso]
   );
-
-  const admins = await pool.query(
-    `SELECT ua.user_id
-     FROM union_admins ua
-     WHERE ua.union_id = $1`,
-    [id]
-  );
-  const body =
-    (reason && String(reason).trim()) ||
-    'Your union document update was rejected. Please upload correct documents again.';
-  for (const row of admins.rows) {
-    try {
-      await notifyUser(
-        row.user_id,
-        'kyc_reverify_required',
-        'Union documents need update',
-        body,
-        { scope: 'union', unionId: id, deadline: deadlineIso }
-      );
-    } catch (e) {
-      logger.warn(`Union doc reject notify failed for user ${row.user_id}: ${e.message}`);
-    }
+  if (updated.rowCount === 0) {
+    throw ApiError.notFound('No pending document request for this union');
   }
+
+  const custom = reason && String(reason).trim();
+  const body = custom || UNION_DOC_REJECT_BODY;
+  await notifyUnionAdmins(id, 'kyc_reverify_required', UNION_DOC_REJECT_TITLE, body, {
+    scope: 'union',
+    unionId: id,
+    deadline: deadlineIso,
+  });
 
   ApiResponse.success({ id, status: 'needs_reverify' }, 'Union documents rejected').send(res);
 });
@@ -257,4 +267,3 @@ module.exports = {
   approveUnionDocRequest,
   rejectUnionDocRequest,
 };
-

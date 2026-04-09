@@ -1306,6 +1306,60 @@ class AppLocalizations {
       'en': 'Admin panel',
       'hi': 'एडमिन पैनल',
     },
+    'admin.reverify.tooltip': {
+      'en': 'Request document re-verification',
+      'hi': 'दस्तावेज़ पुनः सत्यापन माँगें',
+    },
+    'admin.reverify.dialog_title': {
+      'en': 'Reset verification & allow upload',
+      'hi': 'वेरिफिकेशन रीसेट और अपलोड खोलें',
+    },
+    'admin.reverify.dialog_body': {
+      'en':
+          'The user loses the verified badge until documents are approved again. They receive an in-app notification with next steps.',
+      'hi':
+          'दस्तावेज़ दोबारा मंज़ूर होने तक वेरिफाइड बैज नहीं दिखेगा। उन्हें ऐप में नोटिफिकेशन से अगले कदम मिलेंगे।',
+    },
+    'admin.reverify.mode_driver': {
+      'en': 'Independent driver',
+      'hi': 'स्वतंत्र ड्राइवर',
+    },
+    'admin.reverify.mode_union': {
+      'en': 'Union',
+      'hi': 'यूनियन',
+    },
+    'admin.reverify.id_driver': {
+      'en': 'Driver user ID (UUID)',
+      'hi': 'ड्राइवर यूज़र ID (UUID)',
+    },
+    'admin.reverify.id_union': {
+      'en': 'Union ID (UUID)',
+      'hi': 'यूनियन ID (UUID)',
+    },
+    'admin.reverify.optional_message': {
+      'en': 'Custom message (optional)',
+      'hi': 'कस्टम संदेश (वैकल्पिक)',
+    },
+    'admin.reverify.days': {
+      'en': 'Upload window (days, 1–30)',
+      'hi': 'अपलोड विंडो (दिन, 1–30)',
+    },
+    'admin.reverify.send': {
+      'en': 'Send request',
+      'hi': 'भेजें',
+    },
+    'admin.reverify.invalid_uuid': {
+      'en': 'Enter a valid UUID',
+      'hi': 'सही UUID दर्ज करें',
+    },
+    'admin.kyc.user_id': {
+      'en': 'User ID',
+      'hi': 'यूज़र ID',
+    },
+    'admin.kyc.union_id': {
+      'en': 'Union ID',
+      'hi': 'यूनियन ID',
+    },
     'admin.empty': {
       'en': 'No pending requests',
       'hi': 'कोई लंबित अनुरोध नहीं',

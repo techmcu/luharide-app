@@ -148,6 +148,131 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     if (result['success'] == true) _load();
   }
 
+  static final RegExp _uuidRe = RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+  );
+
+  bool _isUuid(String s) => _uuidRe.hasMatch(s.trim());
+
+  Future<void> _showReverifyDialog(AppLocalizations loc) async {
+    final idCtrl = TextEditingController();
+    final msgCtrl = TextEditingController();
+    final daysCtrl = TextEditingController(text: '7');
+    var isDriver = true;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSt) {
+            return AlertDialog(
+              title: Text(loc.t('admin.reverify.dialog_title')),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      loc.t('admin.reverify.dialog_body'),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilterChip(
+                          label: Text(loc.t('admin.reverify.mode_driver')),
+                          selected: isDriver,
+                          onSelected: (_) => setSt(() => isDriver = true),
+                        ),
+                        FilterChip(
+                          label: Text(loc.t('admin.reverify.mode_union')),
+                          selected: !isDriver,
+                          onSelected: (_) => setSt(() => isDriver = false),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: idCtrl,
+                      decoration: InputDecoration(
+                        labelText:
+                            isDriver ? loc.t('admin.reverify.id_driver') : loc.t('admin.reverify.id_union'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.text,
+                      autocorrect: false,
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: msgCtrl,
+                      decoration: InputDecoration(
+                        labelText: loc.t('admin.reverify.optional_message'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: daysCtrl,
+                      decoration: InputDecoration(
+                        labelText: loc.t('admin.reverify.days'),
+                        border: const OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
+                FilledButton(
+                  onPressed: () async {
+                    final id = idCtrl.text.trim();
+                    if (!_isUuid(id)) {
+                      if (ctx.mounted) {
+                        AppFeedback.show(
+                          ctx,
+                          loc.t('admin.reverify.invalid_uuid'),
+                          kind: AppFeedbackKind.warning,
+                        );
+                      }
+                      return;
+                    }
+                    final msg = msgCtrl.text.trim();
+                    final days = int.tryParse(daysCtrl.text.trim());
+                    Navigator.pop(ctx);
+                    final result = isDriver
+                        ? await _adminService.grantDriverKycReverify(
+                            id,
+                            message: msg.isEmpty ? null : msg,
+                            days: days,
+                          )
+                        : await _adminService.grantUnionKycReverify(
+                            id,
+                            message: msg.isEmpty ? null : msg,
+                            days: days,
+                          );
+                    if (!mounted) return;
+                    AppFeedback.show(
+                      context,
+                      result['message']?.toString() ?? '',
+                      kind: result['success'] == true
+                          ? AppFeedbackKind.success
+                          : AppFeedbackKind.error,
+                    );
+                  },
+                  child: Text(loc.t('admin.reverify.send')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     context.watch<AppLanguageProvider>();
@@ -164,6 +289,11 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
         backgroundColor: Colors.purple[700],
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            tooltip: loc.t('admin.reverify.tooltip'),
+            icon: const Icon(Icons.manage_accounts_outlined),
+            onPressed: _loading ? null : () => _showReverifyDialog(loc),
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loading ? null : _load),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -434,6 +564,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
   Widget _buildRequestCard(AppLocalizations loc, Map<String, dynamic> r) {
     final id = r['id']?.toString() ?? '';
+    final userId = (r['user_id'] ?? r['userId'])?.toString().trim() ?? '';
     final name = r['name'] ?? 'Unknown';
     final email = r['email'] ?? '';
     final phone = r['phone'] ?? '';
@@ -480,6 +611,13 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                         Text(email.toString(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                       if (phone != null && phone.toString().trim().isNotEmpty)
                         Text(phone.toString(), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      if (userId.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        SelectableText(
+                          '${loc.t('admin.kyc.user_id')}: $userId',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -571,6 +709,13 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                           location,
                           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         ),
+                      if (id.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        SelectableText(
+                          '${loc.t('admin.kyc.union_id')}: $id',
+                          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                        ),
+                      ],
                     ],
                   ),
                 ),

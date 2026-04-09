@@ -205,4 +205,48 @@ class AdminService {
       return {'success': false, 'message': 'An error occurred'};
     }
   }
+
+  /// Revoke driver verified badge, enable one-time re-upload, notify user (platform admin only).
+  Future<Map<String, dynamic>> grantDriverKycReverify(
+    String userId, {
+    String? message,
+    int? days,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (message != null && message.trim().isNotEmpty) body['message'] = message.trim();
+      if (days != null) body['days'] = days;
+      await _apiService.post(
+        ApiConstants.adminKycDriverReverify(userId),
+        data: body.isEmpty ? null : body,
+      );
+      return {'success': true, 'message': 'Driver re-verification requested'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Revoke union document verified state, enable one-time re-upload, notify union admins.
+  Future<Map<String, dynamic>> grantUnionKycReverify(
+    String unionId, {
+    String? message,
+    int? days,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (message != null && message.trim().isNotEmpty) body['message'] = message.trim();
+      if (days != null) body['days'] = days;
+      await _apiService.post(
+        ApiConstants.adminKycUnionReverify(unionId),
+        data: body.isEmpty ? null : body,
+      );
+      return {'success': true, 'message': 'Union re-verification requested'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
 }

@@ -40,6 +40,8 @@ class ApiConstants {
   static const String submittedDocuments = '/kyc/submitted-documents';
   static const String adminDriverRequests = '/admin/driver-requests';
   static const String adminUnionRequests = '/admin/union-requests';
+  static String adminKycDriverReverify(String userId) => '/admin/kyc/drivers/$userId/reverify';
+  static String adminKycUnionReverify(String unionId) => '/admin/kyc/unions/$unionId/reverify';
 
   // Uploads
   static const String uploadDriverDoc = '/uploads/driver-doc';
