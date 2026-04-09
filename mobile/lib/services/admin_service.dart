@@ -76,6 +76,14 @@ dynamic _adminRequestsRaw(dynamic responseData) {
   return layer['requests'] ?? root['requests'];
 }
 
+Map<String, dynamic> _unwrapDataMap(dynamic responseData) {
+  if (responseData is! Map) return <String, dynamic>{};
+  final root = Map<String, dynamic>.from(responseData);
+  final inner = root['data'];
+  if (inner is Map) return Map<String, dynamic>.from(inner);
+  return root;
+}
+
 class AdminService {
   final ApiService _apiService = ApiService();
 
@@ -125,6 +133,60 @@ class AdminService {
       };
     } catch (e) {
       return {'success': false, 'requests': <dynamic>[], 'message': 'An error occurred'};
+    }
+  }
+
+  /// Full independent-driver directory (excludes union_admin and plain passengers).
+  Future<Map<String, dynamic>> getIndependentDriversDirectory({
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        '${ApiConstants.adminDirectoryIndependentDrivers}?limit=$limit&offset=$offset',
+      );
+      final d = _unwrapDataMap(response.data);
+      return {
+        'success': true,
+        'drivers': d['drivers'] ?? [],
+        'total': d['total'] ?? 0,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'drivers': <dynamic>[],
+        'total': 0,
+        'message': e.response?.data['message'] ?? 'Failed',
+      };
+    } catch (e) {
+      return {'success': false, 'drivers': <dynamic>[], 'total': 0, 'message': 'An error occurred'};
+    }
+  }
+
+  /// All unions in the database (admin directory).
+  Future<Map<String, dynamic>> getUnionsDirectory({
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        '${ApiConstants.adminDirectoryUnions}?limit=$limit&offset=$offset',
+      );
+      final d = _unwrapDataMap(response.data);
+      return {
+        'success': true,
+        'unions': d['unions'] ?? [],
+        'total': d['total'] ?? 0,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'unions': <dynamic>[],
+        'total': 0,
+        'message': e.response?.data['message'] ?? 'Failed',
+      };
+    } catch (e) {
+      return {'success': false, 'unions': <dynamic>[], 'total': 0, 'message': 'An error occurred'};
     }
   }
 

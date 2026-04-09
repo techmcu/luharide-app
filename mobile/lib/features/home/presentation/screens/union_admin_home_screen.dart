@@ -28,10 +28,89 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
   List<dynamic> _unionRequests = [];
   bool _loading = true;
 
+  final List<Map<String, dynamic>> _directoryDrivers = [];
+  final List<Map<String, dynamic>> _directoryUnions = [];
+  int _directoryDriversTotal = 0;
+  int _directoryUnionsTotal = 0;
+  bool _directoryDriversLoaded = false;
+  bool _directoryUnionsLoaded = false;
+  bool _directoryDriversLoading = false;
+  bool _directoryUnionsLoading = false;
+
+  static const double _directoryListHeight = 300;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  void _invalidateDirectory() {
+    _directoryDriversLoaded = false;
+    _directoryUnionsLoaded = false;
+    _directoryDrivers.clear();
+    _directoryUnions.clear();
+    _directoryDriversTotal = 0;
+    _directoryUnionsTotal = 0;
+  }
+
+  Future<void> _fetchDirectoryDrivers() async {
+    if (_directoryDriversLoading) return;
+    setState(() => _directoryDriversLoading = true);
+    final r = await _adminService.getIndependentDriversDirectory(limit: 500, offset: 0);
+    if (!mounted) return;
+    setState(() {
+      _directoryDriversLoading = false;
+      if (r['success'] == true) {
+        _directoryDriversLoaded = true;
+        _directoryDriversTotal = _asInt(r['total']);
+        _directoryDrivers
+          ..clear()
+          ..addAll(_mapList(r['drivers']));
+      } else {
+        AppFeedback.show(
+          context,
+          r['message']?.toString() ?? 'Failed',
+          kind: AppFeedbackKind.error,
+        );
+      }
+    });
+  }
+
+  Future<void> _fetchDirectoryUnions() async {
+    if (_directoryUnionsLoading) return;
+    setState(() => _directoryUnionsLoading = true);
+    final r = await _adminService.getUnionsDirectory(limit: 500, offset: 0);
+    if (!mounted) return;
+    setState(() {
+      _directoryUnionsLoading = false;
+      if (r['success'] == true) {
+        _directoryUnionsLoaded = true;
+        _directoryUnionsTotal = _asInt(r['total']);
+        _directoryUnions
+          ..clear()
+          ..addAll(_mapList(r['unions']));
+      } else {
+        AppFeedback.show(
+          context,
+          r['message']?.toString() ?? 'Failed',
+          kind: AppFeedbackKind.error,
+        );
+      }
+    });
+  }
+
+  int _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? '') ?? 0;
+  }
+
+  List<Map<String, dynamic>> _mapList(dynamic raw) {
+    if (raw is! List) return [];
+    return raw
+        .map((e) => e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+        .toList();
   }
 
   Future<void> _load() async {
@@ -43,6 +122,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
     setState(() {
       _loading = false;
+      _invalidateDirectory();
       _driverRequests = coerceAdminRequestList(driverResult['requests']);
       _unionRequests = coerceAdminRequestList(unionResult['requests']);
     });
@@ -348,51 +428,10 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(16),
                       children: [
-                        if (_unionRequests.isEmpty && _driverRequests.isEmpty)
-                          Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.check_circle_outline, size: 64, color: Colors.grey[400]),
-                                const SizedBox(height: 16),
-                                Text(
-                                  loc.t('admin.empty'),
-                                  style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  loc.t('admin.empty.hint'),
-                                  style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ],
-                            ),
-                          )
-                        else ...[
-                          if (_unionRequests.isNotEmpty) ...[
-                            Text(
-                              loc.t('admin.section.union'),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ..._unionRequests.map((r) => _buildUnionRequestCard(loc, r as Map<String, dynamic>)),
-                            const SizedBox(height: 16),
-                          ],
-                          if (_driverRequests.isNotEmpty) ...[
-                            Text(
-                              loc.t('admin.section.driver'),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ..._driverRequests.map((r) => _buildRequestCard(loc, r as Map<String, dynamic>)),
-                          ],
-                        ],
+                        _directoryDriversSection(loc),
+                        _directoryUnionsSection(loc),
+                        _pendingRegistrationsSection(loc),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -400,6 +439,251 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
               ],
             ),
       );
+  }
+
+  Widget _directoryDriversSection(AppLocalizations loc) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        leading: Icon(Icons.directions_car_filled_outlined, color: Colors.green[700]),
+        title: Text(loc.t('admin.directory.drivers_tile')),
+        subtitle: Text(
+          _directoryDriversLoaded
+              ? loc.tReplace('admin.directory.count_known', {'n': '$_directoryDriversTotal'})
+              : loc.t('admin.directory.tap_to_expand'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        onExpansionChanged: (open) {
+          if (open && !_directoryDriversLoaded) _fetchDirectoryDrivers();
+        },
+        children: [
+          if (_directoryDriversLoading)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_directoryDrivers.isEmpty && _directoryDriversLoaded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text(loc.t('admin.directory.empty'), style: TextStyle(color: Colors.grey[600])),
+            )
+          else
+            SizedBox(
+              height: _directoryListHeight,
+              child: Scrollbar(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                  itemCount: _directoryDrivers.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (ctx, i) => _buildDirectoryDriverRow(loc, _directoryDrivers[i]),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _directoryUnionsSection(AppLocalizations loc) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        leading: Icon(Icons.apartment_rounded, color: Colors.blue[700]),
+        title: Text(loc.t('admin.directory.unions_tile')),
+        subtitle: Text(
+          _directoryUnionsLoaded
+              ? loc.tReplace('admin.directory.count_known', {'n': '$_directoryUnionsTotal'})
+              : loc.t('admin.directory.tap_to_expand'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        onExpansionChanged: (open) {
+          if (open && !_directoryUnionsLoaded) _fetchDirectoryUnions();
+        },
+        children: [
+          if (_directoryUnionsLoading)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (_directoryUnions.isEmpty && _directoryUnionsLoaded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text(loc.t('admin.directory.empty'), style: TextStyle(color: Colors.grey[600])),
+            )
+          else
+            SizedBox(
+              height: _directoryListHeight,
+              child: Scrollbar(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                  itemCount: _directoryUnions.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (ctx, i) => _buildDirectoryUnionRow(loc, _directoryUnions[i]),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pendingRegistrationsSection(AppLocalizations loc) {
+    final pu = _unionRequests.length;
+    final pd = _driverRequests.length;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        initiallyExpanded: pu + pd > 0,
+        leading: Icon(Icons.pending_actions_outlined, color: Colors.orange[800]),
+        title: Text(loc.t('admin.directory.pending_tile')),
+        subtitle: Text(
+          loc.tReplace('admin.directory.pending_sub', {'unions': '$pu', 'drivers': '$pd'}),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        children: [
+          if (pu == 0 && pd == 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Text(loc.t('admin.directory.no_pending'), style: TextStyle(color: Colors.grey[600])),
+            )
+          else ...[
+            if (pu > 0) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Text(loc.t('admin.section.union'), style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              ..._unionRequests.map((r) => _buildUnionRequestCard(loc, r as Map<String, dynamic>)),
+            ],
+            if (pd > 0) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Text(loc.t('admin.section.driver'), style: const TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              ..._driverRequests.map((r) => _buildRequestCard(loc, r as Map<String, dynamic>)),
+            ],
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _kycStatusColor(String s) {
+    switch (s) {
+      case 'approved':
+        return Colors.green.shade700;
+      case 'pending':
+        return Colors.orange.shade800;
+      case 'rejected':
+        return Colors.red.shade700;
+      case 'needs_reverify':
+        return Colors.deepPurple.shade700;
+      default:
+        return Colors.blueGrey.shade700;
+    }
+  }
+
+  Widget _buildDirectoryDriverRow(AppLocalizations loc, Map<String, dynamic> m) {
+    final name = (m['name'] ?? '').toString();
+    final email = (m['email'] ?? '').toString().trim();
+    final phone = (m['phone'] ?? '').toString().trim();
+    final id = (m['id'] ?? '').toString();
+    final kyc = (m['driver_verification_status'] ?? m['driverVerificationStatus'] ?? '').toString();
+    final sub = <String>[if (email.isNotEmpty) email, if (phone.isNotEmpty) phone].join(' · ');
+    final c = _kycStatusColor(kyc);
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      title: Text(
+        name.isEmpty ? '—' : name,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (sub.isNotEmpty)
+            Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+          if (id.isNotEmpty)
+            SelectableText(
+              '${loc.t('admin.kyc.user_id')}: $id',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+        ],
+      ),
+      trailing: kyc.isEmpty
+          ? null
+          : Chip(
+              label: Text(kyc, style: const TextStyle(fontSize: 10)),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              backgroundColor: c.withValues(alpha: 0.12),
+              labelStyle: TextStyle(color: c, fontWeight: FontWeight.w600),
+            ),
+    );
+  }
+
+  Widget _buildDirectoryUnionRow(AppLocalizations loc, Map<String, dynamic> m) {
+    final name = (m['name'] ?? '').toString();
+    final email = (m['contact_email'] ?? m['contactEmail'] ?? '').toString().trim();
+    final phone = (m['contact_phone'] ?? m['contactPhone'] ?? '').toString().trim();
+    final id = (m['id'] ?? '').toString();
+    final reg = (m['status'] ?? '').toString();
+    final docs = (m['documents_status'] ?? m['documentsStatus'] ?? '').toString();
+    final sub = <String>[if (email.isNotEmpty) email, if (phone.isNotEmpty) phone].join(' · ');
+    return ListTile(
+      dense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      title: Text(
+        name.isEmpty ? '—' : name,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (sub.isNotEmpty)
+            Text(sub, style: TextStyle(fontSize: 12, color: Colors.grey[800])),
+          if (id.isNotEmpty)
+            SelectableText(
+              '${loc.t('admin.kyc.union_id')}: $id',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+        ],
+      ),
+      isThreeLine: sub.isNotEmpty || id.isNotEmpty,
+      trailing: (reg.isEmpty && docs.isEmpty)
+          ? null
+          : ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 120),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (reg.isNotEmpty)
+                    Chip(
+                      label: Text(reg, style: const TextStyle(fontSize: 9)),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: EdgeInsets.zero,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                      backgroundColor: Colors.blue.shade50,
+                    ),
+                  if (docs.isNotEmpty)
+                    Chip(
+                      label: Text(docs, style: const TextStyle(fontSize: 9)),
+                      visualDensity: VisualDensity.compact,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: EdgeInsets.zero,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                      backgroundColor: Colors.teal.shade50,
+                    ),
+                ],
+              ),
+            ),
+    );
   }
 
   Widget _buildStatCard(String label, int value, IconData icon, MaterialColor color) {

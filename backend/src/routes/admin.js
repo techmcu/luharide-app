@@ -17,6 +17,10 @@ const {
   approveUnionDocRequest,
   rejectUnionDocRequest,
 } = require('../controllers/kycAdminController');
+const {
+  listIndependentDriversDirectory,
+  listUnionsDirectory,
+} = require('../controllers/adminDirectoryController');
 const { authenticate, authorize } = require('../middleware/auth');
 
 /**
@@ -116,6 +120,21 @@ router.get(
   authenticate,
   authorize('union_admin'),
   listPendingUnionDocRequests
+);
+
+/** Scrollable directory lists (read replica when configured) */
+router.get(
+  '/directory/independent-drivers',
+  authenticate,
+  authorize('union_admin'),
+  listIndependentDriversDirectory
+);
+
+router.get(
+  '/directory/unions',
+  authenticate,
+  authorize('union_admin'),
+  listUnionsDirectory
 );
 
 router.post(

@@ -1360,6 +1360,38 @@ class AppLocalizations {
       'en': 'Union ID',
       'hi': 'यूनियन ID',
     },
+    'admin.directory.drivers_tile': {
+      'en': 'Independent drivers',
+      'hi': 'स्वतंत्र ड्राइवर',
+    },
+    'admin.directory.unions_tile': {
+      'en': 'Unions',
+      'hi': 'यूनियन',
+    },
+    'admin.directory.tap_to_expand': {
+      'en': 'Tap to open — scroll inside',
+      'hi': 'खोलने के लिए टैप करें — अंदर स्क्रॉल करें',
+    },
+    'admin.directory.count_known': {
+      'en': '{n} in directory',
+      'hi': 'डायरेक्टरी में {n}',
+    },
+    'admin.directory.pending_tile': {
+      'en': 'Pending registrations',
+      'hi': 'लंबित पंजीकरण',
+    },
+    'admin.directory.pending_sub': {
+      'en': '{unions} unions · {drivers} drivers',
+      'hi': '{unions} यूनियन · {drivers} ड्राइवर',
+    },
+    'admin.directory.no_pending': {
+      'en': 'Nothing pending right now.',
+      'hi': 'अभी कुछ लंबित नहीं।',
+    },
+    'admin.directory.empty': {
+      'en': 'No records',
+      'hi': 'कोई रिकॉर्ड नहीं',
+    },
     'admin.empty': {
       'en': 'No pending requests',
       'hi': 'कोई लंबित अनुरोध नहीं',
