@@ -25,6 +25,7 @@ import '../../../../services/union_service.dart';
 import '../../../../services/review_service.dart';
 import '../../../../core/role_exclusivity.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../models/user_model.dart';
 
 /// User Profile - BlaBlaCar style, simple & easy
 class ProfileScreen extends StatefulWidget {
@@ -38,6 +39,8 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   String _unionStatus = 'none'; // none | pending | approved | rejected
+  /// From GET /union/me union row — tick only when approved with union registration.
+  String _unionDocumentsStatus = 'none';
   bool _unionStatusLoaded = false;
 
   @override
@@ -51,14 +54,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final r = await UnionService().getMyUnion();
       if (!mounted) return;
       final st = (r['status'] ?? 'none').toString();
+      String docSt = 'none';
+      final union = r['union'];
+      if (union is Map) {
+        final raw = union['documents_status'];
+        if (raw != null && raw.toString().isNotEmpty) {
+          docSt = raw.toString();
+        }
+      }
       setState(() {
         _unionStatus = st;
+        _unionDocumentsStatus = docSt;
         _unionStatusLoaded = true;
       });
     } catch (_) {
       if (mounted) {
         setState(() {
           _unionStatus = 'none';
+          _unionDocumentsStatus = 'none';
           _unionStatusLoaded = true;
         });
       }
@@ -76,6 +89,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _blocksUnion(AuthProvider auth) {
     return RoleExclusivity.blocksUnionRegistration(auth.user);
+  }
+
+  /// Blue tick only when credentials are fully approved (hides during pending / needs_reverify).
+  bool _showProfileVerifiedBadge(UserModel? user) {
+    if (user == null) return false;
+    if (user.role == 'union_admin') {
+      return _unionStatus == 'approved' && _unionDocumentsStatus == 'approved';
+    }
+    return user.isDriverVerified;
   }
 
   void _showExclusivityDialog(BuildContext context, {required String titleKey, required String bodyKey}) {
@@ -183,7 +205,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (user?.isDriverVerified == true) ...[
+                    if (_showProfileVerifiedBadge(user)) ...[
                       const SizedBox(width: 6),
                       Icon(Icons.verified, color: Colors.blue[700], size: 20),
                     ],
@@ -238,7 +260,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
-                );
+                ).then((_) {
+                  if (mounted) _loadUnionStatus();
+                });
               },
             )
           else if (_blocksUnion(authProvider))
@@ -807,13 +831,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const UnionDashboardScreen()),
-        );
+        ).then((_) {
+          if (mounted) _loadUnionStatus();
+        });
       } else {
         // Not yet approved — open registration/status screen
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const UnionRegistrationScreen()),
-        );
+        ).then((_) {
+          if (mounted) _loadUnionStatus();
+        });
       }
     } catch (_) {
       if (!context.mounted) return;
