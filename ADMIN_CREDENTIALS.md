@@ -2,12 +2,14 @@
 
 ## Admin Login Credentials
 
+Do **not** commit real passwords in git.
+
 | | |
 |---|---|
 | **Email** | `admin@luharide.com` |
-| **Password** | `Admin@123` |
+| **Password** | **(set at creation time / stored in DB)** |
 
-**Alternative (Demo):** `admin@demo.com` / `demo123` (if create-demo was run)
+**Demo accounts:** If demo seeder/scripts are used locally, use the credentials printed by the script output (never hardcode in docs).
 
 ---
 
