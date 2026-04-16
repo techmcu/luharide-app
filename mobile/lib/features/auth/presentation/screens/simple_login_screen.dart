@@ -93,6 +93,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
     final topPadding = MediaQuery.of(context).padding.top;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 600;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final horizontalPadding = 24.0;
     final spacing = isSmallScreen ? 16.0 : 24.0;
 
@@ -103,9 +104,9 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.blue.shade50,
-              Colors.white,
-              const Color(0xFFF8FAFC),
+              isDark ? const Color(0xFF0B1220) : Colors.blue.shade50,
+              isDark ? const Color(0xFF0F172A) : Colors.white,
+              isDark ? const Color(0xFF0B1220) : const Color(0xFFF8FAFC),
             ],
             stops: const [0.0, 0.4, 1.0],
           ),
@@ -130,7 +131,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         style: TextStyle(
                           fontSize: isSmallScreen ? 26 : 30,
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade900,
+                          color: isDark ? Colors.white : Colors.blue.shade900,
                           letterSpacing: 0.2,
                         ),
                       ),

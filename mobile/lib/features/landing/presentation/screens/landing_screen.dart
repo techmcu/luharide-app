@@ -6,6 +6,7 @@ import '../../../../core/brand_config.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/app_language_provider.dart';
+import '../../../../providers/theme_provider.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/trip_service.dart';
@@ -192,6 +193,8 @@ class _LandingScreenState extends State<LandingScreen> {
     context.watch<AppLanguageProvider>();
     final loc = AppLocalizations.of(context);
     final screenHeight = MediaQuery.of(context).size.height;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -199,9 +202,9 @@ class _LandingScreenState extends State<LandingScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.blue[50]!,
-              Colors.white,
-              const Color(0xFFF8FAFC),
+              isDark ? const Color(0xFF0B1220) : Colors.blue[50]!,
+              isDark ? const Color(0xFF0F172A) : Colors.white,
+              isDark ? const Color(0xFF0B1220) : const Color(0xFFF8FAFC),
             ],
             stops: const [0.0, 0.35, 1.0],
           ),
@@ -224,17 +227,34 @@ class _LandingScreenState extends State<LandingScreen> {
                           style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w600,
-                            color: Colors.blue[800],
+                            color: isDark ? Colors.white : Colors.blue[800],
                             letterSpacing: 0.2,
                           ),
                         ),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(
+                              tooltip: 'Theme',
+                              onPressed: () => context.read<ThemeProvider>().cycleMode(),
+                              icon: Builder(
+                                builder: (context) {
+                                  final mode = context.watch<ThemeProvider>().mode;
+                                  return Icon(
+                                    switch (mode) {
+                                      AppThemeMode.light => Icons.light_mode_rounded,
+                                      AppThemeMode.dark => Icons.dark_mode_rounded,
+                                      AppThemeMode.system => Icons.brightness_auto_rounded,
+                                    },
+                                    color: isDark ? Colors.grey[300] : Colors.grey[700],
+                                  );
+                                },
+                              ),
+                            ),
                             TextButton(
                               onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SimpleLoginScreen())),
                               style: TextButton.styleFrom(
-                                foregroundColor: Colors.grey[700],
+                                foregroundColor: isDark ? Colors.grey[200] : Colors.grey[700],
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               ),
                               child: Text(loc.t('auth.login.title'), style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 14)),
@@ -274,7 +294,7 @@ class _LandingScreenState extends State<LandingScreen> {
                     child: Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: scheme.surface,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
