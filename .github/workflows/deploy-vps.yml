@@ -61,8 +61,9 @@ jobs:
           mkdir -p /var/www/luharide-cloud /var/www/luharide-web
           rsync -a --delete infra/static-site-luharide-root/ /var/www/luharide-cloud/
           rsync -a --delete webapp/ /var/www/luharide-web/
-          cp infra/nginx-luharide-split-root-and-api.example.conf /etc/nginx/sites-available/luharide-split
-          ln -sf /etc/nginx/sites-available/luharide-split /etc/nginx/sites-enabled/luharide-split
+          # Keep existing live nginx config (including SSL blocks) intact.
+          # Only ensure split site stays enabled.
+          ln -sf /etc/nginx/sites-available/luharide-split /etc/nginx/sites-enabled/luharide-split || true
           rm -f /etc/nginx/sites-enabled/luharide-website || true
           nginx -t
           systemctl reload nginx
