@@ -67,6 +67,7 @@ jobs:
           sleep 15
           curl -fsS --max-time 10 http://127.0.0.1:3000/health >/dev/null
           curl -fsS --max-time 10 http://127.0.0.1:3000/api/health >/dev/null
+          cd "$REPO_DIR/backend"
           npm run phase4:verify:stack
           echo "Deploy health checks passed"
           exit 0
