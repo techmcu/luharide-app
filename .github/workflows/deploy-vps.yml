@@ -57,6 +57,12 @@ jobs:
           pm2 startOrReload pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs --update-env
           pm2 save
 
+          cd "$REPO_DIR"
+          mkdir -p /var/www/luharide-cloud /var/www/luharide-web
+          rsync -a --delete infra/static-site-luharide-root/ /var/www/luharide-cloud/
+          rsync -a --delete webapp/ /var/www/luharide-web/
+          bash infra/scripts/setup-root-website-nginx.sh
+
           echo "Waiting for services..."
           sleep 15
           curl -fsS --max-time 10 http://127.0.0.1:3000/health >/dev/null

@@ -326,11 +326,12 @@
         <input type="search" id="siteSearch" placeholder="यात्रा, बुकिंग, यूनियन खोजें…" autocomplete="off" />
       </div>
       <div class="nav-actions">
-        <button type="button" class="btn btn-primary" id="openLogin">लॉग इन</button>
-        <button type="button" class="btn btn-outline" id="openSignup">साइन अप</button>
+        <a class="btn btn-primary" href="/app/">Login to LuhaRide</a>
+        <a class="btn btn-outline" href="/app/">Open Web App</a>
       </div>
       <p class="sidebar-note">
-        पूरी राइड बुकिंग और लाइव अपडेट के लिए <strong>LuhaRide मोबाइल ऐप</strong> उपयोग करें। वेब पर लॉगिन मुख्य जानकारी के लिए है।
+        यह पेज LuhaRide के mission, service aur trust info ke liye hai.
+        Booking/login ke liye ऊपर वाला <strong>Login to LuhaRide</strong> button use karein.
       </p>
     </aside>
     <main class="main">
@@ -340,6 +341,10 @@
         <p class="lead">
           <strong>LuhaRide</strong> यात्रियों, ड्राइवरों और टैक्सी यूनियनों को जोड़ता है — सीट बुकिंग, रूट सर्च और वेरिफाइड ऑपरेशन एक ही ऐप में।
         </p>
+        <div class="nav-actions" style="max-width: 340px">
+          <a class="btn btn-primary" href="/app/">Login to LuhaRide</a>
+          <a class="btn btn-outline" href="mailto:supportluharide@gmail.com">Contact Support</a>
+        </div>
       </div>
 
       <section id="about" data-keywords="हम कौन हैं कंपनी टीम टेकएमसीयू मिशन">
@@ -385,93 +390,13 @@
     </main>
   </div>
 
-  <!-- Login modal -->
-  <div class="backdrop" id="loginBackdrop" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
-    <div class="modal modal-wrap">
-      <button type="button" class="modal-close" data-close="login" aria-label="बंद करें">×</button>
-      <h3 id="loginTitle">लॉग इन</h3>
-      <p class="sub">ईमेल और पासवर्ड — ऐप जैसा ही</p>
-      <div class="msg" id="loginMsg"></div>
-      <form id="loginForm">
-        <div class="field">
-          <label for="loginEmail">ईमेल</label>
-          <input id="loginEmail" name="email" type="email" required autocomplete="email" placeholder="you@example.com" />
-        </div>
-        <div class="field">
-          <label for="loginPass">पासवर्ड</label>
-          <input id="loginPass" name="password" type="password" required autocomplete="current-password" />
-        </div>
-        <div class="modal-actions">
-          <button type="submit" class="btn btn-primary" id="loginSubmit">लॉग इन</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Signup modal -->
-  <div class="backdrop" id="signupBackdrop" role="dialog" aria-modal="true" aria-labelledby="signupTitle">
-    <div class="modal modal-wrap">
-      <button type="button" class="modal-close" data-close="signup" aria-label="बंद करें">×</button>
-      <h3 id="signupTitle">साइन अप</h3>
-      <p class="sub">नया खाता — यात्री के रूप में</p>
-      <div class="msg" id="signupMsg"></div>
-      <form id="signupForm">
-        <div class="field">
-          <label for="signupName">नाम</label>
-          <input id="signupName" name="name" type="text" required autocomplete="name" />
-        </div>
-        <div class="field">
-          <label for="signupEmail">ईमेल</label>
-          <input id="signupEmail" name="email" type="email" required autocomplete="email" />
-        </div>
-        <div class="field">
-          <label for="signupPass">पासवर्ड</label>
-          <input id="signupPass" name="password" type="password" required autocomplete="new-password" minlength="6" />
-        </div>
-        <div class="modal-actions">
-          <button type="submit" class="btn btn-primary" id="signupSubmit">खाता बनाएँ</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <script>
     (function () {
-      var API_BASE = "https://api.luharide.cloud/api";
-
       document.getElementById("y").textContent = new Date().getFullYear();
 
       var sidebar = document.getElementById("sidebar");
       document.getElementById("menuToggle").addEventListener("click", function () {
         sidebar.classList.toggle("open");
-      });
-
-      function openModal(id) {
-        document.getElementById(id).classList.add("open");
-      }
-      function closeModal(id) {
-        document.getElementById(id).classList.remove("open");
-      }
-      document.getElementById("openLogin").addEventListener("click", function () {
-        openModal("loginBackdrop");
-        document.getElementById("loginMsg").className = "msg";
-        document.getElementById("loginMsg").textContent = "";
-      });
-      document.getElementById("openSignup").addEventListener("click", function () {
-        openModal("signupBackdrop");
-        document.getElementById("signupMsg").className = "msg";
-        document.getElementById("signupMsg").textContent = "";
-      });
-      document.querySelectorAll("[data-close]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          closeModal(btn.getAttribute("data-close") === "login" ? "loginBackdrop" : "signupBackdrop");
-        });
-      });
-      document.getElementById("loginBackdrop").addEventListener("click", function (e) {
-        if (e.target === this) closeModal("loginBackdrop");
-      });
-      document.getElementById("signupBackdrop").addEventListener("click", function (e) {
-        if (e.target === this) closeModal("signupBackdrop");
       });
 
       /* Site search: filter cards + section titles */
@@ -498,71 +423,6 @@
         });
       });
 
-      function showMsg(el, ok, text) {
-        el.className = "msg " + (ok ? "ok" : "err");
-        el.textContent = text;
-        el.style.display = "block";
-      }
-
-      document.getElementById("loginForm").addEventListener("submit", async function (e) {
-        e.preventDefault();
-        var msg = document.getElementById("loginMsg");
-        var btn = document.getElementById("loginSubmit");
-        btn.disabled = true;
-        msg.className = "msg";
-        msg.textContent = "";
-        try {
-          var res = await fetch(API_BASE + "/simple-auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: JSON.stringify({
-              email: document.getElementById("loginEmail").value.trim(),
-              password: document.getElementById("loginPass").value
-            })
-          });
-          var data = await res.json().catch(function () { return {}; });
-          if (!res.ok) {
-            showMsg(msg, false, data.message || data.error || "लॉग इन नहीं हो सका।");
-            btn.disabled = false;
-            return;
-          }
-          showMsg(msg, true, "स्वागत है! पूरी बुकिंग व राइड्स के लिए LuhaRide मोबाइल ऐप खोलें।");
-        } catch (err) {
-          showMsg(msg, false, "नेटवर्क / CORS: सर्वर पर CORS_ALLOWED_ORIGINS में https://luharide.cloud जोड़ें, या ऐप से लॉग इन करें।");
-        }
-        btn.disabled = false;
-      });
-
-      document.getElementById("signupForm").addEventListener("submit", async function (e) {
-        e.preventDefault();
-        var msg = document.getElementById("signupMsg");
-        var btn = document.getElementById("signupSubmit");
-        btn.disabled = true;
-        msg.className = "msg";
-        msg.textContent = "";
-        try {
-          var res = await fetch(API_BASE + "/simple-auth/signup", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: JSON.stringify({
-              name: document.getElementById("signupName").value.trim(),
-              email: document.getElementById("signupEmail").value.trim().toLowerCase(),
-              password: document.getElementById("signupPass").value,
-              role: "passenger"
-            })
-          });
-          var data = await res.json().catch(function () { return {}; });
-          if (!res.ok) {
-            showMsg(msg, false, data.message || data.error || "साइन अप असफल।");
-            btn.disabled = false;
-            return;
-          }
-          showMsg(msg, true, "खाता बन गया! अब मोबाइल ऐप से पूरी सुविधाएँ उपयोग करें।");
-        } catch (err) {
-          showMsg(msg, false, "नेटवर्क / CORS: VPS .env में CORS_ALLOWED_ORIGINS=https://luharide.cloud,https://www.luharide.cloud सेट करें।");
-        }
-        btn.disabled = false;
-      });
     })();
   </script>
 </body>
