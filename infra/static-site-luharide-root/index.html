@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -322,27 +322,21 @@
   <div class="layout">
     <aside class="sidebar" id="sidebar">
       <div class="brand">Luha<span>Ride</span></div>
-      <div class="search-wrap">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
-        </svg>
-        <input type="search" id="siteSearch" placeholder="यात्रा, बुकिंग, यूनियन खोजें…" autocomplete="off" />
-      </div>
       <div class="nav-actions">
         <a class="btn btn-primary" href="/app/">Login to LuhaRide</a>
         <a class="btn btn-outline" href="/app/">Open Web App</a>
       </div>
       <p class="sidebar-note">
-        यह पेज LuhaRide के mission, service aur trust info ke liye hai.
-        Booking/login ke liye ऊपर वाला <strong>Login to LuhaRide</strong> button use karein.
+        This page explains LuhaRide's mission and services.
+        Use <strong>Login to LuhaRide</strong> to continue to the web app.
       </p>
     </aside>
     <main class="main">
       <div class="hero">
         <span class="pill">Uttarakhand · Taxi Booking · Union Directory</span>
-        <h1>Uttarakhand mein taxi booking, ride share aur taxi union contact ek hi jagah</h1>
+        <h1>One platform for taxi booking, ride sharing, and taxi union contacts in Uttarakhand</h1>
         <p class="lead">
-          <strong>LuhaRide</strong> ka mission hai Uttarakhand ke taxi union bhaiyon ko digital platform dena jahan wo rides post karke seedha sawari se jud paayen.
+          <strong>LuhaRide</strong> helps taxi unions and drivers in Uttarakhand go digital so they can publish rides online and connect directly with passengers.
         </p>
         <div class="nav-actions" style="max-width: 340px">
           <a class="btn btn-primary" href="/app/">Login to LuhaRide</a>
@@ -351,44 +345,43 @@
       </div>
 
       <section id="about" data-keywords="हम कौन हैं कंपनी टीम टेकएमसीयू मिशन">
-        <h2>Ham kaun hain</h2>
+        <h2>Who we are</h2>
         <div class="cards">
           <div class="card" data-keywords="LuhaRide ब्रांड उत्तराखंड टैक्सी एग्रीगेटर">
             <h3>LuhaRide</h3>
-            <p>LuhaRide ek <strong>Uttarakhand-focused taxi platform</strong> hai jo booking ko simple, trusted aur union-friendly banata hai.</p>
+            <p>LuhaRide is an <strong>Uttarakhand-focused taxi platform</strong> built to make bookings simple, trusted, and union-friendly.</p>
           </div>
           <div class="card" data-keywords="TECHMCU कंपनी पैरेंट">
             <h3>TECHMCU</h3>
-            <p>Is platform ka operation <strong>TECHMCU</strong> ke under hota hai. Focus: local union network + digital growth.</p>
+            <p>The platform is operated by <strong>TECHMCU</strong> with a strong focus on local union networks and digital growth.</p>
           </div>
         </div>
       </section>
 
       <section id="services" data-keywords="सुविधा सेवा यात्री ड्राइवर यूनियन बुकिंग">
-        <h2>Kya fayda milega</h2>
+        <h2>How this helps</h2>
         <div class="cards">
           <div class="card" data-keywords="यात्री सवारी बुकिंग सीट सर्च">
-            <h3>Passengers ke liye</h3>
-            <p>Route/date ke hisaab se ride search, seat booking aur live trip updates.</p>
+            <h3>For passengers</h3>
+            <p>Find rides by route and date, book seats, and get live trip updates.</p>
           </div>
           <div class="card" data-keywords="ड्राइवर ट्रिप वेरिफिकेशन">
-            <h3>Drivers ke liye</h3>
-            <p>Ride posting, trip management aur online booking se direct demand connect.</p>
+            <h3>For drivers</h3>
+            <p>Post rides, manage trips, and get direct demand through online bookings.</p>
           </div>
           <div class="card" data-keywords="यूनियन एडमिन राइड पोस्टर">
-            <h3>Union admins ke liye</h3>
-            <p>District-wise union visibility, ride schedule control aur online presence.</p>
+            <h3>For union admins</h3>
+            <p>Improve district-wise visibility, control ride schedules, and strengthen online presence.</p>
           </div>
           <div class="card" data-keywords="सपोर्ट ईमेल व्हाट्सएप">
-            <h3>सहायता</h3>
-            <p>ईमेल: <a href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a> — सवाल व फीडबैक के लिए।</p>
+            <h3>Support</h3>
+            <p>Email: <a href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a> for help and feedback.</p>
           </div>
         </div>
       </section>
 
       <footer>
-        © <span id="y"></span> LuhaRide · <strong>TECHMCU</strong><br />
-        <a href="https://api.luharide.cloud/api/health" rel="noopener">API स्थिति</a> (तकनीकी)
+        © <span id="y"></span> LuhaRide · <strong>TECHMCU</strong>
       </footer>
     </main>
   </div>
@@ -400,30 +393,6 @@
       var sidebar = document.getElementById("sidebar");
       document.getElementById("menuToggle").addEventListener("click", function () {
         sidebar.classList.toggle("open");
-      });
-
-      /* Site search: filter cards + section titles */
-      document.getElementById("siteSearch").addEventListener("input", function () {
-        var q = (this.value || "").trim().toLowerCase();
-        var cards = document.querySelectorAll(".card");
-        var sections = document.querySelectorAll("section");
-        if (!q) {
-          cards.forEach(function (c) { c.classList.remove("hidden"); });
-          sections.forEach(function (s) { s.style.display = ""; });
-          return;
-        }
-        sections.forEach(function (sec) {
-          var secText = (sec.textContent || "").toLowerCase();
-          var kw = (sec.getAttribute("data-keywords") || "").toLowerCase();
-          var any = false;
-          sec.querySelectorAll(".card").forEach(function (card) {
-            var t = (card.textContent + " " + (card.getAttribute("data-keywords") || "")).toLowerCase();
-            var show = t.indexOf(q) !== -1 || secText.indexOf(q) !== -1 || kw.indexOf(q) !== -1;
-            card.classList.toggle("hidden", !show);
-            if (show) any = true;
-          });
-          sec.style.display = any || secText.indexOf(q) !== -1 || kw.indexOf(q) !== -1 ? "" : "none";
-        });
       });
 
     })();
