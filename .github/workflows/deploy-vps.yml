@@ -1,76 +1,21 @@
 name: Deploy to VPS
 
-# PR → backend + mobile quality only (no deploy).
-# push main → same gates, then VPS deploy + rollback on failure.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
-  backend_quality:
-    name: Backend Quality Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install backend dependencies
-        working-directory: backend
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
-
-      - name: JS syntax check
-        run: git ls-files '*.js' | xargs -I{} node --check "{}"
-
-      - name: Unit tests (Jest)
-        working-directory: backend
-        run: npm run test:ci
-
-  mobile_quality:
-    name: Mobile Quality Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Install mobile dependencies
-        working-directory: mobile
-        run: flutter pub get
-
-      - name: Static analysis
-        working-directory: mobile
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
-
-      - name: Widget tests
-        working-directory: mobile
-        run: flutter test
-
   deploy:
     name: Deploy to VPS
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     environment: vps
-    needs:
-      - backend_quality
-      - mobile_quality
     steps:
       - name: Checkout
         uses: actions/checkout@v4
