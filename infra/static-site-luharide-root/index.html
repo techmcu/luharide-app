@@ -7,7 +7,7 @@
   <meta name="description" content="LuhaRide Uttarakhand taxi booking, ride share, taxi union number aur district-wise union contact platform. Driver aur union bhaiyon ko online ride posting ka ek platform." />
   <meta name="keywords" content="uttarakhand taxi booking, taxi union number, ride share uttarakhand, district taxi union contact, dehradun taxi, haldwani taxi union, luharide" />
   <meta name="robots" content="index,follow" />
-  <link rel="icon" type="image/png" href="/app/favicon.png" />
+  <link rel="icon" type="image/png" href="/brand-logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
@@ -65,12 +65,22 @@
       box-shadow: 4px 0 24px rgba(0, 0, 0, 0.22);
     }
     .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
       font-family: "Plus Jakarta Sans", "Inter", sans-serif;
       font-weight: 800;
       font-size: 1.75rem;
       letter-spacing: -0.035em;
       color: var(--text);
       line-height: 1.05;
+    }
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      object-fit: cover;
+      flex-shrink: 0;
     }
     .brand span { color: var(--blue); }
     .search-wrap {
@@ -355,7 +365,10 @@
   <button type="button" class="menu-toggle" id="menuToggle" aria-label="Menu">Menu</button>
   <div class="layout">
     <aside class="sidebar" id="sidebar">
-      <div class="brand">Luha<span>Ride</span></div>
+      <div class="brand">
+        <img class="brand-logo" src="/brand-logo.png" width="42" height="42" alt="" />
+        Luha<span>Ride</span>
+      </div>
       <div class="nav-actions">
         <a class="btn btn-primary" href="/app/">Login to LuhaRide</a>
         <a class="btn btn-outline" href="/app/">Open Web App</a>

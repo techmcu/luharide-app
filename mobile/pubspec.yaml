@@ -76,3 +76,5 @@ flutter_launcher_icons:
   adaptive_icon_foreground: assets/branding/luharide_launcher_master.png
   adaptive_icon_foreground_inset: 0
   min_sdk_android: 21
+  web:
+    generate: true

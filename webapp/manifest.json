@@ -1,11 +1,11 @@
 {
-    "name": "luharide",
-    "short_name": "luharide",
+    "name": "LuhaRide",
+    "short_name": "LuhaRide",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Uttarakhand taxi booking — legal aggregator & seat booking.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
