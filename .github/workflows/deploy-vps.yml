@@ -65,6 +65,63 @@ jobs:
           # Only ensure split site stays enabled.
           ln -sf /etc/nginx/sites-available/luharide-split /etc/nginx/sites-enabled/luharide-split || true
           rm -f /etc/nginx/sites-enabled/luharide-website || true
+
+          # Ensure /api + /socket.io are proxied from luharide.cloud (main domain)
+          # to avoid ERR_CERT_COMMON_NAME_INVALID on api.* (no SSL cert there).
+          # Idempotent: skips if markers already present.
+          SITE_CONF="/etc/nginx/sites-available/luharide-split"
+          if [ -f "$SITE_CONF" ] && ! grep -q "# LUHA_API_PROXY_V1" "$SITE_CONF"; then
+            echo "Patching nginx: adding /api + /socket.io proxy to main domain..."
+            cp "$SITE_CONF" "${SITE_CONF}.bak.$(date +%s)"
+            python3 <<'PY'
+import re, sys
+p = "/etc/nginx/sites-available/luharide-split"
+with open(p) as f:
+    conf = f.read()
+
+patch = """
+    # LUHA_API_PROXY_V1 — REST API proxy → Node gateway on :3000
+    client_max_body_size 30m;
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+    }
+    location /socket.io/ {
+        proxy_pass http://127.0.0.1:3000/socket.io/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+"""
+
+pattern = re.compile(
+    r'(server\s*\{[^}]*?server_name\s+luharide\.cloud[^;]*;[^}]*?root\s+/var/www/luharide-cloud\s*;[^}]*?index\s+index\.html\s*;)',
+    re.DOTALL,
+)
+m = pattern.search(conf)
+if not m:
+    sys.stderr.write("Could not find main domain server block to patch.\n")
+    sys.exit(1)
+
+new_conf = conf[:m.end()] + patch + conf[m.end():]
+with open(p, "w") as f:
+    f.write(new_conf)
+print("nginx patched OK")
+PY
+          fi
+
           nginx -t
           systemctl reload nginx
 
