@@ -3,8 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 flutter build web --release \
-  --dart-define=API_BASE_URL=https://api.luharide.cloud/api \
-  --dart-define=SOCKET_URL=https://api.luharide.cloud \
+  --dart-define=API_BASE_URL=https://luharide.cloud/api \
+  --dart-define=SOCKET_URL=https://luharide.cloud \
   --dart-define=STABLE_RELEASE=true
 echo ""
 echo "Output: $(pwd)/build/web"

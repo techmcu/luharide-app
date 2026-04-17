@@ -35,11 +35,13 @@ class EnvConfig {
       s.replaceAll(RegExp(r'/+$'), '');
 
   /// Public API when no `--dart-define=API_BASE_URL=...` (release APK + `flutter build web`).
-  /// Override for self-hosted: `--dart-define=API_BASE_URL=https://your-host/api`
-  static const String _productionApiBase = 'https://api.luharide.cloud/api';
+  /// Uses apex domain to match main site TLS cert (avoids ERR_CERT_COMMON_NAME_INVALID).
+  /// Nginx must proxy `/api` → gateway. If `api.luharide.cloud` has valid cert, override:
+  /// `--dart-define=API_BASE_URL=https://api.luharide.cloud/api --dart-define=SOCKET_URL=https://api.luharide.cloud`
+  static const String _productionApiBase = 'https://luharide.cloud/api';
 
-  /// Socket host (no `/api`) — must match gateway/nginx TLS host.
-  static const String _productionSocket = 'https://api.luharide.cloud';
+  /// Socket host (no `/api`) — same origin as web app.
+  static const String _productionSocket = 'https://luharide.cloud';
 
   /// REST API base including `/api`. **Not const** — Web vs Android emulator differs for local dev.
   static String get apiBaseUrl {

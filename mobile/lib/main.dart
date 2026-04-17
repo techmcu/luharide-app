@@ -7,7 +7,6 @@ import 'core/config/env_config.dart';
 import 'core/app_navigator.dart';
 import 'providers/auth_provider.dart';
 import 'providers/app_language_provider.dart';
-import 'providers/theme_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'features/home/presentation/screens/home_screen.dart';
@@ -41,20 +40,16 @@ class LuhaRideApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AppLanguageProvider(),
         ),
-        ChangeNotifierProvider(
-          create: (_) => ThemeProvider(),
-        ),
       ],
-      child: Consumer3<AppLanguageProvider, ThemeProvider, AuthProvider>(
-        builder: (context, langProvider, themeProvider, authProvider, _) {
+      child: Consumer2<AppLanguageProvider, AuthProvider>(
+        builder: (context, langProvider, authProvider, _) {
           final locale = langProvider.locale;
           return MaterialApp(
             navigatorKey: navigatorKey,
             title: BrandConfig.appName,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.themeMode,
+            themeMode: ThemeMode.light,
             locale: locale,
             supportedLocales: const [
               Locale('en'),
@@ -69,8 +64,7 @@ class LuhaRideApp extends StatelessWidget {
               builder: (context) {
                 // Show loading while checking auth status
                 if (authProvider.status == AuthStatus.initial ||
-                    !langProvider.isInitialized ||
-                    !themeProvider.isInitialized) {
+                    !langProvider.isInitialized) {
                   return const Scaffold(
                     body: Center(
                       child: CircularProgressIndicator(),
