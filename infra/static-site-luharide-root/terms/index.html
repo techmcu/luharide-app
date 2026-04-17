@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="/app/favicon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
       --text: #0f172a;
@@ -25,10 +25,15 @@
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Instrument Sans", system-ui, sans-serif;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      font-feature-settings: "cv11", "ss01", "ss03";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
       color: var(--text);
       background: linear-gradient(165deg, #e8f4fc 0%, var(--bg) 45%, #fff 100%);
-      line-height: 1.6;
+      line-height: 1.65;
+      font-size: 15.5px;
     }
     .wrap {
       max-width: 46rem;
@@ -42,7 +47,7 @@
     .crumb a { color: var(--blue); text-decoration: none; font-weight: 600; }
     .crumb a:hover { text-decoration: underline; }
     h1 {
-      font-family: "Syne", sans-serif;
+      font-family: "Plus Jakarta Sans", "Inter", sans-serif;
       font-weight: 800;
       font-size: clamp(1.75rem, 4vw, 2.25rem);
       letter-spacing: -0.03em;
@@ -88,12 +93,19 @@
       box-shadow: var(--shadow);
     }
     .card h2 {
-      font-family: "Syne", sans-serif;
-      font-size: 1.1rem;
-      margin: 0 0 0.65rem;
+      font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin: 0 0 0.75rem;
       color: #0b1324;
     }
-    .card p { margin: 0 0 0.6rem; color: #1f2937; }
+    .card p {
+      margin: 0 0 0.75rem;
+      color: #334155;
+      font-size: 0.975rem;
+      letter-spacing: -0.005em;
+    }
     .card p:last-child { margin-bottom: 0; }
     a.mail { color: var(--blue); font-weight: 600; word-break: break-all; }
     footer {
