@@ -299,8 +299,8 @@ class AppLocalizations {
       'hi': 'गोपनीयता नीति',
     },
     'help.about.privacy_hint': {
-      'en': 'Coming soon — the policy page link will be added here when it goes live. For privacy questions, use Help → email support.',
-      'hi': 'जल्द आ रहा है — नीति पृष्ठ का लिंक लाइव होने पर यहाँ जोड़ा जाएगा। गोपनीयता प्रश्नों के लिए सहायता → ईमेल से संपर्क करें।',
+      'en': 'Tap to open the full privacy policy on luharide.cloud. For privacy questions, use Help → email support.',
+      'hi': 'पूरी गोपनीयता नीति खोलने के लिए टैप करें (luharide.cloud पर)। गोपनीयता प्रश्नों के लिए सहायता → ईमेल से संपर्क करें।',
     },
     'help.about.privacy_updating': {
       'en': 'This page will be updated soon with the full policy.',

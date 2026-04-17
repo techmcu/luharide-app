@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/app_navigator.dart';
+import '../../../../core/brand_config.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/legal_document_info.dart';
 import '../../../../core/localization/app_localizations.dart';
@@ -9,6 +11,22 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../features/home/presentation/screens/home_screen.dart';
 import '../../../profile/presentation/screens/terms_screen.dart';
 import 'simple_login_screen.dart';
+
+Future<void> _openPrivacyPolicy(BuildContext context) async {
+  final uri = BrandConfig.privacyPolicyUri;
+  if (uri == null) {
+    final loc = AppLocalizations.of(context);
+    AppFeedback.show(
+      context,
+      loc.t('signup.privacy_coming_soon'),
+      kind: AppFeedbackKind.info,
+    );
+    return;
+  }
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 class SimpleSignupScreen extends StatefulWidget {
   final String userType;
 
@@ -252,14 +270,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      onPressed: () {
-                        final loc = AppLocalizations.of(context);
-                        AppFeedback.show(
-                          context,
-                          loc.t('signup.privacy_coming_soon'),
-                          kind: AppFeedbackKind.info,
-                        );
-                      },
+                      onPressed: () => _openPrivacyPolicy(context),
                       child: const Text('Privacy policy'),
                     ),
                     Text('.', style: TextStyle(fontSize: 14, color: Colors.grey[800])),
@@ -432,14 +443,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                        onPressed: () {
-                          final loc = AppLocalizations.of(context);
-                          AppFeedback.show(
-                            context,
-                            loc.t('signup.privacy_coming_soon'),
-                            kind: AppFeedbackKind.info,
-                          );
-                        },
+                        onPressed: () => _openPrivacyPolicy(context),
                         child: const Text('Privacy policy'),
                       ),
                     ],

@@ -19,7 +19,7 @@ class BrandConfig {
 
   /// When empty, the app shows “coming soon” for the public privacy page (no link).
   /// Set to a full URL when the policy is hosted (e.g. on luharide.cloud).
-  static const String privacyPolicyUrl = '';
+  static const String privacyPolicyUrl = 'https://luharide.cloud/privacy/';
 
   static Uri? get privacyPolicyUri {
     final s = privacyPolicyUrl.trim();
