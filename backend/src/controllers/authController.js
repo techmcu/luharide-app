@@ -423,7 +423,7 @@ const deleteAccountController = asyncHandler(async (req, res) => {
 
   // Get user with password hash
   const userResult = await pool.query(
-    'SELECT id, email, password_hash, name FROM users WHERE id = $1',
+    'SELECT id, email, password_hash, name, role FROM users WHERE id = $1',
     [userId]
   );
 
@@ -443,43 +443,67 @@ const deleteAccountController = asyncHandler(async (req, res) => {
     throw ApiError.unauthorized('Incorrect password');
   }
 
-  // Start transaction
+  // Start transaction for atomic deletion
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    // 1. Delete user's refresh tokens
+    // PHASE 1: Authentication & Session Data
+    logger.info(`Starting account deletion for user: ${userId} (${user.email || user.name})`);
+    
     await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
-
-    // 2. Delete user's login history
     await client.query('DELETE FROM login_history WHERE user_id = $1', [userId]);
 
-    // 3. Delete user's notifications
+    // PHASE 2: Notifications & Activity Logs
     await client.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM sos_logs WHERE user_id = $1', [userId]);
+    
+    // PHASE 3: Reviews Given BY This User (preserve reviews given TO this user)
+    const reviewsResult = await client.query('DELETE FROM ride_ratings WHERE from_user_id = $1 RETURNING id', [userId]);
+    logger.info(`Deleted ${reviewsResult.rowCount} reviews given by user`);
 
-    // 4. Delete user's reviews (given by this user)
-    await client.query('DELETE FROM ride_ratings WHERE reviewer_id = $1', [userId]);
+    // PHASE 4: Passenger Data (bookings, payments cascade automatically)
+    const bookingsResult = await client.query('DELETE FROM bookings WHERE passenger_id = $1 RETURNING id', [userId]);
+    logger.info(`Deleted ${bookingsResult.rowCount} bookings as passenger`);
 
-    // 5. Delete user's bookings (as passenger)
-    await client.query('DELETE FROM bookings WHERE passenger_id = $1', [userId]);
-
-    // 6. Delete user's trips (created by this user)
-    // Note: Bookings by OTHER passengers will be handled by ON DELETE CASCADE
-    await client.query('DELETE FROM trips WHERE driver_id = $1', [userId]);
-
-    // 7. Delete user's driver verification documents
+    // PHASE 5: Driver Data (trips, location history, documents)
+    // Delete location tracking history
+    await client.query('DELETE FROM location_history WHERE driver_id = $1', [userId]);
+    
+    // Delete trips created by this driver (bookings by other passengers will be removed by CASCADE)
+    const tripsResult = await client.query('DELETE FROM trips WHERE driver_id = $1 RETURNING id', [userId]);
+    logger.info(`Deleted ${tripsResult.rowCount} trips created as driver`);
+    
+    // Delete driver verification documents
     await client.query('DELETE FROM driver_verification_documents WHERE user_id = $1', [userId]);
+    
+    // Remove user as current driver from vehicles (SET NULL, don't delete vehicle)
+    await client.query('UPDATE vehicles SET current_driver_id = NULL WHERE current_driver_id = $1', [userId]);
 
-    // 8. Delete user's union records (if union admin)
-    await client.query('DELETE FROM unions WHERE created_by = $1', [userId]);
-    await client.query('DELETE FROM union_drivers WHERE user_id = $1', [userId]);
+    // PHASE 6: Union Admin Data
+    if (user.role === 'union_admin') {
+      // Remove from union_admins mapping
+      await client.query('DELETE FROM union_admins WHERE user_id = $1', [userId]);
+      
+      // Delete unions created by this admin (CASCADE will handle related data)
+      const unionsResult = await client.query('DELETE FROM unions WHERE created_by = $1 RETURNING id', [userId]);
+      logger.info(`Deleted ${unionsResult.rowCount} unions created by admin`);
+    }
 
-    // 9. Finally, delete the user account
+    // PHASE 7: OLD Schema Tables (if they exist) - graceful handling
+    try {
+      await client.query('DELETE FROM driver_documents WHERE driver_id = $1', [userId]);
+      await client.query('DELETE FROM reviews WHERE passenger_id = $1 OR driver_id = $1', [userId]);
+    } catch (oldTableError) {
+      // Tables don't exist in new schema, skip silently
+    }
+
+    // PHASE 8: Final - Delete User Account
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
 
     await client.query('COMMIT');
 
-    logger.info(`User account deleted: ${userId} (${user.email || 'no email'}) - ${user.name}`);
+    logger.info(`✅ Account deletion completed successfully for user: ${userId}`);
 
     ApiResponse.success(
       { message: 'Account deleted successfully' },
@@ -488,7 +512,12 @@ const deleteAccountController = asyncHandler(async (req, res) => {
 
   } catch (error) {
     await client.query('ROLLBACK');
-    logger.error('Account deletion failed:', { userId, error: error.message });
+    logger.error('❌ Account deletion failed:', { 
+      userId, 
+      email: user.email,
+      error: error.message,
+      stack: error.stack
+    });
     throw error;
   } finally {
     client.release();
