@@ -483,11 +483,10 @@ const deleteAccountController = asyncHandler(async (req, res) => {
     // PHASE 6: Union Admin Data
     if (user.role === 'union_admin') {
       // Remove from union_admins mapping
-      await client.query('DELETE FROM union_admins WHERE user_id = $1', [userId]);
-      
-      // Delete unions created by this admin (CASCADE will handle related data)
-      const unionsResult = await client.query('DELETE FROM unions WHERE created_by = $1 RETURNING id', [userId]);
-      logger.info(`Deleted ${unionsResult.rowCount} unions created by admin`);
+      // Note: Union itself is NOT deleted - unions are organizations that may have
+      // multiple admins or need to persist even when an admin leaves
+      const adminResult = await client.query('DELETE FROM union_admins WHERE user_id = $1 RETURNING union_id', [userId]);
+      logger.info(`Removed user as admin from ${adminResult.rowCount} union(s)`);
     }
 
     // PHASE 7: OLD Schema Tables (if they exist) - graceful handling
