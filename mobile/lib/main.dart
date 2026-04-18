@@ -1,3 +1,6 @@
+import 'dart:ui';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -14,6 +17,23 @@ import 'features/landing/presentation/screens/landing_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Log framework/async errors (release: still useful via logcat / crash tools)
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('FlutterError: ${details.exceptionAsString()}');
+    }
+  };
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('PlatformDispatcher error: $error\n$stack');
+    }
+    return true;
+  };
+
   await EnvConfig.init();
 
   // Single instance for app lifecycle (stable, no recreate on rebuild)

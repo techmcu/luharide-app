@@ -1,3 +1,27 @@
+# --- Flutter engine & plugins (release minify: avoid stripping JNI / embedding) ---
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.** { *; }
+-keep class io.flutter.util.** { *; }
+-keep class io.flutter.view.** { *; }
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
+-keep class io.flutter.embedding.** { *; }
+-dontwarn io.flutter.embedding.**
+
+# OkHttp / Okio (transitive from several plugins)
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
+
+# Play Core (deferred components / optional)
+-dontwarn com.google.android.play.core.**
+
+# Gson-style reflection (if any plugin uses it)
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses
+
 # smart_auth (pinput) references optional GMS Credentials API; allow R8 to complete when not used
 -dontwarn com.google.android.gms.auth.api.credentials.Credential$Builder
 -dontwarn com.google.android.gms.auth.api.credentials.Credential
