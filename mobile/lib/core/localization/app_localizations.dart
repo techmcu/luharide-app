@@ -1710,6 +1710,63 @@ class AppLocalizations {
       'en': 'Hello, User!',
       'hi': 'नमस्ते!',
     },
+    // Account deletion
+    'profile.delete_account.title': {
+      'en': 'Delete account',
+      'hi': 'खाता हटाएँ',
+    },
+    'profile.delete_account.subtitle': {
+      'en': 'Permanently delete your account and data',
+      'hi': 'अपना खाता और डेटा स्थायी रूप से हटाएँ',
+    },
+    'delete_account.dialog_title': {
+      'en': 'Delete account?',
+      'hi': 'खाता हटाएँ?',
+    },
+    'delete_account.warning': {
+      'en': 'This action cannot be undone. All your data will be permanently deleted:',
+      'hi': 'यह क्रिया वापस नहीं ली जा सकती। आपका सारा डेटा स्थायी रूप से हटा दिया जाएगा:',
+    },
+    'delete_account.data_list': {
+      'en': '• Profile and personal information\n• Trips you created\n• Your bookings\n• Reviews you gave\n• Submitted documents\n• All account history',
+      'hi': '• प्रोफ़ाइल और व्यक्तिगत जानकारी\n• आपके द्वारा बनाई गई राइडें\n• आपकी बुकिंग\n• आपकी दी गई समीक्षाएँ\n• जमा किए दस्तावेज़\n• सभी खाता इतिहास',
+    },
+    'delete_account.password_label': {
+      'en': 'Enter your password to confirm',
+      'hi': 'पुष्टि के लिए अपना पासवर्ड दर्ज करें',
+    },
+    'delete_account.password_hint': {
+      'en': 'Your password',
+      'hi': 'आपका पासवर्ड',
+    },
+    'delete_account.password_required': {
+      'en': 'Password is required',
+      'hi': 'पासवर्ड आवश्यक है',
+    },
+    'delete_account.confirm_button': {
+      'en': 'Delete my account',
+      'hi': 'मेरा खाता हटाएँ',
+    },
+    'delete_account.deleting': {
+      'en': 'Deleting account...',
+      'hi': 'खाता हटाया जा रहा है...',
+    },
+    'delete_account.success': {
+      'en': 'Your account has been deleted',
+      'hi': 'आपका खाता हटा दिया गया है',
+    },
+    'delete_account.incorrect_password': {
+      'en': 'Incorrect password. Please try again.',
+      'hi': 'गलत पासवर्ड। कृपया पुनः प्रयास करें।',
+    },
+    'delete_account.failed': {
+      'en': 'Failed to delete account. Please try again.',
+      'hi': 'खाता हटाने में विफल। कृपया पुनः प्रयास करें।',
+    },
+    'delete_account.no_password_error': {
+      'en': 'This account was created via OTP and has no password. Please contact support to delete your account.',
+      'hi': 'यह खाता OTP से बनाया गया था और इसका कोई पासवर्ड नहीं है। अपना खाता हटाने के लिए कृपया सहायता से संपर्क करें।',
+    },
   };
 
   String t(String key) {

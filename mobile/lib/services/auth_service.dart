@@ -544,4 +544,37 @@ class AuthService {
       throw Exception(userMessageFromDio(e));
     }
   }
+
+  /// Delete user account (requires password confirmation)
+  Future<void> deleteAccount(String password) async {
+    try {
+      final response = await _apiService.delete(
+        '/auth/account',
+        data: {'password': password},
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        // Clear all local data after successful deletion
+        await _clearAuthData();
+        return;
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to delete account');
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw Exception('Incorrect password');
+      }
+      if (e.response?.statusCode == 400) {
+        final data = e.response!.data;
+        final msg = data is Map ? data['message'] : null;
+        throw Exception(msg?.toString() ?? 'Cannot delete account');
+      }
+      if (e.response != null) {
+        final data = e.response!.data;
+        final msg = data is Map ? data['message'] : null;
+        throw Exception(msg?.toString() ?? 'Failed to delete account');
+      }
+      throw Exception(userMessageFromDio(e));
+    }
+  }
 }

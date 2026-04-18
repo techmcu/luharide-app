@@ -9,7 +9,8 @@ const {
   refreshTokenController,
   logoutController,
   getCurrentUserController,
-  updateProfileController
+  updateProfileController,
+  deleteAccountController
 } = require('../controllers/authController');
 
 // Middleware
@@ -58,6 +59,13 @@ const updateProfileSchema = Joi.object({
   whatsapp_number: Joi.string().max(20).optional().allow('', null),
   bio: Joi.string().max(500).optional().allow('', null),
   luggage_allowance_per_passenger: Joi.string().max(100).optional().allow('', null)
+});
+
+const deleteAccountSchema = Joi.object({
+  password: Joi.string().min(3).max(128).required().messages({
+    'string.empty': 'Password is required to delete your account',
+    'any.required': 'Password is required to delete your account'
+  })
 });
 
 // Routes
@@ -115,5 +123,12 @@ router.get('/me', authenticate, getCurrentUserController);
  * @access  Private
  */
 router.put('/profile', authenticate, validate(updateProfileSchema), updateProfileController);
+
+/**
+ * @route   DELETE /api/auth/account
+ * @desc    Delete user account (requires password confirmation)
+ * @access  Private
+ */
+router.delete('/account', authenticate, validate(deleteAccountSchema), deleteAccountController);
 
 module.exports = router;

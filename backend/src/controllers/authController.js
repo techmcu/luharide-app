@@ -393,11 +393,114 @@ const updateProfileController = asyncHandler(async (req, res) => {
   ApiResponse.success(result.rows[0], 'Profile updated successfully').send(res);
 });
 
+/**
+ * Delete user account (requires password confirmation)
+ * DELETE /api/auth/account
+ * Body: { password }
+ * 
+ * Deletes:
+ * - User account
+ * - User's trips (created by user)
+ * - User's bookings (as passenger)
+ * - User's reviews (given by user)
+ * - User's ratings (given to user - preserved for other users)
+ * - User's documents
+ * - User's notifications
+ * - User's login history
+ * - User's refresh tokens
+ * 
+ * DOES NOT delete:
+ * - Bookings by OTHER passengers on user's trips
+ * - Ratings BY other users (data integrity)
+ */
+const deleteAccountController = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+  const userId = req.user.id;
+
+  if (!password || password.length < 3) {
+    throw ApiError.badRequest('Password is required to delete account');
+  }
+
+  // Get user with password hash
+  const userResult = await pool.query(
+    'SELECT id, email, password_hash, name FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw ApiError.notFound('User not found');
+  }
+
+  const user = userResult.rows[0];
+
+  // Verify password
+  if (!user.password_hash) {
+    throw ApiError.badRequest('This account was created via OTP and has no password. Please contact support to delete your account.');
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+  if (!isPasswordValid) {
+    throw ApiError.unauthorized('Incorrect password');
+  }
+
+  // Start transaction
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Delete user's refresh tokens
+    await client.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+
+    // 2. Delete user's login history
+    await client.query('DELETE FROM login_history WHERE user_id = $1', [userId]);
+
+    // 3. Delete user's notifications
+    await client.query('DELETE FROM notifications WHERE user_id = $1', [userId]);
+
+    // 4. Delete user's reviews (given by this user)
+    await client.query('DELETE FROM ride_ratings WHERE reviewer_id = $1', [userId]);
+
+    // 5. Delete user's bookings (as passenger)
+    await client.query('DELETE FROM bookings WHERE passenger_id = $1', [userId]);
+
+    // 6. Delete user's trips (created by this user)
+    // Note: Bookings by OTHER passengers will be handled by ON DELETE CASCADE
+    await client.query('DELETE FROM trips WHERE driver_id = $1', [userId]);
+
+    // 7. Delete user's driver verification documents
+    await client.query('DELETE FROM driver_verification_documents WHERE user_id = $1', [userId]);
+
+    // 8. Delete user's union records (if union admin)
+    await client.query('DELETE FROM unions WHERE created_by = $1', [userId]);
+    await client.query('DELETE FROM union_drivers WHERE user_id = $1', [userId]);
+
+    // 9. Finally, delete the user account
+    await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+    await client.query('COMMIT');
+
+    logger.info(`User account deleted: ${userId} (${user.email || 'no email'}) - ${user.name}`);
+
+    ApiResponse.success(
+      { message: 'Account deleted successfully' },
+      'Your account and all related data have been permanently deleted'
+    ).send(res);
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    logger.error('Account deletion failed:', { userId, error: error.message });
+    throw error;
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = {
   sendOTPController,
   verifyOTPController,
   refreshTokenController,
   logoutController,
   getCurrentUserController,
-  updateProfileController
+  updateProfileController,
+  deleteAccountController
 };

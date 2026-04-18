@@ -419,4 +419,30 @@ class AuthProvider with ChangeNotifier {
       return false;
     }
   }
+
+  /// Delete user account (requires password confirmation)
+  Future<void> deleteAccount(String password) async {
+    try {
+      _setLoading(true);
+      _error = null;
+
+      await _authService.deleteAccount(password);
+
+      // Clear local state
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      _error = null;
+      
+      // Disconnect socket
+      await RealtimeSocketService.instance.disconnect();
+      
+      _setLoading(false);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
+      _setLoading(false);
+      notifyListeners();
+      rethrow; // Re-throw so UI can show specific error
+    }
+  }
 }

@@ -476,6 +476,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             color: Colors.red,
             onTap: () => _showLogoutDialog(context, authProvider),
           ),
+          const SizedBox(height: 8),
+          _buildMenuItem(
+            context,
+            icon: Icons.delete_forever,
+            title: loc.t('profile.delete_account.title'),
+            subtitle: loc.t('profile.delete_account.subtitle'),
+            color: Colors.red[800],
+            onTap: () => _showDeleteAccountDialog(context, authProvider),
+          ),
         ],
       ),
     );
@@ -885,6 +894,131 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text(loc.t('profile.logout.dialog_title'), style: const TextStyle(color: Colors.red)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, AuthProvider authProvider) {
+    final loc = AppLocalizations.of(context);
+    final passwordController = TextEditingController();
+    bool isDeleting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 28),
+              const SizedBox(width: 10),
+              Expanded(child: Text(loc.t('delete_account.dialog_title'))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loc.t('delete_account.warning'),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  loc.t('delete_account.data_list'),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  enabled: !isDeleting,
+                  decoration: InputDecoration(
+                    labelText: loc.t('delete_account.password_label'),
+                    hintText: loc.t('delete_account.password_hint'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isDeleting ? null : () => Navigator.pop(dialogCtx),
+              child: Text(loc.t('app.cancel')),
+            ),
+            ElevatedButton(
+              onPressed: isDeleting
+                  ? null
+                  : () async {
+                      final password = passwordController.text.trim();
+                      if (password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(loc.t('delete_account.password_required'))),
+                        );
+                        return;
+                      }
+
+                      setState(() => isDeleting = true);
+
+                      try {
+                        await authProvider.deleteAccount(password);
+                        
+                        if (!ctx.mounted) return;
+                        Navigator.pop(dialogCtx);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(loc.t('delete_account.success')),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+
+                        // Navigate to landing screen after a short delay
+                        await Future.delayed(const Duration(seconds: 1));
+                        
+                        if (navigatorKey.currentState != null) {
+                          navigatorKey.currentState!.pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => const LandingScreen()),
+                            (route) => false,
+                          );
+                        }
+                      } catch (e) {
+                        setState(() => isDeleting = false);
+                        if (!ctx.mounted) return;
+                        
+                        String errorMsg = loc.t('delete_account.failed');
+                        if (e.toString().contains('Incorrect password')) {
+                          errorMsg = loc.t('delete_account.incorrect_password');
+                        } else if (e.toString().contains('OTP')) {
+                          errorMsg = loc.t('delete_account.no_password_error');
+                        }
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errorMsg),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[700],
+                foregroundColor: Colors.white,
+              ),
+              child: isDeleting
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(loc.t('delete_account.confirm_button')),
+            ),
+          ],
+        ),
       ),
     );
   }
