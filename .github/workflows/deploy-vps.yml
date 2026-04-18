@@ -81,7 +81,6 @@ jobs:
             cp "$SITE_CONF" "${SITE_CONF}.bak.$(date +%s)"
             {
               echo "    # LUHA_API_PROXY_V1 - REST API proxy to Node gateway on :3000"
-              echo "    client_max_body_size 30m;"
               echo "    location /api/ {"
               echo "        proxy_pass http://127.0.0.1:3000/api/;"
               echo "        proxy_http_version 1.1;"
