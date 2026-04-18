@@ -474,8 +474,8 @@ const deleteAccountController = asyncHandler(async (req, res) => {
     const tripsResult = await client.query('DELETE FROM trips WHERE driver_id = $1 RETURNING id', [userId]);
     logger.info(`Deleted ${tripsResult.rowCount} trips created as driver`);
     
-    // Delete driver verification documents
-    await client.query('DELETE FROM driver_verification_documents WHERE user_id = $1', [userId]);
+    // Delete driver verification requests/documents
+    await client.query('DELETE FROM driver_verification_requests WHERE user_id = $1', [userId]);
     
     // Remove user as current driver from vehicles (SET NULL, don't delete vehicle)
     await client.query('UPDATE vehicles SET current_driver_id = NULL WHERE current_driver_id = $1', [userId]);
