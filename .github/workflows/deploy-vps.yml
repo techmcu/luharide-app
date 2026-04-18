@@ -66,6 +66,12 @@ jobs:
           ln -sf /etc/nginx/sites-available/luharide-split /etc/nginx/sites-enabled/luharide-split || true
           rm -f /etc/nginx/sites-enabled/luharide-website || true
 
+          # Apply nginx caching patch for /app/ performance (idempotent)
+          if [ -f "$REPO_DIR/infra/scripts/patch-nginx-caching.sh" ]; then
+            echo "Running caching patch..."
+            bash "$REPO_DIR/infra/scripts/patch-nginx-caching.sh" || echo "Caching patch skipped or already applied"
+          fi
+
           # Ensure /api + /socket.io are proxied from luharide.cloud (main domain)
           # to avoid ERR_CERT_COMMON_NAME_INVALID on api.* (no SSL cert there).
           # Idempotent: skips if marker already present.
