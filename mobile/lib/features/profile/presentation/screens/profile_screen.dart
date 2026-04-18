@@ -199,7 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Hello, ${user?.name.split(' ').first ?? "User"}!',
+                      loc.tReplace('profile.hello_user', {'name': user?.name.split(' ').first ?? 'User'}),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -254,8 +254,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildMenuItem(
               context,
               icon: Icons.business_rounded,
-              title: 'Union hub',
-              subtitle: 'Schedules, drivers, posters',
+              title: loc.t('profile.union_hub.title'),
+              subtitle: loc.t('profile.union_hub.subtitle'),
               onTap: () {
                 Navigator.push(
                   context,
@@ -288,13 +288,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 28),
 
           // ── Section: Your trips (bookings & ratings – for passengers) ──
-          _sectionLabel('Your trips (passenger)'),
+          _sectionLabel(loc.t('profile.section.trips_passenger')),
           const SizedBox(height: 8),
           _buildMenuItem(
             context,
             icon: Icons.confirmation_number_outlined,
-            title: 'My bookings',
-            subtitle: 'Trips I booked',
+            title: loc.t('profile.my_bookings.title'),
+            subtitle: loc.t('profile.my_bookings.subtitle'),
             onTap: () {
               Navigator.push(
                 context,
@@ -307,8 +307,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(
             context,
             icon: Icons.star_outline,
-            title: 'Ratings',
-            subtitle: 'What passengers said',
+            title: loc.t('profile.ratings.title'),
+            subtitle: loc.t('profile.ratings.subtitle'),
             onTap: () {
               Navigator.push(
                 context,
@@ -339,8 +339,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildMenuItem(
               context,
               icon: Icons.add_road_rounded,
-              title: 'Create ride',
-              subtitle: 'Post a taxi ride for passengers',
+              title: loc.t('profile.create_ride.title'),
+              subtitle: loc.t('profile.create_ride.subtitle'),
               onTap: () {
                 Navigator.push(
                   context,
@@ -351,8 +351,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildMenuItem(
               context,
               icon: Icons.route,
-              title: 'My rides',
-              subtitle: 'Rides I created as driver',
+              title: loc.t('profile.my_rides_driver.title'),
+              subtitle: loc.t('profile.my_rides_driver.subtitle'),
               onTap: () {
                 Navigator.push(
                   context,
@@ -388,13 +388,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
 
           // ── Settings ──
-          _sectionLabel('Settings'),
+          _sectionLabel(loc.t('profile.section.settings')),
           const SizedBox(height: 8),
           _buildMenuItem(
             context,
             icon: Icons.folder_shared_outlined,
-            title: 'Submitted documents',
-            subtitle: 'Watermarked copies LuhaRide keeps for verification',
+            title: loc.t('profile.submitted_docs.title'),
+            subtitle: loc.t('profile.submitted_docs.subtitle'),
             onTap: () {
               Navigator.push(
                 context,
@@ -405,13 +405,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 24),
 
           // ── Section: Account ──
-          _sectionLabel('Account'),
+          _sectionLabel(loc.t('profile.section.account')),
           const SizedBox(height: 8),
           _buildMenuItem(
             context,
             icon: Icons.person_outline,
-            title: 'Edit profile',
-            subtitle: 'Name, email, photo',
+            title: loc.t('profile.edit_profile.title'),
+            subtitle: loc.t('profile.edit_profile.subtitle'),
             onTap: () {
               Navigator.push(
                 context,
@@ -422,8 +422,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(
             context,
             icon: Icons.lock_outline,
-            title: 'Change password',
-            subtitle: 'Update password',
+            title: loc.t('profile.change_password.title'),
+            subtitle: loc.t('profile.change_password.subtitle'),
             onTap: () {
               Navigator.push(
                 context,
@@ -434,8 +434,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(
             context,
             icon: Icons.help_outline,
-            title: 'Help',
-            subtitle: 'FAQs and contact',
+            title: loc.t('profile.help.title'),
+            subtitle: loc.t('profile.help.subtitle'),
             onTap: () {
               Navigator.push(
                 context,
@@ -446,8 +446,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildMenuItem(
             context,
             icon: Icons.description_outlined,
-            title: 'Terms',
-            subtitle: 'Terms of use',
+            title: loc.t('profile.terms.title'),
+            subtitle: loc.t('profile.terms.subtitle'),
             onTap: () {
               Navigator.push(
                 context,
@@ -854,16 +854,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
+    final loc = AppLocalizations.of(context);
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogCtx) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Do you want to logout?'),
+        title: Text(loc.t('profile.logout.dialog_title')),
+        content: Text(loc.t('profile.logout.dialog_body')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Cancel'),
+            child: Text(loc.t('app.cancel')),
           ),
           TextButton(
             onPressed: () async {
@@ -881,7 +882,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            child: Text(loc.t('profile.logout.dialog_title'), style: const TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -896,8 +897,9 @@ class _RatingSummaryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     if (userId == null || userId!.isEmpty) {
-      return _chip(icon: Icons.star_outline, label: 'No ratings yet');
+      return _chip(icon: Icons.star_outline, label: loc.t('profile.rating_chip.no_ratings'));
     }
     return FutureBuilder<Map<String, dynamic>>(
       future: ReviewService().getUserRatingSummary(userId!),
@@ -909,10 +911,10 @@ class _RatingSummaryChip extends StatelessWidget {
         final total = (d['total_ratings'] as num?)?.toInt() ?? 0;
         final avg = (d['average_rating'] as num?)?.toDouble();
         if (total == 0) {
-          return _chip(icon: Icons.star_outline, label: 'No ratings yet');
+          return _chip(icon: Icons.star_outline, label: loc.t('profile.rating_chip.no_ratings'));
         }
         final avgStr = avg != null ? avg.toStringAsFixed(1) : '0';
-        return _chip(icon: Icons.star, label: '$avgStr ★ ($total reviews)');
+        return _chip(icon: Icons.star, label: '$avgStr ★ ($total ${loc.t('profile.rating_chip.reviews')})');
       },
     );
   }

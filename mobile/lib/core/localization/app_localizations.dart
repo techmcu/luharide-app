@@ -1593,6 +1593,123 @@ class AppLocalizations {
       'en': 'Approvals',
       'hi': 'मंज़ूरी',
     },
+    // Profile screen sections and menu items
+    'profile.section.trips_passenger': {
+      'en': 'Your trips (passenger)',
+      'hi': 'आपकी यात्राएँ (यात्री)',
+    },
+    'profile.section.settings': {
+      'en': 'Settings',
+      'hi': 'सेटिंग',
+    },
+    'profile.section.account': {
+      'en': 'Account',
+      'hi': 'खाता',
+    },
+    'profile.union_hub.title': {
+      'en': 'Union hub',
+      'hi': 'यूनियन हब',
+    },
+    'profile.union_hub.subtitle': {
+      'en': 'Schedules, drivers, posters',
+      'hi': 'समय सारणी, ड्राइवर, पोस्टर',
+    },
+    'profile.my_bookings.title': {
+      'en': 'My bookings',
+      'hi': 'मेरी बुकिंग',
+    },
+    'profile.my_bookings.subtitle': {
+      'en': 'Trips I booked',
+      'hi': 'मैंने बुक की यात्राएँ',
+    },
+    'profile.ratings.title': {
+      'en': 'Ratings',
+      'hi': 'रेटिंग',
+    },
+    'profile.ratings.subtitle': {
+      'en': 'What passengers said',
+      'hi': 'यात्रियों ने क्या कहा',
+    },
+    'profile.create_ride.title': {
+      'en': 'Create ride',
+      'hi': 'राइड बनाएँ',
+    },
+    'profile.create_ride.subtitle': {
+      'en': 'Post a taxi ride for passengers',
+      'hi': 'यात्रियों के लिए राइड पोस्ट करें',
+    },
+    'profile.my_rides_driver.title': {
+      'en': 'My rides',
+      'hi': 'मेरी राइडें',
+    },
+    'profile.my_rides_driver.subtitle': {
+      'en': 'Rides I created as driver',
+      'hi': 'ड्राइवर के रूप में बनाई राइडें',
+    },
+    'profile.submitted_docs.title': {
+      'en': 'Submitted documents',
+      'hi': 'जमा किए दस्तावेज़',
+    },
+    'profile.submitted_docs.subtitle': {
+      'en': 'Watermarked copies LuhaRide keeps for verification',
+      'hi': 'सत्यापन के लिए LuhaRide द्वारा रखी वॉटरमार्क प्रतियाँ',
+    },
+    'profile.edit_profile.title': {
+      'en': 'Edit profile',
+      'hi': 'प्रोफ़ाइल संपादित करें',
+    },
+    'profile.edit_profile.subtitle': {
+      'en': 'Name, email, photo',
+      'hi': 'नाम, ईमेल, फोटो',
+    },
+    'profile.change_password.title': {
+      'en': 'Change password',
+      'hi': 'पासवर्ड बदलें',
+    },
+    'profile.change_password.subtitle': {
+      'en': 'Update password',
+      'hi': 'पासवर्ड अपडेट करें',
+    },
+    'profile.help.title': {
+      'en': 'Help',
+      'hi': 'सहायता',
+    },
+    'profile.help.subtitle': {
+      'en': 'FAQs and contact',
+      'hi': 'प्रश्न और संपर्क',
+    },
+    'profile.terms.title': {
+      'en': 'Terms',
+      'hi': 'नियम',
+    },
+    'profile.terms.subtitle': {
+      'en': 'Terms of use',
+      'hi': 'उपयोग की शर्तें',
+    },
+    'profile.logout.dialog_title': {
+      'en': 'Logout',
+      'hi': 'लॉग आउट',
+    },
+    'profile.logout.dialog_body': {
+      'en': 'Do you want to logout?',
+      'hi': 'क्या आप लॉग आउट करना चाहते हैं?',
+    },
+    'profile.rating_chip.no_ratings': {
+      'en': 'No ratings yet',
+      'hi': 'अभी कोई रेटिंग नहीं',
+    },
+    'profile.rating_chip.reviews': {
+      'en': 'reviews',
+      'hi': 'समीक्षाएँ',
+    },
+    'profile.hello_user': {
+      'en': 'Hello, {name}!',
+      'hi': 'नमस्ते, {name}!',
+    },
+    'profile.hello_fallback': {
+      'en': 'Hello, User!',
+      'hi': 'नमस्ते!',
+    },
   };
 
   String t(String key) {
