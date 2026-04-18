@@ -66,6 +66,12 @@ jobs:
           ln -sf /etc/nginx/sites-available/luharide-split /etc/nginx/sites-enabled/luharide-split || true
           rm -f /etc/nginx/sites-enabled/luharide-website || true
 
+          # Emergency cleanup: Fix any duplicate directives from failed deployments
+          if [ -f "$REPO_DIR/infra/scripts/fix-nginx-duplicate.sh" ]; then
+            echo "Running nginx duplicate cleanup..."
+            bash "$REPO_DIR/infra/scripts/fix-nginx-duplicate.sh" || echo "Cleanup skipped or not needed"
+          fi
+
           # Apply nginx caching patch for /app/ performance (idempotent)
           if [ -f "$REPO_DIR/infra/scripts/patch-nginx-caching.sh" ]; then
             echo "Running caching patch..."
