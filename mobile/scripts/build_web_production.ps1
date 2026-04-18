@@ -6,6 +6,7 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot\..
 
 flutter build web --release `
+  --base-href /app/ `
   --dart-define=API_BASE_URL=https://luharide.cloud/api `
   --dart-define=SOCKET_URL=https://luharide.cloud `
   --dart-define=STABLE_RELEASE=true
