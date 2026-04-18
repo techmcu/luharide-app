@@ -47,7 +47,8 @@ class _DriverVerificationFormScreenState
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final auth = context.read<AuthProvider>();
-      _contactPhoneController.text = (auth.user?.phone ?? '').trim();
+      // Note: Phone number intentionally left empty - user must enter explicitly
+      // to prevent accidental submission with wrong/old number
       _contactEmailController.text = (auth.user?.email ?? '').trim();
       // Sync with server so admin reject → user sees form again (not stale "pending").
       await auth.refreshUser();
@@ -410,13 +411,17 @@ class _DriverVerificationFormScreenState
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
                     labelText: loc.t('kyc.driver.contact_phone'),
+                    hintText: 'Enter 10-digit mobile number',
                     prefixIcon: const Icon(Icons.phone_outlined),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
                   validator: (v) {
                     final s = (v ?? '').replaceAll(' ', '').trim();
-                    if (s.length < 10) return loc.t('kyc.driver.val.phone');
+                    if (s.isEmpty) return 'Mobile number is required';
+                    if (!RegExp(r'^\d{10}$').hasMatch(s)) {
+                      return 'Enter valid 10-digit mobile number';
+                    }
                     return null;
                   },
                 ),

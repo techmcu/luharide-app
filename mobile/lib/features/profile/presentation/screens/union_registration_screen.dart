@@ -45,7 +45,8 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().user;
-    _phoneController.text = (user?.phone ?? '').trim();
+    // Note: Phone number intentionally left empty - user must enter explicitly
+    // to prevent accidental submission with wrong/old number
     _emailController.text = (user?.email ?? '').trim();
     _ownerNameController.text = (user?.name ?? '').trim();
     _loadStatus();
@@ -495,12 +496,15 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(
               labelText: loc.t('kyc.union.label.leader_phone'),
+              hintText: 'Enter 10-digit mobile number',
               border: const OutlineInputBorder(),
             ),
             validator: (v) {
-              final value = (v ?? '').trim();
-              if (value.isEmpty) return loc.t('kyc.union.val.phone');
-              if (value.length < 10) return loc.t('kyc.union.val.phone_len');
+              final value = (v ?? '').replaceAll(' ', '').trim();
+              if (value.isEmpty) return 'Mobile number is required';
+              if (!RegExp(r'^\d{10}$').hasMatch(value)) {
+                return 'Enter valid 10-digit mobile number';
+              }
               return null;
             },
           ),
