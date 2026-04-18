@@ -104,18 +104,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final user = context.watch<AuthProvider>().user;
     final isDriver = user?.role == 'driver';
 
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        final focus = FocusManager.instance.primaryFocus;
-        if (focus != null && focus.hasFocus) {
-          focus.unfocus();
-          return;
-        }
-        Navigator.of(context).pop(result);
-      },
-      child: Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
         backgroundColor: isDriver ? Colors.green : Colors.blue,
@@ -295,7 +284,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ],
         ),
       ),
-    ),
     );
   }
 }
