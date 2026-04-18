@@ -440,7 +440,7 @@ const deleteAccountController = asyncHandler(async (req, res) => {
 
   const isPasswordValid = await bcrypt.compare(password, user.password_hash);
   if (!isPasswordValid) {
-    throw ApiError.unauthorized('Incorrect password');
+    throw ApiError.badRequest('Incorrect password. Please try again.');
   }
 
   // Start transaction for atomic deletion

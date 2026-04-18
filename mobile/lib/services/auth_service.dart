@@ -548,6 +548,15 @@ class AuthService {
   /// Delete user account (requires password confirmation)
   Future<void> deleteAccount(String password) async {
     try {
+      // Ensure we have a valid access token before attempting deletion
+      final token = await getAccessToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('Please login again to delete your account');
+      }
+      
+      // Explicitly set token (ensures fresh token is used)
+      _apiService.setAuthToken(token);
+      
       final response = await _apiService.delete(
         '/auth/account',
         data: {'password': password},
@@ -561,8 +570,18 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Failed to delete account');
       }
     } on DioException catch (e) {
+      // 401 can mean either wrong password OR expired token
       if (e.response?.statusCode == 401) {
-        throw Exception('Incorrect password');
+        final data = e.response?.data;
+        final errorMsg = data is Map ? data['error'] : null;
+        
+        // If backend says "Incorrect password", show that
+        if (errorMsg?.toString().toLowerCase().contains('password') == true) {
+          throw Exception('Incorrect password');
+        }
+        
+        // Otherwise it's a token/auth issue
+        throw Exception('Session expired. Please logout and login again to delete your account.');
       }
       if (e.response?.statusCode == 400) {
         final data = e.response!.data;

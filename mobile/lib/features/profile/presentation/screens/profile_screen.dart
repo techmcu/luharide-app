@@ -991,16 +991,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (!ctx.mounted) return;
                         
                         String errorMsg = loc.t('delete_account.failed');
-                        if (e.toString().contains('Incorrect password')) {
+                        final errorStr = e.toString();
+                        
+                        if (errorStr.contains('Incorrect password')) {
                           errorMsg = loc.t('delete_account.incorrect_password');
-                        } else if (e.toString().contains('OTP')) {
+                        } else if (errorStr.contains('OTP')) {
                           errorMsg = loc.t('delete_account.no_password_error');
+                        } else if (errorStr.contains('Session expired') || errorStr.contains('login again')) {
+                          errorMsg = 'Session expired. Please logout and login again to delete your account.';
+                          
+                          // Auto-redirect to landing after 2 seconds
+                          Future.delayed(const Duration(seconds: 2), () {
+                            if (navigatorKey.currentState != null) {
+                              navigatorKey.currentState!.pushAndRemoveUntil(
+                                MaterialPageRoute(builder: (_) => const LandingScreen()),
+                                (route) => false,
+                              );
+                            }
+                          });
                         }
                         
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(errorMsg),
                             backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
                           ),
                         );
                       }
