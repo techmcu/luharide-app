@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LuhaRide &mdash; Terms &amp; Conditions</title>
-  <meta name="description" content="LuhaRide Terms and Conditions. Platform role, driver/union responsibilities, payments, data handling, and governing law." />
+  <title>LuhaRide — Terms & Conditions</title>
+  <meta name="description" content="LuhaRide Terms and Conditions. Platform role, user responsibilities, payments, data handling, and governing law." />
   <meta name="robots" content="index,follow" />
   <link rel="icon" type="image/png" href="/brand-logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -79,7 +79,9 @@
       padding: 6px 16px;
       border-radius: 999px;
       cursor: pointer;
+      transition: all 0.2s;
     }
+    .lang-toggle button:hover { background: #f1f5f9; }
     .lang-toggle button.active {
       background: var(--blue);
       color: #fff;
@@ -107,20 +109,35 @@
       letter-spacing: -0.005em;
     }
     .card p:last-child { margin-bottom: 0; }
-    a.mail { color: var(--blue); font-weight: 600; word-break: break-all; }
+    .card ul { margin: 0.5rem 0 0.5rem; padding-left: 1.3rem; }
+    .card li { margin-bottom: 0.5rem; color: #334155; }
+    .card li strong { color: #0b1324; }
+    a.mail { color: var(--blue); font-weight: 600; word-break: break-all; text-decoration: none; }
+    a.mail:hover { text-decoration: underline; }
+    .highlight {
+      background: #fef3c7;
+      border-left: 3px solid #f59e0b;
+      padding: 1rem 1.2rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
     footer {
-      margin-top: 2rem;
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--line);
       font-size: 0.85rem;
       color: var(--muted);
+      text-align: center;
     }
     .hidden { display: none; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <p class="crumb"><a href="/">&larr; LuhaRide home</a> &middot; <a href="/privacy/">Privacy</a></p>
-    <h1>Terms &amp; Conditions</h1>
-    <p class="sub">Terms v1.0.0 &middot; Last updated: 30 March 2026 &middot; Operated by <strong>TECHMCU</strong></p>
+    <p class="crumb"><a href="/">← LuhaRide home</a> · <a href="/privacy/">Privacy</a></p>
+    <h1>Terms & Conditions</h1>
+    <p class="sub">Last updated: 18 April 2026 · Terms v2.0 · Operated by <strong>TECHMCU</strong></p>
 
     <div class="lang-toggle" role="tablist" aria-label="Language">
       <button type="button" class="active" data-lang="en" aria-selected="true">English</button>
@@ -130,138 +147,544 @@
     <!-- English -->
     <div id="terms-en" class="terms-block">
       <div class="card">
-        <h2>0. Beta software</h2>
-        <p>The app may be provided as a beta or pre-release version. Features may change, be incomplete, or temporarily unavailable. You use the Service at your own risk during beta. Please report problems via Help / support channels. Continued use means you accept this.</p>
+        <h2>0. Beta Software Notice</h2>
+        <p>LuhaRide may be provided as beta or pre-release software. Features may change, be incomplete, or temporarily unavailable. You use the Service at your own risk during the beta phase. Please report bugs and issues via Help → Support in the app. Continued use of the Service means you accept this condition.</p>
       </div>
 
       <div class="card">
-        <h2>1. Who we are</h2>
-        <p>The "LuhaRide" mobile application and related online services ("Service") are offered under the TECHMCU brand. LuhaRide is a technology platform that helps passengers find and connect with drivers for shared or scheduled rides in Uttarakhand and nearby areas. We do not own or operate vehicles and are not a transport undertaking or taxi operator unless expressly stated otherwise.</p>
+        <h2>1. Acceptance of Terms</h2>
+        <p>By accessing or using LuhaRide ("Service"), you agree to be bound by these Terms & Conditions. If you disagree with any part, you may not use our Service.</p>
+        <p>These terms constitute a legally binding agreement between you and <strong>TECHMCU</strong> (the operator of LuhaRide).</p>
       </div>
 
       <div class="card">
-        <h2>2. Platform role &amp; liability</h2>
-        <p>Drivers and unions are independent third parties. They alone are responsible for licences, permits, insurance, vehicle condition, and compliance with traffic and transport laws. To the fullest extent permitted by applicable law, TECHMCU, LuhaRide, and their representatives are not liable for accidents, delays, loss, theft, injury, or disputes between users during or after trips, except where liability cannot be excluded by law.</p>
+        <h2>2. Who We Are</h2>
+        <p>LuhaRide is a <strong>technology platform</strong> operated by <strong>TECHMCU</strong> that connects passengers with independent taxi drivers and taxi unions in Uttarakhand and nearby areas.</p>
+        <p><strong>Important:</strong> We are <strong>NOT</strong>:</p>
+        <ul>
+          <li>A taxi company or transport operator</li>
+          <li>An employer of drivers</li>
+          <li>The owner or operator of vehicles on the platform</li>
+          <li>A payment processor or financial intermediary</li>
+        </ul>
+        <p>We provide the technology to connect riders with drivers. Drivers and unions are <strong>independent third parties</strong> who use our platform.</p>
       </div>
 
       <div class="card">
-        <h2>3. Your responsibilities</h2>
-        <p>Provide accurate profile information. Do not harass, abuse, or use the Service for unlawful activity. Do not misrepresent identity or vehicle details. Respect bookings you make; repeated no-shows or misuse may lead to restrictions.</p>
+        <h2>3. User Eligibility</h2>
+        <ul>
+          <li>You must be at least <strong>18 years old</strong> to create an account</li>
+          <li>For driver accounts, you must hold a valid driving licence as required by Indian law</li>
+          <li>For union accounts, you must be an authorized representative of a registered taxi union</li>
+          <li>You must provide accurate and truthful information during registration</li>
+          <li>One person may not create multiple accounts to abuse the system</li>
+        </ul>
       </div>
 
       <div class="card">
-        <h2>4. Driver &amp; union responsibilities</h2>
-        <p>Maintain valid driving licence, RC, insurance, and permits as required by law. Do not exceed legal seating capacity. Drive safely. Do not misrepresent routes, fares, or vehicle data shown in the app.</p>
+        <h2>4. Platform Role and Limitations of Liability</h2>
+        <p>LuhaRide acts only as a technology intermediary. Drivers, unions, and their vehicles are <strong>independent third parties</strong>.</p>
+        <p><strong>Drivers and unions are solely responsible for:</strong></p>
+        <ul>
+          <li>Valid driving licences, vehicle registration, insurance, and permits required by law</li>
+          <li>Vehicle safety, maintenance, and roadworthiness</li>
+          <li>Compliance with Motor Vehicles Act and traffic regulations</li>
+          <li>Safe driving and passenger safety during trips</li>
+          <li>Not exceeding legal seating capacity</li>
+          <li>Providing accurate vehicle and route information</li>
+        </ul>
+        <div class="highlight">
+          <strong>Limitation of Liability:</strong> To the fullest extent permitted by law, TECHMCU, LuhaRide, and their representatives are <strong>NOT LIABLE</strong> for accidents, injuries, death, property damage, delays, loss, theft, disputes, or any harm arising during or after trips arranged through the platform, except where liability cannot be excluded by law.
+        </div>
+        <p>We do not guarantee driver behavior, vehicle condition, or trip outcomes. Use the Service at your own risk.</p>
       </div>
 
       <div class="card">
-        <h2>5. Bookings &amp; cancellations</h2>
-        <p>Trips may be cancelled by either party in genuine situations. We may send in-app notifications where technically possible. Frequent misuse, fraud, or safety concerns may result in suspension.</p>
+        <h2>5. Passenger Responsibilities</h2>
+        <ul>
+          <li>Provide accurate contact information (phone, email, WhatsApp)</li>
+          <li>Arrive at pickup points on time</li>
+          <li>Respect drivers and other passengers</li>
+          <li>Do not misuse bookings or repeatedly no-show without valid reasons</li>
+          <li>Do not engage in harassment, abuse, or unlawful behavior</li>
+          <li>Verify driver identity and vehicle details before boarding</li>
+          <li>Report safety concerns immediately via the app or emergency services (dial 112)</li>
+          <li>Pay the agreed fare as per your arrangement with the driver</li>
+        </ul>
+        <p><strong>Consequences:</strong> Repeated violations may result in warnings, temporary suspension, or permanent account termination.</p>
       </div>
 
       <div class="card">
-        <h2>6. Payments &mdash; no money handled by the platform</h2>
-        <p>TECHMCU and LuhaRide do not collect, hold, or transfer fare money between passengers and drivers. The Service is only a connection layer: it helps users find each other and coordinate rides. How you pay (cash, UPI, or otherwise), how much you pay, and any agreement on fare are strictly between you and the other user, after you communicate directly. We do not guarantee payments, refunds, or settlement timing. If a dispute, loss, fraud, or wrong payment arises between users&mdash;including non-payment, overpayment, or scam&mdash;the platform bears no responsibility and accepts no liability, to the fullest extent permitted by law. Report safety or abuse issues via Help; payment disagreements must be resolved between the parties or through appropriate legal channels.</p>
+        <h2>6. Driver and Union Responsibilities</h2>
+        <ul>
+          <li>Maintain valid <strong>driving licence, RC, insurance, and permits</strong> as required by Indian law</li>
+          <li>Ensure vehicle is safe, clean, and roadworthy</li>
+          <li>Do not exceed <strong>legal seating capacity</strong> shown on vehicle RC</li>
+          <li>Drive safely and follow all traffic rules</li>
+          <li>Provide accurate route, fare, departure time, and vehicle information</li>
+          <li>Upload genuine documents during verification (Aadhaar, DL, RC) - fake documents will result in permanent ban</li>
+          <li>Honor confirmed bookings; frequent cancellations may affect your account</li>
+          <li>Treat passengers with respect and professionalism</li>
+          <li>Do not engage in fraud, overcharging, harassment, or misconduct</li>
+        </ul>
+        <p><strong>Document Verification:</strong> Submitted documents will be reviewed by admin. Approval typically takes 24-48 hours. Providing false or fraudulent documents may result in account suspension and legal action.</p>
       </div>
 
       <div class="card">
-        <h2>7. Intellectual property &amp; software</h2>
-        <p>The original source code, overall system architecture, back-end and application logic, data models, business rules, booking and operational workflows, integrations, visual design, branding, and user experience of the LuhaRide Service&mdash;as designed, implemented, and operated by TECHMCU&mdash;are proprietary to TECHMCU or its licensors. Deciding how these pieces fit together, how the platform behaves, and how rides are coordinated from a product and business perspective is our responsibility; the Service is not a white-label or off-the-shelf package we merely resell from another vendor.</p>
-        <p>Our implementation relies on widely used tools and platforms, which may include (for example) mobile application frameworks such as Flutter, server runtimes such as Node.js, databases such as PostgreSQL, reverse proxies or web servers such as nginx, process supervisors such as PM2, and other third-party and open-source libraries&mdash;the exact stack may evolve. The authors and licensors of those tools retain rights in their own materials under their respective licences; we comply with applicable licence requirements for the components we use, and where a licence applies to something we distribute to you, you must respect that licence for that item.</p>
-        <p>That does not change that the LuhaRide implementation as a whole, as we offer it, is our proprietary product. You may not copy, reverse engineer, scrape, or misuse our software or branding except as the law allows or we agree in writing.</p>
+        <h2>7. Bookings and Cancellations</h2>
+        <p><strong>Booking Process:</strong></p>
+        <ul>
+          <li>Passengers select seats on available trips</li>
+          <li>Bookings require driver approval (shown as "Pending" until confirmed)</li>
+          <li>Once approved, passenger receives driver contact details</li>
+        </ul>
+        <p><strong>Cancellation Policy:</strong></p>
+        <ul>
+          <li>Passengers can cancel bookings up to 2 minutes before scheduled departure</li>
+          <li>Drivers can reject booking requests before approval</li>
+          <li>Last-minute cancellations (within 2 minutes) are not allowed to protect driver planning</li>
+          <li>Repeated cancellations or no-shows may result in restrictions</li>
+        </ul>
+        <p>We may send in-app notifications where technically possible, but cannot guarantee delivery. Check the app regularly for booking updates.</p>
       </div>
 
       <div class="card">
-        <h2>8. Data &amp; privacy</h2>
-        <p>We process limited personal data to run the Service (e.g. name, phone, ride history). We do not sell your personal data. A separate privacy notice may apply; use the Service only if you agree to reasonable processing for operations and support.</p>
-        <p>Support &amp; grievances: write to <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a>.</p>
-        <p>KYC and verification documents are stored on access-controlled servers with standard safeguards; we retain them only as long as needed for verification, fraud prevention, and legal compliance while your account is active. After account closure we delete or anonymise them within a reasonable period unless applicable law requires longer retention. We do not sell your document images.</p>
+        <h2>8. Payments — Platform Does NOT Handle Money</h2>
+        <div class="highlight">
+          <strong>CRITICAL:</strong> LuhaRide and TECHMCU <strong>DO NOT</strong> collect, hold, process, or transfer fare money between passengers and drivers.
+        </div>
+        <p><strong>How Payment Works:</strong></p>
+        <ul>
+          <li>LuhaRide is <strong>only a connection platform</strong> — we help users find each other</li>
+          <li>Fare payment is settled <strong>directly between passenger and driver</strong></li>
+          <li>Payment method (cash, UPI, bank transfer, etc.) is agreed between users</li>
+          <li>Payment amount and timing are decided by users directly</li>
+        </ul>
+        <p><strong>Platform Has NO Responsibility For:</strong></p>
+        <ul>
+          <li>Non-payment or late payment by passengers</li>
+          <li>Overcharging or undercharging by drivers</li>
+          <li>Refunds, chargebacks, or payment disputes</li>
+          <li>Fraudulent transactions, scams, or theft involving payments</li>
+          <li>UPI/payment app errors or failures</li>
+        </ul>
+        <p><strong>Dispute Resolution:</strong> Payment disputes must be resolved between passenger and driver directly, or through appropriate legal channels. We do not mediate financial disagreements. Report fraud or safety issues via Help → Support.</p>
       </div>
 
       <div class="card">
-        <h2>9. Account suspension</h2>
-        <p>We may suspend or terminate access for breach of these terms, fraud, safety risk, or legal requirements, subject to applicable law.</p>
+        <h2>9. Reviews and Ratings</h2>
+        <ul>
+          <li>Passengers can rate and review drivers after completed trips</li>
+          <li>Reviews must be honest, relevant, and respectful</li>
+          <li>We may remove reviews that contain abusive language, false information, or violate community guidelines</li>
+          <li>You cannot delete ratings given to you by others</li>
+          <li>Manipulating ratings (fake reviews, review bombing) is prohibited and may result in account suspension</li>
+        </ul>
       </div>
 
       <div class="card">
-        <h2>10. Changes</h2>
-        <p>We may update these terms. Material changes will be reflected in the app when practical. Continued use after update constitutes acceptance unless applicable law requires otherwise.</p>
+        <h2>10. Account Security and Verification</h2>
+        <p><strong>Your Responsibility:</strong></p>
+        <ul>
+          <li>Keep your password confidential</li>
+          <li>Use a strong, unique password</li>
+          <li>Do not share your account with others</li>
+          <li>Report unauthorized access immediately</li>
+        </ul>
+        <p><strong>Verification Process:</strong></p>
+        <ul>
+          <li>New accounts may be verified via OTP (One-Time Password) sent to your phone or email</li>
+          <li>Driver accounts require document verification (Aadhaar, DL, RC) which typically takes 24-48 hours</li>
+          <li>Union accounts require union registration documents and leader verification</li>
+          <li>We watermark all uploaded documents with "LuhaRide - Verification Copy" to prevent misuse</li>
+        </ul>
       </div>
 
       <div class="card">
-        <h2>11. Governing law &amp; disputes</h2>
-        <p>These terms are governed by the laws of India. Courts at Dehradun, Uttarakhand (or as required by law) shall have exclusive jurisdiction, subject to mandatory consumer protections.</p>
+        <h2>11. Prohibited Conduct</h2>
+        <p>You may NOT:</p>
+        <ul>
+          <li>Provide false, misleading, or fraudulent information</li>
+          <li>Upload fake or altered verification documents</li>
+          <li>Impersonate another person or entity</li>
+          <li>Use the Service for illegal activities (human trafficking, drug transport, etc.)</li>
+          <li>Harass, threaten, or abuse other users</li>
+          <li>Scrape, copy, or reverse engineer the app</li>
+          <li>Create multiple accounts to manipulate bookings or ratings</li>
+          <li>Use automated bots or scripts</li>
+          <li>Attempt to hack, breach security, or access unauthorized data</li>
+          <li>Spam users with unsolicited messages</li>
+        </ul>
+        <p><strong>Consequences:</strong> Violations may result in immediate account suspension, permanent ban, and potential legal action.</p>
+      </div>
+
+      <div class="card">
+        <h2>12. Intellectual Property</h2>
+        <p>The LuhaRide platform — including source code, system architecture, business logic, data models, workflows, visual design, branding, and user experience — is <strong>proprietary to TECHMCU</strong> or its licensors.</p>
+        <p><strong>Our Implementation:</strong> While we use industry-standard tools (Flutter, Node.js, PostgreSQL, nginx, etc.) that have their own licenses, the overall LuhaRide implementation as a product is our proprietary work. How these components are combined, configured, and operated to deliver the Service is our intellectual property.</p>
+        <p><strong>You May NOT:</strong></p>
+        <ul>
+          <li>Copy, reproduce, or create derivative works of the app</li>
+          <li>Reverse engineer, decompile, or disassemble the software</li>
+          <li>Remove or alter copyright notices or branding</li>
+          <li>Use "LuhaRide" name or logo without written permission</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>13. Data and Privacy</h2>
+        <p>We process personal data to operate the Service (name, phone, email, location, trip history, verification documents). See our <a class="mail" href="/privacy/">Privacy Policy</a> for details.</p>
+        <p><strong>Key Points:</strong></p>
+        <ul>
+          <li>We do <strong>NOT</strong> sell your personal data</li>
+          <li>Verification documents are stored securely and deleted after account closure (subject to legal retention requirements)</li>
+          <li>You can delete your account anytime via Profile → Settings → Delete account</li>
+          <li>Account deletion requires password confirmation</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>14. Account Suspension and Termination</h2>
+        <p>We may suspend or terminate your account if you:</p>
+        <ul>
+          <li>Violate these Terms & Conditions</li>
+          <li>Engage in fraud, abuse, or illegal activity</li>
+          <li>Pose a safety risk to other users</li>
+          <li>Provide false verification documents</li>
+          <li>Receive repeated negative reports from other users</li>
+        </ul>
+        <p>We will notify you of suspension where practical, unless immediate action is required for safety or legal reasons.</p>
+        <p><strong>You May Delete Your Account:</strong> You can permanently delete your account anytime via Profile → Settings. This action is irreversible and deletes all your data (see Privacy Policy for details).</p>
+      </div>
+
+      <div class="card">
+        <h2>15. Service Availability and Changes</h2>
+        <ul>
+          <li>We strive for 24/7 availability but do not guarantee uninterrupted service</li>
+          <li>Service may be temporarily unavailable for maintenance, updates, or technical issues</li>
+          <li>We may add, modify, or remove features at any time</li>
+          <li>We may change pricing, policies, or service areas</li>
+        </ul>
+        <p>Material changes will be communicated via in-app notifications or email when practical.</p>
+      </div>
+
+      <div class="card">
+        <h2>16. No Warranty</h2>
+        <p>The Service is provided <strong>"AS IS"</strong> and <strong>"AS AVAILABLE"</strong> without warranties of any kind, either express or implied, including but not limited to:</p>
+        <ul>
+          <li>Merchantability or fitness for a particular purpose</li>
+          <li>Accuracy, reliability, or availability of information</li>
+          <li>Error-free or uninterrupted operation</li>
+          <li>Driver competence, vehicle safety, or trip outcomes</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>17. Indemnification</h2>
+        <p>You agree to indemnify and hold harmless TECHMCU, LuhaRide, and their directors, employees, and affiliates from any claims, damages, losses, or expenses (including legal fees) arising from:</p>
+        <ul>
+          <li>Your use of the Service</li>
+          <li>Your violation of these Terms</li>
+          <li>Your violation of any rights of third parties</li>
+          <li>Any content you submit (reviews, documents, photos)</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>18. Governing Law and Jurisdiction</h2>
+        <p>These Terms are governed by the <strong>laws of India</strong>.</p>
+        <p><strong>Jurisdiction:</strong> Any disputes arising from these Terms or use of the Service shall be subject to the exclusive jurisdiction of courts in <strong>Dehradun, Uttarakhand</strong>, except where mandatory consumer protection laws require otherwise.</p>
+        <p><strong>Dispute Resolution:</strong> We encourage resolving disputes amicably via our support email before taking legal action.</p>
+      </div>
+
+      <div class="card">
+        <h2>19. Severability</h2>
+        <p>If any provision of these Terms is found to be invalid or unenforceable, the remaining provisions shall continue in full force and effect.</p>
+      </div>
+
+      <div class="card">
+        <h2>20. Contact and Grievances</h2>
+        <p>For questions, complaints, or grievances regarding these Terms or the Service:</p>
+        <p><strong>Email:</strong> <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
+        <p><strong>Operated by:</strong> TECHMCU</p>
+        <p><strong>Location:</strong> Dehradun, Uttarakhand, India</p>
+        <p>We aim to respond to genuine queries within a reasonable timeframe and will escalate safety or legal matters appropriately.</p>
       </div>
     </div>
 
     <!-- Hindi -->
     <div id="terms-hi" class="terms-block hidden">
       <div class="card">
-        <h2>0. बीटा सॉफ़्टवेयर</h2>
-        <p>यह ऐप बीटा या पूर्व-रिलीज़ के रूप में हो सकता है। सुविधाएँ बदल या अस्थायी रूप से अनुपलब्ध हो सकती हैं। बीटा के दौरान आप अपने जोखिम पर सेवा का उपयोग करते हैं। समस्या हो तो सहायता के माध्यम से बताएँ। उपयोग जारी रखने का अर्थ है कि आप इसे स्वीकार करते हैं।</p>
+        <h2>0. बीटा सॉफ़्टवेयर सूचना</h2>
+        <p>LuhaRide बीटा या पूर्व-रिलीज़ सॉफ़्टवेयर के रूप में प्रदान किया जा सकता है। सुविधाएँ बदल सकती हैं, अधूरी हो सकती हैं या अस्थायी रूप से अनुपलब्ध हो सकती हैं। बीटा चरण के दौरान आप अपने जोखिम पर सेवा का उपयोग करते हैं। कृपया ऐप में सहायता → समर्थन के माध्यम से बग और समस्याओं की रिपोर्ट करें। सेवा का निरंतर उपयोग का अर्थ है कि आप इस शर्त को स्वीकार करते हैं।</p>
       </div>
 
       <div class="card">
-        <h2>1. हम कौन हैं</h2>
-        <p>"LuhaRide" मोबाइल ऐप और संबंधित ऑनलाइन सेवाएँ ("सेवा") TECHMCU ब्रांड के तहत पेश की जाती हैं। LuhaRide एक तकनीकी मंच है जो यात्रियों और ड्राइवरों को उत्तराखंड और आसपास के क्षेत्रों में साझा या निर्धारित यात्राओं के लिए जोड़ने में मदद करता है। हम वाहन के मालिक या संचालक नहीं हैं और टैक्सी कंपनी नहीं हैं, जब तक स्पष्ट रूप से अन्यथा न कहा गया हो।</p>
+        <h2>1. नियमों की स्वीकृति</h2>
+        <p>LuhaRide ("सेवा") तक पहुँचकर या उपयोग करके आप इन नियमों और शर्तों से बाध्य होने के लिए सहमत होते हैं। यदि आप किसी भी भाग से असहमत हैं, तो आप हमारी सेवा का उपयोग नहीं कर सकते।</p>
+        <p>ये नियम आपके और <strong>TECHMCU</strong> (LuhaRide के संचालक) के बीच कानूनी रूप से बाध्यकारी समझौता हैं।</p>
       </div>
 
       <div class="card">
-        <h2>2. मंच की भूमिका और दायित्व</h2>
-        <p>ड्राइवर और यूनियन स्वतंत्र तृतीय पक्ष हैं। लाइसेंस, परमिट, बीमा, वाहन की स्थिति और यातायात कानूनों का पालन उनकी ज़िम्मेदारी है। लागू कानून द्वारा अनुमत पूर्ण सीमा तक, TECHMCU, LuhaRide और उनके प्रतिनिधि यात्रा के दौरान या बाद में दुर्घटना, देरी, हानि, चोट या उपयोगकर्ताओं के बीच विवादों के लिए उत्तरदायी नहीं हैं, सिवाय जहाँ कानून बहिष्करण की अनुमति नहीं देता।</p>
+        <h2>2. हम कौन हैं</h2>
+        <p>LuhaRide एक <strong>तकनीकी प्लेटफ़ॉर्म</strong> है जो <strong>TECHMCU</strong> द्वारा संचालित है और जो उत्तराखंड और आसपास के क्षेत्रों में यात्रियों को स्वतंत्र टैक्सी ड्राइवरों और टैक्सी यूनियनों से जोड़ता है।</p>
+        <p><strong>महत्वपूर्ण:</strong> हम <strong>नहीं हैं</strong>:</p>
+        <ul>
+          <li>टैक्सी कंपनी या परिवहन संचालक</li>
+          <li>ड्राइवरों के नियोक्ता</li>
+          <li>प्लेटफ़ॉर्म पर वाहनों के मालिक या संचालक</li>
+          <li>भुगतान प्रोसेसर या वित्तीय मध्यस्थ</li>
+        </ul>
+        <p>हम राइडर को ड्राइवर से जोड़ने की तकनीक प्रदान करते हैं। ड्राइवर और यूनियन <strong>स्वतंत्र तृतीय पक्ष</strong> हैं जो हमारे प्लेटफ़ॉर्म का उपयोग करते हैं।</p>
       </div>
 
       <div class="card">
-        <h2>3. आपकी ज़िम्मेदारियाँ</h2>
-        <p>सही प्रोफ़ाइल जानकारी दें। उत्पीड़न, दुरुपयोग या गैरकानूनी गतिविधि न करें। पहचान या वाहन विवरण गलत न बताएँ। बुकिंग का सम्मान करें; बार-बार न आने या दुरुपयोग पर प्रतिबंध लग सकता है।</p>
+        <h2>3. उपयोगकर्ता पात्रता</h2>
+        <ul>
+          <li>खाता बनाने के लिए आपकी आयु कम से कम <strong>18 वर्ष</strong> होनी चाहिए</li>
+          <li>ड्राइवर खातों के लिए आपके पास भारतीय कानून द्वारा आवश्यक वैध ड्राइविंग लाइसेंस होना चाहिए</li>
+          <li>यूनियन खातों के लिए आपको पंजीकृत टैक्सी यूनियन का अधिकृत प्रतिनिधि होना चाहिए</li>
+          <li>पंजीकरण के दौरान सटीक और सच्ची जानकारी प्रदान करनी चाहिए</li>
+          <li>एक व्यक्ति सिस्टम का दुरुपयोग करने के लिए कई खाते नहीं बना सकता</li>
+        </ul>
       </div>
 
       <div class="card">
-        <h2>4. ड्राइवर और यूनियन की ज़िम्मेदारियाँ</h2>
-        <p>वैध ड्राइविंग लाइसेंस, आरसी, बीमा और कानून अनुसार परमिट बनाए रखें। कानूनी बैठने की क्षमता से अधिक यात्री न लें। सुरक्षित चलाएँ। ऐप में दिखाए गए मार्ग, किराया या वाहन डेटा गलत न बताएँ।</p>
+        <h2>4. प्लेटफ़ॉर्म की भूमिका और दायित्व की सीमाएँ</h2>
+        <p>LuhaRide केवल एक तकनीकी मध्यस्थ के रूप में कार्य करता है। ड्राइवर, यूनियन और उनके वाहन <strong>स्वतंत्र तृतीय पक्ष</strong> हैं।</p>
+        <p><strong>ड्राइवर और यूनियन पूर्णतः ज़िम्मेदार हैं:</strong></p>
+        <ul>
+          <li>कानून द्वारा आवश्यक वैध ड्राइविंग लाइसेंस, वाहन पंजीकरण, बीमा और परमिट के लिए</li>
+          <li>वाहन सुरक्षा, रखरखाव और सड़क योग्यता के लिए</li>
+          <li>मोटर वाहन अधिनियम और यातायात नियमों के अनुपालन के लिए</li>
+          <li>यात्रा के दौरान सुरक्षित ड्राइविंग और यात्री सुरक्षा के लिए</li>
+          <li>कानूनी बैठने की क्षमता से अधिक यात्री न लेने के लिए</li>
+          <li>सटीक वाहन और मार्ग जानकारी प्रदान करने के लिए</li>
+        </ul>
+        <div class="highlight">
+          <strong>दायित्व की सीमा:</strong> कानून द्वारा अनुमत पूर्ण सीमा तक, TECHMCU, LuhaRide और उनके प्रतिनिधि प्लेटफ़ॉर्म के माध्यम से व्यवस्थित यात्राओं के दौरान या बाद में होने वाली दुर्घटनाओं, चोटों, मृत्यु, संपत्ति क्षति, देरी, हानि, चोरी, विवादों या किसी भी नुकसान के लिए <strong>उत्तरदायी नहीं हैं</strong>, सिवाय जहाँ कानून दायित्व को बहिष्कृत नहीं कर सकता।
+        </div>
+        <p>हम ड्राइवर व्यवहार, वाहन की स्थिति या यात्रा परिणामों की गारंटी नहीं देते। आप अपने जोखिम पर सेवा का उपयोग करते हैं।</p>
       </div>
 
       <div class="card">
-        <h2>5. बुकिंग और रद्दीकरण</h2>
-        <p>वास्तविक स्थिति में कोई भी पक्ष यात्रा रद्द कर सकता है। जहाँ तक संभव हो सूचनाएँ ऐप के माध्यम से भेजी जा सकती हैं। बार-बार दुरुपयोग, धोखाधड़ी या सुरक्षा चिंता पर निलंबन हो सकता है।</p>
+        <h2>5. यात्री की ज़िम्मेदारियाँ</h2>
+        <ul>
+          <li>सटीक संपर्क जानकारी प्रदान करें (फ़ोन, ईमेल, WhatsApp)</li>
+          <li>पिकअप बिंदुओं पर समय पर पहुँचें</li>
+          <li>ड्राइवरों और अन्य यात्रियों का सम्मान करें</li>
+          <li>बुकिंग का दुरुपयोग न करें या बिना वैध कारणों के बार-बार न आएँ</li>
+          <li>उत्पीड़न, दुर्व्यवहार या गैरकानूनी व्यवहार में संलग्न न हों</li>
+          <li>सवार होने से पहले ड्राइवर की पहचान और वाहन विवरण सत्यापित करें</li>
+          <li>ऐप या आपातकालीन सेवाओं (112 डायल करें) के माध्यम से तुरंत सुरक्षा चिंताओं की रिपोर्ट करें</li>
+          <li>ड्राइवर के साथ अपनी व्यवस्था के अनुसार सहमत किराया अदा करें</li>
+        </ul>
+        <p><strong>परिणाम:</strong> बार-बार उल्लंघन पर चेतावनी, अस्थायी निलंबन या स्थायी खाता समाप्ति हो सकती है।</p>
       </div>
 
       <div class="card">
-        <h2>6. भुगतान &mdash; प्लेटफ़ॉर्म पैसा नहीं रखता</h2>
-        <p>TECHMCU और LuhaRide यात्री और ड्राइवर के बीच किराये का पैसा एकत्र, रखते या ट्रांसफ़र नहीं करते। सेवा केवल जोड़ने का माध्यम है: उपयोगकर्ता एक दूसरे को ढूँढकर यात्रा तय कर सकें। कैसे भुगतान करें (कैश, UPI आदि), कितना दें, और किराए पर सहमति&mdash;यह पूरी तरह आप और दूसरे उपयोगकर्ता के बीच है, आपसी बातचीत के बाद। हम भुगतान, रिफ़ंड या समय की गारंटी नहीं देते। अगर भुगतान से जुड़ा विवाद, हानि, धोखाधड़ी या गलत लेन-देन हो&mdash;जैसे अदा न करना, ज़्यादा लेना या ठगी&mdash;तो प्लेटफ़ॉर्म किसी भी ज़िम्मेदारी को स्वीकार नहीं करता, जहाँ तक कानून अनुमति दे। सुरक्षा या दुरुपयोग की रिपोर्ट सहायता से करें; भुगतान विवाद उपयोगकर्ताओं के बीच या कानूनी मार्ग से सुलझाने होंगे।</p>
+        <h2>6. ड्राइवर और यूनियन की ज़िम्मेदारियाँ</h2>
+        <ul>
+          <li>भारतीय कानून द्वारा आवश्यक वैध <strong>ड्राइविंग लाइसेंस, आरसी, बीमा और परमिट</strong> बनाए रखें</li>
+          <li>सुनिश्चित करें कि वाहन सुरक्षित, साफ और सड़क योग्य है</li>
+          <li>वाहन आरसी पर दिखाई गई <strong>कानूनी बैठने की क्षमता</strong> से अधिक न हों</li>
+          <li>सुरक्षित रूप से चलाएँ और सभी यातायात नियमों का पालन करें</li>
+          <li>सटीक मार्ग, किराया, प्रस्थान समय और वाहन जानकारी प्रदान करें</li>
+          <li>सत्यापन के दौरान वास्तविक दस्तावेज़ अपलोड करें (आधार, डीएल, आरसी) - नकली दस्तावेज़ों पर स्थायी प्रतिबंध लगेगा</li>
+          <li>पुष्टि बुकिंग का सम्मान करें; बार-बार रद्द करने से आपका खाता प्रभावित हो सकता है</li>
+          <li>यात्रियों के साथ सम्मान और व्यावसायिकता से पेश आएँ</li>
+          <li>धोखाधड़ी, अधिक शुल्क, उत्पीड़न या दुर्व्यवहार में संलग्न न हों</li>
+        </ul>
+        <p><strong>दस्तावेज़ सत्यापन:</strong> जमा किए गए दस्तावेज़ों की एडमिन द्वारा समीक्षा की जाएगी। अनुमोदन में आमतौर पर 24-48 घंटे लगते हैं। झूठे या धोखाधड़ी वाले दस्तावेज़ प्रदान करने पर खाता निलंबन और कानूनी कार्रवाई हो सकती है।</p>
       </div>
 
       <div class="card">
-        <h2>7. बौद्धिक संपदा और सॉफ़्टवेयर</h2>
-        <p>LuhaRide सेवा का मूल स्रोत कोड, समग्र तंत्र वास्तुकला (architecture), बैक-एंड और एप्लिकेशन लॉजिक, डेटा मॉडल, व्यावसायिक नियम, बुकिंग व संचालन वर्कफ़्लो, एकीकरण, दृश्य डिज़ाइन, ब्रांडिंग और उपयोगकर्ता अनुभव&mdash;जैसा TECHMCU ने डिज़ाइन, कार्यान्वयन और संचालन किया है&mdash;TECHMCU या उसके लाइसेंसदाताओं का मालिकाना है। यह तय करना कि ये भाग कैसे जुड़ते हैं, प्लेटफ़ॉर्म कैसे चले और उत्पाद व व्यावसायिक दृष्टि से सवारी कैसे समन्वित हों, हमारी ज़िम्मेदारी है; यह सेवा किसी अन्य विक्रेता का व्हाइट-लेबल या तैयार-पैक उत्पाद नहीं है जिसे हम केवल पुनर्विक्रय करें।</p>
-        <p>हमारा कार्यान्वयन व्यापक रूप से उपयोग किए जाने वाले औज़ारों और प्लेटफ़ॉर्म पर निर्भर हो सकता है, जिनमें उदाहरण के लिए Flutter जैसे मोबाइल फ़्रेमवर्क, Node.js जैसे सर्वर रनटाइम, PostgreSQL जैसा डेटाबेस, nginx जैसा रिवर्स प्रॉक्सी या वेब सर्वर, PM2 जैसा प्रोसेस सुपरवाइज़र और अन्य तृतीय-पक्ष व ओपन-सोर्स लाइब्रेरी शामिल हो सकती हैं; वास्तविक स्टैक समय के साथ बदल सकता है। उन औज़ारों के लेखक व लाइसेंसदाता अपनी सामग्री में अपनी लाइसेंसों के अधीन अपने अधिकार रखते हैं; हम जिन घटकों का उपयोग करते हैं, उन पर लागू लाइसेंस दायित्वों का पालन करते हैं, और जहाँ कोई लाइसेंस हमारे द्वारा आपको दी गई सामग्री पर लागू हो, उस वस्तु के लिए आपको वह लाइसेंस मानना होगा।</p>
-        <p>इससे यह नहीं बदलता कि समग्र LuhaRide कार्यान्वयन, जैसा हम पेश करते हैं, हमारा मालिकाना उत्पाद है। कानून या हमारी लिखित सहमति के अलावा हमारे सॉफ़्टवेयर या ब्रांडिंग की नकल, रिवर्स इंजीनियरिंग, स्क्रैपिंग या दुरुपयोग न करें।</p>
+        <h2>7. बुकिंग और रद्दीकरण</h2>
+        <p><strong>बुकिंग प्रक्रिया:</strong></p>
+        <ul>
+          <li>यात्री उपलब्ध यात्राओं पर सीटें चुनते हैं</li>
+          <li>बुकिंग के लिए ड्राइवर की मंज़ूरी आवश्यक है (पुष्टि तक "लंबित" दिखाया जाता है)</li>
+          <li>एक बार मंज़ूर होने पर यात्री को ड्राइवर के संपर्क विवरण मिलते हैं</li>
+        </ul>
+        <p><strong>रद्दीकरण नीति:</strong></p>
+        <ul>
+          <li>यात्री निर्धारित प्रस्थान से 2 मिनट पहले तक बुकिंग रद्द कर सकते हैं</li>
+          <li>ड्राइवर मंज़ूरी से पहले बुकिंग अनुरोध अस्वीकार कर सकते हैं</li>
+          <li>अंतिम-मिनट रद्दीकरण (2 मिनट के भीतर) की अनुमति नहीं है ताकि ड्राइवर की योजना सुरक्षित रहे</li>
+          <li>बार-बार रद्दीकरण या न आने पर प्रतिबंध लग सकता है</li>
+        </ul>
+        <p>जहाँ तकनीकी रूप से संभव हो, हम ऐप में सूचनाएँ भेज सकते हैं, लेकिन डिलीवरी की गारंटी नहीं दे सकते। बुकिंग अपडेट के लिए नियमित रूप से ऐप जाँचें।</p>
       </div>
 
       <div class="card">
-        <h2>8. डेटा और गोपनीयता</h2>
-        <p>सेवा चलाने के लिए सीमित व्यक्तिगत डेटा (नाम, फ़ोन, यात्रा इतिहास आदि) संसाधित करते हैं। व्यक्तिगत डेटा बेचते नहीं। अलग गोपनीयता नोटिस लागू हो सकता है; संचालन और सहायता के लिए उचित प्रसंस्करण स्वीकार करके ही सेवा का उपयोग करें।</p>
-        <p>सहायता / शिकायत: <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a> पर लिखें।</p>
-        <p>सत्यापन व केआईसी दस्तावेज़ सुरक्षित सर्वर पर रखे जाते हैं; जब तक खाता सक्रिय है और कानून/सत्यापन के लिए ज़रूरी है, तब तक ही रखते हैं। खाता बंद होने के बाद जहाँ तक कानून अनुमति दे, उचित समय में हटा देते या अनाम कर देते हैं। दस्तावेज़ बेचते नहीं।</p>
+        <h2>8. भुगतान — प्लेटफ़ॉर्म पैसा संभालता नहीं</h2>
+        <div class="highlight">
+          <strong>महत्वपूर्ण:</strong> LuhaRide और TECHMCU यात्रियों और ड्राइवरों के बीच किराये का पैसा एकत्र, रखते, प्रोसेस या ट्रांसफ़र <strong>नहीं करते</strong>।
+        </div>
+        <p><strong>भुगतान कैसे काम करता है:</strong></p>
+        <ul>
+          <li>LuhaRide <strong>केवल एक कनेक्शन प्लेटफ़ॉर्म</strong> है — हम उपयोगकर्ताओं को एक दूसरे से मिलाने में मदद करते हैं</li>
+          <li>किराये का भुगतान <strong>यात्री और ड्राइवर के बीच सीधे</strong> तय होता है</li>
+          <li>भुगतान विधि (कैश, UPI, बैंक ट्रांसफ़र आदि) उपयोगकर्ताओं के बीच सहमत होती है</li>
+          <li>भुगतान राशि और समय उपयोगकर्ताओं द्वारा सीधे तय किया जाता है</li>
+        </ul>
+        <p><strong>प्लेटफ़ॉर्म की कोई ज़िम्मेदारी नहीं है:</strong></p>
+        <ul>
+          <li>यात्रियों द्वारा भुगतान न करने या देर से भुगतान के लिए</li>
+          <li>ड्राइवरों द्वारा अधिक या कम शुल्क लेने के लिए</li>
+          <li>रिफ़ंड, चार्जबैक या भुगतान विवादों के लिए</li>
+          <li>भुगतान से जुड़े धोखाधड़ी लेनदेन, घोटाले या चोरी के लिए</li>
+          <li>UPI/भुगतान ऐप त्रुटियों या विफलताओं के लिए</li>
+        </ul>
+        <p><strong>विवाद समाधान:</strong> भुगतान विवाद यात्री और ड्राइवर के बीच सीधे या उचित कानूनी माध्यमों से हल करने होंगे। हम वित्तीय असहमति में मध्यस्थता नहीं करते। धोखाधड़ी या सुरक्षा मुद्दों की रिपोर्ट सहायता → समर्थन के माध्यम से करें।</p>
       </div>
 
       <div class="card">
-        <h2>9. खाता निलंबन</h2>
-        <p>इन नियमों का उल्लंघन, धोखाधड़ी, सुरक्षा जोखिम या कानूनी आवश्यकता पर हम पहुँच निलंबित या समाप्त कर सकते हैं, लागू कानून के अधीन।</p>
+        <h2>9. समीक्षा और रेटिंग</h2>
+        <ul>
+          <li>यात्री पूर्ण यात्राओं के बाद ड्राइवरों को रेट और समीक्षा कर सकते हैं</li>
+          <li>समीक्षाएँ ईमानदार, प्रासंगिक और सम्मानजनक होनी चाहिए</li>
+          <li>हम ऐसी समीक्षाएँ हटा सकते हैं जिनमें अपमानजनक भाषा, झूठी जानकारी हो या सामुदायिक दिशानिर्देशों का उल्लंघन हो</li>
+          <li>आप अन्य द्वारा दी गई अपनी रेटिंग नहीं हटा सकते</li>
+          <li>रेटिंग में हेरफेर (नकली समीक्षाएँ, समीक्षा बमबारी) प्रतिबंधित है और खाता निलंबन का कारण बन सकता है</li>
+        </ul>
       </div>
 
       <div class="card">
-        <h2>10. परिवर्तन</h2>
-        <p>हम इन नियमों को अपडेट कर सकते हैं। महत्वपूर्ण बदलाव जहाँ व्यावहारिक हो ऐप में दिखाए जाएँगे। अपडेट के बाद उपयोग जारी रखने का अर्थ है स्वीकृति, जब तक कानून अन्यथा न कहे।</p>
+        <h2>10. खाता सुरक्षा और सत्यापन</h2>
+        <p><strong>आपकी ज़िम्मेदारी:</strong></p>
+        <ul>
+          <li>अपना पासवर्ड गोपनीय रखें</li>
+          <li>एक मजबूत, विशिष्ट पासवर्ड उपयोग करें</li>
+          <li>अपना खाता दूसरों के साथ साझा न करें</li>
+          <li>अनधिकृत एक्सेस की तुरंत रिपोर्ट करें</li>
+        </ul>
+        <p><strong>सत्यापन प्रक्रिया:</strong></p>
+        <ul>
+          <li>नए खातों को आपके फ़ोन या ईमेल पर भेजे गए OTP (वन-टाइम पासवर्ड) के माध्यम से सत्यापित किया जा सकता है</li>
+          <li>ड्राइवर खातों के लिए दस्तावेज़ सत्यापन (आधार, डीएल, आरसी) आवश्यक है जो आमतौर पर 24-48 घंटे लेता है</li>
+          <li>यूनियन खातों के लिए यूनियन पंजीकरण दस्तावेज़ और नेता सत्यापन आवश्यक है</li>
+          <li>हम दुरुपयोग रोकने के लिए सभी अपलोड किए गए दस्तावेज़ों पर "LuhaRide - Verification Copy" वॉटरमार्क लगाते हैं</li>
+        </ul>
       </div>
 
       <div class="card">
-        <h2>11. लागू कानून और विवाद</h2>
-        <p>ये नियम भारत के कानूनों के अधीन हैं। देहरादून, उत्तराखंड की अदालतों को विशेष अधिकार क्षेत्र प्राप्त है (कानून द्वारा आवश्यक उपभोक्ता सुरक्षा के अधीन)।</p>
+        <h2>11. निषिद्ध आचरण</h2>
+        <p>आप नहीं कर सकते:</p>
+        <ul>
+          <li>झूठी, भ्रामक या धोखाधड़ी वाली जानकारी प्रदान करना</li>
+          <li>नकली या बदले हुए सत्यापन दस्तावेज़ अपलोड करना</li>
+          <li>किसी अन्य व्यक्ति या संस्था का रूप धारण करना</li>
+          <li>अवैध गतिविधियों (मानव तस्करी, नशीली दवाओं का परिवहन आदि) के लिए सेवा का उपयोग</li>
+          <li>अन्य उपयोगकर्ताओं को परेशान करना, धमकाना या दुर्व्यवहार करना</li>
+          <li>ऐप को स्क्रैप, कॉपी या रिवर्स इंजीनियर करना</li>
+          <li>बुकिंग या रेटिंग में हेरफेर के लिए कई खाते बनाना</li>
+          <li>स्वचालित बॉट या स्क्रिप्ट उपयोग करना</li>
+          <li>हैक करने, सुरक्षा भंग करने या अनधिकृत डेटा एक्सेस करने का प्रयास</li>
+          <li>उपयोगकर्ताओं को अवांछित संदेशों से स्पैम करना</li>
+        </ul>
+        <p><strong>परिणाम:</strong> उल्लंघन पर तत्काल खाता निलंबन, स्थायी प्रतिबंध और संभावित कानूनी कार्रवाई हो सकती है।</p>
+      </div>
+
+      <div class="card">
+        <h2>12. बौद्धिक संपदा</h2>
+        <p>LuhaRide प्लेटफ़ॉर्म — स्रोत कोड, सिस्टम आर्किटेक्चर, व्यावसायिक तर्क, डेटा मॉडल, वर्कफ़्लो, दृश्य डिज़ाइन, ब्रांडिंग और उपयोगकर्ता अनुभव सहित — <strong>TECHMCU</strong> या इसके लाइसेंसदाताओं का मालिकाना है।</p>
+        <p><strong>हमारा कार्यान्वयन:</strong> जबकि हम उद्योग-मानक उपकरणों (Flutter, Node.js, PostgreSQL, nginx आदि) का उपयोग करते हैं जिनके अपने लाइसेंस हैं, समग्र LuhaRide कार्यान्वयन एक उत्पाद के रूप में हमारा मालिकाना कार्य है। इन घटकों को कैसे संयोजित, कॉन्फ़िगर और संचालित किया जाता है ताकि सेवा प्रदान की जा सके, यह हमारी बौद्धिक संपदा है।</p>
+        <p><strong>आप नहीं कर सकते:</strong></p>
+        <ul>
+          <li>ऐप की प्रतिलिपि, पुनरुत्पादन या व्युत्पन्न कार्य बनाना</li>
+          <li>सॉफ़्टवेयर को रिवर्स इंजीनियर, डीकंपाइल या डिसअसेंबल करना</li>
+          <li>कॉपीराइट नोटिस या ब्रांडिंग हटाना या बदलना</li>
+          <li>लिखित अनुमति के बिना "LuhaRide" नाम या लोगो उपयोग करना</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>13. डेटा और गोपनीयता</h2>
+        <p>हम सेवा संचालित करने के लिए व्यक्तिगत डेटा (नाम, फ़ोन, ईमेल, स्थान, यात्रा इतिहास, सत्यापन दस्तावेज़) संसाधित करते हैं। विवरण के लिए हमारी <a class="mail" href="/privacy/">गोपनीयता नीति</a> देखें।</p>
+        <p><strong>मुख्य बिंदु:</strong></p>
+        <ul>
+          <li>हम आपका व्यक्तिगत डेटा <strong>नहीं बेचते</strong></li>
+          <li>सत्यापन दस्तावेज़ सुरक्षित रूप से संग्रहीत हैं और खाता बंद होने के बाद हटा दिए जाते हैं (कानूनी अवधारण आवश्यकताओं के अधीन)</li>
+          <li>आप किसी भी समय प्रोफ़ाइल → सेटिंग → खाता हटाएँ के माध्यम से अपना खाता हटा सकते हैं</li>
+          <li>खाता हटाने के लिए पासवर्ड पुष्टि आवश्यक है</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>14. खाता निलंबन और समाप्ति</h2>
+        <p>हम आपका खाता निलंबित या समाप्त कर सकते हैं यदि आप:</p>
+        <ul>
+          <li>इन नियमों और शर्तों का उल्लंघन करते हैं</li>
+          <li>धोखाधड़ी, दुर्व्यवहार या अवैध गतिविधि में संलग्न होते हैं</li>
+          <li>अन्य उपयोगकर्ताओं के लिए सुरक्षा जोखिम पैदा करते हैं</li>
+          <li>झूठे सत्यापन दस्तावेज़ प्रदान करते हैं</li>
+          <li>अन्य उपयोगकर्ताओं से बार-बार नकारात्मक रिपोर्ट प्राप्त करते हैं</li>
+        </ul>
+        <p>जहाँ व्यावहारिक हो, हम आपको निलंबन की सूचना देंगे, जब तक कि सुरक्षा या कानूनी कारणों से तत्काल कार्रवाई आवश्यक न हो।</p>
+        <p><strong>आप अपना खाता हटा सकते हैं:</strong> आप किसी भी समय प्रोफ़ाइल → सेटिंग के माध्यम से अपना खाता स्थायी रूप से हटा सकते हैं। यह क्रिया अपरिवर्तनीय है और आपका सारा डेटा हटा देती है (विवरण के लिए गोपनीयता नीति देखें)।</p>
+      </div>
+
+      <div class="card">
+        <h2>15. सेवा उपलब्धता और परिवर्तन</h2>
+        <ul>
+          <li>हम 24/7 उपलब्धता के लिए प्रयास करते हैं लेकिन निर्बाध सेवा की गारंटी नहीं देते</li>
+          <li>रखरखाव, अपडेट या तकनीकी समस्याओं के लिए सेवा अस्थायी रूप से अनुपलब्ध हो सकती है</li>
+          <li>हम किसी भी समय सुविधाएँ जोड़, संशोधित या हटा सकते हैं</li>
+          <li>हम मूल्य निर्धारण, नीतियों या सेवा क्षेत्रों को बदल सकते हैं</li>
+        </ul>
+        <p>जहाँ व्यावहारिक हो, महत्वपूर्ण परिवर्तनों को ऐप में सूचनाओं या ईमेल के माध्यम से सूचित किया जाएगा।</p>
+      </div>
+
+      <div class="card">
+        <h2>16. कोई वारंटी नहीं</h2>
+        <p>सेवा <strong>"जैसी है"</strong> और <strong>"जैसी उपलब्ध है"</strong> किसी भी प्रकार की वारंटी के बिना प्रदान की जाती है, जिसमें शामिल हैं लेकिन इन्हीं तक सीमित नहीं:</p>
+        <ul>
+          <li>व्यापारिकता या किसी विशेष उद्देश्य के लिए उपयुक्तता</li>
+          <li>जानकारी की सटीकता, विश्वसनीयता या उपलब्धता</li>
+          <li>त्रुटि-मुक्त या निर्बाध संचालन</li>
+          <li>ड्राइवर क्षमता, वाहन सुरक्षा या यात्रा परिणाम</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>17. क्षतिपूर्ति</h2>
+        <p>आप TECHMCU, LuhaRide और उनके निदेशकों, कर्मचारियों और सहयोगियों को किसी भी दावे, क्षति, हानि या खर्च (कानूनी शुल्क सहित) से क्षतिपूर्ति और हानिरहित रखने के लिए सहमत हैं जो उत्पन्न होते हैं:</p>
+        <ul>
+          <li>सेवा के आपके उपयोग से</li>
+          <li>इन नियमों के आपके उल्लंघन से</li>
+          <li>तृतीय पक्षों के किसी भी अधिकार के आपके उल्लंघन से</li>
+          <li>आपके द्वारा सबमिट की गई किसी भी सामग्री से (समीक्षाएँ, दस्तावेज़, फ़ोटो)</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>18. लागू कानून और क्षेत्राधिकार</h2>
+        <p>ये नियम <strong>भारत के कानूनों</strong> द्वारा शासित हैं।</p>
+        <p><strong>क्षेत्राधिकार:</strong> इन नियमों या सेवा के उपयोग से उत्पन्न कोई भी विवाद <strong>देहरादून, उत्तराखंड</strong> की अदालतों के विशेष क्षेत्राधिकार के अधीन होगा, सिवाय जहाँ अनिवार्य उपभोक्ता संरक्षण कानून अन्यथा आवश्यक हों।</p>
+        <p><strong>विवाद समाधान:</strong> हम कानूनी कार्रवाई से पहले हमारे समर्थन ईमेल के माध्यम से विवादों को सौहार्दपूर्ण ढंग से हल करने को प्रोत्साहित करते हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>19. पृथक्करणीयता</h2>
+        <p>यदि इन नियमों का कोई भी प्रावधान अमान्य या अप्रवर्तनीय पाया जाता है, तो शेष प्रावधान पूर्ण बल और प्रभाव में जारी रहेंगे।</p>
+      </div>
+
+      <div class="card">
+        <h2>20. संपर्क और शिकायतें</h2>
+        <p>इन नियमों या सेवा के संबंध में प्रश्नों, शिकायतों या शिकायतों के लिए:</p>
+        <p><strong>ईमेल:</strong> <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
+        <p><strong>संचालक:</strong> TECHMCU</p>
+        <p><strong>स्थान:</strong> देहरादून, उत्तराखंड, भारत</p>
+        <p>हम उचित समय सीमा के भीतर वास्तविक प्रश्नों का जवाब देने का प्रयास करते हैं और सुरक्षा या कानूनी मामलों को उचित रूप से बढ़ाएँगे।</p>
       </div>
     </div>
 
-    <footer>Last updated: 30 March 2026 &middot; Terms version 1.0.0 &middot; <a class="mail" href="mailto:supportluharide@gmail.com">Contact</a></footer>
+    <footer>
+      Last updated: 18 April 2026 · Terms version 2.0 · 
+      <a class="mail" href="mailto:supportluharide@gmail.com">Contact</a> · 
+      <a class="mail" href="/privacy/">Privacy Policy</a>
+    </footer>
   </div>
 
   <script>

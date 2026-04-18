@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LuhaRide — Privacy, KYC &amp; grievance</title>
-  <meta name="description" content="LuhaRide privacy summary, KYC retention, and grievance contact (TECHMCU)." />
+  <title>LuhaRide — Privacy Policy</title>
+  <meta name="description" content="LuhaRide Privacy Policy - How we collect, use, and protect your personal data." />
   <link rel="icon" type="image/png" href="/brand-logo.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -35,7 +35,7 @@
       font-size: 15.5px;
     }
     .wrap {
-      max-width: 42rem;
+      max-width: 46rem;
       margin: 0 auto;
       padding: 2rem 1.25rem 4rem;
     }
@@ -56,14 +56,41 @@
     .sub {
       color: var(--muted);
       font-size: 0.95rem;
-      margin: 0 0 2rem;
+      margin: 0 0 1.5rem;
+    }
+    .lang-toggle {
+      display: inline-flex;
+      gap: 0.35rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px;
+      margin-bottom: 1.75rem;
+      box-shadow: var(--shadow);
+    }
+    .lang-toggle button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-toggle button:hover { background: #f1f5f9; }
+    .lang-toggle button.active {
+      background: var(--blue);
+      color: #fff;
     }
     .card {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: var(--radius);
-      padding: 1.5rem 1.35rem;
-      margin-bottom: 1.25rem;
+      padding: 1.35rem 1.35rem;
+      margin-bottom: 1rem;
       box-shadow: var(--shadow);
     }
     .card h2 {
@@ -81,45 +108,505 @@
       letter-spacing: -0.005em;
     }
     .card p:last-child { margin-bottom: 0; }
-    .card ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
-    .card li { margin-bottom: 0.45rem; }
-    a.mail { color: var(--blue); font-weight: 600; word-break: break-all; }
+    .card ul { margin: 0.5rem 0 0.5rem; padding-left: 1.3rem; }
+    .card li { margin-bottom: 0.5rem; color: #334155; }
+    .card li strong { color: #0b1324; }
+    a.mail { color: var(--blue); font-weight: 600; word-break: break-all; text-decoration: none; }
+    a.mail:hover { text-decoration: underline; }
+    .highlight {
+      background: #fef3c7;
+      border-left: 3px solid #f59e0b;
+      padding: 1rem 1.2rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
     footer {
-      margin-top: 2rem;
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--line);
       font-size: 0.85rem;
       color: var(--muted);
+      text-align: center;
     }
+    .hidden { display: none; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <p class="crumb"><a href="/">← LuhaRide home</a></p>
-    <h1>Privacy, KYC retention &amp; grievance</h1>
-    <p class="sub">LuhaRide is operated under <strong>TECHMCU</strong>. This page is a public summary of how we handle support and KYC data.</p>
+    <p class="crumb"><a href="/">← LuhaRide home</a> · <a href="/terms/">Terms</a></p>
+    <h1>Privacy Policy</h1>
+    <p class="sub">Last updated: 18 April 2026 · Operated by <strong>TECHMCU</strong></p>
 
-    <div class="card">
-      <h2>Grievance &amp; support</h2>
-      <p>For questions, feedback, privacy requests, or grievances about the LuhaRide service:</p>
-      <p><strong>Email:</strong> <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
-      <p>We aim to acknowledge genuine queries within a reasonable time and route serious safety or abuse reports appropriately.</p>
+    <div class="lang-toggle" role="tablist" aria-label="Language">
+      <button type="button" class="active" data-lang="en" aria-selected="true">English</button>
+      <button type="button" data-lang="hi" aria-selected="false">हिन्दी</button>
     </div>
 
-    <div class="card">
-      <h2>KYC &amp; verification documents</h2>
-      <ul>
-        <li><strong>Purpose:</strong> Driver and union identity / vehicle documents are collected only to verify accounts, meet legal and safety expectations, and reduce fraud.</li>
-        <li><strong>Retention:</strong> We keep these files only as long as needed for active verification, ongoing compliance, and dispute prevention while your account exists.</li>
-        <li><strong>After account closure:</strong> We delete or anonymise verification documents within a reasonable period, except where applicable law requires longer retention.</li>
-        <li><strong>Security:</strong> Files are stored on access-controlled servers with industry-standard safeguards. We do not sell document images or personal data to third parties for marketing.</li>
-      </ul>
+    <!-- English -->
+    <div id="privacy-en" class="privacy-block">
+      <div class="card">
+        <h2>Introduction</h2>
+        <p>This Privacy Policy describes how <strong>LuhaRide</strong> (operated by <strong>TECHMCU</strong>) collects, uses, stores, and protects your personal information when you use our mobile application and website ("Service"). By using LuhaRide, you agree to the practices described in this policy.</p>
+        <p>LuhaRide is a taxi and ride-sharing platform connecting passengers with drivers and taxi unions in Uttarakhand and nearby areas. We are committed to protecting your privacy and handling your data responsibly.</p>
+      </div>
+
+      <div class="card">
+        <h2>Information We Collect</h2>
+        <p><strong>Personal Information:</strong></p>
+        <ul>
+          <li><strong>Account Information:</strong> Name, email address, phone number, profile photo</li>
+          <li><strong>Contact Details:</strong> WhatsApp number (optional, for driver-passenger communication)</li>
+          <li><strong>Location Data:</strong> Your device location when you search for rides, create trips, or use map features (with your permission)</li>
+          <li><strong>Verification Documents:</strong> For drivers and union admins - Aadhaar card, driving licence, vehicle RC (registration certificate), union registration documents, and related photos</li>
+          <li><strong>Vehicle Information:</strong> Registration number, vehicle type, seating capacity, make and model</li>
+          <li><strong>Trip and Booking Data:</strong> Routes, departure times, seat selections, fare amounts, booking status</li>
+          <li><strong>Reviews and Ratings:</strong> Ratings and reviews you give to drivers, and ratings you receive from passengers</li>
+        </ul>
+        <p><strong>Usage Data:</strong></p>
+        <ul>
+          <li>Device information (device type, operating system, unique device identifiers)</li>
+          <li>IP address, browser type and version</li>
+          <li>App usage patterns, pages visited, features used</li>
+          <li>Login history, session information</li>
+          <li>Crash reports and diagnostic data</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>How We Use Your Information</h2>
+        <p>We use your personal data for the following purposes:</p>
+        <ul>
+          <li><strong>Provide the Service:</strong> Connect passengers with drivers, manage bookings, coordinate rides</li>
+          <li><strong>Identity Verification:</strong> Verify driver and union admin identities using submitted documents (Aadhaar, DL, RC) to maintain platform safety and reduce fraud</li>
+          <li><strong>Account Management:</strong> Create and maintain your account, authenticate logins, manage roles (passenger/driver/union admin)</li>
+          <li><strong>Communication:</strong> Send notifications about bookings, trip updates, verification status, and service announcements</li>
+          <li><strong>Safety and Security:</strong> Monitor for fraud, abuse, or safety concerns; investigate reported incidents</li>
+          <li><strong>Improve Service:</strong> Analyze usage patterns to improve app features, fix bugs, and enhance user experience</li>
+          <li><strong>Customer Support:</strong> Respond to your queries, complaints, and support requests</li>
+          <li><strong>Legal Compliance:</strong> Meet legal obligations, respond to lawful requests from authorities</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Document Verification and Storage</h2>
+        <p><strong>Purpose:</strong> Driver and union verification documents (Aadhaar, DL, RC, union photos) are collected exclusively for identity verification, fraud prevention, and regulatory compliance.</p>
+        <p><strong>Watermarking:</strong> Uploaded documents are watermarked with "LuhaRide - Verification Copy" to prevent misuse.</p>
+        <p><strong>Storage:</strong> Documents are stored on secure, access-controlled servers with encryption. Only authorized admin personnel can view these documents for verification purposes.</p>
+        <p><strong>Retention:</strong> We retain verification documents only as long as your account is active and for a reasonable period thereafter as required for legal compliance, dispute resolution, and fraud prevention (typically up to 90 days after account deletion, unless law requires longer).</p>
+        <p><strong>No Third-Party Sale:</strong> We do not sell, rent, or share your verification documents or personal data with third parties for marketing purposes.</p>
+      </div>
+
+      <div class="card">
+        <h2>Data Sharing and Disclosure</h2>
+        <p>We may share your information in the following situations:</p>
+        <ul>
+          <li><strong>With Other Users:</strong> When you book a ride or create a trip, relevant information (name, photo, contact details for confirmed bookings) is shared between passenger and driver to facilitate the ride.</li>
+          <li><strong>Service Providers:</strong> We use third-party services (hosting providers, email services, SMS providers) who process data on our behalf under strict confidentiality agreements.</li>
+          <li><strong>Legal Requirements:</strong> We may disclose information when required by law, court order, or government request, or to protect rights, property, or safety.</li>
+          <li><strong>Business Transfers:</strong> In case of merger, acquisition, or sale of assets, your data may be transferred to the new entity (you will be notified).</li>
+          <li><strong>With Your Consent:</strong> We may share data for other purposes with your explicit consent.</li>
+        </ul>
+        <p><strong>We DO NOT sell your personal data to advertisers or data brokers.</strong></p>
+      </div>
+
+      <div class="card">
+        <h2>Location Services</h2>
+        <p>LuhaRide uses your device location (with your permission) to:</p>
+        <ul>
+          <li>Show nearby rides and destinations</li>
+          <li>Auto-fill pickup and drop-off locations</li>
+          <li>Display map-based features</li>
+        </ul>
+        <p>You can enable or disable location access anytime through your device settings. Disabling location may limit certain features.</p>
+      </div>
+
+      <div class="card">
+        <h2>WhatsApp and Contact Sharing</h2>
+        <p>LuhaRide may display driver's WhatsApp number and phone number to passengers after booking confirmation. This facilitates direct communication for trip coordination. We recommend using WhatsApp for booking-related queries only.</p>
+        <p><strong>Important:</strong> Contact sharing is limited to confirmed bookings. Be cautious about sharing personal information outside the app.</p>
+      </div>
+
+      <div class="card">
+        <h2>Reviews and Ratings</h2>
+        <p>Reviews and ratings you submit are visible to other users. They help maintain platform quality and user trust.</p>
+        <ul>
+          <li>Reviews you write may be edited or removed if they violate our community guidelines</li>
+          <li>Ratings received by you from other users are preserved for platform integrity, even if you delete your account</li>
+          <li>You cannot delete ratings given to you by other users</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Cookies and Tracking Technologies</h2>
+        <p>We use cookies and similar technologies to:</p>
+        <ul>
+          <li><strong>Essential Cookies:</strong> Maintain your login session, remember preferences</li>
+          <li><strong>Analytics:</strong> Understand how you use the app, which features are popular</li>
+          <li><strong>Performance:</strong> Monitor app performance, identify and fix bugs</li>
+        </ul>
+        <p>You can control cookies through your browser settings. Blocking cookies may affect some app features.</p>
+      </div>
+
+      <div class="card">
+        <h2>Account Deletion and Your Rights</h2>
+        <div class="highlight">
+          <strong>You have the right to delete your account at any time.</strong>
+        </div>
+        <p><strong>How to Delete:</strong> Go to Profile → Settings → Delete account. You will be asked to confirm with your password.</p>
+        <p><strong>What Gets Deleted:</strong></p>
+        <ul>
+          <li>Your profile and personal information (name, email, phone, photo)</li>
+          <li>Trips you created as a driver</li>
+          <li>Your bookings as a passenger</li>
+          <li>Reviews you submitted</li>
+          <li>Verification documents you uploaded (Aadhaar, DL, RC)</li>
+          <li>Your login history and notifications</li>
+        </ul>
+        <p><strong>What is Preserved:</strong></p>
+        <ul>
+          <li>Ratings given to you by other users (for platform data integrity)</li>
+          <li>Anonymized transaction records (for legal compliance and analytics)</li>
+        </ul>
+        <p><strong>Other Rights:</strong></p>
+        <ul>
+          <li><strong>Access:</strong> Request a copy of your personal data</li>
+          <li><strong>Correction:</strong> Update incorrect information via Edit Profile</li>
+          <li><strong>Data Portability:</strong> Request your data in a portable format</li>
+        </ul>
+        <p>To exercise these rights, email us at <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
+      </div>
+
+      <div class="card">
+        <h2>Data Retention</h2>
+        <ul>
+          <li><strong>Active Accounts:</strong> We retain your data as long as your account is active</li>
+          <li><strong>Verification Documents:</strong> Retained while your account is active and up to 90 days after deletion (unless law requires longer) for legal compliance and fraud prevention</li>
+          <li><strong>Trip Records:</strong> Historical trip and booking data may be retained in anonymized form for analytics and legal compliance</li>
+          <li><strong>Legal Requirements:</strong> Some data may be retained longer if required by law (e.g., tax records, legal disputes)</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Data Security</h2>
+        <p>We implement industry-standard security measures to protect your data:</p>
+        <ul>
+          <li>Encrypted data transmission (HTTPS/TLS)</li>
+          <li>Password hashing (bcrypt) for account security</li>
+          <li>Access-controlled servers with restricted admin access</li>
+          <li>Regular security audits and monitoring</li>
+          <li>Watermarked documents to prevent misuse</li>
+        </ul>
+        <p><strong>Important:</strong> No method of transmission or storage is 100% secure. While we strive to protect your data, we cannot guarantee absolute security. Use strong passwords and report suspicious activity immediately.</p>
+      </div>
+
+      <div class="card">
+        <h2>Payments and Financial Data</h2>
+        <p><strong>LuhaRide does not handle payments.</strong> We are a connection platform only.</p>
+        <ul>
+          <li>Fare payment is settled directly between passenger and driver (cash, UPI, or other agreed methods)</li>
+          <li>We do not collect, store, or process payment card information</li>
+          <li>We do not collect any payment transaction data</li>
+          <li>Payment disputes must be resolved between users directly</li>
+        </ul>
+        <p>This means we have no access to your bank account, card details, or UPI information.</p>
+      </div>
+
+      <div class="card">
+        <h2>Third-Party Services</h2>
+        <p>LuhaRide integrates with third-party services that may collect information:</p>
+        <ul>
+          <li><strong>SMS/Email Providers:</strong> For OTP verification and notifications</li>
+          <li><strong>WhatsApp:</strong> When you choose to contact a driver via WhatsApp, you'll leave our app</li>
+          <li><strong>Map Services:</strong> For location and route display</li>
+          <li><strong>Cloud Hosting:</strong> Our servers run on secure cloud infrastructure</li>
+        </ul>
+        <p>These third parties have their own privacy policies. We recommend reviewing them when you use external links or services.</p>
+      </div>
+
+      <div class="card">
+        <h2>Children's Privacy</h2>
+        <p>LuhaRide is not intended for users under 18 years of age. We do not knowingly collect personal information from children. If you believe a child has provided us with personal data, please contact us immediately at <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a>, and we will take steps to delete that information.</p>
+        <p><strong>Age Requirement:</strong> To create a driver or union account, you must be at least 18 years old and hold a valid driving licence as required by law.</p>
+      </div>
+
+      <div class="card">
+        <h2>Changes to Privacy Policy</h2>
+        <p>We may update this Privacy Policy from time to time. We will notify you of material changes via:</p>
+        <ul>
+          <li>In-app notification</li>
+          <li>Email to your registered address</li>
+          <li>Updated "Last updated" date on this page</li>
+        </ul>
+        <p>Continued use of the Service after changes means you accept the updated policy.</p>
+      </div>
+
+      <div class="card">
+        <h2>Your Consent</h2>
+        <p>By using LuhaRide, you consent to:</p>
+        <ul>
+          <li>Collection and use of information as described in this policy</li>
+          <li>Processing of your data on servers located in India</li>
+          <li>Sharing of relevant information with other users (drivers/passengers) to facilitate rides</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Contact Us - Grievances and Support</h2>
+        <p>For questions about this Privacy Policy, data deletion requests, or privacy concerns:</p>
+        <p><strong>Email:</strong> <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
+        <p><strong>Operated by:</strong> TECHMCU</p>
+        <p><strong>Location:</strong> Dehradun, Uttarakhand, India</p>
+        <p>We aim to respond to genuine queries within a reasonable timeframe and will route safety or abuse reports appropriately.</p>
+      </div>
     </div>
 
-    <div class="card">
-      <h2>User trust</h2>
-      <p>We treat rider and driver data with care proportional to a transport marketplace: limited collection, secured storage, and the email above if something looks wrong.</p>
+    <!-- Hindi -->
+    <div id="privacy-hi" class="privacy-block hidden">
+      <div class="card">
+        <h2>परिचय</h2>
+        <p>यह गोपनीयता नीति बताती है कि <strong>LuhaRide</strong> (<strong>TECHMCU</strong> द्वारा संचालित) आपकी व्यक्तिगत जानकारी कैसे एकत्र, उपयोग, संग्रहीत और सुरक्षित करता है जब आप हमारे मोबाइल ऐप और वेबसाइट ("सेवा") का उपयोग करते हैं। LuhaRide उपयोग करके आप इस नीति में वर्णित प्रथाओं से सहमत होते हैं।</p>
+        <p>LuhaRide एक टैक्सी और राइड-शेयरिंग प्लेटफ़ॉर्म है जो उत्तराखंड और आसपास के क्षेत्रों में यात्रियों को ड्राइवरों और टैक्सी यूनियनों से जोड़ता है। हम आपकी गोपनीयता की रक्षा और डेटा को ज़िम्मेदारी से संभालने के लिए प्रतिबद्ध हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>हम क्या जानकारी एकत्र करते हैं</h2>
+        <p><strong>व्यक्तिगत जानकारी:</strong></p>
+        <ul>
+          <li><strong>खाता जानकारी:</strong> नाम, ईमेल पता, फ़ोन नंबर, प्रोफ़ाइल फोटो</li>
+          <li><strong>संपर्क विवरण:</strong> WhatsApp नंबर (वैकल्पिक, ड्राइवर-यात्री संचार के लिए)</li>
+          <li><strong>स्थान डेटा:</strong> जब आप राइड खोजते हैं, यात्रा बनाते हैं या मैप सुविधाएँ उपयोग करते हैं तो आपके डिवाइस की स्थिति (आपकी अनुमति से)</li>
+          <li><strong>सत्यापन दस्तावेज़:</strong> ड्राइवर और यूनियन एडमिन के लिए - आधार कार्ड, ड्राइविंग लाइसेंस, वाहन आरसी (पंजीकरण प्रमाण पत्र), यूनियन पंजीकरण दस्तावेज़ और संबंधित फ़ोटो</li>
+          <li><strong>वाहन जानकारी:</strong> पंजीकरण संख्या, वाहन प्रकार, बैठने की क्षमता, मेक और मॉडल</li>
+          <li><strong>यात्रा और बुकिंग डेटा:</strong> मार्ग, प्रस्थान समय, सीट चयन, किराया राशि, बुकिंग स्थिति</li>
+          <li><strong>समीक्षा और रेटिंग:</strong> आप ड्राइवरों को दी गई रेटिंग और समीक्षाएँ, और यात्रियों से प्राप्त रेटिंग</li>
+        </ul>
+        <p><strong>उपयोग डेटा:</strong></p>
+        <ul>
+          <li>डिवाइस जानकारी (डिवाइस प्रकार, ऑपरेटिंग सिस्टम, विशिष्ट पहचानकर्ता)</li>
+          <li>IP पता, ब्राउज़र प्रकार और संस्करण</li>
+          <li>ऐप उपयोग पैटर्न, देखे गए पृष्ठ, उपयोग की गई सुविधाएँ</li>
+          <li>लॉगिन इतिहास, सत्र जानकारी</li>
+          <li>क्रैश रिपोर्ट और डायग्नोस्टिक डेटा</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>हम आपकी जानकारी का उपयोग कैसे करते हैं</h2>
+        <p>हम आपके व्यक्तिगत डेटा का उपयोग निम्नलिखित उद्देश्यों के लिए करते हैं:</p>
+        <ul>
+          <li><strong>सेवा प्रदान करना:</strong> यात्रियों को ड्राइवरों से जोड़ना, बुकिंग प्रबंधित करना, राइड समन्वय</li>
+          <li><strong>पहचान सत्यापन:</strong> प्लेटफ़ॉर्म सुरक्षा बनाए रखने और धोखाधड़ी कम करने के लिए जमा दस्तावेज़ों (आधार, डीएल, आरसी) से ड्राइवर और यूनियन एडमिन की पहचान सत्यापित करना</li>
+          <li><strong>खाता प्रबंधन:</strong> आपका खाता बनाना और बनाए रखना, लॉगिन प्रमाणित करना, भूमिकाएँ प्रबंधित करना (यात्री/ड्राइवर/यूनियन एडमिन)</li>
+          <li><strong>संचार:</strong> बुकिंग, यात्रा अपडेट, सत्यापन स्थिति और सेवा घोषणाओं की सूचनाएँ भेजना</li>
+          <li><strong>सुरक्षा:</strong> धोखाधड़ी, दुरुपयोग या सुरक्षा चिंताओं की निगरानी; रिपोर्ट की गई घटनाओं की जाँच</li>
+          <li><strong>सेवा सुधार:</strong> ऐप सुविधाएँ सुधारने, बग ठीक करने और उपयोगकर्ता अनुभव बढ़ाने के लिए उपयोग पैटर्न का विश्लेषण</li>
+          <li><strong>ग्राहक सहायता:</strong> आपके प्रश्नों, शिकायतों और सहायता अनुरोधों का जवाब देना</li>
+          <li><strong>कानूनी अनुपालन:</strong> कानूनी दायित्वों को पूरा करना, अधिकारियों के वैध अनुरोधों का जवाब देना</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>दस्तावेज़ सत्यापन और संग्रहण</h2>
+        <p><strong>उद्देश्य:</strong> ड्राइवर और यूनियन सत्यापन दस्तावेज़ (आधार, डीएल, आरसी, यूनियन फ़ोटो) विशेष रूप से पहचान सत्यापन, धोखाधड़ी रोकथाम और नियामक अनुपालन के लिए एकत्र किए जाते हैं।</p>
+        <p><strong>वॉटरमार्किंग:</strong> अपलोड किए गए दस्तावेज़ों पर "LuhaRide - Verification Copy" वॉटरमार्क लगाया जाता है ताकि दुरुपयोग न हो।</p>
+        <p><strong>संग्रहण:</strong> दस्तावेज़ सुरक्षित, एक्सेस-नियंत्रित सर्वर पर एन्क्रिप्शन के साथ संग्रहीत हैं। केवल अधिकृत एडमिन कर्मचारी ही सत्यापन के लिए ये दस्तावेज़ देख सकते हैं।</p>
+        <p><strong>अवधारण:</strong> हम सत्यापन दस्तावेज़ तभी तक रखते हैं जब तक आपका खाता सक्रिय है और उसके बाद कानूनी अनुपालन, विवाद समाधान और धोखाधड़ी रोकथाम के लिए आवश्यक उचित अवधि तक (आमतौर पर खाता हटाने के 90 दिन बाद तक, जब तक कानून अधिक समय की आवश्यकता न हो)।</p>
+        <p><strong>तृतीय-पक्ष बिक्री नहीं:</strong> हम आपके सत्यापन दस्तावेज़ या व्यक्तिगत डेटा को विपणन उद्देश्यों के लिए तृतीय पक्षों को बेचते, किराए पर देते या साझा नहीं करते।</p>
+      </div>
+
+      <div class="card">
+        <h2>डेटा साझाकरण और प्रकटीकरण</h2>
+        <p>हम आपकी जानकारी निम्नलिखित स्थितियों में साझा कर सकते हैं:</p>
+        <ul>
+          <li><strong>अन्य उपयोगकर्ताओं के साथ:</strong> जब आप राइड बुक करते हैं या यात्रा बनाते हैं, तो राइड सुविधा के लिए यात्री और ड्राइवर के बीच संबंधित जानकारी (नाम, फोटो, पुष्टि बुकिंग के लिए संपर्क विवरण) साझा की जाती है।</li>
+          <li><strong>सेवा प्रदाता:</strong> हम तृतीय-पक्ष सेवाओं (होस्टिंग, ईमेल, SMS प्रदाता) का उपयोग करते हैं जो हमारी ओर से सख्त गोपनीयता समझौतों के तहत डेटा संसाधित करते हैं।</li>
+          <li><strong>कानूनी आवश्यकताएँ:</strong> कानून, न्यायालय आदेश या सरकारी अनुरोध द्वारा आवश्यक होने पर, या अधिकारों, संपत्ति या सुरक्षा की रक्षा के लिए हम जानकारी प्रकट कर सकते हैं।</li>
+          <li><strong>व्यावसायिक स्थानांतरण:</strong> विलय, अधिग्रहण या संपत्ति बिक्री के मामले में आपका डेटा नई इकाई को स्थानांतरित हो सकता है (आपको सूचित किया जाएगा)।</li>
+          <li><strong>आपकी सहमति से:</strong> आपकी स्पष्ट सहमति से अन्य उद्देश्यों के लिए डेटा साझा कर सकते हैं।</li>
+        </ul>
+        <p><strong>हम आपका व्यक्तिगत डेटा विज्ञापनदाताओं या डेटा ब्रोकरों को नहीं बेचते।</strong></p>
+      </div>
+
+      <div class="card">
+        <h2>स्थान सेवाएँ</h2>
+        <p>LuhaRide आपके डिवाइस की स्थिति (आपकी अनुमति से) का उपयोग करता है:</p>
+        <ul>
+          <li>पास की राइडें और गंतव्य दिखाने के लिए</li>
+          <li>पिकअप और ड्रॉप-ऑफ़ स्थान स्वचालित रूप से भरने के लिए</li>
+          <li>मैप-आधारित सुविधाएँ प्रदर्शित करने के लिए</li>
+        </ul>
+        <p>आप किसी भी समय अपने डिवाइस सेटिंग के माध्यम से स्थान एक्सेस सक्षम या अक्षम कर सकते हैं। स्थान अक्षम करने से कुछ सुविधाएँ सीमित हो सकती हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>WhatsApp और संपर्क साझाकरण</h2>
+        <p>LuhaRide बुकिंग पुष्टि के बाद ड्राइवर का WhatsApp नंबर और फ़ोन नंबर यात्रियों को दिखा सकता है। यह यात्रा समन्वय के लिए सीधे संचार को सुविधाजनक बनाता है। हम अनुशंसा करते हैं कि WhatsApp का उपयोग केवल बुकिंग से संबंधित प्रश्नों के लिए करें।</p>
+        <p><strong>महत्वपूर्ण:</strong> संपर्क साझाकरण केवल पुष्टि बुकिंग तक सीमित है। ऐप के बाहर व्यक्तिगत जानकारी साझा करने में सावधान रहें।</p>
+      </div>
+
+      <div class="card">
+        <h2>समीक्षा और रेटिंग</h2>
+        <p>आपके द्वारा सबमिट की गई समीक्षा और रेटिंग अन्य उपयोगकर्ताओं को दिखाई देती हैं। वे प्लेटफ़ॉर्म गुणवत्ता और उपयोगकर्ता विश्वास बनाए रखने में मदद करती हैं।</p>
+        <ul>
+          <li>आपकी लिखी समीक्षाएँ संपादित या हटाई जा सकती हैं यदि वे हमारे सामुदायिक दिशानिर्देशों का उल्लंघन करती हैं</li>
+          <li>आपके खाता हटाने पर भी अन्य उपयोगकर्ताओं द्वारा दी गई रेटिंग प्लेटफ़ॉर्म अखंडता के लिए सुरक्षित रखी जाती हैं</li>
+          <li>आप अन्य उपयोगकर्ताओं द्वारा दी गई अपनी रेटिंग नहीं हटा सकते</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>कुकीज़ और ट्रैकिंग तकनीकें</h2>
+        <p>हम कुकीज़ और समान तकनीकों का उपयोग करते हैं:</p>
+        <ul>
+          <li><strong>आवश्यक कुकीज़:</strong> आपका लॉगिन सत्र बनाए रखने, प्राथमिकताएँ याद रखने के लिए</li>
+          <li><strong>एनालिटिक्स:</strong> समझने के लिए कि आप ऐप का उपयोग कैसे करते हैं, कौन सी सुविधाएँ लोकप्रिय हैं</li>
+          <li><strong>प्रदर्शन:</strong> ऐप प्रदर्शन की निगरानी, बग पहचानना और ठीक करना</li>
+        </ul>
+        <p>आप अपनी ब्राउज़र सेटिंग के माध्यम से कुकीज़ नियंत्रित कर सकते हैं। कुकीज़ ब्लॉक करने से कुछ ऐप सुविधाएँ प्रभावित हो सकती हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>खाता हटाना और आपके अधिकार</h2>
+        <div class="highlight">
+          <strong>आपको किसी भी समय अपना खाता हटाने का अधिकार है।</strong>
+        </div>
+        <p><strong>कैसे हटाएँ:</strong> प्रोफ़ाइल → सेटिंग → खाता हटाएँ पर जाएँ। आपसे अपने पासवर्ड से पुष्टि करने को कहा जाएगा।</p>
+        <p><strong>क्या हटाया जाता है:</strong></p>
+        <ul>
+          <li>आपकी प्रोफ़ाइल और व्यक्तिगत जानकारी (नाम, ईमेल, फ़ोन, फोटो)</li>
+          <li>ड्राइवर के रूप में आपके द्वारा बनाई गई यात्राएँ</li>
+          <li>यात्री के रूप में आपकी बुकिंग</li>
+          <li>आपके द्वारा सबमिट की गई समीक्षाएँ</li>
+          <li>आपके द्वारा अपलोड किए गए सत्यापन दस्तावेज़ (आधार, डीएल, आरसी)</li>
+          <li>आपका लॉगिन इतिहास और सूचनाएँ</li>
+        </ul>
+        <p><strong>क्या सुरक्षित रखा जाता है:</strong></p>
+        <ul>
+          <li>अन्य उपयोगकर्ताओं द्वारा आपको दी गई रेटिंग (प्लेटफ़ॉर्म डेटा अखंडता के लिए)</li>
+          <li>अनाम लेनदेन रिकॉर्ड (कानूनी अनुपालन और विश्लेषण के लिए)</li>
+        </ul>
+        <p><strong>अन्य अधिकार:</strong></p>
+        <ul>
+          <li><strong>एक्सेस:</strong> अपने व्यक्तिगत डेटा की प्रति का अनुरोध करें</li>
+          <li><strong>सुधार:</strong> प्रोफ़ाइल संपादित करें के माध्यम से गलत जानकारी अपडेट करें</li>
+          <li><strong>डेटा पोर्टेबिलिटी:</strong> अपना डेटा पोर्टेबल प्रारूप में मांगें</li>
+        </ul>
+        <p>इन अधिकारों का उपयोग करने के लिए हमें <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a> पर ईमेल करें</p>
+      </div>
+
+      <div class="card">
+        <h2>डेटा अवधारण</h2>
+        <ul>
+          <li><strong>सक्रिय खाते:</strong> जब तक आपका खाता सक्रिय है तब तक आपका डेटा रखते हैं</li>
+          <li><strong>सत्यापन दस्तावेज़:</strong> जब तक आपका खाता सक्रिय है और हटाने के 90 दिन बाद तक (जब तक कानून अधिक समय की आवश्यकता न हो) कानूनी अनुपालन और धोखाधड़ी रोकथाम के लिए रखे जाते हैं</li>
+          <li><strong>यात्रा रिकॉर्ड:</strong> ऐतिहासिक यात्रा और बुकिंग डेटा विश्लेषण और कानूनी अनुपालन के लिए अनाम रूप में रखा जा सकता है</li>
+          <li><strong>कानूनी आवश्यकताएँ:</strong> कुछ डेटा कानून द्वारा आवश्यक होने पर अधिक समय तक रखा जा सकता है (जैसे कर रिकॉर्ड, कानूनी विवाद)</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>डेटा सुरक्षा</h2>
+        <p>हम आपके डेटा की सुरक्षा के लिए उद्योग-मानक सुरक्षा उपाय लागू करते हैं:</p>
+        <ul>
+          <li>एन्क्रिप्टेड डेटा ट्रांसमिशन (HTTPS/TLS)</li>
+          <li>खाता सुरक्षा के लिए पासवर्ड हैशिंग (bcrypt)</li>
+          <li>प्रतिबंधित एडमिन एक्सेस के साथ एक्सेस-नियंत्रित सर्वर</li>
+          <li>नियमित सुरक्षा ऑडिट और निगरानी</li>
+          <li>दुरुपयोग रोकने के लिए वॉटरमार्क दस्तावेज़</li>
+        </ul>
+        <p><strong>महत्वपूर्ण:</strong> कोई भी प्रसारण या संग्रहण विधि 100% सुरक्षित नहीं है। जबकि हम आपके डेटा की सुरक्षा के लिए प्रयास करते हैं, हम पूर्ण सुरक्षा की गारंटी नहीं दे सकते। मजबूत पासवर्ड उपयोग करें और संदिग्ध गतिविधि तुरंत रिपोर्ट करें।</p>
+      </div>
+
+      <div class="card">
+        <h2>भुगतान और वित्तीय डेटा</h2>
+        <p><strong>LuhaRide भुगतान संभालता नहीं है।</strong> हम केवल एक कनेक्शन प्लेटफ़ॉर्म हैं।</p>
+        <ul>
+          <li>किराये का भुगतान यात्री और ड्राइवर के बीच सीधे तय होता है (कैश, UPI या अन्य सहमत तरीके)</li>
+          <li>हम भुगतान कार्ड जानकारी एकत्र, संग्रहीत या संसाधित नहीं करते</li>
+          <li>हम कोई भी भुगतान लेनदेन डेटा एकत्र नहीं करते</li>
+          <li>भुगतान विवाद उपयोगकर्ताओं के बीच सीधे हल करने होंगे</li>
+        </ul>
+        <p>इसका अर्थ है कि हमारे पास आपके बैंक खाते, कार्ड विवरण या UPI जानकारी तक कोई पहुँच नहीं है।</p>
+      </div>
+
+      <div class="card">
+        <h2>तृतीय-पक्ष सेवाएँ</h2>
+        <p>LuhaRide तृतीय-पक्ष सेवाओं के साथ एकीकृत है जो जानकारी एकत्र कर सकती हैं:</p>
+        <ul>
+          <li><strong>SMS/ईमेल प्रदाता:</strong> OTP सत्यापन और सूचनाओं के लिए</li>
+          <li><strong>WhatsApp:</strong> जब आप ड्राइवर से WhatsApp के माध्यम से संपर्क करते हैं, तो आप हमारे ऐप से बाहर जाते हैं</li>
+          <li><strong>मैप सेवाएँ:</strong> स्थान और मार्ग प्रदर्शन के लिए</li>
+          <li><strong>क्लाउड होस्टिंग:</strong> हमारे सर्वर सुरक्षित क्लाउड बुनियादी ढाँचे पर चलते हैं</li>
+        </ul>
+        <p>इन तृतीय पक्षों की अपनी गोपनीयता नीतियाँ हैं। जब आप बाहरी लिंक या सेवाओं का उपयोग करें तो उनकी समीक्षा करने की अनुशंसा करते हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>बच्चों की गोपनीयता</h2>
+        <p>LuhaRide 18 वर्ष से कम आयु के उपयोगकर्ताओं के लिए नहीं है। हम जानबूझकर बच्चों से व्यक्तिगत जानकारी एकत्र नहीं करते। यदि आपको लगता है कि किसी बच्चे ने हमें व्यक्तिगत डेटा प्रदान किया है, तो कृपया तुरंत <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a> पर संपर्क करें, और हम उस जानकारी को हटाने के लिए कदम उठाएँगे।</p>
+        <p><strong>आयु आवश्यकता:</strong> ड्राइवर या यूनियन खाता बनाने के लिए आपकी आयु कम से कम 18 वर्ष होनी चाहिए और कानून द्वारा आवश्यक वैध ड्राइविंग लाइसेंस होना चाहिए।</p>
+      </div>
+
+      <div class="card">
+        <h2>गोपनीयता नीति में परिवर्तन</h2>
+        <p>हम समय-समय पर इस गोपनीयता नीति को अपडेट कर सकते हैं। हम महत्वपूर्ण परिवर्तनों के बारे में आपको सूचित करेंगे:</p>
+        <ul>
+          <li>ऐप में सूचना के माध्यम से</li>
+          <li>आपके पंजीकृत पते पर ईमेल द्वारा</li>
+          <li>इस पृष्ठ पर "Last updated" तारीख अपडेट करके</li>
+        </ul>
+        <p>परिवर्तनों के बाद सेवा का निरंतर उपयोग का अर्थ है कि आप अपडेट की गई नीति स्वीकार करते हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>आपकी सहमति</h2>
+        <p>LuhaRide उपयोग करके आप सहमत होते हैं:</p>
+        <ul>
+          <li>इस नीति में वर्णित जानकारी के संग्रह और उपयोग से</li>
+          <li>भारत में स्थित सर्वर पर आपके डेटा के प्रसंस्करण से</li>
+          <li>राइड सुविधा के लिए अन्य उपयोगकर्ताओं (ड्राइवर/यात्री) के साथ संबंधित जानकारी साझा करने से</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>संपर्क करें - शिकायतें और सहायता</h2>
+        <p>इस गोपनीयता नीति, डेटा हटाने के अनुरोध या गोपनीयता चिंताओं के बारे में प्रश्नों के लिए:</p>
+        <p><strong>ईमेल:</strong> <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
+        <p><strong>संचालक:</strong> TECHMCU</p>
+        <p><strong>स्थान:</strong> देहरादून, उत्तराखंड, भारत</p>
+        <p>हम उचित समय सीमा के भीतर वास्तविक प्रश्नों का जवाब देने का प्रयास करते हैं और सुरक्षा या दुरुपयोग रिपोर्ट को उचित रूप से संभालेंगे।</p>
+      </div>
     </div>
 
-    <footer>Last updated: 30 March 2026 · Terms version 1.0.0 · <a class="mail" href="mailto:supportluharide@gmail.com">Contact</a></footer>
+    <footer>
+      Last updated: 18 April 2026 · Privacy Policy v2.0 · 
+      <a class="mail" href="mailto:supportluharide@gmail.com">Contact</a> · 
+      <a class="mail" href="/terms/">Terms & Conditions</a>
+    </footer>
   </div>
+
+  <script>
+    (function () {
+      var buttons = document.querySelectorAll(".lang-toggle button");
+      var blocks = {
+        en: document.getElementById("privacy-en"),
+        hi: document.getElementById("privacy-hi")
+      };
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var lang = btn.getAttribute("data-lang");
+          buttons.forEach(function (b) {
+            var isActive = b === btn;
+            b.classList.toggle("active", isActive);
+            b.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
+          Object.keys(blocks).forEach(function (key) {
+            blocks[key].classList.toggle("hidden", key !== lang);
+          });
+        });
+      });
+    })();
+  </script>
 </body>
 </html>
