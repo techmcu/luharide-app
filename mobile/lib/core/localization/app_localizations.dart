@@ -290,6 +290,10 @@ class AppLocalizations {
       'en': 'About this app',
       'hi': 'ऐप के बारे में',
     },
+    'help.account_management.title': {
+      'en': 'Account Management',
+      'hi': 'खाता प्रबंधन',
+    },
     'help.about.version': {
       'en': 'Version',
       'hi': 'संस्करण',

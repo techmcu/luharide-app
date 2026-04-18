@@ -3,10 +3,13 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/app_navigator.dart';
 import '../../../../core/brand_config.dart';
 import '../../../../core/config/env_config.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/app_language_provider.dart';
+import '../../../../providers/auth_provider.dart';
+import '../../../landing/presentation/screens/landing_screen.dart';
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
@@ -160,7 +163,172 @@ class HelpScreen extends StatelessWidget {
                     }
                   },
           ),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 16),
+          Text(
+            loc.t('help.account_management.title'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            color: Colors.red[50],
+            child: ListTile(
+              leading: Icon(Icons.delete_forever, color: Colors.red[800]),
+              title: Text(
+                loc.t('profile.delete_account.title'),
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red[800],
+                ),
+              ),
+              subtitle: Text(
+                loc.t('profile.delete_account.subtitle'),
+                style: TextStyle(fontSize: 12.5, color: Colors.red[700]),
+              ),
+              trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red[600]),
+              onTap: () => _showDeleteAccountDialog(context),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context) {
+    final authProvider = context.read<AuthProvider>();
+    final loc = AppLocalizations.of(context);
+    final passwordController = TextEditingController();
+    bool isDeleting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red[700], size: 28),
+              const SizedBox(width: 10),
+              Expanded(child: Text(loc.t('delete_account.dialog_title'))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  loc.t('delete_account.warning'),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  loc.t('delete_account.data_list'),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700], height: 1.5),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  enabled: !isDeleting,
+                  decoration: InputDecoration(
+                    labelText: loc.t('delete_account.password_label'),
+                    hintText: loc.t('delete_account.password_hint'),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isDeleting ? null : () => Navigator.pop(dialogCtx),
+              child: Text(loc.t('delete_account.cancel_button')),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700]),
+              onPressed: isDeleting
+                  ? null
+                  : () async {
+                      final password = passwordController.text.trim();
+                      if (password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(loc.t('delete_account.password_required'))),
+                        );
+                        return;
+                      }
+
+                      setState(() => isDeleting = true);
+
+                      try {
+                        await authProvider.deleteAccount(password);
+                        
+                        if (!ctx.mounted) return;
+                        Navigator.pop(dialogCtx);
+
+                        // Show success message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(loc.t('delete_account.success')),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+
+                        // Navigate to landing screen after a short delay
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          if (navigatorKey.currentState != null) {
+                            navigatorKey.currentState!.pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => const LandingScreen()),
+                              (route) => false,
+                            );
+                          }
+                        });
+                      } catch (e) {
+                        setState(() => isDeleting = false);
+                        if (!ctx.mounted) return;
+
+                        String errorMsg = loc.t('delete_account.failed');
+                        final errorStr = e.toString();
+
+                        if (errorStr.contains('Incorrect password')) {
+                          errorMsg = loc.t('delete_account.incorrect_password');
+                        } else if (errorStr.contains('OTP')) {
+                          errorMsg = loc.t('delete_account.no_password_error');
+                        } else if (errorStr.contains('Session expired') || errorStr.contains('login again')) {
+                          errorMsg = 'Session expired. Please logout and login again to delete your account.';
+
+                          // Auto-redirect to landing after 2 seconds
+                          Future.delayed(const Duration(seconds: 2), () {
+                            if (navigatorKey.currentState != null) {
+                              navigatorKey.currentState!.pushAndRemoveUntil(
+                                MaterialPageRoute(builder: (_) => const LandingScreen()),
+                                (route) => false,
+                              );
+                            }
+                          });
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errorMsg),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
+                    },
+              child: isDeleting
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : Text(loc.t('delete_account.confirm_button')),
+            ),
+          ],
+        ),
       ),
     );
   }
