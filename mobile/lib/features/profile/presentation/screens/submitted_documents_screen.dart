@@ -104,14 +104,32 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
         p.endsWith('.gif');
   }
 
-  Map<String, dynamic>? _docForSlot(SubmittedDocumentSlot slot) {
+  /// Only rows the user actually uploaded (no empty / lock placeholders).
+  List<Map<String, dynamic>> _uploadedDocsForCurrentRoles({
+    required bool isUnionAdmin,
+    required bool showDriverDocs,
+  }) {
+    final out = <Map<String, dynamic>>[];
     for (final d in _docs) {
-      if ((d['label'] ?? '').toString() == slot.label &&
-          (d['category'] ?? '').toString() == slot.category) {
-        return d;
+      final url = (d['url'] ?? '').toString().trim();
+      if (url.isEmpty) continue;
+      final cat = (d['category'] ?? '').toString();
+      if (cat == 'union' && isUnionAdmin) {
+        out.add(d);
+      } else if (cat == 'driver' && showDriverDocs) {
+        out.add(d);
       }
     }
-    return null;
+    int slotOrder(Map<String, dynamic> doc) {
+      final label = (doc['label'] ?? '').toString();
+      final cat = (doc['category'] ?? '').toString();
+      final slots = cat == 'union' ? kUnionSubmittedDocumentSlots : kDriverSubmittedDocumentSlots;
+      final i = slots.indexWhere((s) => s.label == label && s.category == cat);
+      return i >= 0 ? i : 999;
+    }
+
+    out.sort((a, b) => slotOrder(a).compareTo(slotOrder(b)));
+    return out;
   }
 
   String _statusLocKey({
@@ -177,9 +195,9 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
     final showDriverDocs = role == 'driver' ||
         drvStatus == 'pending' ||
         drvStatus == 'rejected';
-    final expectedSlots = submittedSlotsForRoles(
-      includeUnion: isUnionAdmin,
-      includeDriver: showDriverDocs,
+    final uploadedDocs = _uploadedDocsForCurrentRoles(
+      isUnionAdmin: isUnionAdmin,
+      showDriverDocs: showDriverDocs,
     );
 
     return Scaffold(
@@ -240,137 +258,8 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                             ),
                           ),
                         ),
-                      if (expectedSlots.isNotEmpty) ...[
-                        ...expectedSlots.map((slot) {
-                          final d = _docForSlot(slot);
-                          final url = (d?['url'] ?? '').toString();
-                          final hasFile = url.isNotEmpty;
-                          final full = hasFile ? _thumbUrl(url) : '';
-                          final raster = hasFile && _isRasterUrl(url);
-                          final submittedAt = kycSubmittedAtFromDocMap(d);
-                          final previewOpen =
-                              !hasFile || kycUserInAppPreviewIsOpen(submittedAt);
-                          final statusKey = _statusLocKey(
-                            hasFile: hasFile,
-                            category: slot.category,
-                            driverVerificationStatus: drvStatus,
-                            unionDocumentsStatus: _unionDocumentsStatus,
-                          );
-                          final statusColor = _statusColorForKey(statusKey);
-                          return Card(
-                            child: ListTile(
-                              leading: Opacity(
-                                opacity: hasFile ? 1 : 0.45,
-                                child: hasFile && raster
-                                    ? ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
-                                        child: CachedNetworkImage(
-                                          imageUrl: KycDocumentStreamUrl.build(url, isAdmin: false),
-                                          httpHeaders: AuthHeadersSync.headers,
-                                          width: 56,
-                                          height: 56,
-                                          fit: BoxFit.cover,
-                                          memCacheWidth: 112,
-                                          memCacheHeight: 112,
-                                          placeholder: (_, __) => const SizedBox(
-                                            width: 56,
-                                            height: 56,
-                                            child: Center(
-                                              child: SizedBox(
-                                                width: 16,
-                                                height: 16,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                              ),
-                                            ),
-                                          ),
-                                          errorWidget: (_, __, ___) =>
-                                              const Icon(Icons.broken_image_outlined, size: 20),
-                                        ),
-                                      )
-                                    : hasFile
-                                        ? CircleAvatar(
-                                            backgroundColor: Colors.orange.shade100,
-                                            child: Icon(Icons.picture_as_pdf_rounded,
-                                                color: Colors.orange.shade800),
-                                          )
-                                        : CircleAvatar(
-                                            backgroundColor: Colors.grey.shade200,
-                                            child: Icon(Icons.upload_file_outlined,
-                                                color: Colors.grey.shade600),
-                                          ),
-                              ),
-                              title: Text(slot.label),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    loc.t(statusKey),
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: statusColor,
-                                    ),
-                                  ),
-                                  if (hasFile) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      previewOpen
-                                          ? (raster
-                                              ? loc.t('kyc.submitted_list.hint_image')
-                                              : loc.t('kyc.submitted_list.hint_file'))
-                                          : loc.t('kyc.submitted_list.hint_preview_expired'),
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              trailing: Icon(
-                                hasFile ? Icons.chevron_right_rounded : Icons.lock_outline_rounded,
-                                color: Colors.grey[500],
-                              ),
-                              onTap: hasFile
-                                  ? () {
-                                      if (!previewOpen) {
-                                        AppFeedback.show(
-                                          context,
-                                          loc.t('kyc.submitted.preview_window_expired'),
-                                          kind: AppFeedbackKind.info,
-                                        );
-                                        return;
-                                      }
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => SimpleKycPreviewScreen(
-                                            url: full,
-                                            label: slot.label,
-                                          ),
-                                        ),
-                                      );
-                                    }
-                                  : () {
-                                      AppFeedback.show(
-                                        context,
-                                        loc.t('kyc.submitted.tap_disabled'),
-                                        kind: AppFeedbackKind.info,
-                                      );
-                                    },
-                            ),
-                          );
-                        }),
-                      ] else if (_docs.isEmpty) ...[
-                        const SizedBox(height: 24),
-                        Icon(Icons.folder_open_rounded, size: 56, color: Colors.grey[400]),
-                        const SizedBox(height: 12),
-                        Text(
-                          role == 'passenger'
-                              ? 'No documents on file. Passengers do not submit KYC here.'
-                              : 'No documents on file yet. Upload from the options below when you are ready.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey[700]),
-                        ),
-                      ] else
-                        ..._docs.map((d) {
+                      if (uploadedDocs.isNotEmpty) ...[
+                        ...uploadedDocs.map((d) {
                           final label = (d['label'] ?? 'Document').toString();
                           final cat = (d['category'] ?? 'driver').toString();
                           final url = (d['url'] ?? '').toString();
@@ -419,13 +308,27 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                           color: Colors.orange.shade800),
                                     ),
                               title: Text(label),
-                              subtitle: Text(
-                                loc.t(statusKey),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: statusColor,
-                                ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    loc.t(statusKey),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: statusColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    previewOpen
+                                        ? (raster
+                                            ? loc.t('kyc.submitted_list.hint_image')
+                                            : loc.t('kyc.submitted_list.hint_file'))
+                                        : loc.t('kyc.submitted_list.hint_preview_expired'),
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                                ],
                               ),
                               trailing: const Icon(Icons.chevron_right_rounded),
                               onTap: () {
@@ -450,6 +353,18 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                             ),
                           );
                         }),
+                      ] else ...[
+                        const SizedBox(height: 24),
+                        Icon(Icons.folder_open_rounded, size: 56, color: Colors.grey[400]),
+                        const SizedBox(height: 12),
+                        Text(
+                          role == 'passenger'
+                              ? 'No documents on file. Passengers do not submit KYC here.'
+                              : 'No documents on file yet. Upload from the options below when you are ready.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[700]),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       if (isUnionAdmin)
                         SizedBox(
