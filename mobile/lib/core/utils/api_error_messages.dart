@@ -30,6 +30,13 @@ String userMessageFromDio(DioException e) {
       return 'Server se time par jawab nahi mila (timeout). Internet check karke thodi der baad dubara try karein. '
           '(The connection or server took too long.)';
     case DioExceptionType.connectionError:
+      final inner = e.error?.toString() ?? '';
+      if (inner.contains('HandshakeException') ||
+          inner.contains('CERTIFICATE_VERIFY_FAILED') ||
+          inner.contains('TlsException')) {
+        return 'Secure connection fail (SSL). Phone date/time sahi hai? VPN off karke try karein. '
+            '(SSL / certificate error.)';
+      }
       return 'Server tak pahunch nahi paye. Wi‑Fi / mobile data ya flight mode check karein. '
           '(Cannot reach server.)';
     case DioExceptionType.cancel:

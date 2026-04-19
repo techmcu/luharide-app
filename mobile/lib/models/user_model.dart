@@ -145,9 +145,17 @@ class AuthTokens {
   });
 
   factory AuthTokens.fromJson(Map<String, dynamic> json) {
+    final access = json['accessToken'] ?? json['access_token'];
+    final refresh = json['refreshToken'] ?? json['refresh_token'];
+    if (access is! String ||
+        access.isEmpty ||
+        refresh is! String ||
+        refresh.isEmpty) {
+      throw const FormatException('Invalid tokens in auth response');
+    }
     return AuthTokens(
-      accessToken: json['accessToken'],
-      refreshToken: json['refreshToken'],
+      accessToken: access,
+      refreshToken: refresh,
     );
   }
 

@@ -442,46 +442,76 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    try {
-      final response = await _apiService.post(
-        '/simple-auth/login',
-        data: {
-          'email': email,
-          'password': password,
-        },
-      );
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await _apiService.post(
+          '/simple-auth/login',
+          data: {
+            'email': email,
+            'password': password,
+          },
+        );
 
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        final data = response.data['data'];
-        
-        final tokens = AuthTokens.fromJson(data['tokens']);
-        final user = UserModel.fromJson(data['user']);
-        
-        await _saveAuthData(tokens, user);
-        
-        return {
-          'user': user,
-          'tokens': tokens,
-        };
-      } else {
-        throw Exception(response.data['message'] ?? 'Login failed');
-      }
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
+        final raw = response.data;
+        if (raw is! Map) {
+          throw Exception(
+            'Server se sahi jawab nahi mila (format). App update karke try karein.',
+          );
+        }
+        final body = Map<String, dynamic>.from(raw);
+        if (response.statusCode == 200 && body['success'] == true) {
+          final data = body['data'];
+          if (data is! Map) {
+            throw Exception('Login data invalid');
+          }
+          final dataMap = Map<String, dynamic>.from(data);
+
+          final tokens = AuthTokens.fromJson(
+            Map<String, dynamic>.from(dataMap['tokens'] as Map),
+          );
+          final user = UserModel.fromJson(
+            Map<String, dynamic>.from(dataMap['user'] as Map),
+          );
+
+          await _saveAuthData(tokens, user);
+
+          return {
+            'user': user,
+            'tokens': tokens,
+          };
+        } else {
+          throw Exception(body['message']?.toString() ?? 'Login failed');
+        }
+      } on DioException catch (e) {
+        if (_isRetryableNetwork(e) && attempt == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          continue;
+        }
+        if (e.response?.statusCode == 404) {
+          throw Exception(userMessageFromDio(e));
+        }
+        if (e.response?.statusCode == 429) {
+          throw Exception(
+            e.message ?? 'Too many requests. Please wait 1–2 minutes and try again.',
+          );
+        }
+        if (e.response != null) {
+          final data = e.response!.data;
+          final msg = data is Map ? data['message'] : null;
+          throw Exception(msg?.toString() ?? 'Login failed');
+        }
         throw Exception(userMessageFromDio(e));
       }
-      if (e.response?.statusCode == 429) {
-        throw Exception(
-          e.message ?? 'Too many requests. Please wait 1–2 minutes and try again.',
-        );
-      }
-      if (e.response != null) {
-        final data = e.response!.data;
-        final msg = data is Map ? data['message'] : null;
-        throw Exception(msg?.toString() ?? 'Login failed');
-      }
-      throw Exception(userMessageFromDio(e));
     }
+    throw Exception('Login failed');
+  }
+
+  static bool _isRetryableNetwork(DioException e) {
+    if (e.response != null) return false;
+    return e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout;
   }
 
   /// Create demo accounts (passenger, driver, admin) - first time setup

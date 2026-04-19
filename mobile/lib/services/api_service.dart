@@ -198,7 +198,7 @@ class ApiService {
       }
 
       final response = await _dio.post(
-        dioRelativePath(ApiConstants.refreshToken),
+        buildApiUrl(ApiConstants.refreshToken),
         data: {
           'refreshToken': refreshToken,
           'platform': 'mobile',
