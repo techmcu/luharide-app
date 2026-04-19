@@ -2,9 +2,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/auth_headers_sync.dart';
 import 'simple_kyc_preview_mobile.dart'
     if (dart.library.html) 'simple_kyc_preview_web.dart';
-import '../../../../core/utils/auth_headers_sync.dart';
 
 /// In-app KYC preview (mobile + web). No browser tab.
 /// - Mobile: Dio bytes + pdfx

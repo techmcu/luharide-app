@@ -3,10 +3,11 @@ import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/material.dart';
 
-import 'simple_kyc_preview_screen.dart';
-
+// Web overrides (used on web platform)
 Widget buildWebImagePreview(String url) => WebImagePreview(url: url);
 Widget buildWebPdfPreview(String url) => WebPdfIframePreview(url: url);
+Widget buildMobileImagePreview(String url) => WebImagePreview(url: url);
+Widget buildMobilePdfPreview(String url) => WebPdfIframePreview(url: url);
 
 /// Web: Use HTML img tag (no CORS issues)
 class WebImagePreview extends StatefulWidget {

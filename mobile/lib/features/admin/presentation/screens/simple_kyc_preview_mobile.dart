@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +6,9 @@ import 'package:pdfx/pdfx.dart';
 import 'simple_kyc_preview_screen.dart';
 import '../../../../core/utils/auth_headers_sync.dart';
 
+// Mobile stubs (used on non-web)
+Widget buildWebImagePreview(String url) => ImageMobilePreview(url: url);
+Widget buildWebPdfPreview(String url) => PdfMobilePreview(url: url);
 Widget buildMobileImagePreview(String url) => ImageMobilePreview(url: url);
 Widget buildMobilePdfPreview(String url) => PdfMobilePreview(url: url);
 
