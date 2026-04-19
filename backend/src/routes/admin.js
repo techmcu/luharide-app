@@ -17,6 +17,7 @@ const {
   approveUnionDocRequest,
   rejectUnionDocRequest,
 } = require('../controllers/kycAdminController');
+const { streamAdminKycDocumentFile } = require('../controllers/kycDocumentStreamController');
 const {
   listIndependentDriversDirectory,
   listUnionsDirectory,
@@ -135,6 +136,17 @@ router.get(
   authenticate,
   authorize('union_admin'),
   listUnionsDirectory
+);
+
+/**
+ * Authenticated KYC file stream (same-origin /api — reliable on Flutter web).
+ * Query: path=/uploads/driver-docs/...
+ */
+router.get(
+  '/document-file',
+  authenticate,
+  authorize('union_admin'),
+  streamAdminKycDocumentFile
 );
 
 router.post(

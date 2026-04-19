@@ -4,12 +4,20 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../../../../core/kyc/kyc_document_stream_url.dart';
 import '../../../../core/utils/auth_headers_sync.dart';
 
 /// Authenticated image preview (mobile + web).
 class KycImagePreview extends StatefulWidget {
-  const KycImagePreview({super.key, required this.url});
+  const KycImagePreview({
+    super.key,
+    required this.url,
+    this.useAdminFileApi = false,
+  });
+
+  /// Raw storage URL (`/uploads/...` or absolute); converted to `/api/.../document-file`.
   final String url;
+  final bool useAdminFileApi;
 
   @override
   State<KycImagePreview> createState() => _KycImagePreviewState();
@@ -50,12 +58,17 @@ class _KycImagePreviewState extends State<KycImagePreview> {
       );
     }
 
+    final streamUrl = KycDocumentStreamUrl.build(
+      widget.url,
+      isAdmin: widget.useAdminFileApi,
+    );
+
     return InteractiveViewer(
       minScale: 0.8,
       maxScale: 3,
       child: CachedNetworkImage(
         key: ValueKey('img_$_retryKey'),
-        imageUrl: widget.url,
+        imageUrl: streamUrl,
         httpHeaders: _headers,
         fit: BoxFit.contain,
         memCacheWidth: 500,
@@ -107,8 +120,14 @@ class _KycImagePreviewState extends State<KycImagePreview> {
 
 /// PDF via Dio bytes + pdfx (mobile + web). Avoids iframe/new-tab issues on web.
 class KycPdfPreview extends StatefulWidget {
-  const KycPdfPreview({super.key, required this.url});
+  const KycPdfPreview({
+    super.key,
+    required this.url,
+    this.useAdminFileApi = false,
+  });
+
   final String url;
+  final bool useAdminFileApi;
 
   @override
   State<KycPdfPreview> createState() => _KycPdfPreviewState();
@@ -151,11 +170,16 @@ class _KycPdfPreviewState extends State<KycPdfPreview> {
         ),
       );
 
+      final fetchUrl = KycDocumentStreamUrl.build(
+        widget.url,
+        isAdmin: widget.useAdminFileApi,
+      );
+
       if (kDebugMode) {
-        debugPrint('[KycPdfPreview] Loading PDF from: ${widget.url}');
+        debugPrint('[KycPdfPreview] Loading PDF from API stream');
       }
 
-      final res = await dio.get<List<int>>(widget.url);
+      final res = await dio.get<List<int>>(fetchUrl);
       final raw = res.data;
       final bytes = raw is Uint8List ? raw : Uint8List.fromList(raw ?? const []);
 
@@ -196,8 +220,7 @@ class _KycPdfPreviewState extends State<KycPdfPreview> {
             e.type == DioExceptionType.receiveTimeout) {
           errorMsg = 'Connection timeout. Check your internet.';
         } else if (e.type == DioExceptionType.connectionError) {
-          errorMsg =
-              'Network error (web: check CORS on server for /uploads + Authorization).';
+          errorMsg = 'Network error. Check login and try again.';
         } else {
           errorMsg = 'Network error: ${e.response?.statusCode ?? "unknown"}';
         }

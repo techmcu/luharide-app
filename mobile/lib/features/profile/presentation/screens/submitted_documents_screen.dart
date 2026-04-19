@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/config/env_config.dart';
 import '../../../../core/utils/auth_headers_sync.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/kyc/kyc_document_stream_url.dart';
 import '../../../../core/kyc/kyc_public_document_url.dart';
 import '../../../../core/kyc/kyc_user_preview_policy.dart';
 import '../../../../core/kyc/submitted_document_slots.dart';
@@ -245,7 +246,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                           final url = (d?['url'] ?? '').toString();
                           final hasFile = url.isNotEmpty;
                           final full = hasFile ? _thumbUrl(url) : '';
-                          final raster = hasFile && _isRasterUrl(full);
+                          final raster = hasFile && _isRasterUrl(url);
                           final submittedAt = kycSubmittedAtFromDocMap(d);
                           final previewOpen =
                               !hasFile || kycUserInAppPreviewIsOpen(submittedAt);
@@ -264,7 +265,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
                                         child: CachedNetworkImage(
-                                          imageUrl: full,
+                                          imageUrl: KycDocumentStreamUrl.build(url, isAdmin: false),
                                           httpHeaders: AuthHeadersSync.headers,
                                           width: 56,
                                           height: 56,
@@ -374,7 +375,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                           final cat = (d['category'] ?? 'driver').toString();
                           final url = (d['url'] ?? '').toString();
                           final full = _thumbUrl(url);
-                          final raster = _isRasterUrl(full);
+                          final raster = _isRasterUrl(url);
                           final submittedAt = kycSubmittedAtFromDocMap(d);
                           final previewOpen = kycUserInAppPreviewIsOpen(submittedAt);
                           final statusKey = _statusLocKey(
@@ -390,7 +391,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                   ? ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
                                       child: CachedNetworkImage(
-                                        imageUrl: full,
+                                        imageUrl: KycDocumentStreamUrl.build(url, isAdmin: false),
                                         httpHeaders: AuthHeadersSync.headers,
                                         width: 56,
                                         height: 56,

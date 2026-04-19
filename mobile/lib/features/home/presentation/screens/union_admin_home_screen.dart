@@ -851,6 +851,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
         builder: (_) => SimpleKycPreviewScreen(
           url: resolved,
           label: loc.t(labelKey),
+          useAdminFileApi: true,
         ),
       ),
     );

@@ -11,6 +11,7 @@ const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 const { authenticate } = require('../src/middleware/auth');
 const { submitVerification, getMyStatus } = require('../src/controllers/driverVerificationController');
 const { getMySubmittedDocuments } = require('../src/controllers/kycDocumentsController');
+const { streamMyKycDocumentFile } = require('../src/controllers/kycDocumentStreamController');
 
 const bookingRoutes = require('../src/routes/bookings');
 const tripRoutes = require('../src/routes/trips');
@@ -27,6 +28,7 @@ app.use('/api/drivers', driverRoutes);
 app.get('/api/driver-verification', authenticate, getMyStatus);
 app.post('/api/driver-verification', authenticate, submitVerification);
 app.get('/api/kyc/submitted-documents', authenticate, getMySubmittedDocuments);
+app.get('/api/kyc/document-file', authenticate, streamMyKycDocumentFile);
 attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.CORE_SERVICE_PORT || '3002', 10);
