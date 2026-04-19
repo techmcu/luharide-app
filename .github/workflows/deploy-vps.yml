@@ -25,7 +25,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y sshpass
 
-      - name: Deploy with health-check and rollback
+      # If this step exits 0, the next step ("Emergency rollback…") is SKIPPED on purpose.
+      - name: Deploy with health-check
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           VPS_IP: ${{ secrets.VPS_IP }}
@@ -149,7 +150,9 @@ jobs:
           exit 0
           EOF
 
-      - name: Rollback on deploy failure
+      # Runs ONLY when a previous step in this job failed (SSH, npm, migrate, health, etc.).
+      # If you see "Skipped" here, deploy succeeded — that is correct.
+      - name: Emergency rollback on VPS (previous commit via reflog)
         if: failure()
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
