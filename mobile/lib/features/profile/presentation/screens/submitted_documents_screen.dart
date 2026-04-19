@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/config/env_config.dart';
+import '../../../../core/utils/auth_headers_sync.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/kyc/kyc_public_document_url.dart';
 import '../../../../core/kyc/submitted_document_slots.dart';
@@ -260,6 +261,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                         borderRadius: BorderRadius.circular(8),
                                         child: CachedNetworkImage(
                                           imageUrl: full,
+                                          httpHeaders: AuthHeadersSync.headers,
                                           width: 56,
                                           height: 56,
                                           fit: BoxFit.cover,
@@ -373,6 +375,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                       borderRadius: BorderRadius.circular(8),
                                       child: CachedNetworkImage(
                                         imageUrl: full,
+                                        httpHeaders: AuthHeadersSync.headers,
                                         width: 56,
                                         height: 56,
                                         fit: BoxFit.cover,

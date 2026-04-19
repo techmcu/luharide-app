@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import '../core/utils/api_error_messages.dart';
+import '../core/utils/auth_headers_sync.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/realtime_socket_service.dart';
@@ -65,6 +66,7 @@ class AuthProvider with ChangeNotifier {
         }
         notifyListeners();
         await RealtimeSocketService.instance.connect();
+        unawaited(AuthHeadersSync.refreshAuthHeadersCache());
         final uid = _user?.id;
         if (uid != null && uid.isNotEmpty) {
           unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -121,6 +123,7 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
+      unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -174,6 +177,7 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
+      unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -195,6 +199,7 @@ class AuthProvider with ChangeNotifier {
       final uid = _user?.id;
       await RealtimeSocketService.instance.disconnect();
       await _authService.logout();
+      unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       if (uid != null && uid.isNotEmpty) {
         await ReviewCacheStore.clearBundle(uid);
         await SubmittedDocumentsService().clearCacheForUser(uid);
