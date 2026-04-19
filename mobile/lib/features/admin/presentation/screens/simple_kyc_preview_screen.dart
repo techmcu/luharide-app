@@ -1,14 +1,18 @@
+import 'dart:typed_data';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pdfx/pdfx.dart';
+import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
 
 import '../../../../core/utils/auth_headers_sync.dart';
 
 /// In-app KYC preview (mobile + web). No browser tab.
-/// PDF: one GET with auth headers, then [pdfx] (pdf.js on web).
-/// Images: [CachedNetworkImage] with small mem cache.
+/// - Mobile: Dio bytes + pdfx
+/// - Web: HTML iframe (avoids CORS on XHR with auth headers)
 class SimpleKycPreviewScreen extends StatelessWidget {
   const SimpleKycPreviewScreen({
     super.key,
@@ -37,6 +41,7 @@ class SimpleKycPreviewScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final pdf = _looksPdf(url);
     final img = _looksRasterImage(url);
+    
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -45,25 +50,100 @@ class SimpleKycPreviewScreen extends StatelessWidget {
         title: Text(label, style: const TextStyle(fontSize: 15)),
       ),
       body: Center(
-        child: pdf
-            ? _PdfInAppPreview(url: url)
-            : img
-                ? _ImageInAppPreview(url: url)
-                : _ImageInAppPreview(url: url),
+        child: kIsWeb
+            ? (pdf
+                ? _PdfWebIframePreview(url: url)
+                : _ImageWebPreview(url: url))
+            : (pdf
+                ? _PdfMobilePreview(url: url)
+                : _ImageMobilePreview(url: url)),
       ),
     );
   }
 }
 
-class _ImageInAppPreview extends StatefulWidget {
-  const _ImageInAppPreview({required this.url});
+/// Web: Use HTML img tag (no CORS issues)
+class _ImageWebPreview extends StatefulWidget {
+  const _ImageWebPreview({required this.url});
   final String url;
 
   @override
-  State<_ImageInAppPreview> createState() => _ImageInAppPreviewState();
+  State<_ImageWebPreview> createState() => _ImageWebPreviewState();
 }
 
-class _ImageInAppPreviewState extends State<_ImageInAppPreview> {
+class _ImageWebPreviewState extends State<_ImageWebPreview> {
+  final String _viewId = 'kyc-img-${DateTime.now().millisecondsSinceEpoch}';
+
+  @override
+  void initState() {
+    super.initState();
+    // Register platform view
+    ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+      final img = html.ImageElement()
+        ..src = widget.url
+        ..style.width = '100%'
+        ..style.height = '100%'
+        ..style.objectFit = 'contain';
+      return img;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: HtmlElementView(viewType: _viewId),
+    );
+  }
+}
+
+/// Web: Use HTML iframe for PDF (no CORS/XHR issues)
+class _PdfWebIframePreview extends StatefulWidget {
+  const _PdfWebIframePreview({required this.url});
+  final String url;
+
+  @override
+  State<_PdfWebIframePreview> createState() => _PdfWebIframePreviewState();
+}
+
+class _PdfWebIframePreviewState extends State<_PdfWebIframePreview> {
+  final String _viewId = 'kyc-pdf-${DateTime.now().millisecondsSinceEpoch}';
+
+  @override
+  void initState() {
+    super.initState();
+    // Register platform view
+    ui_web.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
+      final iframe = html.IFrameElement()
+        ..src = widget.url
+        ..style.border = 'none'
+        ..style.width = '100%'
+        ..style.height = '100%';
+      return iframe;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: double.infinity,
+      child: HtmlElementView(viewType: _viewId),
+    );
+  }
+}
+
+/// Mobile: Image with CachedNetworkImage
+class _ImageMobilePreview extends StatefulWidget {
+  const _ImageMobilePreview({required this.url});
+  final String url;
+
+  @override
+  State<_ImageMobilePreview> createState() => _ImageMobilePreviewState();
+}
+
+class _ImageMobilePreviewState extends State<_ImageMobilePreview> {
   Map<String, String>? _headers;
   int _retryKey = 0;
 
@@ -153,15 +233,16 @@ class _ImageInAppPreviewState extends State<_ImageInAppPreview> {
   }
 }
 
-class _PdfInAppPreview extends StatefulWidget {
-  const _PdfInAppPreview({required this.url});
+/// Mobile: PDF with pdfx (authenticated Dio bytes)
+class _PdfMobilePreview extends StatefulWidget {
+  const _PdfMobilePreview({required this.url});
   final String url;
 
   @override
-  State<_PdfInAppPreview> createState() => _PdfInAppPreviewState();
+  State<_PdfMobilePreview> createState() => _PdfMobilePreviewState();
 }
 
-class _PdfInAppPreviewState extends State<_PdfInAppPreview> {
+class _PdfMobilePreviewState extends State<_PdfMobilePreview> {
   PdfController? _controller;
   String? _error;
   bool _loading = true;
