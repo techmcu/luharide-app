@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +9,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/submitted_documents_service.dart';
 import '../../../../services/union_service.dart';
+import '../../../../widgets/kyc_cached_thumb.dart';
 import '../../../admin/presentation/screens/kyc_document_viewer_screen.dart';
 import 'driver_verification_form_screen.dart';
 import 'union_documents_screen.dart';
@@ -258,27 +258,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                 child: hasFile && raster
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: CachedNetworkImage(
-                                          imageUrl: full,
-                                          width: 56,
-                                          height: 56,
-                                          fit: BoxFit.cover,
-                                          memCacheWidth: 112,
-                                          memCacheHeight: 112,
-                                          placeholder: (_, __) => const SizedBox(
-                                            width: 56,
-                                            height: 56,
-                                            child: Center(
-                                              child: SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                              ),
-                                            ),
-                                          ),
-                                          errorWidget: (_, __, ___) =>
-                                              const Icon(Icons.broken_image_outlined),
-                                        ),
+                                        child: KycCachedThumb(imageUrl: full),
                                       )
                                     : hasFile
                                         ? CircleAvatar(
@@ -369,27 +349,7 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                               leading: raster
                                   ? ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: CachedNetworkImage(
-                                        imageUrl: full,
-                                        width: 56,
-                                        height: 56,
-                                        fit: BoxFit.cover,
-                                        memCacheWidth: 112,
-                                        memCacheHeight: 112,
-                                        placeholder: (_, __) => const SizedBox(
-                                          width: 56,
-                                          height: 56,
-                                          child: Center(
-                                            child: SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(strokeWidth: 2),
-                                            ),
-                                          ),
-                                        ),
-                                        errorWidget: (_, __, ___) =>
-                                            const Icon(Icons.broken_image_outlined),
-                                      ),
+                                      child: KycCachedThumb(imageUrl: full),
                                     )
                                   : CircleAvatar(
                                       backgroundColor: Colors.orange.shade100,

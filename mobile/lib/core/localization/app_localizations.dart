@@ -1473,36 +1473,36 @@ class AppLocalizations {
       'hi': 'दस्तावेज़ लोड नहीं हो सका। कनेक्शन जाँचकर फिर कोशिश करें।',
     },
     'kyc.submitted_list.hint_image': {
-      'en': 'Image · tap to view',
-      'hi': 'फ़ोटो · देखने के लिए टैप करें',
+      'en': 'Image · tap for full preview',
+      'hi': 'फ़ोटो · पूरा देखने के लिए टैप',
     },
     'kyc.submitted_list.hint_file': {
-      'en': 'File · tap to view in app',
-      'hi': 'फ़ाइल · ऐप में देखने के लिए टैप करें',
+      'en': 'PDF / file · tap for preview',
+      'hi': 'PDF / फ़ाइल · प्रीव्यू के लिए टैप',
     },
     'kyc.submitted.status.not_uploaded': {
-      'en': 'Not uploaded',
-      'hi': 'अपलोड नहीं',
+      'en': 'Not uploaded yet',
+      'hi': 'अभी अपलोड नहीं',
     },
     'kyc.submitted.status.submitted': {
-      'en': 'Submitted',
-      'hi': 'जमा किया गया',
+      'en': 'Uploaded · Verification in progress',
+      'hi': 'अपलोड हो गया · सत्यापन जारी',
     },
     'kyc.submitted.status.submitted_verified': {
-      'en': 'Submitted · Verified',
-      'hi': 'जमा · सत्यापित',
+      'en': 'Verified by admin',
+      'hi': 'एडमिन ने सत्यापित किया',
     },
     'kyc.submitted.status.submitted_pending': {
-      'en': 'Submitted · Pending review',
-      'hi': 'जमा · समीक्षा लंबित',
+      'en': 'Verification submitted · Pending admin review',
+      'hi': 'सत्यापन जमा · एडमिन समीक्षा लंबित',
     },
     'kyc.submitted.status.submitted_rejected': {
-      'en': 'Submitted · Rejected — please update',
-      'hi': 'जमा · अस्वीकृत — अपडेट करें',
+      'en': 'Rejected — please upload again',
+      'hi': 'अस्वीकृत — दोबारा अपलोड करें',
     },
     'kyc.submitted.status.submitted_reupload': {
-      'en': 'Submitted · Re-upload required',
-      'hi': 'जमा · दोबारा अपलोड ज़रूरी',
+      'en': 'Re-upload required (admin requested)',
+      'hi': 'दोबारा अपलोड ज़रूरी (एडमिन ने कहा)',
     },
     'kyc.submitted.tap_disabled': {
       'en': 'Upload this document first (see buttons below).',

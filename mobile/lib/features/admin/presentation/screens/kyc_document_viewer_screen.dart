@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../core/config/env_config.dart';
+import '../../../../core/kyc/kyc_upload_auth_headers.dart';
 import '../../../../core/localization/app_localizations.dart';
 
 /// In-app preview for KYC files (`/uploads/...` or absolute). Mobile stays in-app only (no raw URLs in UI, no external browser). Web offers opening in a browser tab.
@@ -91,15 +92,15 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
   void initState() {
     super.initState();
     _resolved = _resolveUrl(widget.storageUrl);
-    if (kIsWeb) {
-      _loading = false;
-      return;
-    }
     if (_isRasterImageUrl(_resolved)) {
       _loading = false;
       return;
     }
-    if (_isPdfUrl(_resolved) && _useNativePdfRenderer) {
+    if (_isPdfUrl(_resolved) && (_useNativePdfRenderer || kIsWeb)) {
+      _loading = false;
+      return;
+    }
+    if (kIsWeb) {
       _loading = false;
       return;
     }
@@ -123,8 +124,11 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final uri = Uri.tryParse(_resolved);
-    final showRaster = !kIsWeb && _isRasterImageUrl(_resolved);
-    final showPdf = !kIsWeb && _isPdfUrl(_resolved) && _useNativePdfRenderer;
+    final isRaster = _isRasterImageUrl(_resolved);
+    final isPdf = _isPdfUrl(_resolved);
+    final showRaster = isRaster;
+    final showPdfNative = isPdf && _useNativePdfRenderer && !kIsWeb;
+    final showPdfWeb = kIsWeb && isPdf;
 
     return Scaffold(
       appBar: AppBar(
@@ -135,9 +139,9 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
               tooltip: loc.t('admin.kyc.viewer_open_browser'),
               icon: const Icon(Icons.open_in_new),
               onPressed: _openInBrowserTab,
-            )
-          else ...[
-            if (showRaster || showPdf)
+            ),
+          if (!kIsWeb) ...[
+            if (showRaster || showPdfNative)
               IconButton(
                 tooltip: loc.t('app.refresh'),
                 icon: const Icon(Icons.refresh),
@@ -150,26 +154,46 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
                 onPressed: () => _retryWebDocument(uri),
               ),
           ],
+          if (kIsWeb && (isRaster || showPdfWeb))
+            IconButton(
+              tooltip: loc.t('app.refresh'),
+              icon: const Icon(Icons.refresh),
+              onPressed: () => setState(() => _viewerRetryKey++),
+            ),
         ],
       ),
       body: kIsWeb
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(loc.t('admin.kyc.viewer_web_hint')),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: _openInBrowserTab,
-                      icon: const Icon(Icons.open_in_new),
-                      label: Text(loc.t('admin.kyc.viewer_open_browser')),
-                    ),
-                  ],
-                ),
-              ),
-            )
+          ? (isRaster
+              ? _RasterKycPreview(
+                  key: ValueKey<int>(_viewerRetryKey),
+                  url: _resolved,
+                  loc: loc,
+                  onRetry: () => setState(() => _viewerRetryKey++),
+                )
+              : showPdfWeb
+                  ? _PdfKycPreview(
+                      key: ValueKey<int>(_viewerRetryKey),
+                      url: _resolved,
+                      loc: loc,
+                      onRetry: () => setState(() => _viewerRetryKey++),
+                    )
+                  : Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(loc.t('admin.kyc.viewer_web_hint')),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed: _openInBrowserTab,
+                              icon: const Icon(Icons.open_in_new),
+                              label: Text(loc.t('admin.kyc.viewer_open_browser')),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ))
           : showRaster
               ? _RasterKycPreview(
                   key: ValueKey<int>(_viewerRetryKey),
@@ -177,7 +201,7 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
                   loc: loc,
                   onRetry: () => setState(() => _viewerRetryKey++),
                 )
-              : showPdf
+              : showPdfNative
                   ? _PdfKycPreview(
                       key: ValueKey<int>(_viewerRetryKey),
                       url: _resolved,
@@ -221,7 +245,7 @@ class _KycDocumentViewerScreenState extends State<KycDocumentViewerScreen> {
   }
 }
 
-class _RasterKycPreview extends StatelessWidget {
+class _RasterKycPreview extends StatefulWidget {
   const _RasterKycPreview({
     super.key,
     required this.url,
@@ -234,6 +258,13 @@ class _RasterKycPreview extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
+  State<_RasterKycPreview> createState() => _RasterKycPreviewState();
+}
+
+class _RasterKycPreviewState extends State<_RasterKycPreview> {
+  late final Future<Map<String, String>?> _authHeaders = kycUploadAuthHeaders();
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -244,34 +275,40 @@ class _RasterKycPreview extends StatelessWidget {
             width: constraints.maxWidth,
             height: constraints.maxHeight,
             child: Center(
-              child: CachedNetworkImage(
-                imageUrl: url,
-                fit: BoxFit.contain,
-                placeholder: (_, __) => const Padding(
-                  padding: EdgeInsets.all(48),
-                  child: CircularProgressIndicator(),
-                ),
-                errorWidget: (_, __, ___) => Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey[600]),
-                      const SizedBox(height: 12),
-                      Text(
-                        loc.t('admin.kyc.viewer_image_error'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[800]),
+              child: FutureBuilder<Map<String, String>?>(
+                future: _authHeaders,
+                builder: (context, snap) {
+                  return CachedNetworkImage(
+                    imageUrl: widget.url,
+                    httpHeaders: snap.data,
+                    fit: BoxFit.contain,
+                    placeholder: (_, __) => const Padding(
+                      padding: EdgeInsets.all(48),
+                      child: CircularProgressIndicator(),
+                    ),
+                    errorWidget: (_, __, ___) => Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.broken_image_outlined, size: 48, color: Colors.grey[600]),
+                          const SizedBox(height: 12),
+                          Text(
+                            widget.loc.t('admin.kyc.viewer_image_error'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey[800]),
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: widget.onRetry,
+                            icon: const Icon(Icons.refresh),
+                            label: Text(widget.loc.t('app.retry')),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: onRetry,
-                        icon: const Icon(Icons.refresh),
-                        label: Text(loc.t('app.retry')),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
@@ -332,14 +369,19 @@ class _PdfKycPreviewState extends State<_PdfKycPreview> {
   }
 
   Future<Uint8List> _fetchPdfBytes() async {
+    final headers = <String, dynamic>{
+      'Accept': 'application/pdf,*/*',
+    };
+    final auth = await kycUploadAuthHeaders();
+    if (auth != null) {
+      headers.addAll(auth);
+    }
     final dio = Dio(
       BaseOptions(
         connectTimeout: const Duration(seconds: 30),
         receiveTimeout: const Duration(seconds: 120),
         responseType: ResponseType.bytes,
-        headers: <String, dynamic>{
-          'Accept': 'application/pdf,*/*',
-        },
+        headers: headers,
       ),
     );
     final response = await dio.get<List<int>>(widget.url);
