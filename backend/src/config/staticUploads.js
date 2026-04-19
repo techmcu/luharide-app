@@ -4,24 +4,35 @@ const express = require('express');
 const UPLOADS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function mountUploadsStatic(app, absoluteUploadsDir) {
-  // CORS headers for static uploads (Flutter web + mobile webview)
+  // CORS + Private Network Access for /uploads (Flutter web XHR needs this)
   app.use('/uploads', (req, res, next) => {
-    const origin = req.headers.origin;
-    // Allow common origins + localhost dev
+    const origin = req.headers.origin || '*';
+    
+    // Echo origin for dev (localhost) + prod domains
     if (
-      origin &&
-      (origin.includes('luharide.cloud') ||
-        origin.includes('localhost') ||
-        origin.includes('127.0.0.1'))
+      origin === '*' ||
+      origin.includes('luharide.cloud') ||
+      origin.includes('localhost') ||
+      origin.includes('127.0.0.1')
     ) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Max-Age', '86400');
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', '*');
     }
+    
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Range');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Range, ETag');
+    res.setHeader('Vary', 'Origin');
+    
+    // Chrome Private Network Access (localhost Flutter web → remote VPS)
+    const pna = req.headers['access-control-request-private-network'];
+    if (String(pna).toLowerCase() === 'true') {
+      res.setHeader('Access-Control-Allow-Private-Network', 'true');
+    }
+    
     if (req.method === 'OPTIONS') {
-      return res.sendStatus(204);
+      return res.status(204).end();
     }
     next();
   });
