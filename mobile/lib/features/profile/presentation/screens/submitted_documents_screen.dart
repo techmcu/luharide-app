@@ -6,6 +6,7 @@ import '../../../../core/config/env_config.dart';
 import '../../../../core/utils/auth_headers_sync.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/kyc/kyc_public_document_url.dart';
+import '../../../../core/kyc/kyc_user_preview_policy.dart';
 import '../../../../core/kyc/submitted_document_slots.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/auth_provider.dart';
@@ -245,6 +246,9 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                           final hasFile = url.isNotEmpty;
                           final full = hasFile ? _thumbUrl(url) : '';
                           final raster = hasFile && _isRasterUrl(full);
+                          final submittedAt = kycSubmittedAtFromDocMap(d);
+                          final previewOpen =
+                              !hasFile || kycUserInAppPreviewIsOpen(submittedAt);
                           final statusKey = _statusLocKey(
                             hasFile: hasFile,
                             category: slot.category,
@@ -309,9 +313,11 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                   if (hasFile) ...[
                                     const SizedBox(height: 2),
                                     Text(
-                                      raster
-                                          ? loc.t('kyc.submitted_list.hint_image')
-                                          : loc.t('kyc.submitted_list.hint_file'),
+                                      previewOpen
+                                          ? (raster
+                                              ? loc.t('kyc.submitted_list.hint_image')
+                                              : loc.t('kyc.submitted_list.hint_file'))
+                                          : loc.t('kyc.submitted_list.hint_preview_expired'),
                                       style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                     ),
                                   ],
@@ -323,6 +329,14 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                               ),
                               onTap: hasFile
                                   ? () {
+                                      if (!previewOpen) {
+                                        AppFeedback.show(
+                                          context,
+                                          loc.t('kyc.submitted.preview_window_expired'),
+                                          kind: AppFeedbackKind.info,
+                                        );
+                                        return;
+                                      }
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
@@ -361,6 +375,8 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                           final url = (d['url'] ?? '').toString();
                           final full = _thumbUrl(url);
                           final raster = _isRasterUrl(full);
+                          final submittedAt = kycSubmittedAtFromDocMap(d);
+                          final previewOpen = kycUserInAppPreviewIsOpen(submittedAt);
                           final statusKey = _statusLocKey(
                             hasFile: url.isNotEmpty,
                             category: cat,
@@ -412,6 +428,14 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                               ),
                               trailing: const Icon(Icons.chevron_right_rounded),
                               onTap: () {
+                                if (!previewOpen) {
+                                  AppFeedback.show(
+                                    context,
+                                    loc.t('kyc.submitted.preview_window_expired'),
+                                    kind: AppFeedbackKind.info,
+                                  );
+                                  return;
+                                }
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(

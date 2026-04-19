@@ -1480,6 +1480,16 @@ class AppLocalizations {
       'en': 'PDF / file · tap for preview',
       'hi': 'PDF / फ़ाइल · प्रीव्यू के लिए टैप',
     },
+    'kyc.submitted_list.hint_preview_expired': {
+      'en': 'Submitted on file — in-app preview closed after 4 days (saves data). Status above.',
+      'hi': 'रिकॉर्ड पर जमा है — 4 दिन बाद इन-ऐप प्रीव्यू बंद (डेटा बचाने के लिए)। स्टेटस ऊपर है।',
+    },
+    'kyc.submitted.preview_window_expired': {
+      'en':
+          'In-app preview is only available for 4 days after upload. Your documents stay on file; see status above.',
+      'hi':
+          'अपलोड के 4 दिनों तक ही इन-ऐप प्रीव्यू मिलता है। दस्तावेज़ सिस्टम में रहते हैं; स्टेटस ऊपर देखें।',
+    },
     'kyc.submitted.status.not_uploaded': {
       'en': 'Not uploaded yet',
       'hi': 'अभी अपलोड नहीं',

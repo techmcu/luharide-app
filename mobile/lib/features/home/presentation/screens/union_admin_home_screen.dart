@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/config/env_config.dart';
 import '../../../../core/localization/app_localizations.dart';
@@ -845,22 +843,17 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
 
   Future<void> _openAdminDocumentUrl(String storageUrl, String labelKey) async {
     final resolved = _resolvePublicFileUrl(storageUrl);
-    final uri = Uri.tryParse(resolved);
-    if (uri == null) return;
-    if (kIsWeb) {
-      await launchUrl(uri, webOnlyWindowName: '_blank');
-    } else {
-      if (!mounted) return;
-      final loc = AppLocalizations.of(context);
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => SimpleKycPreviewScreen(
-            url: resolved,
-            label: loc.t(labelKey),
-          ),
+    if (Uri.tryParse(resolved) == null) return;
+    if (!mounted) return;
+    final loc = AppLocalizations.of(context);
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => SimpleKycPreviewScreen(
+          url: resolved,
+          label: loc.t(labelKey),
         ),
-      );
-    }
+      ),
+    );
   }
 
   List<Widget> _driverKycLinks(AppLocalizations loc, Map<String, dynamic> r) {
