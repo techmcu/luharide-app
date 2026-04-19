@@ -55,33 +55,98 @@ class SimpleKycPreviewScreen extends StatelessWidget {
   }
 }
 
-class _ImageInAppPreview extends StatelessWidget {
+class _ImageInAppPreview extends StatefulWidget {
   const _ImageInAppPreview({required this.url});
   final String url;
 
   @override
+  State<_ImageInAppPreview> createState() => _ImageInAppPreviewState();
+}
+
+class _ImageInAppPreviewState extends State<_ImageInAppPreview> {
+  Map<String, String>? _headers;
+  int _retryKey = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshHeaders();
+  }
+
+  Future<void> _refreshHeaders() async {
+    await AuthHeadersSync.refreshAuthHeadersCache();
+    if (mounted) {
+      setState(() {
+        _headers = AuthHeadersSync.headers;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_headers == null) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(color: Colors.white),
+          const SizedBox(height: 16),
+          Text(
+            'Loading...',
+            style: TextStyle(color: Colors.grey[300]),
+          ),
+        ],
+      );
+    }
+
     return InteractiveViewer(
       minScale: 0.8,
       maxScale: 3,
       child: CachedNetworkImage(
-        imageUrl: url,
-        httpHeaders: AuthHeadersSync.headers,
+        key: ValueKey('img_$_retryKey'),
+        imageUrl: widget.url,
+        httpHeaders: _headers,
         fit: BoxFit.contain,
         memCacheWidth: 500,
         memCacheHeight: 500,
-        placeholder: (_, __) =>
-            const CircularProgressIndicator(color: Colors.white54),
-        errorWidget: (_, __, ___) => Column(
+        placeholder: (_, __) => Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.broken_image_outlined, size: 64, color: Colors.grey[600]),
-            const SizedBox(height: 12),
+            const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+            const SizedBox(height: 16),
             Text(
-              'Could not load document',
-              style: TextStyle(color: Colors.grey[400]),
+              'Loading image...',
+              style: TextStyle(color: Colors.grey[300]),
             ),
           ],
+        ),
+        errorWidget: (_, __, ___) => Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 80, color: Colors.orange[300]),
+              const SizedBox(height: 16),
+              const Text(
+                'Could not load image',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _retryKey++;
+                  });
+                  _refreshHeaders();
+                },
+                icon: const Icon(Icons.refresh, color: Colors.white),
+                label: const Text('Retry', style: TextStyle(color: Colors.white)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white54),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -109,18 +174,42 @@ class _PdfInAppPreviewState extends State<_PdfInAppPreview> {
 
   Future<void> _load() async {
     try {
+      await AuthHeadersSync.refreshAuthHeadersCache();
+      final authHeaders = AuthHeadersSync.headers;
+      if (authHeaders == null || authHeaders.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'Auth token missing. Try logging in again.';
+          _loading = false;
+        });
+        if (kDebugMode) {
+          debugPrint('[SimpleKycPreviewScreen] No auth headers available');
+        }
+        return;
+      }
+
       final dio = Dio(
         BaseOptions(
           responseType: ResponseType.bytes,
           followRedirects: true,
           receiveTimeout: const Duration(seconds: 45),
           sendTimeout: const Duration(seconds: 30),
-          headers: AuthHeadersSync.headers,
+          headers: authHeaders,
         ),
       );
+
+      if (kDebugMode) {
+        debugPrint('[SimpleKycPreviewScreen] Loading PDF from: ${widget.url}');
+      }
+
       final res = await dio.get<List<int>>(widget.url);
       final raw = res.data;
       final bytes = raw is Uint8List ? raw : Uint8List.fromList(raw ?? const []);
+
+      if (kDebugMode) {
+        debugPrint('[SimpleKycPreviewScreen] PDF bytes loaded: ${bytes.length}');
+      }
+
       if (!mounted) return;
       if (bytes.isEmpty) {
         setState(() {
@@ -129,6 +218,7 @@ class _PdfInAppPreviewState extends State<_PdfInAppPreview> {
         });
         return;
       }
+
       final ctrl = PdfController(
         document: PdfDocument.openData(bytes),
       );
@@ -137,14 +227,32 @@ class _PdfInAppPreviewState extends State<_PdfInAppPreview> {
         _controller = ctrl;
         _loading = false;
       });
-    } catch (e) {
+
+      if (kDebugMode) {
+        debugPrint('[SimpleKycPreviewScreen] PDF loaded successfully');
+      }
+    } catch (e, stack) {
       if (!mounted) return;
+      String errorMsg = 'Could not load PDF';
+      if (e is DioException) {
+        if (e.response?.statusCode == 401 || e.response?.statusCode == 403) {
+          errorMsg = 'Access denied. Please log in again.';
+        } else if (e.response?.statusCode == 404) {
+          errorMsg = 'Document not found';
+        } else if (e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout) {
+          errorMsg = 'Connection timeout. Check your internet.';
+        } else {
+          errorMsg = 'Network error: ${e.response?.statusCode ?? "unknown"}';
+        }
+      }
       setState(() {
-        _error = 'Could not load PDF';
+        _error = errorMsg;
         _loading = false;
       });
       if (kDebugMode) {
         debugPrint('[SimpleKycPreviewScreen] pdf load failed: $e');
+        debugPrint('[SimpleKycPreviewScreen] stack: $stack');
       }
     }
   }
@@ -158,7 +266,17 @@ class _PdfInAppPreviewState extends State<_PdfInAppPreview> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const CircularProgressIndicator(color: Colors.white54);
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+          const SizedBox(height: 24),
+          Text(
+            'Loading document...',
+            style: TextStyle(color: Colors.grey[300], fontSize: 16),
+          ),
+        ],
+      );
     }
     if (_error != null || _controller == null) {
       return Padding(
@@ -166,12 +284,28 @@ class _PdfInAppPreviewState extends State<_PdfInAppPreview> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.picture_as_pdf_outlined, size: 80, color: Colors.grey[300]),
+            Icon(Icons.error_outline, size: 80, color: Colors.orange[300]),
             const SizedBox(height: 16),
             Text(
               _error ?? 'Preview not available',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _loading = true;
+                  _error = null;
+                  _controller = null;
+                });
+                _load();
+              },
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text('Retry', style: TextStyle(color: Colors.white)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white54),
+              ),
             ),
           ],
         ),
