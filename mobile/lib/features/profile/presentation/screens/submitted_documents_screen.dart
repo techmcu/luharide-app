@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -9,8 +10,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/submitted_documents_service.dart';
 import '../../../../services/union_service.dart';
-import '../../../../widgets/kyc_cached_thumb.dart';
-import '../../../admin/presentation/screens/kyc_document_viewer_screen.dart';
+import '../../../admin/presentation/screens/simple_kyc_preview_screen.dart';
 import 'driver_verification_form_screen.dart';
 import 'union_documents_screen.dart';
 
@@ -258,7 +258,27 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                 child: hasFile && raster
                                     ? ClipRRect(
                                         borderRadius: BorderRadius.circular(8),
-                                        child: KycCachedThumb(imageUrl: full),
+                                        child: CachedNetworkImage(
+                                          imageUrl: full,
+                                          width: 56,
+                                          height: 56,
+                                          fit: BoxFit.cover,
+                                          memCacheWidth: 112,
+                                          memCacheHeight: 112,
+                                          placeholder: (_, __) => const SizedBox(
+                                            width: 56,
+                                            height: 56,
+                                            child: Center(
+                                              child: SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(strokeWidth: 2),
+                                              ),
+                                            ),
+                                          ),
+                                          errorWidget: (_, __, ___) =>
+                                              const Icon(Icons.broken_image_outlined, size: 20),
+                                        ),
                                       )
                                     : hasFile
                                         ? CircleAvatar(
@@ -304,8 +324,10 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (_) =>
-                                              KycDocumentViewerScreen(storageUrl: url),
+                                          builder: (_) => SimpleKycPreviewScreen(
+                                            url: full,
+                                            label: slot.label,
+                                          ),
                                         ),
                                       );
                                     }
@@ -349,7 +371,27 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                               leading: raster
                                   ? ClipRRect(
                                       borderRadius: BorderRadius.circular(8),
-                                      child: KycCachedThumb(imageUrl: full),
+                                      child: CachedNetworkImage(
+                                        imageUrl: full,
+                                        width: 56,
+                                        height: 56,
+                                        fit: BoxFit.cover,
+                                        memCacheWidth: 112,
+                                        memCacheHeight: 112,
+                                        placeholder: (_, __) => const SizedBox(
+                                          width: 56,
+                                          height: 56,
+                                          child: Center(
+                                            child: SizedBox(
+                                              width: 16,
+                                              height: 16,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (_, __, ___) =>
+                                            const Icon(Icons.broken_image_outlined, size: 20),
+                                      ),
                                     )
                                   : CircleAvatar(
                                       backgroundColor: Colors.orange.shade100,
@@ -370,8 +412,10 @@ class _SubmittedDocumentsScreenState extends State<SubmittedDocumentsScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) =>
-                                        KycDocumentViewerScreen(storageUrl: url),
+                                    builder: (_) => SimpleKycPreviewScreen(
+                                      url: full,
+                                      label: label,
+                                    ),
                                   ),
                                 );
                               },

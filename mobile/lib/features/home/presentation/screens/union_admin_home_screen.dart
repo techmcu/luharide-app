@@ -12,7 +12,7 @@ import '../../../../core/app_navigator.dart';
 import '../../../landing/presentation/screens/landing_screen.dart';
 import '../../../../widgets/brand_app_bar_title.dart';
 import '../../../../core/feedback/app_feedback.dart';
-import '../../../admin/presentation/screens/kyc_document_viewer_screen.dart';
+import '../../../admin/presentation/screens/simple_kyc_preview_screen.dart';
 
 /// Admin Panel - Simple: Driver verification requests only. No search bar.
 class UnionAdminHomeScreen extends StatefulWidget {
@@ -843,7 +843,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
     return '${EnvConfig.publicFileBaseUrl}/$raw';
   }
 
-  Future<void> _openAdminDocumentUrl(String storageUrl) async {
+  Future<void> _openAdminDocumentUrl(String storageUrl, String labelKey) async {
     final resolved = _resolvePublicFileUrl(storageUrl);
     final uri = Uri.tryParse(resolved);
     if (uri == null) return;
@@ -851,9 +851,13 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
       await launchUrl(uri, webOnlyWindowName: '_blank');
     } else {
       if (!mounted) return;
+      final loc = AppLocalizations.of(context);
       await Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => KycDocumentViewerScreen(storageUrl: storageUrl),
+          builder: (_) => SimpleKycPreviewScreen(
+            url: resolved,
+            label: loc.t(labelKey),
+          ),
         ),
       );
     }
@@ -1367,7 +1371,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
           borderRadius: BorderRadius.circular(8),
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: () => _openAdminDocumentUrl(url),
+            onTap: () => _openAdminDocumentUrl(url, labelKey),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               child: Row(
