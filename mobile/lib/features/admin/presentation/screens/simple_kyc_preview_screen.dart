@@ -24,15 +24,6 @@ class SimpleKycPreviewScreen extends StatelessWidget {
     return path.endsWith('.pdf');
   }
 
-  bool _looksRasterImage(String u) {
-    final path = Uri.tryParse(u)?.path.toLowerCase() ?? u.toLowerCase();
-    return path.endsWith('.jpg') ||
-        path.endsWith('.jpeg') ||
-        path.endsWith('.png') ||
-        path.endsWith('.webp') ||
-        path.endsWith('.gif');
-  }
-
   @override
   Widget build(BuildContext context) {
     final pdf = _looksPdf(url);
