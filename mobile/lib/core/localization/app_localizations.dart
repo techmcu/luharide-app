@@ -1480,6 +1480,34 @@ class AppLocalizations {
       'en': 'File · tap to view in app',
       'hi': 'फ़ाइल · ऐप में देखने के लिए टैप करें',
     },
+    'kyc.submitted.status.not_uploaded': {
+      'en': 'Not uploaded',
+      'hi': 'अपलोड नहीं',
+    },
+    'kyc.submitted.status.submitted': {
+      'en': 'Submitted',
+      'hi': 'जमा किया गया',
+    },
+    'kyc.submitted.status.submitted_verified': {
+      'en': 'Submitted · Verified',
+      'hi': 'जमा · सत्यापित',
+    },
+    'kyc.submitted.status.submitted_pending': {
+      'en': 'Submitted · Pending review',
+      'hi': 'जमा · समीक्षा लंबित',
+    },
+    'kyc.submitted.status.submitted_rejected': {
+      'en': 'Submitted · Rejected — please update',
+      'hi': 'जमा · अस्वीकृत — अपडेट करें',
+    },
+    'kyc.submitted.status.submitted_reupload': {
+      'en': 'Submitted · Re-upload required',
+      'hi': 'जमा · दोबारा अपलोड ज़रूरी',
+    },
+    'kyc.submitted.tap_disabled': {
+      'en': 'Upload this document first (see buttons below).',
+      'hi': 'पहले यह दस्तावेज़ अपलोड करें (नीचे बटन देखें)।',
+    },
     'admin.kyc.no_document_links': {
       'en':
           'No document links in this request. If uploads exist, check server/DB or ask the applicant to re-submit KYC.',
