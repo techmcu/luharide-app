@@ -18,9 +18,15 @@ import 'features/landing/presentation/screens/landing_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Log framework/async errors (release: still useful via logcat / crash tools)
+  // Web: avoid FlutterError.presentError — it walks the widget inspector and can
+  // crash (LegacyJavaScriptObject vs DiagnosticsNode) with HtmlElementView / DOM.
   FlutterError.onError = (FlutterErrorDetails details) {
-    FlutterError.presentError(details);
+    if (kIsWeb) {
+      debugPrint(details.exceptionAsString());
+      if (details.stack != null) debugPrint(details.stack.toString());
+    } else {
+      FlutterError.presentError(details);
+    }
     if (kDebugMode) {
       // ignore: avoid_print
       print('FlutterError: ${details.exceptionAsString()}');
