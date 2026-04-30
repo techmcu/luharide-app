@@ -84,7 +84,15 @@ class _RoleHomeShellState extends State<RoleHomeShell> {
       );
     }
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_tabIndex != 0) {
+          setState(() => _tabIndex = 0);
+        }
+      },
+      child: Scaffold(
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -114,6 +122,7 @@ class _RoleHomeShellState extends State<RoleHomeShell> {
           ],
         ),
       ),
+    ),
     );
   }
 }
