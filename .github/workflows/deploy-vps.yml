@@ -7,23 +7,65 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy:
-    name: Deploy to VPS
+  build-web:
+    name: Build Flutter web
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Build web
+        run: |
+          flutter pub get
+          flutter build web --release
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web
+          path: mobile/build/web/
+          retention-days: 1
+
+  deploy:
+    name: Deploy to VPS
+    needs: build-web
+    runs-on: ubuntu-latest
     environment: vps
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Download web build
+        uses: actions/download-artifact@v4
+        with:
+          name: flutter-web
+          path: webapp-build/
+
       - name: Install sshpass
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
+
+      - name: Upload web build to VPS
+        env:
+          VPS_IP: ${{ secrets.VPS_IP }}
+          VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
+        run: |
+          sshpass -p "$VPS_PASSWORD" ssh -o StrictHostKeyChecking=no root@$VPS_IP "mkdir -p /var/www/luharide-web-staging"
+          sshpass -p "$VPS_PASSWORD" scp -r -o StrictHostKeyChecking=no webapp-build/* root@$VPS_IP:/var/www/luharide-web-staging/
 
       # If this step exits 0, the next step ("Emergency rollback…") is SKIPPED on purpose.
       - name: Deploy with health-check
@@ -61,7 +103,8 @@ jobs:
           cd "$REPO_DIR"
           mkdir -p /var/www/luharide-cloud /var/www/luharide-web
           rsync -a --delete infra/static-site-luharide-root/ /var/www/luharide-cloud/
-          rsync -a --delete webapp/ /var/www/luharide-web/
+          rsync -a --delete /var/www/luharide-web-staging/ /var/www/luharide-web/
+          rm -rf /var/www/luharide-web-staging
           # Keep existing live nginx config (including SSL blocks) intact.
           # Only ensure split site stays enabled.
           ln -sf /etc/nginx/sites-available/luharide-split /etc/nginx/sites-enabled/luharide-split || true

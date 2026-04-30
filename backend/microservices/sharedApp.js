@@ -8,6 +8,7 @@ const { applyLuhaCors } = require('../src/middleware/corsLuha');
 const morgan = require('morgan');
 const { errorConverter, errorHandler } = require('../src/middleware/errorHandler');
 const { requestContext } = require('../src/middleware/requestContext');
+const { apiVersionRewrite } = require('../src/middleware/apiVersionRewrite');
 const { applyTrustProxy } = require('../src/config/trustProxy');
 
 function createBaseApp(serviceName) {
@@ -19,6 +20,7 @@ function createBaseApp(serviceName) {
   applyLuhaCors(app);
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
+  app.use(apiVersionRewrite);
   morgan.token('reqId', (req) => req.id || '-');
   app.use(morgan(':reqId :method :url :status :response-time ms'));
 

@@ -4,6 +4,7 @@
  */
 const { verifyAccessToken } = require('../services/tokenService');
 const logger = require('../config/logger');
+const { socketRateLimit } = require('./socketRateLimit');
 
 /**
  * @param {import('socket.io').Server} io
@@ -22,6 +23,8 @@ function attachSocketHandlers(io) {
     lng <= 180;
 
   const nowMs = () => Date.now();
+
+  io.use(socketRateLimit());
 
   io.use((socket, next) => {
     socket.userId = null;

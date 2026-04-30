@@ -27,12 +27,15 @@ const socketIo = require('socket.io');
 
 const { pool } = require('../src/config/database');
 const { apiLimiter } = require('../src/middleware/rateLimiter');
+const { apiVersionRewrite } = require('../src/middleware/apiVersionRewrite');
 const { attachSocketIoRedisAdapter } = require('../src/socket/socketRedisAdapter');
 const attachSocketHandlers = require('../src/socket/socketHandlers');
 const { setIo } = require('../src/socket/socketIoRegistry');
 const { requestContext } = require('../src/middleware/requestContext');
 const logger = require('../src/config/logger');
 const { applyTrustProxy, shouldWarnTrustProxyUnsetInProduction } = require('../src/config/trustProxy');
+const { getBreaker, getAllBreakers } = require('./circuitBreaker');
+const { recordMiddleware, getMetrics } = require('../src/middleware/metricsCollector');
 
 const AUTH_URL = process.env.AUTH_URL || 'http://127.0.0.1:3001';
 const CORE_URL = process.env.CORE_URL || 'http://127.0.0.1:3002';
@@ -76,43 +79,16 @@ function checkUpstreamHealth(baseUrl, timeoutMs = 2500) {
 const app = express();
 applyTrustProxy(app);
 
-const METRICS_WINDOW = 2000;
-const metrics = {
-  startedAt: Date.now(),
-  requests: 0,
-  status2xx: 0,
-  status4xx: 0,
-  status5xx: 0,
-  latenciesMs: [],
-};
-
-function percentile(sortedValues, p) {
-  if (!sortedValues.length) return 0;
-  const idx = Math.ceil((p / 100) * sortedValues.length) - 1;
-  return sortedValues[Math.max(0, Math.min(sortedValues.length - 1, idx))];
-}
-
 app.use(createHelmetMiddleware());
 app.use(requestContext);
 app.use(compression());
 applyLuhaCors(app);
-app.use((req, res, next) => {
-  const start = process.hrtime.bigint();
-  res.on('finish', () => {
-    const ms = Number(process.hrtime.bigint() - start) / 1e6;
-    metrics.requests += 1;
-    if (res.statusCode >= 500) metrics.status5xx += 1;
-    else if (res.statusCode >= 400) metrics.status4xx += 1;
-    else if (res.statusCode >= 200) metrics.status2xx += 1;
-    metrics.latenciesMs.push(ms);
-    if (metrics.latenciesMs.length > METRICS_WINDOW) {
-      metrics.latenciesMs.shift();
-    }
-  });
-  next();
-});
+app.use(recordMiddleware());
 morgan.token('reqId', (req) => req.id || '-');
 app.use(morgan(':reqId :method :url :status :response-time ms'));
+
+// /api/v1/* → /api/* rewrite (backward compat: /api/ still works)
+app.use(apiVersionRewrite);
 
 mountUploadsStatic(app, path.join(__dirname, '../uploads'));
 
@@ -173,42 +149,15 @@ app.get('/api/health/upstreams', async (req, res) => {
   });
 });
 
-app.get('/health/metrics', (req, res) => {
-  const sorted = [...metrics.latenciesMs].sort((a, b) => a - b);
-  const mem = process.memoryUsage();
-  const uptimeSec = Math.floor(process.uptime());
-  const total = metrics.requests || 1;
-  res.status(200).json({
-    ok: true,
-    service: 'gateway',
-    uptime_sec: uptimeSec,
-    requests_total: metrics.requests,
-    status_2xx: metrics.status2xx,
-    status_4xx: metrics.status4xx,
-    status_5xx: metrics.status5xx,
-    error_rate_5xx_pct: Number(((metrics.status5xx / total) * 100).toFixed(2)),
-    latency_ms: {
-      p50: Number(percentile(sorted, 50).toFixed(2)),
-      p95: Number(percentile(sorted, 95).toFixed(2)),
-      p99: Number(percentile(sorted, 99).toFixed(2)),
-      sample_size: sorted.length,
-    },
-    memory_mb: {
-      rss: Number((mem.rss / 1024 / 1024).toFixed(2)),
-      heap_used: Number((mem.heapUsed / 1024 / 1024).toFixed(2)),
-      heap_total: Number((mem.heapTotal / 1024 / 1024).toFixed(2)),
-    },
-    cpu: {
-      loadavg: os.loadavg(),
-      cores: os.cpus().length,
-    },
-    db_pool: {
-      total: pool.totalCount,
-      idle: pool.idleCount,
-      waiting: pool.waitingCount,
-    },
-    metrics_started_at: new Date(metrics.startedAt).toISOString(),
-  });
+app.get('/health/metrics', async (req, res) => {
+  const data = await getMetrics('gateway', pool);
+  res.status(200).json(data);
+});
+
+app.get('/health/circuits', (req, res) => {
+  const circuits = getAllBreakers();
+  const allClosed = circuits.every((c) => c.state === 'CLOSED');
+  res.status(allClosed ? 200 : 503).json({ ok: allClosed, circuits });
 });
 
 const _proxyTimeoutMs = Math.max(
@@ -216,72 +165,95 @@ const _proxyTimeoutMs = Math.max(
   parseInt(process.env.GATEWAY_PROXY_TIMEOUT_MS || '120000', 10) || 120000
 );
 
-const proxyOpts = (target) => ({
-  target,
-  changeOrigin: true,
-  timeout: _proxyTimeoutMs,
-  logLevel: process.env.GATEWAY_PROXY_LOG === 'debug' ? 'debug' : 'warn',
-  on: {
-    proxyReq: (proxyReq, req) => {
-      if (req.id) proxyReq.setHeader('X-Request-Id', req.id);
-      // Microservices apply rate limits per IP — forward real client (nginx) or direct peer.
-      const xff = req.headers['x-forwarded-for'];
-      if (xff) {
-        proxyReq.setHeader(
-          'X-Forwarded-For',
-          Array.isArray(xff) ? xff.join(', ') : String(xff)
-        );
-      } else {
-        const peer = req.socket?.remoteAddress;
-        if (peer) {
-          const ip = peer.replace(/^::ffff:/, '');
-          proxyReq.setHeader('X-Forwarded-For', ip);
-          if (!proxyReq.getHeader('x-real-ip')) {
-            proxyReq.setHeader('X-Real-IP', ip);
+const proxyOpts = (target, breakerName) => {
+  const breaker = breakerName ? getBreaker(breakerName) : null;
+  return {
+    target,
+    changeOrigin: true,
+    timeout: _proxyTimeoutMs,
+    logLevel: process.env.GATEWAY_PROXY_LOG === 'debug' ? 'debug' : 'warn',
+    on: {
+      proxyReq: (proxyReq, req) => {
+        if (req.id) proxyReq.setHeader('X-Request-Id', req.id);
+        const xff = req.headers['x-forwarded-for'];
+        if (xff) {
+          proxyReq.setHeader(
+            'X-Forwarded-For',
+            Array.isArray(xff) ? xff.join(', ') : String(xff)
+          );
+        } else {
+          const peer = req.socket?.remoteAddress;
+          if (peer) {
+            const ip = peer.replace(/^::ffff:/, '');
+            proxyReq.setHeader('X-Forwarded-For', ip);
+            if (!proxyReq.getHeader('x-real-ip')) {
+              proxyReq.setHeader('X-Real-IP', ip);
+            }
           }
         }
-      }
+      },
+      proxyRes: (proxyRes) => {
+        if (!breaker) return;
+        if (proxyRes.statusCode >= 500) breaker.recordFailure();
+        else breaker.recordSuccess();
+      },
+      error: (err, req, res, proxyTarget) => {
+        if (breaker) breaker.recordFailure();
+        logger.error({
+          msg: 'Gateway proxy upstream error',
+          target: proxyTarget || target,
+          code: err && err.code,
+          message: err && err.message,
+          path: req && req.originalUrl,
+        });
+        if (res.headersSent) {
+          return;
+        }
+        applyCorsHeadersOnError(req, res);
+        res.statusCode = 502;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(
+          JSON.stringify({
+            success: false,
+            message:
+              'Gateway could not reach an upstream microservice. Run all services: cd backend && npm run dev:stack (needs auth:3001, core:3002, union:3003, platform:3004).',
+            error: (err && err.code) || 'EPROXY',
+            upstream: String(target),
+          })
+        );
+      },
     },
-    /**
-     * Without CORS headers on this response, browsers hide the error from JS → Dio shows ERROR[null].
-     */
-    error: (err, req, res, proxyTarget) => {
-      logger.error({
-        msg: 'Gateway proxy upstream error',
-        target: proxyTarget || target,
-        code: err && err.code,
-        message: err && err.message,
-        path: req && req.originalUrl,
-      });
-      if (res.headersSent) {
-        return;
-      }
-      applyCorsHeadersOnError(req, res);
-      res.statusCode = 502;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(
-        JSON.stringify({
-          success: false,
-          message:
-            'Gateway could not reach an upstream microservice. Run all services: cd backend && npm run dev:stack (needs auth:3001, core:3002, union:3003, platform:3004).',
-          error: (err && err.code) || 'EPROXY',
-          upstream: String(target),
-        })
-      );
-    },
-  },
-});
+  };
+};
 
 /**
  * http-proxy-middleware v3 + Express: app.use('/api/foo', proxy) strips req.url to the
  * suffix only, so upstream receives /ping instead of /api/foo/ping → 404 on microservices.
  * Use pathFilter at app root so req.url stays the full client path (see HPM + Express #4854).
  */
-const apiProxy = (target, pathFilter) =>
-  createProxyMiddleware({
-    pathFilter,
-    ...proxyOpts(target),
-  });
+function circuitGuard(breakerName) {
+  return (req, res, next) => {
+    const breaker = getBreaker(breakerName);
+    if (!breaker.isAvailable()) {
+      applyCorsHeadersOnError(req, res);
+      return res.status(503).json({
+        success: false,
+        message: `Service temporarily unavailable (circuit open for ${breakerName}). Retrying in ${Math.ceil(breaker.resetTimeoutMs / 1000)}s.`,
+        circuit: breaker.state,
+      });
+    }
+    next();
+  };
+}
+
+const apiProxy = (target, pathFilter, breakerName) =>
+  [
+    circuitGuard(breakerName),
+    createProxyMiddleware({
+      pathFilter,
+      ...proxyOpts(target, breakerName),
+    }),
+  ];
 
 // Static may miss; then route uploads to the service that actually stores the files.
 // Raw union JPEG/PNG live on platform (/uploads/union-raw); merged KYC PDFs on union (/uploads/union-merged + legacy /uploads/union-docs/*.pdf).
@@ -314,19 +286,19 @@ app.use(
 app.use('/api', apiLimiter);
 
 // Order: longest / most specific pathFilter first where prefixes could overlap
-app.use(apiProxy(AUTH_URL, '/api/simple-auth'));
-app.use(apiProxy(AUTH_URL, '/api/auth'));
-app.use(apiProxy(UNION_URL, '/api/union'));
-app.use(apiProxy(PLATFORM_URL, '/api/admin'));
-app.use(apiProxy(PLATFORM_URL, '/api/payments'));
-app.use(apiProxy(PLATFORM_URL, '/api/notifications'));
-app.use(apiProxy(PLATFORM_URL, '/api/reviews'));
-app.use(apiProxy(PLATFORM_URL, '/api/uploads'));
-app.use(apiProxy(CORE_URL, '/api/kyc'));
-app.use(apiProxy(CORE_URL, '/api/bookings'));
-app.use(apiProxy(CORE_URL, '/api/trips'));
-app.use(apiProxy(CORE_URL, '/api/drivers'));
-app.use(apiProxy(CORE_URL, '/api/driver-verification'));
+app.use(apiProxy(AUTH_URL, '/api/simple-auth', 'auth'));
+app.use(apiProxy(AUTH_URL, '/api/auth', 'auth'));
+app.use(apiProxy(UNION_URL, '/api/union', 'union'));
+app.use(apiProxy(PLATFORM_URL, '/api/admin', 'platform'));
+app.use(apiProxy(PLATFORM_URL, '/api/payments', 'platform'));
+app.use(apiProxy(PLATFORM_URL, '/api/notifications', 'platform'));
+app.use(apiProxy(PLATFORM_URL, '/api/reviews', 'platform'));
+app.use(apiProxy(PLATFORM_URL, '/api/uploads', 'platform'));
+app.use(apiProxy(CORE_URL, '/api/kyc', 'core'));
+app.use(apiProxy(CORE_URL, '/api/bookings', 'core'));
+app.use(apiProxy(CORE_URL, '/api/trips', 'core'));
+app.use(apiProxy(CORE_URL, '/api/drivers', 'core'));
+app.use(apiProxy(CORE_URL, '/api/driver-verification', 'core'));
 
 const server = http.createServer(app);
 // Same origin rules as REST (CORS_ALLOWED_ORIGINS / CLIENT_URL + localhost dev).

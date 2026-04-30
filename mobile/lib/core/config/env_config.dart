@@ -38,7 +38,7 @@ class EnvConfig {
   /// Uses apex domain to match main site TLS cert (avoids ERR_CERT_COMMON_NAME_INVALID).
   /// Nginx must proxy `/api` → gateway. If `api.luharide.cloud` has valid cert, override:
   /// `--dart-define=API_BASE_URL=https://api.luharide.cloud/api --dart-define=SOCKET_URL=https://api.luharide.cloud`
-  static const String _productionApiBase = 'https://luharide.cloud/api';
+  static const String _productionApiBase = 'https://luharide.cloud/api/v1';
 
   /// Socket host (no `/api`) — same origin as web app.
   static const String _productionSocket = 'https://luharide.cloud';
@@ -50,7 +50,7 @@ class EnvConfig {
     }
     if (kDebugMode && _useLocalApiEnv) {
       // Web: **127.0.0.1** — Windows par `localhost` → ::1 vs Node IPv4 mismatch fix.
-      return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:$_localApiPort/api';
+      return 'http://${kIsWeb ? '127.0.0.1' : '10.0.2.2'}:$_localApiPort/api/v1';
     }
     return _productionApiBase;
   }
@@ -70,6 +70,9 @@ class EnvConfig {
   /// Prefer this over [socketUrl] when REST and Socket hosts might differ.
   static String get publicFileBaseUrl {
     final api = apiBaseUrl;
+    if (api.endsWith('/api/v1')) {
+      return _trimEndSlashes(api.substring(0, api.length - 7));
+    }
     if (api.endsWith('/api')) {
       return _trimEndSlashes(api.substring(0, api.length - 4));
     }

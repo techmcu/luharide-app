@@ -68,6 +68,9 @@ deploy_key.pub
 deploy_key_github.txt
 deploy_key_b64.txt
 
+# Flutter web build (built in CI, not committed)
+webapp/
+
 # Temporary files
 *.tmp
 *.temp

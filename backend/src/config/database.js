@@ -22,9 +22,21 @@ const dbName = process.env.DB_NAME || 'luharide';
 const dbUser = process.env.DB_USER || 'postgres';
 const dbPassword = process.env.DB_PASSWORD || '';
 
-/** Primary pool (writes + reads when no replica). Tune via PG_POOL_MIN / PG_POOL_MAX. */
-const poolMin = parseIntEnv('PG_POOL_MIN', 2, 1, 80);
-const poolMax = parseIntEnv('PG_POOL_MAX', 20, poolMin, 100);
+const SERVICE_POOL_DEFAULTS = {
+  'luha-ms-auth':     { min: 2, max: 8 },
+  'luha-ms-core':     { min: 3, max: 25 },
+  'luha-ms-union':    { min: 2, max: 10 },
+  'luha-ms-platform': { min: 2, max: 15 },
+  'luha-gateway':     { min: 1, max: 5 },
+  'luha-monolith':    { min: 2, max: 20 },
+};
+
+const serviceName = process.env.LUHA_SERVICE_NAME || '';
+const serviceDefaults = SERVICE_POOL_DEFAULTS[serviceName] || { min: 2, max: 20 };
+
+/** Primary pool. Auto-tuned per service; override with PG_POOL_MIN / PG_POOL_MAX. */
+const poolMin = parseIntEnv('PG_POOL_MIN', serviceDefaults.min, 1, 80);
+const poolMax = parseIntEnv('PG_POOL_MAX', serviceDefaults.max, poolMin, 100);
 
 const sharedPoolOptions = {
   port: dbPort,
