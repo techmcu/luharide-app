@@ -4,7 +4,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
-const { buildWatermarkedPdfFromUploadUrls } = require('../utils/kycBuildPdfFromUploadUrls');
+const { enqueueBuildPdf } = require('../jobs/kycQueue');
 const { sanitizeKycUploadUrl: sanitizeDocUrl } = require('../utils/sanitizeKycUploadUrl');
 
 /** Preserve order; drop empty. */
@@ -112,7 +112,7 @@ const submitVerification = asyncHandler(async (req, res) => {
 
   const aadhaarPieces = orderedSanitizedDocUrls([aadhaar_front_url, aadhaar_back_url]);
   if (aadhaarPieces.length > 0) {
-    aadhaarDoc = await buildWatermarkedPdfFromUploadUrls(
+    aadhaarDoc = await enqueueBuildPdf(
       aadhaarPieces,
       'driver-docs',
       'aadhaar_merged'
@@ -123,7 +123,7 @@ const submitVerification = asyncHandler(async (req, res) => {
 
   const dlPieces = orderedSanitizedDocUrls([driving_license_front_url, driving_license_back_url]);
   if (dlPieces.length > 0) {
-    dlLegacy = await buildWatermarkedPdfFromUploadUrls(dlPieces, 'driver-docs', 'dl_merged');
+    dlLegacy = await enqueueBuildPdf(dlPieces, 'driver-docs', 'dl_merged');
     dlFront = null;
     dlBack = null;
   }

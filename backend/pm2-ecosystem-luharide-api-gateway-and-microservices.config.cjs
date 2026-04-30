@@ -35,8 +35,8 @@ module.exports = {
       name: 'luharide-core-ride-service',
       script: 'microservices/coreService.js',
       cwd: __dirname,
-      instances: 1,
-      exec_mode: 'fork',
+      instances: parseInt(process.env.LUHA_CORE_INSTANCES, 10) || 2,
+      exec_mode: 'cluster',
       env: { ...prodBase, CORE_SERVICE_PORT: '3002' },
     },
     {
@@ -59,8 +59,8 @@ module.exports = {
       name: 'luharide-api-gateway',
       script: 'gateway/server.js',
       cwd: __dirname,
-      instances: 1,
-      exec_mode: 'fork',
+      instances: parseInt(process.env.LUHA_GATEWAY_INSTANCES, 10) || 2,
+      exec_mode: 'cluster',
       env: {
         ...prodBase,
         GATEWAY_PORT: '3000',

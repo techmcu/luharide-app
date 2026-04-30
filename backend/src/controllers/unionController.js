@@ -4,10 +4,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const PDFDocument = require('pdfkit');
-const {
-  buildWatermarkedPdfFromUploadUrls,
-  copyAndWatermarkExistingPdf,
-} = require('../utils/kycBuildPdfFromUploadUrls');
+const { enqueueBuildPdf, enqueueCopyPdf } = require('../jobs/kycQueue');
 const { sanitizeKycUploadUrl: sanitizeDocumentUrl } = require('../utils/sanitizeKycUploadUrl');
 
 const adminEmail = process.env.ADMIN_EMAIL
@@ -313,9 +310,9 @@ async function unionImageFieldToPdfIfNeeded(url, prefix) {
   const s = sanitizeDocumentUrl(url);
   if (!s) return null;
   if (s.toLowerCase().endsWith('.pdf')) {
-    return copyAndWatermarkExistingPdf(s, prefix);
+    return enqueueCopyPdf(s, prefix);
   }
-  return buildWatermarkedPdfFromUploadUrls([s], 'union-raw', prefix);
+  return enqueueBuildPdf([s], 'union-raw', prefix);
 }
 
 const registerUnion = asyncHandler(async (req, res) => {
@@ -377,7 +374,7 @@ const registerUnion = asyncHandler(async (req, res) => {
   let ownerAadhaarBack = sanitizeDocumentUrl(owner_aadhaar_back_url);
   const ownerPieces = orderedUnionDocUrls([owner_aadhaar_front_url, owner_aadhaar_back_url]);
   if (ownerPieces.length > 0) {
-    ownerAadhaarUrl = await buildWatermarkedPdfFromUploadUrls(
+    ownerAadhaarUrl = await enqueueBuildPdf(
       ownerPieces,
       'union-raw',
       'union_owner_aadhaar_merged'
@@ -385,13 +382,13 @@ const registerUnion = asyncHandler(async (req, res) => {
     ownerAadhaarFront = null;
     ownerAadhaarBack = null;
   } else if (ownerAadhaarUrl && !ownerAadhaarUrl.toLowerCase().endsWith('.pdf')) {
-    ownerAadhaarUrl = await buildWatermarkedPdfFromUploadUrls(
+    ownerAadhaarUrl = await enqueueBuildPdf(
       [ownerAadhaarUrl],
       'union-raw',
       'union_owner_aadhaar_single'
     );
   } else if (ownerAadhaarUrl && ownerAadhaarUrl.toLowerCase().endsWith('.pdf')) {
-    ownerAadhaarUrl = await copyAndWatermarkExistingPdf(
+    ownerAadhaarUrl = await enqueueCopyPdf(
       ownerAadhaarUrl,
       'union_owner_aadhaar_pdf'
     );
@@ -404,7 +401,7 @@ const registerUnion = asyncHandler(async (req, res) => {
     leader_driving_license_back_url,
   ]);
   if (leaderPieces.length > 0) {
-    leaderDlFront = await buildWatermarkedPdfFromUploadUrls(
+    leaderDlFront = await enqueueBuildPdf(
       leaderPieces,
       'union-raw',
       'union_leader_dl_merged'
@@ -420,7 +417,7 @@ const registerUnion = asyncHandler(async (req, res) => {
     unionPhoto =
       origOfficeSan && origUnionPhotoSan === origOfficeSan && officePhoto
         ? officePhoto
-        : await buildWatermarkedPdfFromUploadUrls(
+        : await enqueueBuildPdf(
             [origUnionPhotoSan],
             'union-raw',
             'union_photo'
@@ -437,7 +434,7 @@ const registerUnion = asyncHandler(async (req, res) => {
   let rcBack = sanitizeDocumentUrl(owner_vehicle_rc_back_url);
   const rcPieces = orderedUnionDocUrls([owner_vehicle_rc_front_url, owner_vehicle_rc_back_url]);
   if (rcPieces.length > 0) {
-    rcUrl = await buildWatermarkedPdfFromUploadUrls(
+    rcUrl = await enqueueBuildPdf(
       rcPieces,
       'union-raw',
       'union_vehicle_rc_merged'
@@ -445,13 +442,13 @@ const registerUnion = asyncHandler(async (req, res) => {
     rcFront = null;
     rcBack = null;
   } else if (rcUrl && !rcUrl.toLowerCase().endsWith('.pdf')) {
-    rcUrl = await buildWatermarkedPdfFromUploadUrls(
+    rcUrl = await enqueueBuildPdf(
       [rcUrl],
       'union-raw',
       'union_vehicle_rc'
     );
   } else if (rcUrl && rcUrl.toLowerCase().endsWith('.pdf')) {
-    rcUrl = await copyAndWatermarkExistingPdf(rcUrl, 'union_vehicle_rc_pdf');
+    rcUrl = await enqueueCopyPdf(rcUrl, 'union_vehicle_rc_pdf');
   }
 
   let insertRes;
