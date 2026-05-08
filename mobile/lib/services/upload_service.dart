@@ -68,15 +68,7 @@ class UploadService {
           : null;
       throw Exception(msg ?? 'Failed to upload document');
     } on DioException catch (e) {
-      if (e.response?.statusCode == 413) {
-        throw Exception(_dioMessage(e) ?? 'Too large — max 20 MB.');
-      }
-      if (e.response?.statusCode == 400) {
-        throw Exception(
-          _dioMessage(e) ?? 'Upload rejected. Check file type and size.',
-        );
-      }
-      rethrow;
+      throw Exception(_uploadFriendlyError(e));
     }
   }
 
@@ -100,15 +92,38 @@ class UploadService {
           : null;
       throw Exception(msg ?? 'Failed to upload document');
     } on DioException catch (e) {
-      if (e.response?.statusCode == 413) {
-        throw Exception(_dioMessage(e) ?? 'Too large — max 20 MB.');
-      }
-      if (e.response?.statusCode == 400) {
-        throw Exception(
-          _dioMessage(e) ?? 'Upload rejected. Check file type and size.',
-        );
-      }
-      rethrow;
+      throw Exception(_uploadFriendlyError(e));
     }
+  }
+
+  String _uploadFriendlyError(DioException e) {
+    final sc = e.response?.statusCode;
+    if (sc == 413) {
+      return _dioMessage(e) ?? 'Too large — max 20 MB.';
+    }
+    if (sc == 400) {
+      return _dioMessage(e) ?? 'Upload rejected. Check file type and size.';
+    }
+    if (sc == 401) {
+      return 'Session expired. Please log in again and retry.';
+    }
+    if (sc == 502 || sc == 503 || sc == 504) {
+      return 'Upload server temporarily unavailable. Thodi der baad dubara try karein. '
+          '(Upload server temporarily unavailable.)';
+    }
+    if (sc != null && sc >= 500) {
+      return _dioMessage(e) ?? 'Upload failed (server error). Please try again.';
+    }
+    if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.sendTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      return 'Upload me time zyada lag rha — internet check karke dubara try karein. '
+          '(Upload timed out.)';
+    }
+    if (e.type == DioExceptionType.connectionError) {
+      return 'Server tak pahunch nahi paye. Wi‑Fi / mobile data check karein. '
+          '(Cannot reach server.)';
+    }
+    return _dioMessage(e) ?? 'Upload failed. Please try again.';
   }
 }

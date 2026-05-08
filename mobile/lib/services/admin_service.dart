@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../core/constants/api_constants.dart';
+import '../core/utils/api_error_messages.dart';
 import 'api_service.dart';
 
 /// Normalizes API `requests` to a growable list (handles rare single-map payloads).
@@ -104,7 +105,7 @@ class AdminService {
         'total_trips': 0,
         'total_bookings': 0,
         'drivers_verified': 0,
-        'message': e.response?.data['message'] ?? 'Failed',
+        'message': dioResponseMessage(e) ?? 'Failed',
       };
     } catch (e) {
       return {
@@ -129,7 +130,7 @@ class AdminService {
       return {
         'success': false,
         'requests': <dynamic>[],
-        'message': e.response?.data['message'] ?? 'Failed',
+        'message': dioResponseMessage(e) ?? 'Failed',
       };
     } catch (e) {
       return {'success': false, 'requests': <dynamic>[], 'message': 'An error occurred'};
@@ -156,7 +157,7 @@ class AdminService {
         'success': false,
         'drivers': <dynamic>[],
         'total': 0,
-        'message': e.response?.data['message'] ?? 'Failed',
+        'message': dioResponseMessage(e) ?? 'Failed',
       };
     } catch (e) {
       return {'success': false, 'drivers': <dynamic>[], 'total': 0, 'message': 'An error occurred'};
@@ -183,7 +184,7 @@ class AdminService {
         'success': false,
         'unions': <dynamic>[],
         'total': 0,
-        'message': e.response?.data['message'] ?? 'Failed',
+        'message': dioResponseMessage(e) ?? 'Failed',
       };
     } catch (e) {
       return {'success': false, 'unions': <dynamic>[], 'total': 0, 'message': 'An error occurred'};
@@ -202,7 +203,7 @@ class AdminService {
       return {
         'success': false,
         'requests': <dynamic>[],
-        'message': e.response?.data['message'] ?? 'Failed',
+        'message': dioResponseMessage(e) ?? 'Failed',
       };
     } catch (e) {
       return {
@@ -225,7 +226,7 @@ class AdminService {
       return {
         'success': false,
         'requests': <dynamic>[],
-        'message': e.response?.data['message'] ?? 'Failed',
+        'message': dioResponseMessage(e) ?? 'Failed',
       };
     } catch (e) {
       return {'success': false, 'requests': <dynamic>[], 'message': 'An error occurred'};
@@ -238,7 +239,7 @@ class AdminService {
       await _apiService.post('${ApiConstants.adminUnionDocRequests}/$unionId/approve');
       return {'success': true, 'message': 'Union documents approved'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }
@@ -253,7 +254,7 @@ class AdminService {
       );
       return {'success': true, 'message': 'Union documents sent back for correction'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }
@@ -267,7 +268,7 @@ class AdminService {
       );
       return {'success': true, 'message': 'Driver approved'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }
@@ -282,7 +283,7 @@ class AdminService {
       );
       return {'success': true, 'message': 'Request rejected'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }
@@ -296,7 +297,7 @@ class AdminService {
       );
       return {'success': true, 'message': 'Union approved'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }
@@ -308,7 +309,7 @@ class AdminService {
       await _apiService.post('${ApiConstants.adminUnionRequests}/$unionId/reject');
       return {'success': true, 'message': 'Union request rejected'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }
@@ -330,7 +331,7 @@ class AdminService {
       );
       return {'success': true, 'message': 'Driver re-verification requested'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }
@@ -352,7 +353,7 @@ class AdminService {
       );
       return {'success': true, 'message': 'Union re-verification requested'};
     } on DioException catch (e) {
-      return {'success': false, 'message': e.response?.data['message'] ?? 'Failed'};
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
     }

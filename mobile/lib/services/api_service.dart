@@ -110,9 +110,12 @@ class ApiService {
             }
           }
           // 502/503: upstream service temporarily down — retry once after brief delay.
+          // Skip retry for multipart FormData — the stream is consumed on first send
+          // and cannot be re-read, so the retry would send an empty body.
           final sc = error.response?.statusCode;
           if ((sc == 502 || sc == 503) &&
-              error.requestOptions.extra['__retried502__'] != true) {
+              error.requestOptions.extra['__retried502__'] != true &&
+              error.requestOptions.data is! FormData) {
             error.requestOptions.extra['__retried502__'] = true;
             try {
               await Future.delayed(const Duration(seconds: 2));

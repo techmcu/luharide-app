@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../core/constants/api_constants.dart';
+import '../core/utils/api_error_messages.dart';
 import '../models/trip_model.dart';
 import 'api_service.dart';
 
@@ -45,7 +46,7 @@ class TripService {
         'message': response.data['message'] ?? 'Trip created successfully',
       };
     } on DioException catch (e) {
-      final msg = e.response?.data['message'] ?? 'Failed to create trip';
+      final msg = dioResponseMessage(e) ?? 'Failed to create trip';
       // Log server response to find 400 cause (remove after fix confirmed)
       if (kDebugMode && e.response != null) {
         debugPrint('Create trip error: status=${e.response!.statusCode} message=$msg');
@@ -114,7 +115,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to search trips',
+        'message': dioResponseMessage(e) ?? 'Failed to search trips',
         'trips': <TripModel>[],
       };
     } catch (e) {
@@ -152,7 +153,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to load seats',
+        'message': dioResponseMessage(e) ?? 'Failed to load seats',
         'booked': <int>[],
         'pending': <int>[],
       };
@@ -184,7 +185,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to get trip details',
+        'message': dioResponseMessage(e) ?? 'Failed to get trip details',
       };
     } catch (e) {
       return {
@@ -215,7 +216,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to get trips',
+        'message': dioResponseMessage(e) ?? 'Failed to get trips',
         'trips': <TripModel>[],
       };
     } catch (e) {
@@ -255,7 +256,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to create booking',
+        'message': dioResponseMessage(e) ?? 'Failed to create booking',
       };
     } catch (e) {
       return {
@@ -277,7 +278,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to get bookings',
+        'message': dioResponseMessage(e) ?? 'Failed to get bookings',
         'bookings': <dynamic>[],
       };
     } catch (e) {
@@ -302,7 +303,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed',
+        'message': dioResponseMessage(e) ?? 'Failed',
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
@@ -323,7 +324,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Could not cancel booking',
+        'message': dioResponseMessage(e) ?? 'Could not cancel booking',
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
@@ -343,7 +344,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Could not start ride',
+        'message': dioResponseMessage(e) ?? 'Could not start ride',
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
@@ -363,7 +364,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Could not complete ride',
+        'message': dioResponseMessage(e) ?? 'Could not complete ride',
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
@@ -383,7 +384,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Could not cancel trip',
+        'message': dioResponseMessage(e) ?? 'Could not cancel trip',
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
@@ -403,7 +404,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Cannot delete ride',
+        'message': dioResponseMessage(e) ?? 'Cannot delete ride',
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
@@ -425,7 +426,7 @@ class TripService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to get bookings',
+        'message': dioResponseMessage(e) ?? 'Failed to get bookings',
         'bookings': <dynamic>[],
       };
     } catch (e) {

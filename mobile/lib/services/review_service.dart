@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'api_service.dart';
 import 'review_cache_store.dart';
 import '../core/constants/api_constants.dart';
+import '../core/utils/api_error_messages.dart';
 
 class ReviewService {
   final ApiService _apiService = ApiService();
@@ -72,9 +73,7 @@ class ReviewService {
       };
     } on DioException catch (e) {
       final status = e.response?.statusCode;
-      final serverMsg = e.response?.data is Map
-          ? (e.response!.data['message'] as String?) ?? ''
-          : '';
+      final serverMsg = dioResponseMessage(e) ?? '';
       String message;
       if (status == 404) {
         message = 'Booking not found. It may have been cancelled or expired.';

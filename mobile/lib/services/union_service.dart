@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../core/constants/api_constants.dart';
+import '../core/utils/api_error_messages.dart';
 import 'api_service.dart';
 
 class UnionService {
@@ -73,7 +74,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to register union',
+        'message': dioResponseMessage(e) ?? 'Failed to register union',
       };
     } catch (_) {
       return {
@@ -94,7 +95,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to load dashboard',
+        'message': dioResponseMessage(e) ?? 'Failed to load dashboard',
       };
     } catch (_) {
       return {
@@ -117,7 +118,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to load union status',
+        'message': dioResponseMessage(e) ?? 'Failed to load union status',
       };
     } catch (_) {
       return {
@@ -138,7 +139,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to load drivers',
+        'message': dioResponseMessage(e) ?? 'Failed to load drivers',
       };
     } catch (_) {
       return {
@@ -173,7 +174,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to add driver',
+        'message': dioResponseMessage(e) ?? 'Failed to add driver',
       };
     } catch (_) {
       return {
@@ -194,7 +195,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to load routes',
+        'message': dioResponseMessage(e) ?? 'Failed to load routes',
       };
     } catch (_) {
       return {
@@ -224,7 +225,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to add route',
+        'message': dioResponseMessage(e) ?? 'Failed to add route',
       };
     } catch (_) {
       return {
@@ -242,7 +243,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to remove driver',
+        'message': dioResponseMessage(e) ?? 'Failed to remove driver',
       };
     } catch (_) {
       return {'success': false, 'message': 'An unexpected error occurred'};
@@ -257,7 +258,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to remove route',
+        'message': dioResponseMessage(e) ?? 'Failed to remove route',
       };
     } catch (_) {
       return {'success': false, 'message': 'An unexpected error occurred'};
@@ -289,7 +290,7 @@ class UnionService {
       return {
         'success': false,
         'message':
-            e.response?.data['message'] ?? 'Failed to create rides for drivers',
+            dioResponseMessage(e) ?? 'Failed to create rides for drivers',
       };
     } catch (_) {
       return {
@@ -313,7 +314,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to load schedules',
+        'message': dioResponseMessage(e) ?? 'Failed to load schedules',
       };
     } catch (_) {
       return {
@@ -334,7 +335,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to cancel ride',
+        'message': dioResponseMessage(e) ?? 'Failed to cancel ride',
       };
     } catch (_) {
       return {
@@ -371,7 +372,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to update documents',
+        'message': dioResponseMessage(e) ?? 'Failed to update documents',
       };
     } catch (_) {
       return {'success': false, 'message': 'An unexpected error occurred'};
@@ -409,7 +410,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to update branding',
+        'message': dioResponseMessage(e) ?? 'Failed to update branding',
       };
     } catch (_) {
       return {'success': false, 'message': 'An unexpected error occurred'};
@@ -433,9 +434,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data is Map
-            ? (e.response!.data['message'] ?? 'Failed to download poster')
-            : 'Failed to download poster',
+        'message': dioResponseMessage(e) ?? 'Failed to download poster',
       };
     } catch (_) {
       return {'success': false, 'message': 'An unexpected error occurred'};
@@ -460,7 +459,7 @@ class UnionService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to download poster',
+        'message': dioResponseMessage(e) ?? 'Failed to download poster',
       };
     } catch (_) {
       return {

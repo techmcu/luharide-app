@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import '../core/constants/api_constants.dart';
+import '../core/utils/api_error_messages.dart';
 import 'api_service.dart';
 
 class DriverVerificationService {
@@ -19,7 +20,7 @@ class DriverVerificationService {
       return {
         'success': false,
         'status': 'none',
-        'message': e.response?.data['message'] ?? 'Failed to get status',
+        'message': dioResponseMessage(e) ?? 'Failed to get status',
       };
     } catch (e) {
       return {'success': false, 'status': 'none', 'message': 'An error occurred'};
@@ -81,7 +82,7 @@ class DriverVerificationService {
     } on DioException catch (e) {
       return {
         'success': false,
-        'message': e.response?.data['message'] ?? 'Failed to submit',
+        'message': dioResponseMessage(e) ?? 'Failed to submit verification',
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};
