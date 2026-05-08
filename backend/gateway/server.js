@@ -216,9 +216,7 @@ const proxyOpts = (target, breakerName) => {
           JSON.stringify({
             success: false,
             message:
-              'Gateway could not reach an upstream microservice. Run all services: cd backend && npm run dev:stack (needs auth:3001, core:3002, union:3003, platform:3004).',
-            error: (err && err.code) || 'EPROXY',
-            upstream: String(target),
+              'Server temporarily unavailable. Please try again in a few moments.',
           })
         );
       },
@@ -238,8 +236,7 @@ function circuitGuard(breakerName) {
       applyCorsHeadersOnError(req, res);
       return res.status(503).json({
         success: false,
-        message: `Service temporarily unavailable (circuit open for ${breakerName}). Retrying in ${Math.ceil(breaker.resetTimeoutMs / 1000)}s.`,
-        circuit: breaker.state,
+        message: 'Server temporarily unavailable. Please try again in a few moments.',
       });
     }
     next();

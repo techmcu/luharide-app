@@ -84,7 +84,7 @@ class ApiService {
           }
           return handler.next(response);
         },
-        onError: (error, handler) {
+        onError: (error, handler) async {
           if (kDebugMode) {
             // ignore: avoid_print
             print('🔴 ERROR[${error.response?.statusCode}] => ${error.requestOptions.uri}');
@@ -107,6 +107,29 @@ class ApiService {
                 '💡 404: VPS par latest `git pull` + `node server.js` / PM2? '
                 'Test: GET /api/simple-auth/ping (see backend simpleAuth routes).',
               );
+            }
+          }
+          // 502/503: upstream service temporarily down — retry once after brief delay.
+          final sc = error.response?.statusCode;
+          if ((sc == 502 || sc == 503) &&
+              error.requestOptions.extra['__retried502__'] != true) {
+            error.requestOptions.extra['__retried502__'] = true;
+            try {
+              await Future.delayed(const Duration(seconds: 2));
+              final req = error.requestOptions;
+              final retry = await _dio.request<dynamic>(
+                req.uri.toString(),
+                data: req.data,
+                queryParameters: req.queryParameters,
+                options: Options(
+                  method: req.method,
+                  headers: req.headers,
+                  extra: req.extra,
+                ),
+              );
+              return handler.resolve(retry);
+            } catch (_) {
+              // retry also failed — fall through to friendly message
             }
           }
           // Timeouts / offline — never surface raw Dio "RequestOptions.connectTimeout" text.

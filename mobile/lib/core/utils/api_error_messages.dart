@@ -60,8 +60,8 @@ String userMessageFromDio(DioException e) {
         'Yeh service abhi uplabdh nahi (404). Thodi der baad try karein. (Service not found.)';
   }
   if (code == 502 || code == 503 || code == 504) {
-    return serverMsg ??
-        'Server abhi available nahi ($code). Thodi der baad try karein.';
+    return 'Server abhi available nahi hai. Thodi der baad dubara try karein. '
+        '(Server temporarily unavailable.)';
   }
   if (code == 429) {
     return 'Bahut saare requests — 1–2 minute baad dubara try karein.';
