@@ -1,4 +1,7 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const router = express.Router();
 const { authenticate, authorize } = require('../middleware/auth');
 const {
@@ -19,9 +22,26 @@ const {
   updateAppConfig,
   submitComplaint,
   getMyComplaints,
+  parsePoster,
+  createAdminRide,
+  getAdminRides,
 } = require('../controllers/platformAdminController');
 
 const guard = [authenticate, authorize('union_admin')];
+
+const posterDir = path.join(__dirname, '../../uploads/posters');
+if (!fs.existsSync(posterDir)) fs.mkdirSync(posterDir, { recursive: true });
+const posterUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_, __, cb) => cb(null, posterDir),
+    filename: (_, file, cb) => cb(null, `poster_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname)}`),
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_, file, cb) => {
+    const ok = ['image/jpeg', 'image/png', 'application/pdf'].includes(file.mimetype);
+    cb(ok ? null : new Error('Only JPEG, PNG or PDF allowed'), ok);
+  },
+});
 
 // Phase 1 — Dashboard, Users, Trips, Revenue
 router.get('/dashboard', ...guard, getDashboard);
@@ -45,5 +65,10 @@ router.patch('/config', ...guard, updateAppConfig);
 // User-facing complaint endpoints (any authenticated user)
 router.post('/complaints/submit', authenticate, submitComplaint);
 router.get('/complaints/mine', authenticate, getMyComplaints);
+
+// Phase 3 — Poster-to-Ride
+router.post('/rides/parse-poster', ...guard, posterUpload.single('poster'), parsePoster);
+router.post('/rides/create', ...guard, createAdminRide);
+router.get('/rides', ...guard, getAdminRides);
 
 module.exports = router;

@@ -681,6 +681,157 @@ const getPublicAppConfig = asyncHandler(async (req, res) => {
   res.json({ success: true, data: config });
 });
 
+// ---------------------------------------------------------------------------
+// POST /api/platform-admin/rides/parse-poster
+// ---------------------------------------------------------------------------
+const { extractText } = require('../services/ocrService');
+const { parsePosterText, DEFAULT_CONTACT } = require('../services/posterParserService');
+
+const parsePoster = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+
+  if (!req.file) throw ApiError.badRequest('No file uploaded');
+
+  const mime = req.file.mimetype || '';
+  if (!['image/jpeg', 'image/png', 'application/pdf'].includes(mime)) {
+    throw ApiError.badRequest('Only JPEG, PNG, or PDF files are accepted');
+  }
+
+  const riderSeq = await queryRead(
+    `SELECT COUNT(*)::int + 1 AS seq FROM trips
+     WHERE created_source = 'admin_poster' AND poster_driver_name LIKE 'Rider %'`
+  );
+  const seq = riderSeq.rows[0]?.seq || 1;
+
+  const rawText = await extractText(req.file.path, mime);
+  if (!rawText || rawText.trim().length < 5) {
+    return res.json({
+      success: true,
+      data: {
+        from_location: null,
+        to_location: null,
+        driver_name: `Rider ${seq}`,
+        contact_number: DEFAULT_CONTACT,
+        vehicle_type: null,
+        departure_date: null,
+        departure_time: null,
+        fare_per_seat: null,
+        date_is_past: false,
+        raw_text: rawText || '',
+        extra_details: [],
+        warnings: ['Could not extract readable text from the uploaded file'],
+      },
+    });
+  }
+
+  const parsed = parsePosterText(rawText, seq);
+  res.json({ success: true, data: parsed });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/platform-admin/rides/create
+// ---------------------------------------------------------------------------
+const createAdminRide = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+
+  const {
+    from_location, to_location, departure_time,
+    fare_per_seat, total_seats, vehicle_number,
+    driver_name, contact_number, vehicle_type,
+    admin_notes, ride_type,
+  } = req.body;
+
+  if (!from_location || !to_location) {
+    throw ApiError.badRequest('From and To locations are required');
+  }
+  if (!departure_time) throw ApiError.badRequest('Departure time is required');
+
+  const fare = parseFloat(fare_per_seat) || 0;
+  if (fare <= 0) throw ApiError.badRequest('Fare must be greater than 0');
+
+  const seats = Math.min(32, Math.max(1, parseInt(total_seats, 10) || 7));
+  const depTime = new Date(departure_time);
+  if (isNaN(depTime.getTime())) throw ApiError.badRequest('Invalid departure time');
+
+  const arrivalTime = new Date(depTime.getTime() + 2 * 60 * 60 * 1000);
+  const contact = contact_number || DEFAULT_CONTACT;
+  const dName = driver_name || 'Rider';
+  const source = ride_type === 'union' ? 'admin_union' : 'admin_poster';
+
+  let driverId = req.user.id;
+  if (contact && contact !== DEFAULT_CONTACT) {
+    const match = await queryRead(
+      `SELECT id FROM users WHERE phone = $1 AND role = 'driver' AND is_active = true LIMIT 1`,
+      [contact]
+    );
+    if (match.rows.length > 0) driverId = match.rows[0].id;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      `INSERT INTO trips (
+        driver_id, from_location, to_location, departure_time, arrival_time,
+        fare_per_seat, total_capacity, available_seats,
+        vehicle_number, status, created_source,
+        created_by, poster_driver_name, poster_contact, admin_notes
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,'scheduled',$9,$10,$11,$12,$13)
+      RETURNING *`,
+      [
+        driverId, from_location.trim(), to_location.trim(),
+        depTime.toISOString(), arrivalTime.toISOString(),
+        fare, seats, vehicle_number || vehicle_type || '',
+        source, req.user.id, dName, contact, admin_notes || null,
+      ]
+    );
+
+    await client.query('COMMIT');
+    ApiResponse.created(res, { trip: rows[0] }, 'Ride created by admin');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/platform-admin/rides
+// ---------------------------------------------------------------------------
+const getAdminRides = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const offset = (page - 1) * limit;
+
+  const countRes = await queryRead(
+    `SELECT COUNT(*)::int AS total FROM trips WHERE created_source IN ('admin_poster','admin_union')`
+  );
+  const total = countRes.rows[0]?.total || 0;
+
+  const { rows } = await queryRead(
+    `SELECT t.id, t.from_location, t.to_location, t.departure_time, t.status,
+            t.fare_per_seat, t.total_capacity, t.available_seats,
+            t.vehicle_number, t.created_source, t.poster_driver_name,
+            t.poster_contact, t.admin_notes, t.created_at,
+            u.name AS created_by_name
+     FROM trips t
+     LEFT JOIN users u ON t.created_by = u.id
+     WHERE t.created_source IN ('admin_poster','admin_union')
+     ORDER BY t.created_at DESC
+     LIMIT $1 OFFSET $2`,
+    [limit, offset]
+  );
+
+  res.json({
+    success: true,
+    data: { rides: rows, total, page, totalPages: Math.ceil(total / limit) },
+  });
+});
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -700,4 +851,7 @@ module.exports = {
   submitComplaint,
   getMyComplaints,
   getPublicAppConfig,
+  parsePoster,
+  createAdminRide,
+  getAdminRides,
 };

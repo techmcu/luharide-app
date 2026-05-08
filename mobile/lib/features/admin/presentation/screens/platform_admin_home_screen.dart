@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/platform_admin_service.dart';
 import 'platform_user_detail_screen.dart';
@@ -500,7 +502,7 @@ class _TripsTabState extends State<_TripsTab> {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 4),
       leading: CircleAvatar(
-        backgroundColor: statusColor.withOpacity(0.1),
+        backgroundColor: statusColor.withValues(alpha: 0.1),
         child: Icon(Icons.directions_car, color: statusColor, size: 20),
       ),
       title: Text('$from → $to', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
@@ -695,7 +697,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -712,10 +714,13 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
         centerTitle: true,
         bottom: TabBar(
           controller: _tabCtrl,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
             Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
             Tab(icon: Icon(Icons.settings, size: 20), text: 'Config'),
+            Tab(icon: Icon(Icons.image_search, size: 20), text: 'Quick Ride'),
           ],
         ),
       ),
@@ -725,6 +730,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
           _NotificationsSection(),
           _ComplaintsSection(),
           _ConfigSection(),
+          _PosterRideSection(),
         ],
       ),
     );
@@ -803,7 +809,7 @@ class _NotificationsSectionState extends State<_NotificationsSection> with Autom
         const Text('Send Notification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          value: _segment,
+          initialValue: _segment,
           decoration: const InputDecoration(labelText: 'Audience', border: OutlineInputBorder()),
           items: _segments.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
           onChanged: (v) => setState(() => _segment = v ?? 'all'),
@@ -1199,6 +1205,478 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
   void dispose() {
     _maintenanceMsgCtrl.dispose();
     _minVersionCtrl.dispose();
+    super.dispose();
+  }
+}
+
+// =============================================================================
+// POSTER-TO-RIDE SECTION
+// =============================================================================
+class _PosterRideSection extends StatefulWidget {
+  const _PosterRideSection();
+  @override
+  State<_PosterRideSection> createState() => _PosterRideSectionState();
+}
+
+class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKeepAliveClientMixin {
+  final _service = PlatformAdminService();
+  final _picker = ImagePicker();
+
+  // Form controllers
+  final _fromCtrl = TextEditingController();
+  final _toCtrl = TextEditingController();
+  final _driverCtrl = TextEditingController();
+  final _contactCtrl = TextEditingController();
+  final _fareCtrl = TextEditingController();
+  final _seatsCtrl = TextEditingController(text: '7');
+  final _vehicleCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+
+  String _rideType = 'independent';
+  DateTime? _departureDate;
+  TimeOfDay? _departureTime;
+
+  bool _parsing = false;
+  bool _creating = false;
+  List<String> _warnings = [];
+  String _rawText = '';
+  List<dynamic> _adminRides = [];
+  bool _loadingRides = true;
+  bool _showForm = false;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRides();
+  }
+
+  Future<void> _loadRides() async {
+    setState(() => _loadingRides = true);
+    final res = await _service.getAdminRides();
+    if (!mounted) return;
+    setState(() {
+      _adminRides = res['rides'] ?? [];
+      _loadingRides = false;
+    });
+  }
+
+  Future<void> _pickAndParse() async {
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Camera'),
+              onTap: () => Navigator.pop(ctx, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () => Navigator.pop(ctx, 'gallery'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+
+    final xFile = await _picker.pickImage(
+      source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 2400,
+    );
+    if (xFile == null) return;
+
+    setState(() { _parsing = true; _warnings = []; });
+    final res = await _service.parsePoster(File(xFile.path));
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      _fromCtrl.text = res['from_location'] ?? '';
+      _toCtrl.text = res['to_location'] ?? '';
+      _driverCtrl.text = res['driver_name'] ?? '';
+      _contactCtrl.text = res['contact_number'] ?? '';
+      _fareCtrl.text = (res['fare_per_seat'] ?? '').toString();
+      if (_fareCtrl.text == 'null') _fareCtrl.text = '';
+      _vehicleCtrl.text = res['vehicle_type'] ?? '';
+      _rawText = res['raw_text'] ?? '';
+
+      final dateStr = res['departure_date']?.toString() ?? '';
+      if (dateStr.isNotEmpty) {
+        final parts = dateStr.split('-');
+        if (parts.length == 3) {
+          _departureDate = DateTime.tryParse(dateStr);
+        }
+      }
+      final timeStr = res['departure_time']?.toString() ?? '';
+      if (timeStr.contains(':')) {
+        final tp = timeStr.split(':');
+        _departureTime = TimeOfDay(hour: int.tryParse(tp[0]) ?? 8, minute: int.tryParse(tp[1]) ?? 0);
+      }
+
+      final w = res['warnings'];
+      if (w is List) _warnings = w.map((e) => e.toString()).toList();
+      final extra = res['extra_details'];
+      if (extra is List && extra.isNotEmpty) {
+        _notesCtrl.text = extra.join('\n');
+      }
+
+      final isPast = res['date_is_past'] == true;
+      setState(() { _parsing = false; _showForm = true; });
+
+      if (isPast && mounted) {
+        AppFeedback.show(context, 'Date is in the past — this poster may be outdated', kind: AppFeedbackKind.warning);
+      }
+    } else {
+      setState(() => _parsing = false);
+      if (mounted) AppFeedback.show(context, res['message'] ?? 'Parse failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  void _showManualForm() {
+    _fromCtrl.clear();
+    _toCtrl.clear();
+    _driverCtrl.clear();
+    _contactCtrl.clear();
+    _fareCtrl.clear();
+    _seatsCtrl.text = '7';
+    _vehicleCtrl.clear();
+    _notesCtrl.clear();
+    _departureDate = null;
+    _departureTime = null;
+    _warnings = [];
+    _rawText = '';
+    setState(() => _showForm = true);
+  }
+
+  Future<void> _pickDate() async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _departureDate ?? DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (d != null) setState(() => _departureDate = d);
+  }
+
+  Future<void> _pickTime() async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: _departureTime ?? const TimeOfDay(hour: 8, minute: 0),
+    );
+    if (t != null) setState(() => _departureTime = t);
+  }
+
+  Future<void> _createRide() async {
+    final from = _fromCtrl.text.trim();
+    final to = _toCtrl.text.trim();
+    if (from.isEmpty || to.isEmpty) {
+      AppFeedback.show(context, 'From and To locations are required', kind: AppFeedbackKind.warning);
+      return;
+    }
+    final fare = double.tryParse(_fareCtrl.text.trim()) ?? 0;
+    if (fare <= 0) {
+      AppFeedback.show(context, 'Fare must be greater than 0', kind: AppFeedbackKind.warning);
+      return;
+    }
+    if (_departureDate == null || _departureTime == null) {
+      AppFeedback.show(context, 'Select departure date and time', kind: AppFeedbackKind.warning);
+      return;
+    }
+
+    final depDt = DateTime(
+      _departureDate!.year, _departureDate!.month, _departureDate!.day,
+      _departureTime!.hour, _departureTime!.minute,
+    );
+
+    if (depDt.isBefore(DateTime.now())) {
+      AppFeedback.show(context, 'Departure time must be in the future', kind: AppFeedbackKind.warning);
+      return;
+    }
+
+    setState(() => _creating = true);
+    final res = await _service.createAdminRide({
+      'from_location': from,
+      'to_location': to,
+      'departure_time': depDt.toIso8601String(),
+      'fare_per_seat': fare,
+      'total_seats': int.tryParse(_seatsCtrl.text.trim()) ?? 7,
+      'vehicle_number': _vehicleCtrl.text.trim(),
+      'driver_name': _driverCtrl.text.trim(),
+      'contact_number': _contactCtrl.text.trim(),
+      'admin_notes': _notesCtrl.text.trim(),
+      'ride_type': _rideType,
+    });
+    if (!mounted) return;
+    setState(() => _creating = false);
+
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Ride created (By Admin)', kind: AppFeedbackKind.success);
+      setState(() => _showForm = false);
+      _loadRides();
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _parsing ? null : _pickAndParse,
+                icon: _parsing
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.image_search),
+                label: Text(_parsing ? 'Reading...' : 'Upload Poster'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              onPressed: _showManualForm,
+              icon: const Icon(Icons.edit_note),
+              label: const Text('Manual'),
+            ),
+          ],
+        ),
+
+        if (_parsing) ...[
+          const SizedBox(height: 16),
+          const Center(child: Column(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 8),
+              Text('Reading poster text (OCR)...', style: TextStyle(fontSize: 13, color: Colors.black54)),
+            ],
+          )),
+        ],
+
+        if (_warnings.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _warnings.map((w) => Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber, size: 16, color: Colors.orange.shade700),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text(w, style: TextStyle(fontSize: 12, color: Colors.orange.shade900))),
+                ],
+              )).toList(),
+            ),
+          ),
+        ],
+
+        if (_showForm) ...[
+          const SizedBox(height: 16),
+          const Text('Ride Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          _field(_fromCtrl, 'From Location', Icons.location_on),
+          _field(_toCtrl, 'To Location', Icons.flag),
+          _field(_driverCtrl, 'Driver Name', Icons.person),
+          _field(_contactCtrl, 'Contact Number', Icons.phone, keyboardType: TextInputType.phone),
+          _field(_fareCtrl, 'Fare per Seat (₹)', Icons.currency_rupee, keyboardType: TextInputType.number),
+          _field(_seatsCtrl, 'Total Seats', Icons.event_seat, keyboardType: TextInputType.number),
+          _field(_vehicleCtrl, 'Vehicle (type / number)', Icons.directions_car),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _pickDate,
+                  icon: const Icon(Icons.calendar_today, size: 18),
+                  label: Text(_departureDate != null
+                      ? '${_departureDate!.day}/${_departureDate!.month}/${_departureDate!.year}'
+                      : 'Date'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _pickTime,
+                  icon: const Icon(Icons.schedule, size: 18),
+                  label: Text(_departureTime != null
+                      ? '${_departureTime!.hour.toString().padLeft(2, '0')}:${_departureTime!.minute.toString().padLeft(2, '0')}'
+                      : 'Time'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _rideType,
+            decoration: const InputDecoration(labelText: 'Ride Type', border: OutlineInputBorder()),
+            items: const [
+              DropdownMenuItem(value: 'independent', child: Text('Independent')),
+              DropdownMenuItem(value: 'union', child: Text('Union')),
+            ],
+            onChanged: (v) => setState(() => _rideType = v ?? 'independent'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _notesCtrl,
+            decoration: const InputDecoration(labelText: 'Extra Notes', border: OutlineInputBorder()),
+            maxLines: 2,
+          ),
+          if (_rawText.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text('Raw OCR Text', style: TextStyle(fontSize: 13, color: Colors.black54)),
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                  child: Text(_rawText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: _creating ? null : _createRide,
+              icon: _creating
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.add_road),
+              label: Text(_creating ? 'Creating...' : 'Create Ride (By Admin)'),
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            const Expanded(child: Text('Admin-Created Rides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+            IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _loadRides),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_loadingRides)
+          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+        else if (_adminRides.isEmpty)
+          const Text('No admin rides yet', style: TextStyle(color: Colors.black45))
+        else
+          ..._adminRides.map(_buildRideCard),
+      ],
+    );
+  }
+
+  Widget _field(TextEditingController ctrl, String label, IconData icon, {TextInputType? keyboardType}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: ctrl,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, size: 20),
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRideCard(dynamic ride) {
+    final from = ride['from_location'] ?? '';
+    final to = ride['to_location'] ?? '';
+    final status = ride['status'] ?? '';
+    final driverName = ride['poster_driver_name'] ?? '';
+    final contact = ride['poster_contact'] ?? '';
+    final source = ride['created_source'] ?? '';
+    final fare = ride['fare_per_seat'] ?? 0;
+    final created = ride['created_at'] ?? '';
+
+    Color statusColor;
+    switch (status) {
+      case 'scheduled': statusColor = Colors.blue; break;
+      case 'in_progress': statusColor = Colors.green; break;
+      case 'completed': statusColor = Colors.teal; break;
+      case 'cancelled': statusColor = Colors.red; break;
+      default: statusColor = Colors.grey;
+    }
+
+    return Card(
+      elevation: 0,
+      color: Colors.indigo.shade50,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text('$from → $to', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('$driverName • $contact • ₹$fare/seat', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(color: Colors.indigo.shade100, borderRadius: BorderRadius.circular(6)),
+                  child: const Text('By Admin', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.indigo)),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6)),
+                  child: Text(source == 'admin_union' ? 'Union' : 'Independent', style: const TextStyle(fontSize: 10, color: Colors.black54)),
+                ),
+                const Spacer(),
+                Text(_formatDate(created), style: const TextStyle(fontSize: 11, color: Colors.black38)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final d = DateTime.tryParse(raw);
+    if (d == null) return raw;
+    return '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _fromCtrl.dispose();
+    _toCtrl.dispose();
+    _driverCtrl.dispose();
+    _contactCtrl.dispose();
+    _fareCtrl.dispose();
+    _seatsCtrl.dispose();
+    _vehicleCtrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
   }
 }

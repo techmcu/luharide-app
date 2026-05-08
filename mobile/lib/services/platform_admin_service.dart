@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import '../core/constants/api_constants.dart';
 import '../core/utils/api_error_messages.dart';
@@ -249,6 +250,45 @@ class PlatformAdminService {
       return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
     } catch (_) {
       return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  // ---- Phase 3: Poster-to-Ride ----
+
+  Future<Map<String, dynamic>> parsePoster(File file) async {
+    try {
+      final formData = FormData.fromMap({
+        'poster': await MultipartFile.fromFile(file.path, filename: file.path.split(Platform.pathSeparator).last),
+      });
+      final res = await _api.post(ApiConstants.platformParsePoster, data: formData);
+      return {'success': true, ..._unwrap(res.data)};
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed to parse poster'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  Future<Map<String, dynamic>> createAdminRide(Map<String, dynamic> data) async {
+    try {
+      final res = await _api.post(ApiConstants.platformCreateRide, data: data);
+      return {'success': true, ..._unwrap(res.data)};
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed to create ride'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getAdminRides({int page = 1, int limit = 20}) async {
+    try {
+      final res = await _api.get('${ApiConstants.platformAdminRides}?page=$page&limit=$limit');
+      final d = _unwrap(res.data);
+      return {'success': true, 'rides': d['rides'] ?? [], 'total': d['total'] ?? 0};
+    } on DioException catch (e) {
+      return {'success': false, 'rides': [], 'message': dioResponseMessage(e) ?? 'Failed'};
+    } catch (_) {
+      return {'success': false, 'rides': [], 'message': 'An error occurred'};
     }
   }
 }
