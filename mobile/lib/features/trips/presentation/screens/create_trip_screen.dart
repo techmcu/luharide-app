@@ -32,7 +32,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   List<String> _fromSuggestions = [];
   List<String> _toSuggestions = [];
   bool _isLoading = false;
-  bool _requireApproval = true;
+  bool _requireApproval = false;
   /// When driver is approved, vehicle number comes from KYC (same as verification).
   bool _vehicleLockedFromVerification = false;
   bool _loadingVerifiedVehicle = true;
