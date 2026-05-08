@@ -79,3 +79,13 @@ bool _looksLikeRawDioAdvice(String m) {
       m.contains('receiveTimeout') ||
       m.contains('sendTimeout');
 }
+
+/// Safely extract 'message' from a Dio error response body.
+/// Returns null if data is not a Map or 'message' key is missing.
+String? dioResponseMessage(DioException e) {
+  final data = e.response?.data;
+  if (data is Map) {
+    return data['message']?.toString();
+  }
+  return null;
+}

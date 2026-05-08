@@ -99,8 +99,14 @@ async function applyKycWatermark(absolutePath, mimetype) {
     pipeline = pipeline.jpeg({ quality: 88, mozjpeg: true });
   }
 
-  await pipeline.toFile(tmp);
-  await fs.promises.rename(tmp, absolutePath);
+  try {
+    await pipeline.toFile(tmp);
+    await fs.promises.rename(tmp, absolutePath);
+  } catch (err) {
+    await fs.promises.unlink(tmp).catch(() => {});
+    logger.warn({ msg: 'KYC watermark failed', error: err.message, path: absolutePath });
+    return false;
+  }
   return true;
 }
 

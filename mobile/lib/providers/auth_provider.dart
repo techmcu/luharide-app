@@ -53,19 +53,21 @@ class AuthProvider with ChangeNotifier {
           _status = AuthStatus.authenticated;
           notifyListeners(); // Show immediately
         }
-        // 2. Refresh from API in background
+        // 2. Refresh from API in background (with timeout so startup never stalls)
         try {
-          _user = await _authService.getCurrentUser();
+          _user = await _authService.getCurrentUser()
+              .timeout(const Duration(seconds: 10));
           _status = AuthStatus.authenticated;
         } catch (_) {
-          // Refresh may have failed & logged out - verify
           if (!await _authService.isLoggedIn()) {
             _user = null;
             _status = AuthStatus.unauthenticated;
           }
         }
         notifyListeners();
-        await RealtimeSocketService.instance.connect();
+        await RealtimeSocketService.instance.connect()
+            .timeout(const Duration(seconds: 5))
+            .catchError((_) {});
         unawaited(AuthHeadersSync.refreshAuthHeadersCache());
         final uid = _user?.id;
         if (uid != null && uid.isNotEmpty) {

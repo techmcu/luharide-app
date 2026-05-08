@@ -63,8 +63,8 @@ class TripModel {
               : [])
           : [],
       status: json['status']?.toString() ?? 'scheduled',
-      driver: json['driver'] != null
-          ? DriverInfo.fromJson(json['driver'])
+      driver: json['driver'] is Map<String, dynamic>
+          ? DriverInfo.fromJson(json['driver'] as Map<String, dynamic>)
           : null,
       pendingRequestsCount: int.tryParse(json['pending_requests_count']?.toString() ?? '0') ?? 0,
     );

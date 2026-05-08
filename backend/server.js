@@ -2,6 +2,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const { validateConfig } = require('./src/config/env');
 validateConfig();
+require('./src/utils/processGuard').installProcessGuard();
 // Production VPS: standard = PM2 gateway + 4 microservices (see pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs).
 // Monolith (this file): local dev / emergency rollback only — do not run both on port 3000.
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-monolith';

@@ -36,10 +36,7 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Failed to send OTP');
       }
     } on DioException catch (e) {
-      if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to send OTP');
-      }
-      throw Exception(userMessageFromDio(e));
+      throw Exception(dioResponseMessage(e) ?? userMessageFromDio(e));
     }
   }
 
@@ -60,9 +57,6 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Failed to send OTP');
       }
     } on DioException catch (e) {
-      if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to send OTP');
-      }
       throw Exception(userMessageFromDio(e));
     }
   }
@@ -103,7 +97,7 @@ class AuthService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to verify OTP');
+        throw Exception(dioResponseMessage(e) ?? 'Failed to verify OTP');
       }
       throw Exception(userMessageFromDio(e));
     }
@@ -150,7 +144,7 @@ class AuthService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to verify OTP');
+        throw Exception(dioResponseMessage(e) ?? 'Failed to verify OTP');
       }
       throw Exception(userMessageFromDio(e));
     }
@@ -267,7 +261,7 @@ class AuthService {
       }
     } on DioException catch (e) {
       if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to update profile');
+        throw Exception(dioResponseMessage(e) ?? 'Failed to update profile');
       }
       throw Exception(userMessageFromDio(e));
     }
@@ -293,7 +287,7 @@ class AuthService {
       throw Exception(response.data['message'] ?? 'Failed to update password');
     } on DioException catch (e) {
       if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to update password');
+        throw Exception(dioResponseMessage(e) ?? 'Failed to update password');
       }
       throw Exception(userMessageFromDio(e));
     }
@@ -362,7 +356,7 @@ class AuthService {
       throw Exception(response.data['message'] ?? 'Failed to reset password');
     } on DioException catch (e) {
       if (e.response != null) {
-        throw Exception(e.response!.data['message'] ?? 'Failed to reset password');
+        throw Exception(dioResponseMessage(e) ?? 'Failed to reset password');
       }
       throw Exception(userMessageFromDio(e));
     }

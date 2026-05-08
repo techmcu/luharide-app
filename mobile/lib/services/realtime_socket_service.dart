@@ -117,6 +117,7 @@ class RealtimeSocketService {
     _reconnectBackoffTimer = Timer(const Duration(seconds: 4), () async {
       try {
         await connect();
+      } catch (_) {
       } finally {
         _isReconnectingManually = false;
       }
@@ -163,6 +164,7 @@ class RealtimeSocketService {
 
   Future<void> disconnect() async {
     _reconnectBackoffTimer?.cancel();
+    _reconnectBackoffTimer = null;
     _isReconnectingManually = false;
     try {
       _socket?.disconnect();

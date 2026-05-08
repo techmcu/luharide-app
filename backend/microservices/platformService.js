@@ -5,6 +5,7 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { validateConfig } = require('../src/config/env');
 validateConfig();
+require('../src/utils/processGuard').installProcessGuard();
 process.env.LUHA_SERVICE_NAME = process.env.LUHA_SERVICE_NAME || 'luha-ms-platform';
 const path = require('path');
 const { createBaseApp, attachErrorHandlers } = require('./sharedApp');

@@ -21,6 +21,14 @@ const internalUpstreamBaseUrls = {
  */
 const prodBase = { NODE_ENV: 'production', TRUST_PROXY: '1' };
 
+const sharedOpts = {
+  max_memory_restart: '500M',
+  max_restarts: 15,
+  min_uptime: '10s',
+  restart_delay: 2000,
+  kill_timeout: 8000,
+};
+
 module.exports = {
   apps: [
     {
@@ -30,6 +38,7 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       env: { ...prodBase, AUTH_SERVICE_PORT: '3001' },
+      ...sharedOpts,
     },
     {
       name: 'luharide-core-ride-service',
@@ -38,6 +47,7 @@ module.exports = {
       instances: parseInt(process.env.LUHA_CORE_INSTANCES, 10) || 2,
       exec_mode: 'cluster',
       env: { ...prodBase, CORE_SERVICE_PORT: '3002' },
+      ...sharedOpts,
     },
     {
       name: 'luharide-union-admin-service',
@@ -46,6 +56,7 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       env: { ...prodBase, UNION_SERVICE_PORT: '3003' },
+      ...sharedOpts,
     },
     {
       name: 'luharide-platform-admin-payments-service',
@@ -54,6 +65,7 @@ module.exports = {
       instances: 1,
       exec_mode: 'fork',
       env: { ...prodBase, PLATFORM_SERVICE_PORT: '3004' },
+      ...sharedOpts,
     },
     {
       name: 'luharide-api-gateway',
@@ -66,6 +78,7 @@ module.exports = {
         GATEWAY_PORT: '3000',
         ...internalUpstreamBaseUrls,
       },
+      ...sharedOpts,
     },
   ],
 };
