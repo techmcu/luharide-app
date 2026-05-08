@@ -57,6 +57,16 @@ class ApiConstants {
   static String platformTripCancel(String id) => '/platform-admin/trips/$id/cancel';
   static const String platformRevenue = '/platform-admin/revenue';
 
+  // Platform Admin — Phase 2
+  static const String platformBulkNotification = '/platform-admin/notifications/bulk';
+  static const String platformBroadcastHistory = '/platform-admin/notifications/history';
+  static const String platformComplaints = '/platform-admin/complaints';
+  static String platformComplaintDetail(String id) => '/platform-admin/complaints/$id';
+  static String platformComplaintResolve(String id) => '/platform-admin/complaints/$id/resolve';
+  static const String platformConfig = '/platform-admin/config';
+  static const String platformComplaintSubmit = '/platform-admin/complaints/submit';
+  static const String platformComplaintsMine = '/platform-admin/complaints/mine';
+
   // Uploads
   static const String uploadDriverDoc = '/uploads/driver-doc';
   static const String uploadUnionDoc = '/uploads/union-doc';

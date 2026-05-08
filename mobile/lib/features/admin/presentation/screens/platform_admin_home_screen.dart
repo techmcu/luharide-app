@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/platform_admin_service.dart';
 import 'platform_user_detail_screen.dart';
 import 'platform_trip_detail_screen.dart';
@@ -24,6 +25,7 @@ class _PlatformAdminHomeScreenState extends State<PlatformAdminHomeScreen> {
           _UsersTab(),
           _TripsTab(),
           _RevenueTab(),
+          _MoreTab(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -34,6 +36,7 @@ class _PlatformAdminHomeScreenState extends State<PlatformAdminHomeScreen> {
           NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'Users'),
           NavigationDestination(icon: Icon(Icons.directions_car_outlined), selectedIcon: Icon(Icons.directions_car), label: 'Trips'),
           NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'Revenue'),
+          NavigationDestination(icon: Icon(Icons.more_horiz_outlined), selectedIcon: Icon(Icons.more_horiz), label: 'More'),
         ],
       ),
     );
@@ -675,4 +678,527 @@ class _RevenueTabState extends State<_RevenueTab> {
 
   double _toNum(dynamic v) => double.tryParse(v?.toString() ?? '') ?? 0;
   int _toInt(dynamic v) => int.tryParse(v?.toString() ?? '') ?? 0;
+}
+
+// =============================================================================
+// MORE TAB  (Notifications · Complaints · App Config)
+// =============================================================================
+class _MoreTab extends StatefulWidget {
+  const _MoreTab();
+  @override
+  State<_MoreTab> createState() => _MoreTabState();
+}
+
+class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
+  late final TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('More'),
+        centerTitle: true,
+        bottom: TabBar(
+          controller: _tabCtrl,
+          tabs: const [
+            Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
+            Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
+            Tab(icon: Icon(Icons.settings, size: 20), text: 'Config'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: const [
+          _NotificationsSection(),
+          _ComplaintsSection(),
+          _ConfigSection(),
+        ],
+      ),
+    );
+  }
+}
+
+// --------------- Notifications Section ---------------
+class _NotificationsSection extends StatefulWidget {
+  const _NotificationsSection();
+  @override
+  State<_NotificationsSection> createState() => _NotificationsSectionState();
+}
+
+class _NotificationsSectionState extends State<_NotificationsSection> with AutomaticKeepAliveClientMixin {
+  final _service = PlatformAdminService();
+  final _titleCtrl = TextEditingController();
+  final _bodyCtrl = TextEditingController();
+  String _segment = 'all';
+  bool _sending = false;
+  List<dynamic> _history = [];
+  bool _loadingHistory = true;
+
+  static const _segments = <String, String>{
+    'all': 'All Users',
+    'passenger': 'Passengers',
+    'driver': 'Drivers',
+    'union_admin': 'Union Admins',
+  };
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    setState(() => _loadingHistory = true);
+    final res = await _service.getBroadcastHistory();
+    if (!mounted) return;
+    setState(() {
+      _history = res['broadcasts'] ?? [];
+      _loadingHistory = false;
+    });
+  }
+
+  Future<void> _send() async {
+    final title = _titleCtrl.text.trim();
+    final body = _bodyCtrl.text.trim();
+    if (title.isEmpty || body.isEmpty) {
+      AppFeedback.show(context, 'Title and body are required', kind: AppFeedbackKind.warning);
+      return;
+    }
+    setState(() => _sending = true);
+    final res = await _service.sendBulkNotification(segment: _segment, title: title, body: body);
+    if (!mounted) return;
+    setState(() => _sending = false);
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Sent to ${res['sent_count'] ?? 0} users', kind: AppFeedbackKind.success);
+      _titleCtrl.clear();
+      _bodyCtrl.clear();
+      _loadHistory();
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text('Send Notification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          value: _segment,
+          decoration: const InputDecoration(labelText: 'Audience', border: OutlineInputBorder()),
+          items: _segments.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+          onChanged: (v) => setState(() => _segment = v ?? 'all'),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _titleCtrl,
+          decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _bodyCtrl,
+          decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
+          maxLines: 3,
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _sending ? null : _send,
+            icon: _sending
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.send),
+            label: Text(_sending ? 'Sending...' : 'Send Notification'),
+          ),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            const Expanded(child: Text('History', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+            IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _loadHistory),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_loadingHistory)
+          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
+        else if (_history.isEmpty)
+          const Text('No broadcasts sent yet', style: TextStyle(color: Colors.black45))
+        else
+          ..._history.map(_buildHistoryCard),
+      ],
+    );
+  }
+
+  Widget _buildHistoryCard(dynamic b) {
+    final title = b['title'] ?? '';
+    final body = b['body'] ?? '';
+    final segment = b['segment'] ?? '';
+    final count = b['sent_count'] ?? 0;
+    final created = b['created_at'] ?? '';
+    return Card(
+      elevation: 0,
+      color: Colors.grey.shade50,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                  child: Text(segment, style: const TextStyle(fontSize: 11, color: Colors.blue)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(body, style: const TextStyle(fontSize: 12, color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 6),
+            Text('Sent to $count users • ${_formatDate(created)}', style: const TextStyle(fontSize: 11, color: Colors.black38)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final d = DateTime.tryParse(raw);
+    if (d == null) return raw;
+    return '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _bodyCtrl.dispose();
+    super.dispose();
+  }
+}
+
+// --------------- Complaints Section ---------------
+class _ComplaintsSection extends StatefulWidget {
+  const _ComplaintsSection();
+  @override
+  State<_ComplaintsSection> createState() => _ComplaintsSectionState();
+}
+
+class _ComplaintsSectionState extends State<_ComplaintsSection> with AutomaticKeepAliveClientMixin {
+  final _service = PlatformAdminService();
+  List<dynamic> _complaints = [];
+  int _total = 0;
+  int _page = 1;
+  String _statusFilter = '';
+  bool _loading = false;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final res = await _service.getComplaints(status: _statusFilter, page: _page);
+    if (!mounted) return;
+    setState(() {
+      _complaints = res['complaints'] ?? [];
+      _total = res['total'] ?? 0;
+      _loading = false;
+    });
+  }
+
+  Future<void> _showResolveDialog(dynamic complaint) async {
+    final id = complaint['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    final noteCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Resolve Complaint'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Subject: ${complaint['subject'] ?? ''}', style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(complaint['body'] ?? '', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteCtrl,
+              decoration: const InputDecoration(labelText: 'Resolution note', border: OutlineInputBorder()),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Resolve')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final note = noteCtrl.text.trim();
+    if (note.isEmpty) {
+      AppFeedback.show(context, 'Resolution note is required', kind: AppFeedbackKind.warning);
+      noteCtrl.dispose();
+      return;
+    }
+    final res = await _service.resolveComplaint(id, note: note);
+    noteCtrl.dispose();
+    if (!mounted) return;
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Complaint resolved', kind: AppFeedbackKind.success);
+      _load();
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return Column(
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: [
+              _filterChip('All', ''),
+              _filterChip('Open', 'open'),
+              _filterChip('Resolved', 'resolved'),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('$_total complaints', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              Row(children: [
+                IconButton(icon: const Icon(Icons.chevron_left), onPressed: _page > 1 ? () { _page--; _load(); } : null),
+                Text('Page $_page', style: const TextStyle(fontSize: 13)),
+                IconButton(icon: const Icon(Icons.chevron_right), onPressed: _complaints.length >= 20 ? () { _page++; _load(); } : null),
+              ]),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _complaints.isEmpty
+                  ? const Center(child: Text('No complaints'))
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _complaints.length,
+                        itemBuilder: (ctx, i) => _buildComplaintCard(_complaints[i]),
+                      ),
+                    ),
+        ),
+      ],
+    );
+  }
+
+  Widget _filterChip(String label, String value) {
+    final selected = _statusFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) { setState(() => _statusFilter = value); _page = 1; _load(); },
+      ),
+    );
+  }
+
+  Widget _buildComplaintCard(dynamic c) {
+    final subject = c['subject'] ?? '';
+    final body = c['body'] ?? '';
+    final status = c['status'] ?? 'open';
+    final userName = c['user_name'] ?? 'Unknown';
+    final userPhone = c['user_phone'] ?? '';
+    final created = c['created_at'] ?? '';
+    final isOpen = status == 'open';
+
+    return Card(
+      elevation: 0,
+      color: isOpen ? Colors.orange.shade50 : Colors.green.shade50,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: isOpen ? () => _showResolveDialog(c) : null,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text(subject, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isOpen ? Colors.orange.shade100 : Colors.green.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(status.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isOpen ? Colors.orange.shade800 : Colors.green.shade800)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(body, style: const TextStyle(fontSize: 12, color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 6),
+              Text('$userName${userPhone.isNotEmpty ? ' • $userPhone' : ''} • ${_formatDate(created)}',
+                  style: const TextStyle(fontSize: 11, color: Colors.black38)),
+              if (!isOpen && c['resolution_note'] != null) ...[
+                const SizedBox(height: 6),
+                Text('Resolution: ${c['resolution_note']}', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.green.shade700)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final d = DateTime.tryParse(raw);
+    if (d == null) return raw;
+    return '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// --------------- Config Section ---------------
+class _ConfigSection extends StatefulWidget {
+  const _ConfigSection();
+  @override
+  State<_ConfigSection> createState() => _ConfigSectionState();
+}
+
+class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveClientMixin {
+  final _service = PlatformAdminService();
+  bool _loading = true;
+  bool _saving = false;
+  bool _maintenanceMode = false;
+  final _maintenanceMsgCtrl = TextEditingController();
+  final _minVersionCtrl = TextEditingController();
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final res = await _service.getAppConfig();
+    if (!mounted) return;
+    final config = res['config'];
+    if (config is Map) {
+      _maintenanceMode = config['maintenance_mode'] == 'true' || config['maintenance_mode'] == true;
+      _maintenanceMsgCtrl.text = config['maintenance_message']?.toString() ?? '';
+      _minVersionCtrl.text = config['force_update_min_version']?.toString() ?? '';
+    }
+    setState(() => _loading = false);
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    final res = await _service.updateAppConfig({
+      'maintenance_mode': _maintenanceMode.toString(),
+      'maintenance_message': _maintenanceMsgCtrl.text.trim(),
+      'force_update_min_version': _minVersionCtrl.text.trim(),
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Config saved', kind: AppFeedbackKind.success);
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        const Text('App Configuration', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 16),
+        SwitchListTile(
+          title: const Text('Maintenance Mode'),
+          subtitle: const Text('Blocks app access for all users'),
+          value: _maintenanceMode,
+          onChanged: (v) => setState(() => _maintenanceMode = v),
+          contentPadding: EdgeInsets.zero,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _maintenanceMsgCtrl,
+          decoration: const InputDecoration(labelText: 'Maintenance Message', border: OutlineInputBorder(), hintText: 'e.g. We are upgrading. Back soon!'),
+          maxLines: 2,
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _minVersionCtrl,
+          decoration: const InputDecoration(labelText: 'Min App Version (force update)', border: OutlineInputBorder(), hintText: 'e.g. 2.0.0'),
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: _saving ? null : _save,
+            icon: _saving
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.save),
+            label: Text(_saving ? 'Saving...' : 'Save Config'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    _maintenanceMsgCtrl.dispose();
+    _minVersionCtrl.dispose();
+    super.dispose();
+  }
 }

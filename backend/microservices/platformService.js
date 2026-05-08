@@ -33,6 +33,8 @@ if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {
     });
   });
 }
+const { getPublicAppConfig } = require('../src/controllers/platformAdminController');
+app.get('/api/app-config', getPublicAppConfig);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/uploads', uploadRoutes);
