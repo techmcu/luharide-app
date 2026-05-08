@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../widgets/exit_guard.dart';
+import '../../../admin/presentation/screens/platform_admin_home_screen.dart';
 import 'passenger_home_screen.dart';
 import 'role_home_shell.dart';
-import 'union_admin_home_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -19,22 +19,22 @@ class HomeScreen extends StatelessWidget {
 
     if (kDebugMode) {
       // ignore: avoid_print
-      print('🔍 HomeScreen - User: ${user?.email}, Role: $role, isAppAdmin: $isAppAdmin');
+      print('HomeScreen - User: ${user?.email}, Role: $role, isAppAdmin: $isAppAdmin');
     }
 
     Widget child;
 
-    if (role == 'union_admin' && !isAppAdmin) {
+    if (isAppAdmin) {
+      child = const PlatformAdminHomeScreen();
+    } else if (role == 'union_admin') {
       child = const RoleHomeShell(
         mode: RoleHomeShellMode.unionAdmin,
         showApprovalsTab: false,
       );
-    } else if (role == 'union_admin' && isAppAdmin) {
-      child = const UnionAdminHomeScreen();
     } else if (role == 'driver') {
-      child = RoleHomeShell(
+      child = const RoleHomeShell(
         mode: RoleHomeShellMode.driver,
-        showApprovalsTab: isAppAdmin,
+        showApprovalsTab: false,
       );
     } else {
       child = const PassengerHomeScreen();

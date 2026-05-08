@@ -12,6 +12,7 @@ const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 const { mountUploadsStatic } = require('../src/config/staticUploads');
 
 const adminRoutes = require('../src/routes/admin');
+const platformAdminRoutes = require('../src/routes/platformAdmin');
 const paymentRoutes = require('../src/routes/payments');
 const notificationRoutes = require('../src/routes/notifications');
 const reviewRoutes = require('../src/routes/reviews');
@@ -20,6 +21,7 @@ const uploadRoutes = require('../src/routes/uploads');
 const app = createBaseApp('platform');
 mountUploadsStatic(app, path.join(__dirname, '../uploads'));
 app.use('/api/admin', adminRoutes);
+app.use('/api/platform-admin', platformAdminRoutes);
 if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {
   app.use('/api/payments', paymentRoutes);
 } else {

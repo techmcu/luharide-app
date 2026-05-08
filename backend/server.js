@@ -29,6 +29,7 @@ const { getMySubmittedDocuments } = require('./src/controllers/kycDocumentsContr
 const { streamMyKycDocumentFile } = require('./src/controllers/kycDocumentStreamController');
 const { mountUploadsStatic } = require('./src/config/staticUploads');
 const adminRoutes = require('./src/routes/admin');
+const platformAdminRoutes = require('./src/routes/platformAdmin');
 const unionRoutes = require('./src/routes/union');
 const paymentRoutes = require('./src/routes/payments');
 const notificationRoutes = require('./src/routes/notifications');
@@ -126,6 +127,7 @@ app.post('/api/driver-verification', authenticate, submitVerification);
 app.get('/api/kyc/submitted-documents', authenticate, getMySubmittedDocuments);
 app.get('/api/kyc/document-file', authenticate, streamMyKycDocumentFile);
 app.use('/api/admin', adminRoutes);
+app.use('/api/platform-admin', platformAdminRoutes);
 app.use('/api/union', unionRoutes);
 if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {
   app.use('/api/payments', paymentRoutes);

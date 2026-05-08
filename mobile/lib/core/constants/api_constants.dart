@@ -47,6 +47,16 @@ class ApiConstants {
   static String adminKycDriverReverify(String userId) => '/admin/kyc/drivers/$userId/reverify';
   static String adminKycUnionReverify(String unionId) => '/admin/kyc/unions/$unionId/reverify';
 
+  // Platform Admin
+  static const String platformDashboard = '/platform-admin/dashboard';
+  static const String platformUsers = '/platform-admin/users';
+  static String platformUserDetail(String id) => '/platform-admin/users/$id';
+  static String platformUserToggleActive(String id) => '/platform-admin/users/$id/active';
+  static const String platformTrips = '/platform-admin/trips';
+  static String platformTripDetail(String id) => '/platform-admin/trips/$id';
+  static String platformTripCancel(String id) => '/platform-admin/trips/$id/cancel';
+  static const String platformRevenue = '/platform-admin/revenue';
+
   // Uploads
   static const String uploadDriverDoc = '/uploads/driver-doc';
   static const String uploadUnionDoc = '/uploads/union-doc';
