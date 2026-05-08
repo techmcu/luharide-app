@@ -7,6 +7,7 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../core/app_navigator.dart';
 import '../../../../features/home/presentation/screens/home_screen.dart';
 import '../../../../core/config/env_config.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import 'forgot_password_screen.dart';
 import 'simple_signup_screen.dart';
@@ -140,7 +141,9 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       autocorrect: false,
+                      maxLength: InputLimits.email,
                       decoration: InputDecoration(
+                        counterText: '',
                         labelText: loc.t('input.email.label'),
                         hintText: loc.t('input.email.placeholder'),
                         prefixIcon: Icon(Icons.email_outlined, color: Colors.blue.shade700, size: 22),
@@ -170,7 +173,9 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _viewModel.obscurePassword,
+                      maxLength: InputLimits.password,
                       decoration: InputDecoration(
+                        counterText: '',
                         labelText: loc.t('auth.login.password_label'),
                         hintText: loc.t('auth.login.password_hint'),
                         prefixIcon: Icon(Icons.lock_outline_rounded, color: Colors.blue.shade700, size: 22),

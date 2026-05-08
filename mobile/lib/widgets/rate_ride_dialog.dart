@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/feedback/app_feedback.dart';
+import '../core/constants/input_limits.dart';
 import '../services/review_service.dart';
 
 const int _maxCommentWords = 20;
@@ -127,6 +128,7 @@ class _RateRideDialogState extends State<RateRideDialog> {
             TextField(
               controller: _commentController,
               maxLines: 3,
+              maxLength: InputLimits.comment,
               decoration: InputDecoration(
                 hintText: 'How was your experience?',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

@@ -5,6 +5,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../providers/app_language_provider.dart';
 import '../../../../services/driver_verification_service.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../services/trip_service.dart';
 
 class CreateTripScreen extends StatefulWidget {
@@ -213,7 +214,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 return TextFormField(
                   controller: controller,
                   focusNode: focusNode,
+                  maxLength: InputLimits.location,
                   decoration: InputDecoration(
+                    counterText: '',
                     labelText: 'From Location',
                     prefixIcon: const Icon(Icons.location_on, color: Colors.green),
                     border: OutlineInputBorder(
@@ -248,7 +251,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 return TextFormField(
                   controller: controller,
                   focusNode: focusNode,
+                  maxLength: InputLimits.location,
                   decoration: InputDecoration(
+                    counterText: '',
                     labelText: 'To Location',
                     prefixIcon: const Icon(Icons.location_on, color: Colors.red),
                     border: OutlineInputBorder(
@@ -317,7 +322,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             TextFormField(
               controller: _vehicleNumberController,
               readOnly: _vehicleLockedFromVerification,
+              maxLength: InputLimits.vehicleNumber,
               decoration: InputDecoration(
+                counterText: '',
                 labelText: 'Vehicle Number',
                 prefixIcon: const Icon(Icons.directions_car),
                 border: OutlineInputBorder(
@@ -346,7 +353,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             // Fare per seat
             TextFormField(
               controller: _fareController,
+              maxLength: InputLimits.fare,
               decoration: InputDecoration(
+                counterText: '',
                 labelText: 'Fare per Seat',
                 prefixIcon: const Icon(Icons.currency_rupee),
                 border: OutlineInputBorder(
@@ -367,7 +376,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _luggageController,
+              maxLength: InputLimits.luggage,
               decoration: InputDecoration(
+                counterText: '',
                 labelText: 'Luggage per passenger (optional)',
                 hintText: 'e.g. 1 small bag — shown to passengers for this ride only',
                 prefixIcon: const Icon(Icons.luggage_outlined),

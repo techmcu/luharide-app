@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../providers/auth_provider.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -60,7 +61,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           children: [
             TextFormField(
               controller: _currentController,
+              maxLength: InputLimits.password,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'Current Password',
                 prefixIcon: Icon(Icons.lock_outline),
                 border: OutlineInputBorder(),
@@ -71,7 +74,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _newController,
+              maxLength: InputLimits.password,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'New Password',
                 prefixIcon: Icon(Icons.lock),
                 border: OutlineInputBorder(),
@@ -86,7 +91,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _confirmController,
+              maxLength: InputLimits.password,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'Confirm New Password',
                 prefixIcon: Icon(Icons.lock),
                 border: OutlineInputBorder(),

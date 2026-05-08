@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../providers/auth_provider.dart';
 
 /// Edit Profile - Name, Email, Profile Picture
@@ -191,7 +192,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             // Name
             TextFormField(
               controller: _nameController,
+              maxLength: InputLimits.name,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'Name',
                 hintText: 'Your full name',
                 prefixIcon: Icon(Icons.person_outline),
@@ -209,7 +212,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             // Email
             TextFormField(
               controller: _emailController,
+              maxLength: InputLimits.email,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'Email (optional)',
                 hintText: 'your@email.com',
                 prefixIcon: Icon(Icons.email_outlined),
@@ -230,7 +235,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             TextFormField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
+              maxLength: InputLimits.phone,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'Phone',
                 hintText: '10-digit mobile number',
                 prefixIcon: Icon(Icons.phone_outlined),
@@ -249,7 +256,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             // WhatsApp (for Chat redirect after ride approval)
             TextFormField(
               controller: _whatsappController,
+              maxLength: InputLimits.whatsapp,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'WhatsApp Number',
                 hintText: 'e.g. 9876543210',
                 prefixIcon: Icon(Icons.chat_bubble_outline),
@@ -267,7 +276,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             // Bio (max 20 words)
             TextFormField(
               controller: _bioController,
+              maxLength: InputLimits.bio,
               decoration: const InputDecoration(
+                counterText: '',
                 labelText: 'Bio (optional)',
                 hintText: 'About you in a few words (max 20 words)',
                 prefixIcon: Icon(Icons.short_text),

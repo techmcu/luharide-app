@@ -130,7 +130,10 @@ class AuthService {
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final data = response.data['data'];
-        
+        if (data == null || data['tokens'] == null || data['user'] == null) {
+          throw Exception('Invalid server response: missing tokens or user data');
+        }
+
         // Save tokens and user data
         final tokens = AuthTokens.fromJson(data['tokens']);
         final user = UserModel.fromJson(data['user']);

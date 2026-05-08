@@ -14,8 +14,10 @@ const {
   rejectUnion,
   getUnionDrivers,
   addUnionDriver,
+  deleteUnionDriver,
   getUnionRoutes,
   addUnionRoute,
+  deleteUnionRoute,
   createUnionSchedulesBulk,
   getUnionSchedules,
   cancelUnionSchedule,
@@ -37,7 +39,7 @@ const createTripForDriverSchema = Joi.object({
   fare_per_seat: Joi.number().positive().required(),
   total_seats: Joi.number().integer().min(1).max(10).default(7),
   vehicle_number: Joi.string().required().max(20),
-  stops: Joi.array().items(Joi.string()).default([])
+  stops: Joi.array().items(Joi.string().max(200)).default([])
 });
 
 const addUnionDriverSchema = Joi.object({
@@ -142,6 +144,14 @@ router.post(
   addUnionDriver
 );
 
+// Union admin: remove a driver
+router.delete(
+  '/drivers/:driverId',
+  authenticate,
+  authorize('union_admin'),
+  deleteUnionDriver
+);
+
 // Union admin: preset routes
 router.get(
   '/routes',
@@ -156,6 +166,14 @@ router.post(
   authorize('union_admin'),
   validate(addUnionRouteSchema),
   addUnionRoute
+);
+
+// Union admin: remove a route
+router.delete(
+  '/routes/:routeId',
+  authenticate,
+  authorize('union_admin'),
+  deleteUnionRoute
 );
 
 // Union admin: bulk schedules/rides creation

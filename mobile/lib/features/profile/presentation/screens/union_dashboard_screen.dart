@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../services/union_service.dart';
 import 'union_create_rides_screen.dart';
 import 'union_manage_drivers_screen.dart';
@@ -1085,7 +1086,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 const SizedBox(height: 14),
                 TextField(
                   controller: ctrl,
-                  maxLength: 60,
+                  maxLength: InputLimits.posterHeader,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: 'Header text (optional)',
@@ -1111,7 +1112,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: customCtrl,
-                  maxLength: 60,
+                  maxLength: InputLimits.posterCustomText,
                   textInputAction: TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: 'Small custom text (optional)',

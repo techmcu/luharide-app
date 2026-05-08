@@ -24,7 +24,7 @@ const {
 // Validation schemas
 const signupSchema = Joi.object({
   email: Joi.string().email().required(),
-  password: Joi.string().min(6).required(),
+  password: Joi.string().min(6).max(128).required(),
   name: Joi.string().min(2).max(100).required(),
   role: Joi.string().valid('passenger', 'driver', 'union_admin').default('passenger')
 });
@@ -35,8 +35,8 @@ const loginSchema = Joi.object({
 });
 
 const changePasswordSchema = Joi.object({
-  currentPassword: Joi.string().required(),
-  newPassword: Joi.string().min(6).required()
+  currentPassword: Joi.string().max(128).required(),
+  newPassword: Joi.string().min(6).max(128).required()
 });
 
 const forgotPasswordSchema = Joi.object({
@@ -46,7 +46,7 @@ const forgotPasswordSchema = Joi.object({
 const resetPasswordSchema = Joi.object({
   email: Joi.string().email().required(),
   otp: Joi.string().length(6).required(),
-  newPassword: Joi.string().min(6).required()
+  newPassword: Joi.string().min(6).max(128).required()
 });
 
 /**

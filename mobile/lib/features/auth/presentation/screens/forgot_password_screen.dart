@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../providers/auth_provider.dart';
 import 'simple_login_screen.dart';
 
@@ -151,7 +152,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         TextField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
+          maxLength: InputLimits.email,
           decoration: InputDecoration(
+            counterText: '',
             labelText: 'Email',
             hintText: 'you@example.com',
             prefixIcon: const Icon(Icons.email_outlined),
@@ -237,7 +240,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
+            maxLength: InputLimits.password,
             decoration: InputDecoration(
+              counterText: '',
               labelText: 'New password (min 6 characters)',
               prefixIcon: const Icon(Icons.lock_outline_rounded),
               suffixIcon: IconButton(

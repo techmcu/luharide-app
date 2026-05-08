@@ -7,6 +7,7 @@ import '../../../../core/brand_config.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/legal_document_info.dart';
 import '../../../../core/localization/app_localizations.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../features/home/presentation/screens/home_screen.dart';
 import '../../../profile/presentation/screens/terms_screen.dart';
@@ -211,7 +212,9 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
         TextFormField(
           controller: _emailController,
           keyboardType: TextInputType.emailAddress,
+          maxLength: InputLimits.email,
           decoration: InputDecoration(
+            counterText: '',
             labelText: t.t('input.email.label'),
             hintText: t.t('input.email.placeholder'),
             prefixIcon: const Icon(Icons.email),
@@ -363,7 +366,9 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
           TextFormField(
             controller: _nameController,
             textCapitalization: TextCapitalization.words,
+            maxLength: InputLimits.name,
             decoration: InputDecoration(
+              counterText: '',
               labelText: 'Full Name',
               hintText: 'John Doe',
               prefixIcon: const Icon(Icons.person),
@@ -389,7 +394,9 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
+            maxLength: InputLimits.password,
             decoration: InputDecoration(
+              counterText: '',
               labelText: 'Create password (min 6 characters)',
               hintText: 'Enter password',
               prefixIcon: const Icon(Icons.lock),

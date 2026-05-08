@@ -32,6 +32,7 @@ String dioRelativePath(String path) {
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   late final Dio _dio;
+  Completer<bool>? _refreshCompleter;
 
   factory ApiService() {
     return _instance;
@@ -154,11 +155,26 @@ class ApiService {
   }
 
   // Centralized 401 handling: refresh token once and retry original request.
+  // Uses _refreshCompleter as mutex so concurrent 401s share a single refresh.
   Future<void> _handleUnauthorized(DioException error, ErrorInterceptorHandler handler) async {
     try {
-      final refreshed = await _refreshAccessToken();
+      bool refreshed;
+      if (_refreshCompleter != null) {
+        refreshed = await _refreshCompleter!.future;
+      } else {
+        _refreshCompleter = Completer<bool>();
+        try {
+          refreshed = await _refreshAccessToken();
+          _refreshCompleter!.complete(refreshed);
+        } catch (e) {
+          _refreshCompleter!.complete(false);
+          refreshed = false;
+        } finally {
+          _refreshCompleter = null;
+        }
+      }
+
       if (!refreshed) {
-        // Logout-like behavior: clear token so app can redirect user.
         clearAuthToken();
         return handler.next(error);
       }
@@ -173,7 +189,6 @@ class ApiService {
         validateStatus: req.validateStatus,
         receiveDataWhenStatusError: req.receiveDataWhenStatusError,
       );
-      // Mark as non-retriable to avoid infinite loop.
       req.extra['__retriable__'] = false;
 
       final cloneResponse = await _dio.request<dynamic>(

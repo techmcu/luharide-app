@@ -12,6 +12,7 @@ import '../../../../core/brand_config.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/role_exclusivity.dart';
 import '../../../../core/utils/kyc_image_picker.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import 'union_dashboard_screen.dart';
 
@@ -380,7 +381,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _ownerNameController,
+            maxLength: InputLimits.name,
             decoration: InputDecoration(
+              counterText: '',
               labelText: loc.t('kyc.union.leader_name'),
               border: const OutlineInputBorder(),
             ),
@@ -394,7 +397,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _nameController,
+            maxLength: InputLimits.unionName,
             decoration: InputDecoration(
+              counterText: '',
               labelText: loc.t('kyc.union.union_name'),
               border: const OutlineInputBorder(),
             ),
@@ -408,7 +413,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _locationController,
+            maxLength: InputLimits.unionLocation,
             decoration: InputDecoration(
+              counterText: '',
               labelText: loc.t('kyc.union.location'),
               border: const OutlineInputBorder(),
             ),
@@ -494,7 +501,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
+            maxLength: InputLimits.phone,
             decoration: InputDecoration(
+              counterText: '',
               labelText: loc.t('kyc.union.label.leader_phone'),
               hintText: 'Enter 10-digit mobile number',
               border: const OutlineInputBorder(),
@@ -512,7 +521,9 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
+            maxLength: InputLimits.email,
             decoration: InputDecoration(
+              counterText: '',
               labelText: loc.t('kyc.union.label.leader_email'),
               border: const OutlineInputBorder(),
             ),

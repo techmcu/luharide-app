@@ -28,7 +28,7 @@ const createTripSchema = Joi.object({
   fare_per_seat: Joi.number().positive().required(),
   total_seats: Joi.number().integer().min(1).max(50).default(7),
   vehicle_number: Joi.string().allow('').max(20).trim().default(''), // backend uses verified vehicle if empty
-  stops: Joi.array().items(Joi.string()).default([]),
+  stops: Joi.array().items(Joi.string().max(200)).default([]),
   require_approval: Joi.boolean().default(true) // true = driver must approve each booking
 });
 

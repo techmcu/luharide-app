@@ -883,31 +883,45 @@ const startTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
   const driverId = req.user.id;
 
-  const tripResult = await pool.query(
-    'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2',
-    [tripId, driverId]
-  );
-
-  if (tripResult.rows.length === 0) {
-    throw ApiError.notFound('Trip not found');
-  }
-
-  const trip = tripResult.rows[0];
-  if (trip.status !== 'scheduled') {
-    throw ApiError.badRequest(`Cannot start trip. Current status: ${trip.status}. Only scheduled trips can be started.`);
-  }
-
+  const client = await pool.connect();
   try {
-    await pool.query(
-      `UPDATE trips SET status = 'in_progress', started_at = COALESCE(started_at, NOW()) WHERE id = $1`,
-      [tripId]
+    await client.query('BEGIN');
+
+    const tripResult = await client.query(
+      'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      [tripId, driverId]
     );
-  } catch (err) {
-    if (err.code === '42703') {
-      await pool.query("UPDATE trips SET status = 'in_progress' WHERE id = $1", [tripId]);
-    } else {
-      throw err;
+
+    if (tripResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw ApiError.notFound('Trip not found');
     }
+
+    const trip = tripResult.rows[0];
+    if (trip.status !== 'scheduled') {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest(`Cannot start trip. Current status: ${trip.status}. Only scheduled trips can be started.`);
+    }
+
+    try {
+      await client.query(
+        `UPDATE trips SET status = 'in_progress', started_at = COALESCE(started_at, NOW()) WHERE id = $1`,
+        [tripId]
+      );
+    } catch (err) {
+      if (err.code === '42703') {
+        await client.query("UPDATE trips SET status = 'in_progress' WHERE id = $1", [tripId]);
+      } else {
+        throw err;
+      }
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 
   ApiResponse.success(
@@ -924,27 +938,40 @@ const completeTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
   const driverId = req.user.id;
 
-  const tripResult = await pool.query(
-    'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2',
-    [tripId, driverId]
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (tripResult.rows.length === 0) {
-    throw ApiError.notFound('Trip not found');
-  }
-
-  const trip = tripResult.rows[0];
-  // Allow complete from scheduled (no separate "start ride" step in app) or in_progress.
-  if (trip.status !== 'in_progress' && trip.status !== 'scheduled') {
-    throw ApiError.badRequest(
-      `Cannot complete trip. Current status: ${trip.status}. Only scheduled or in-progress trips can be completed.`
+    const tripResult = await client.query(
+      'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      [tripId, driverId]
     );
-  }
 
-  await pool.query(
-    "UPDATE trips SET status = 'completed' WHERE id = $1",
-    [tripId]
-  );
+    if (tripResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw ApiError.notFound('Trip not found');
+    }
+
+    const trip = tripResult.rows[0];
+    if (trip.status !== 'in_progress' && trip.status !== 'scheduled') {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest(
+        `Cannot complete trip. Current status: ${trip.status}. Only scheduled or in-progress trips can be completed.`
+      );
+    }
+
+    await client.query(
+      "UPDATE trips SET status = 'completed' WHERE id = $1",
+      [tripId]
+    );
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 
   ApiResponse.success(
     { status: 'completed' },
@@ -965,84 +992,103 @@ const cancelTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
   const driverId = req.user.id;
 
-  const tripResult = await pool.query(
-    'SELECT id, status, departure_time, driver_id FROM trips WHERE id = $1 AND driver_id = $2',
-    [tripId, driverId]
-  );
+  const client = await pool.connect();
+  let notifyPassengers = [];
+  try {
+    await client.query('BEGIN');
 
-  if (tripResult.rows.length === 0) {
-    throw ApiError.notFound('Trip not found');
-  }
-
-  const trip = tripResult.rows[0];
-  if (trip.status === 'cancelled' || trip.status === 'completed') {
-    throw ApiError.badRequest(`Trip is already ${trip.status}. Cannot cancel.`);
-  }
-  // After ride start: driver cancel disabled (both sides rule)
-  if (trip.status === 'in_progress') {
-    throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
-  }
-
-  const departureTimeMs = new Date(trip.departure_time).getTime();
-  const now = Date.now();
-  if (now >= departureTimeMs) {
-    throw ApiError.badRequest('Ride start time has passed. Cancellation not allowed.');
-  }
-
-  const confirmedBookings = await pool.query(
-    `SELECT id, passenger_id, seat_numbers FROM bookings WHERE trip_id = $1 AND status = 'confirmed'`,
-    [tripId]
-  );
-
-  const cutoffMs = DRIVER_CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
-  if (confirmedBookings.rows.length > 0 && (departureTimeMs - now) < cutoffMs) {
-    throw ApiError.badRequest(
-      `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
-      `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure (BlaBlaCar-style).`
+    const tripResult = await client.query(
+      'SELECT id, status, departure_time, driver_id FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      [tripId, driverId]
     );
-  }
 
-  await pool.query(
-    `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = 'Driver cancelled the trip' WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
-    [tripId]
-  );
-
-  let seatsToRelease = 0;
-  for (const row of confirmedBookings.rows) {
-    const seats = Array.isArray(row.seat_numbers) ? row.seat_numbers : [];
-    seatsToRelease += seats.length;
-  }
-  if (seatsToRelease > 0) {
-    await pool.query(
-      'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
-      [seatsToRelease, tripId]
-    );
-  }
-
-  await pool.query(
-    "UPDATE trips SET status = 'cancelled' WHERE id = $1",
-    [tripId]
-  );
-
-  if (confirmedBookings.rows.length > 0) {
-    const placeholders = confirmedBookings.rows
-      .map((_, i) => `($${i + 1}, 'trip_cancelled', 'Ride cancelled', 'The driver cancelled this ride. You are not charged.')`)
-      .join(', ');
-    const flatParams = confirmedBookings.rows.map(r => r.passenger_id);
-    try {
-      const nIns = await pool.query(
-        `INSERT INTO notifications (user_id, type, title, body) VALUES ${placeholders}
-         RETURNING id, user_id, type, title, body, created_at, is_read`,
-        flatParams
-      );
-      for (const row of nIns.rows) {
-        emitNotificationToUser(row.user_id, row);
-      }
-    } catch (e) {
-      logger.warn('Batch passenger cancel notification failed:', e.message);
+    if (tripResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw ApiError.notFound('Trip not found');
     }
+
+    const trip = tripResult.rows[0];
+    if (trip.status === 'cancelled' || trip.status === 'completed') {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest(`Trip is already ${trip.status}. Cannot cancel.`);
+    }
+    if (trip.status === 'in_progress') {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
+    }
+
+    const departureTimeMs = new Date(trip.departure_time).getTime();
+    const now = Date.now();
+    if (now >= departureTimeMs) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest('Ride start time has passed. Cancellation not allowed.');
+    }
+
+    const confirmedBookings = await client.query(
+      `SELECT id, passenger_id, seat_numbers FROM bookings WHERE trip_id = $1 AND status = 'confirmed'`,
+      [tripId]
+    );
+
+    const cutoffMs = DRIVER_CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
+    if (confirmedBookings.rows.length > 0 && (departureTimeMs - now) < cutoffMs) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest(
+        `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
+        `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure (BlaBlaCar-style).`
+      );
+    }
+
+    await client.query(
+      `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = 'Driver cancelled the trip' WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
+      [tripId]
+    );
+
+    let seatsToRelease = 0;
+    for (const row of confirmedBookings.rows) {
+      const seats = Array.isArray(row.seat_numbers) ? row.seat_numbers : [];
+      seatsToRelease += seats.length;
+    }
+
+    if (seatsToRelease > 0) {
+      await client.query(
+        'UPDATE trips SET available_seats = available_seats + $1, status = $3 WHERE id = $2',
+        [seatsToRelease, tripId, 'cancelled']
+      );
+    } else {
+      await client.query(
+        "UPDATE trips SET status = 'cancelled' WHERE id = $1",
+        [tripId]
+      );
+    }
+
+    if (confirmedBookings.rows.length > 0) {
+      const placeholders = confirmedBookings.rows
+        .map((_, i) => `($${i + 1}, 'trip_cancelled', 'Ride cancelled', 'The driver cancelled this ride. You are not charged.')`)
+        .join(', ');
+      const flatParams = confirmedBookings.rows.map(r => r.passenger_id);
+      try {
+        const nIns = await client.query(
+          `INSERT INTO notifications (user_id, type, title, body) VALUES ${placeholders}
+           RETURNING id, user_id, type, title, body, created_at, is_read`,
+          flatParams
+        );
+        notifyPassengers = nIns.rows;
+      } catch (e) {
+        logger.warn('Batch passenger cancel notification failed:', e.message);
+      }
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
 
+  for (const row of notifyPassengers) {
+    emitNotificationToUser(row.user_id, row);
+  }
   emitTripUpdated(tripId, { reason: 'driver_cancelled_trip' });
 
   logger.info(`Trip cancelled: ${tripId} by driver ${driverId}`);

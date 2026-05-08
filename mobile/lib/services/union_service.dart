@@ -234,6 +234,36 @@ class UnionService {
     }
   }
 
+  /// Remove a driver from the union.
+  Future<Map<String, dynamic>> deleteDriver(String driverId) async {
+    try {
+      await _api.delete('/union/drivers/$driverId');
+      return {'success': true};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to remove driver',
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'An unexpected error occurred'};
+    }
+  }
+
+  /// Remove a preset route from the union.
+  Future<Map<String, dynamic>> deleteRoute(String routeId) async {
+    try {
+      await _api.delete('/union/routes/$routeId');
+      return {'success': true};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? 'Failed to remove route',
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'An unexpected error occurred'};
+    }
+  }
+
   /// Bulk create schedules (rides) for multiple drivers.
   Future<Map<String, dynamic>> createSchedulesBulk({
     required String fromLocation,

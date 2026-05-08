@@ -726,6 +726,65 @@ const addUnionDriver = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Remove a driver from this union.
+ * Cancels any future scheduled rides, then deletes the driver row (cascades schedules).
+ * DELETE /api/union/drivers/:driverId
+ */
+const deleteUnionDriver = asyncHandler(async (req, res) => {
+  const { driverId } = req.params;
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+
+  const unionId = resUnion.rows[0].union_id;
+
+  const driverCheck = await pool.query(
+    'SELECT id, name FROM union_drivers WHERE id = $1 AND union_id = $2',
+    [driverId, unionId]
+  );
+  if (driverCheck.rows.length === 0) {
+    throw ApiError.notFound('Driver not found in your union');
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    await client.query(
+      `UPDATE union_schedules SET status = 'cancelled'
+       WHERE union_driver_id = $1 AND status = 'scheduled' AND departure_time > NOW()`,
+      [driverId]
+    );
+
+    await client.query(
+      'DELETE FROM union_drivers WHERE id = $1 AND union_id = $2',
+      [driverId, unionId]
+    );
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  const driverName = driverCheck.rows[0].name;
+  logger.info(`Union driver removed: ${driverId} (${driverName}) from union ${unionId} by admin ${req.user.id}`);
+
+  ApiResponse.success(null, 'Driver removed from union').send(res);
+});
+
+/**
  * Get preset routes for this union (for from/to dropdown).
  * GET /api/union/routes
  */
@@ -791,6 +850,41 @@ const addUnionRoute = asyncHandler(async (req, res) => {
     { route },
     'Route added for union'
   ).send(res);
+});
+
+/**
+ * Remove a preset route from this union.
+ * DELETE /api/union/routes/:routeId
+ */
+const deleteUnionRoute = asyncHandler(async (req, res) => {
+  const { routeId } = req.params;
+
+  const resUnion = await pool.query(
+    `SELECT ua.union_id
+     FROM union_admins ua
+     JOIN unions u ON u.id = ua.union_id
+     WHERE ua.user_id = $1 AND u.status = 'approved'
+     LIMIT 1`,
+    [req.user.id]
+  );
+  if (resUnion.rows.length === 0) {
+    throw ApiError.forbidden('No approved union found for this admin');
+  }
+
+  const unionId = resUnion.rows[0].union_id;
+
+  const result = await pool.query(
+    'DELETE FROM union_routes WHERE id = $1 AND union_id = $2 RETURNING id',
+    [routeId, unionId]
+  );
+
+  if (result.rowCount === 0) {
+    throw ApiError.notFound('Route not found in your union');
+  }
+
+  logger.info(`Union route removed: ${routeId} from union ${unionId} by admin ${req.user.id}`);
+
+  ApiResponse.success(null, 'Route removed').send(res);
 });
 
 /**
@@ -1787,8 +1881,10 @@ module.exports = {
   rejectUnionRequest,
   getUnionDrivers,
   addUnionDriver,
+  deleteUnionDriver,
   getUnionRoutes,
   addUnionRoute,
+  deleteUnionRoute,
   createUnionSchedulesBulk,
   getUnionSchedules,
   cancelUnionSchedule,

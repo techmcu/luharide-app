@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../services/union_service.dart';
 
 class UnionManageDriversScreen extends StatefulWidget {
@@ -188,6 +189,38 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
     );
   }
 
+  Future<void> _confirmDeleteDriver(Map<String, dynamic> driver) async {
+    final name = (driver['name'] ?? 'this driver').toString();
+    final driverId = driver['id']?.toString();
+    if (driverId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Driver'),
+        content: Text('Remove "$name" from your union? Any future scheduled rides for this driver will be cancelled.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final result = await _service.deleteDriver(driverId);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      AppFeedback.show(context, '$name removed', kind: AppFeedbackKind.success);
+      _load();
+    } else {
+      AppFeedback.show(context, result['message'] ?? 'Failed to remove driver', kind: AppFeedbackKind.error);
+    }
+  }
+
   Widget _buildDriverCard(Map<String, dynamic> driver, int index) {
     final name    = (driver['name'] ?? '').toString();
     final vehicle = (driver['vehicle_number'] ?? '').toString();
@@ -196,7 +229,9 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
     final color   = _avatarColors[index % _avatarColors.length];
 
-    return Container(
+    return GestureDetector(
+      onLongPress: () => _confirmDeleteDriver(driver),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -300,7 +335,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _actionBtn({
@@ -479,6 +514,7 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
               controller: widget.nameCtrl,
               label: 'Driver Full Name',
               icon: Icons.person_rounded,
+              maxLength: InputLimits.name,
               validator: (v) {
                 if ((v?.trim() ?? '').isEmpty) return 'Enter driver name';
                 if ((v?.trim() ?? '').length < 2) return 'Name too short';
@@ -490,6 +526,7 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
               controller: widget.vehicleCtrl,
               label: 'Vehicle Number (e.g. UK07-AB-1234)',
               icon: Icons.directions_car_rounded,
+              maxLength: InputLimits.unionVehicleNumber,
               validator: (v) {
                 if ((v?.trim() ?? '').isEmpty) return 'Enter vehicle number';
                 return null;
@@ -501,6 +538,7 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
               label: 'Phone Number',
               icon: Icons.phone_rounded,
               keyboardType: TextInputType.phone,
+              maxLength: InputLimits.phone,
             ),
             const SizedBox(height: 14),
             _field(
@@ -508,6 +546,7 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
               label: 'WhatsApp Number (optional)',
               icon: Icons.chat_rounded,
               keyboardType: TextInputType.phone,
+              maxLength: InputLimits.whatsapp,
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -554,12 +593,15 @@ class _AddDriverSheetState extends State<_AddDriverSheet> {
     required IconData icon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    int? maxLength,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       validator: validator,
+      maxLength: maxLength,
       decoration: InputDecoration(
+        counterText: '',
         labelText: label,
         prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade500),
         filled: true,

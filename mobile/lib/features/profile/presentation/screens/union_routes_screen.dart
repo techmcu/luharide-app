@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/constants/input_limits.dart';
 import '../../../../services/union_service.dart';
 
 class UnionRoutesScreen extends StatefulWidget {
@@ -179,6 +180,39 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
     );
   }
 
+  Future<void> _confirmDeleteRoute(Map<String, dynamic> route) async {
+    final from = route['from_location']?.toString() ?? '';
+    final to = route['to_location']?.toString() ?? '';
+    final routeId = route['id']?.toString();
+    if (routeId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove Route'),
+        content: Text('Remove route "$from → $to" from your union?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final result = await _service.deleteRoute(routeId);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      AppFeedback.show(context, 'Route removed', kind: AppFeedbackKind.success);
+      _load();
+    } else {
+      AppFeedback.show(context, result['message'] ?? 'Failed to remove route', kind: AppFeedbackKind.error);
+    }
+  }
+
   Widget _buildRouteCard(Map<String, dynamic> route, int index) {
     final from = route['from_location']?.toString() ?? '';
     final to   = route['to_location']?.toString() ?? '';
@@ -186,7 +220,9 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
     final fromColor = scheme[0];
     final toColor   = scheme[1];
 
-    return Container(
+    return GestureDetector(
+      onLongPress: () => _confirmDeleteRoute(route),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -311,7 +347,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildEmpty() {
@@ -464,7 +500,9 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
             TextFormField(
               controller: widget.fromCtrl,
               textCapitalization: TextCapitalization.words,
+              maxLength: InputLimits.unionLocation,
               decoration: InputDecoration(
+                counterText: '',
                 labelText: 'From (e.g. Purola)',
                 prefixIcon: Container(
                   margin: const EdgeInsets.all(10),
@@ -516,7 +554,9 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
             TextFormField(
               controller: widget.toCtrl,
               textCapitalization: TextCapitalization.words,
+              maxLength: InputLimits.unionLocation,
               decoration: InputDecoration(
+                counterText: '',
                 labelText: 'To (e.g. Dehradun)',
                 prefixIcon: Container(
                   margin: const EdgeInsets.all(10),
