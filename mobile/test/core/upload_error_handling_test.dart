@@ -63,11 +63,10 @@ void main() {
 
   group('502/503 retry should skip FormData', () {
     test('FormData is detected as non-retryable type', () {
-      final formData = FormData.fromMap({'file': 'test'});
-      // This verifies the type check we use in the interceptor
+      final Object formData = FormData.fromMap({'file': 'test'});
       expect(formData is FormData, isTrue);
-      // Regular map data should be retryable
-      expect({'key': 'value'} is FormData, isFalse);
+      final Object mapData = {'key': 'value'};
+      expect(mapData is FormData, isFalse);
     });
   });
 
