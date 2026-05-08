@@ -18,7 +18,8 @@ function getQueue() {
     queue = new Bull('luha:kyc-pdf', {
       createClient(type) {
         if (type === 'client') return client;
-        return client.duplicate();
+        // Bull subscriber/bclient require these overrides
+        return client.duplicate({ maxRetriesPerRequest: null, enableReadyCheck: false });
       },
       defaultJobOptions: {
         attempts: 2,
@@ -46,9 +47,14 @@ function getQueue() {
       });
     });
 
+    queue.on('error', (err) => {
+      logger.error('KYC Bull queue error (non-fatal)', { error: err.message });
+    });
+
     logger.info('KYC PDF queue initialised (Bull + Redis)');
     return queue;
   } catch (e) {
+    queue = null;
     logger.warn('KYC queue init failed, using direct processing', {
       error: e.message,
     });
