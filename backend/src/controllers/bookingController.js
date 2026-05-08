@@ -71,6 +71,24 @@ const createBooking = asyncHandler(async (req, res) => {
       }
     }
 
+    // Booking cooldown: 10 min wait after cancelling the same trip
+    const cooldownResult = await client.query(
+      `SELECT cancelled_at FROM bookings
+       WHERE passenger_id = $1 AND trip_id = $2 AND status = 'cancelled'
+         AND cancelled_at > NOW() - INTERVAL '10 minutes'
+       ORDER BY cancelled_at DESC LIMIT 1`,
+      [passengerId, trip_id]
+    );
+    if (cooldownResult.rows.length > 0) {
+      const cancelledAt = new Date(cooldownResult.rows[0].cancelled_at);
+      const waitUntil = new Date(cancelledAt.getTime() + 10 * 60 * 1000);
+      const minsLeft = Math.ceil((waitUntil - Date.now()) / 60000);
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest(
+        `You cancelled this ride recently. Please wait ${minsLeft} minute${minsLeft === 1 ? '' : 's'} before booking again.`
+      );
+    }
+
     // Lock trip row to prevent race – first request wins
     const tripResult = await client.query(
       'SELECT * FROM trips WHERE id = $1 AND status = $2 FOR UPDATE',
@@ -488,8 +506,8 @@ const getMyBookings = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
-/** Cancel policy: for testing = 2 minutes before departure. Production can use 2 hours. */
-const CANCEL_BEFORE_DEPARTURE_MINUTES = 2;
+/** Passenger cannot cancel a confirmed booking within this many minutes of departure. */
+const CANCEL_BEFORE_DEPARTURE_MINUTES = 30;
 
 /**
  * Cancel booking (Passenger only)

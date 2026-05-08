@@ -943,7 +943,7 @@ const completeTrip = asyncHandler(async (req, res) => {
     await client.query('BEGIN');
 
     const tripResult = await client.query(
-      'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      'SELECT id, status, departure_time FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
       [tripId, driverId]
     );
 
@@ -958,6 +958,11 @@ const completeTrip = asyncHandler(async (req, res) => {
       throw ApiError.badRequest(
         `Cannot complete trip. Current status: ${trip.status}. Only scheduled or in-progress trips can be completed.`
       );
+    }
+
+    if (trip.departure_time && new Date(trip.departure_time).getTime() > Date.now()) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest('Cannot complete ride before departure time.');
     }
 
     await client.query(

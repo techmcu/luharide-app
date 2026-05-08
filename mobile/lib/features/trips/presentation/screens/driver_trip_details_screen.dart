@@ -340,8 +340,9 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
             ),
           ),
 
-          // Complete ride (Driver) — scheduled or in_progress (no separate "start" step in UI).
-          if (_trip!.status == 'scheduled' || _trip!.status == 'in_progress')
+          // Complete ride (Driver) — only after departure time has passed.
+          if ((_trip!.status == 'scheduled' || _trip!.status == 'in_progress') &&
+              !_trip!.departureTime.isAfter(DateTime.now()))
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: SizedBox(

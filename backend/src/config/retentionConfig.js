@@ -17,7 +17,7 @@ module.exports = {
    */
   tripSearchGraceMinutesAfterDeparture: intEnv(
     'TRIP_SEARCH_GRACE_MINUTES_AFTER_DEPARTURE',
-    15,
+    0,
     0,
     180
   ),

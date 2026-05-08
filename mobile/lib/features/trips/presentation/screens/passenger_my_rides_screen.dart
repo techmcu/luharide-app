@@ -80,7 +80,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     if (depTime == null) return true;
     final now = DateTime.now();
     if (!now.isBefore(depTime)) return false;
-    if (depTime.difference(now).inMinutes < 2) return false;
+    if (depTime.difference(now).inMinutes < 30) return false;
     return true;
   }
 
