@@ -1210,7 +1210,7 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
 }
 
 // =============================================================================
-// POSTER-TO-RIDE SECTION
+// POSTER-TO-RIDE SECTION  (upload poster → OCR → editable table → save to DB)
 // =============================================================================
 class _PosterRideSection extends StatefulWidget {
   const _PosterRideSection();
@@ -1222,17 +1222,14 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
   final _service = PlatformAdminService();
   final _picker = ImagePicker();
 
-  // Form controllers
   final _fromCtrl = TextEditingController();
   final _toCtrl = TextEditingController();
   final _driverCtrl = TextEditingController();
   final _contactCtrl = TextEditingController();
-  final _fareCtrl = TextEditingController();
   final _seatsCtrl = TextEditingController(text: '7');
   final _vehicleCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
-  String _rideType = 'independent';
   DateTime? _departureDate;
   TimeOfDay? _departureTime;
 
@@ -1257,40 +1254,29 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     setState(() => _loadingRides = true);
     final res = await _service.getAdminRides();
     if (!mounted) return;
-    setState(() {
-      _adminRides = res['rides'] ?? [];
-      _loadingRides = false;
-    });
+    setState(() { _adminRides = res['rides'] ?? []; _loadingRides = false; });
+  }
+
+  void _resetForm() {
+    _fromCtrl.clear(); _toCtrl.clear(); _driverCtrl.clear();
+    _contactCtrl.clear(); _seatsCtrl.text = '7'; _vehicleCtrl.clear();
+    _notesCtrl.clear(); _departureDate = null; _departureTime = null;
+    _warnings = []; _rawText = '';
   }
 
   Future<void> _pickAndParse() async {
     final source = await showModalBottomSheet<String>(
       context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Camera'),
-              onTap: () => Navigator.pop(ctx, 'camera'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Gallery'),
-              onTap: () => Navigator.pop(ctx, 'gallery'),
-            ),
-          ],
-        ),
-      ),
+      builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(leading: const Icon(Icons.camera_alt), title: const Text('Camera'), onTap: () => Navigator.pop(ctx, 'camera')),
+        ListTile(leading: const Icon(Icons.photo_library), title: const Text('Gallery'), onTap: () => Navigator.pop(ctx, 'gallery')),
+      ])),
     );
-
     if (source == null || !mounted) return;
 
     final xFile = await _picker.pickImage(
       source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 2400,
+      imageQuality: 85, maxWidth: 2400,
     );
     if (xFile == null) return;
 
@@ -1303,18 +1289,11 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
       _toCtrl.text = res['to_location'] ?? '';
       _driverCtrl.text = res['driver_name'] ?? '';
       _contactCtrl.text = res['contact_number'] ?? '';
-      _fareCtrl.text = (res['fare_per_seat'] ?? '').toString();
-      if (_fareCtrl.text == 'null') _fareCtrl.text = '';
       _vehicleCtrl.text = res['vehicle_type'] ?? '';
       _rawText = res['raw_text'] ?? '';
 
       final dateStr = res['departure_date']?.toString() ?? '';
-      if (dateStr.isNotEmpty) {
-        final parts = dateStr.split('-');
-        if (parts.length == 3) {
-          _departureDate = DateTime.tryParse(dateStr);
-        }
-      }
+      if (dateStr.isNotEmpty) _departureDate = DateTime.tryParse(dateStr);
       final timeStr = res['departure_time']?.toString() ?? '';
       if (timeStr.contains(':')) {
         final tp = timeStr.split(':');
@@ -1324,15 +1303,11 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
       final w = res['warnings'];
       if (w is List) _warnings = w.map((e) => e.toString()).toList();
       final extra = res['extra_details'];
-      if (extra is List && extra.isNotEmpty) {
-        _notesCtrl.text = extra.join('\n');
-      }
+      if (extra is List && extra.isNotEmpty) _notesCtrl.text = extra.join('\n');
 
-      final isPast = res['date_is_past'] == true;
       setState(() { _parsing = false; _showForm = true; });
-
-      if (isPast && mounted) {
-        AppFeedback.show(context, 'Date is in the past — this poster may be outdated', kind: AppFeedbackKind.warning);
+      if (res['date_is_past'] == true && mounted) {
+        AppFeedback.show(context, 'Poster date is old — review before saving', kind: AppFeedbackKind.warning);
       }
     } else {
       setState(() => _parsing = false);
@@ -1340,64 +1315,39 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     }
   }
 
-  void _showManualForm() {
-    _fromCtrl.clear();
-    _toCtrl.clear();
-    _driverCtrl.clear();
-    _contactCtrl.clear();
-    _fareCtrl.clear();
-    _seatsCtrl.text = '7';
-    _vehicleCtrl.clear();
-    _notesCtrl.clear();
-    _departureDate = null;
-    _departureTime = null;
-    _warnings = [];
-    _rawText = '';
-    setState(() => _showForm = true);
-  }
-
   Future<void> _pickDate() async {
     final d = await showDatePicker(
       context: context,
       initialDate: _departureDate ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (d != null) setState(() => _departureDate = d);
   }
 
   Future<void> _pickTime() async {
-    final t = await showTimePicker(
-      context: context,
-      initialTime: _departureTime ?? const TimeOfDay(hour: 8, minute: 0),
-    );
+    final t = await showTimePicker(context: context, initialTime: _departureTime ?? const TimeOfDay(hour: 8, minute: 0));
     if (t != null) setState(() => _departureTime = t);
   }
 
-  Future<void> _createRide() async {
+  Future<void> _saveRide() async {
     final from = _fromCtrl.text.trim();
     final to = _toCtrl.text.trim();
     if (from.isEmpty || to.isEmpty) {
-      AppFeedback.show(context, 'From and To locations are required', kind: AppFeedbackKind.warning);
-      return;
-    }
-    final fare = double.tryParse(_fareCtrl.text.trim()) ?? 0;
-    if (fare <= 0) {
-      AppFeedback.show(context, 'Fare must be greater than 0', kind: AppFeedbackKind.warning);
+      AppFeedback.show(context, 'From and To are required', kind: AppFeedbackKind.warning);
       return;
     }
     if (_departureDate == null || _departureTime == null) {
-      AppFeedback.show(context, 'Select departure date and time', kind: AppFeedbackKind.warning);
+      AppFeedback.show(context, 'Select date and time', kind: AppFeedbackKind.warning);
       return;
     }
-
-    final depDt = DateTime(
-      _departureDate!.year, _departureDate!.month, _departureDate!.day,
-      _departureTime!.hour, _departureTime!.minute,
-    );
-
+    final depDt = DateTime(_departureDate!.year, _departureDate!.month, _departureDate!.day, _departureTime!.hour, _departureTime!.minute);
     if (depDt.isBefore(DateTime.now())) {
-      AppFeedback.show(context, 'Departure time must be in the future', kind: AppFeedbackKind.warning);
+      AppFeedback.show(context, 'Departure must be in the future', kind: AppFeedbackKind.warning);
+      return;
+    }
+    final contact = _contactCtrl.text.trim();
+    if (contact.isEmpty) {
+      AppFeedback.show(context, 'Contact number is required', kind: AppFeedbackKind.warning);
       return;
     }
 
@@ -1406,19 +1356,18 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
       'from_location': from,
       'to_location': to,
       'departure_time': depDt.toIso8601String(),
-      'fare_per_seat': fare,
       'total_seats': int.tryParse(_seatsCtrl.text.trim()) ?? 7,
       'vehicle_number': _vehicleCtrl.text.trim(),
       'driver_name': _driverCtrl.text.trim(),
-      'contact_number': _contactCtrl.text.trim(),
+      'contact_number': contact,
       'admin_notes': _notesCtrl.text.trim(),
-      'ride_type': _rideType,
     });
     if (!mounted) return;
     setState(() => _creating = false);
 
     if (res['success'] == true) {
-      AppFeedback.show(context, 'Ride created (By Admin)', kind: AppFeedbackKind.success);
+      AppFeedback.show(context, 'Ride saved to database', kind: AppFeedbackKind.success);
+      _resetForm();
       setState(() => _showForm = false);
       _loadRides();
     } else {
@@ -1432,37 +1381,33 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: _parsing ? null : _pickAndParse,
-                icon: _parsing
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.image_search),
-                label: Text(_parsing ? 'Reading...' : 'Upload Poster'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            OutlinedButton.icon(
-              onPressed: _showManualForm,
-              icon: const Icon(Icons.edit_note),
-              label: const Text('Manual'),
-            ),
-          ],
-        ),
+        // Upload / Manual buttons
+        Row(children: [
+          Expanded(child: FilledButton.icon(
+            onPressed: _parsing ? null : _pickAndParse,
+            icon: _parsing
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.image_search),
+            label: Text(_parsing ? 'Reading...' : 'Upload Poster'),
+          )),
+          const SizedBox(width: 10),
+          OutlinedButton.icon(
+            onPressed: () { _resetForm(); setState(() => _showForm = true); },
+            icon: const Icon(Icons.edit_note),
+            label: const Text('Manual'),
+          ),
+        ]),
 
         if (_parsing) ...[
           const SizedBox(height: 16),
-          const Center(child: Column(
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 8),
-              Text('Reading poster text (OCR)...', style: TextStyle(fontSize: 13, color: Colors.black54)),
-            ],
-          )),
+          const Center(child: Column(children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 8),
+            Text('Reading poster (OCR)...', style: TextStyle(fontSize: 13, color: Colors.black54)),
+          ])),
         ],
 
+        // Warnings
         if (_warnings.isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(
@@ -1470,128 +1415,128 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
             decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: _warnings.map((w) => Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.warning_amber, size: 16, color: Colors.orange.shade700),
+              children: _warnings.map((w) => Padding(
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(Icons.warning_amber, size: 15, color: Colors.orange.shade700),
                   const SizedBox(width: 6),
                   Expanded(child: Text(w, style: TextStyle(fontSize: 12, color: Colors.orange.shade900))),
-                ],
+                ]),
               )).toList(),
             ),
           ),
         ],
 
+        // Editable ride table
         if (_showForm) ...[
           const SizedBox(height: 16),
-          const Text('Ride Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          _field(_fromCtrl, 'From Location', Icons.location_on),
-          _field(_toCtrl, 'To Location', Icons.flag),
-          _field(_driverCtrl, 'Driver Name', Icons.person),
-          _field(_contactCtrl, 'Contact Number', Icons.phone, keyboardType: TextInputType.phone),
-          _field(_fareCtrl, 'Fare per Seat (₹)', Icons.currency_rupee, keyboardType: TextInputType.number),
-          _field(_seatsCtrl, 'Total Seats', Icons.event_seat, keyboardType: TextInputType.number),
-          _field(_vehicleCtrl, 'Vehicle (type / number)', Icons.directions_car),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.calendar_today, size: 18),
-                  label: Text(_departureDate != null
-                      ? '${_departureDate!.day}/${_departureDate!.month}/${_departureDate!.year}'
-                      : 'Date'),
+          Card(
+            elevation: 1,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Ride Details', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                const Divider(),
+                _tableRow('From', _fromCtrl, icon: Icons.location_on),
+                _tableRow('To', _toCtrl, icon: Icons.flag),
+                _tableRow('Driver Name', _driverCtrl, icon: Icons.person),
+                _tableRow('Contact', _contactCtrl, icon: Icons.phone, keyboard: TextInputType.phone),
+                _tableRow('Vehicle', _vehicleCtrl, icon: Icons.directions_car),
+                _tableRow('Seats', _seatsCtrl, icon: Icons.event_seat, keyboard: TextInputType.number),
+                const SizedBox(height: 8),
+                Row(children: [
+                  const Icon(Icons.calendar_today, size: 16, color: Colors.black45),
+                  const SizedBox(width: 8),
+                  const Text('Date & Time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black54)),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _pickDate,
+                    child: Text(_departureDate != null
+                        ? '${_departureDate!.day}/${_departureDate!.month}/${_departureDate!.year}'
+                        : 'Select Date', style: const TextStyle(fontSize: 13)),
+                  ),
+                  TextButton(
+                    onPressed: _pickTime,
+                    child: Text(_departureTime != null
+                        ? '${_departureTime!.hour.toString().padLeft(2, '0')}:${_departureTime!.minute.toString().padLeft(2, '0')}'
+                        : 'Select Time', style: const TextStyle(fontSize: 13)),
+                  ),
+                ]),
+                const Divider(),
+                TextField(
+                  controller: _notesCtrl,
+                  decoration: const InputDecoration(
+                    hintText: 'Extra notes (optional)',
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(vertical: 6),
+                  ),
+                  maxLines: 2,
+                  style: const TextStyle(fontSize: 13),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _pickTime,
-                  icon: const Icon(Icons.schedule, size: 18),
-                  label: Text(_departureTime != null
-                      ? '${_departureTime!.hour.toString().padLeft(2, '0')}:${_departureTime!.minute.toString().padLeft(2, '0')}'
-                      : 'Time'),
-                ),
-              ),
-            ],
+              ]),
+            ),
           ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _rideType,
-            decoration: const InputDecoration(labelText: 'Ride Type', border: OutlineInputBorder()),
-            items: const [
-              DropdownMenuItem(value: 'independent', child: Text('Independent')),
-              DropdownMenuItem(value: 'union', child: Text('Union')),
-            ],
-            onChanged: (v) => setState(() => _rideType = v ?? 'independent'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notesCtrl,
-            decoration: const InputDecoration(labelText: 'Extra Notes', border: OutlineInputBorder()),
-            maxLines: 2,
-          ),
+
           if (_rawText.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              title: const Text('Raw OCR Text', style: TextStyle(fontSize: 13, color: Colors.black54)),
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                  child: Text(_rawText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
-                ),
-              ],
+              title: const Text('Raw OCR Text', style: TextStyle(fontSize: 12, color: Colors.black45)),
+              children: [Container(
+                width: double.infinity, padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                child: Text(_rawText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+              )],
             ),
           ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: _creating ? null : _createRide,
-              icon: _creating
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.add_road),
-              label: Text(_creating ? 'Creating...' : 'Create Ride (By Admin)'),
-            ),
-          ),
+
+          const SizedBox(height: 14),
+          SizedBox(width: double.infinity, child: FilledButton.icon(
+            onPressed: _creating ? null : _saveRide,
+            icon: _creating
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.save),
+            label: Text(_creating ? 'Saving...' : 'Save to Database'),
+            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+          )),
         ],
 
+        // Admin rides list
         const SizedBox(height: 24),
-        Row(
-          children: [
-            const Expanded(child: Text('Admin-Created Rides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
-            IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _loadRides),
-          ],
-        ),
+        Row(children: [
+          const Expanded(child: Text('Admin Rides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
+          IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _loadRides),
+        ]),
         const SizedBox(height: 8),
         if (_loadingRides)
           const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
         else if (_adminRides.isEmpty)
-          const Text('No admin rides yet', style: TextStyle(color: Colors.black45))
+          const Text('No rides created yet', style: TextStyle(color: Colors.black45))
         else
           ..._adminRides.map(_buildRideCard),
       ],
     );
   }
 
-  Widget _field(TextEditingController ctrl, String label, IconData icon, {TextInputType? keyboardType}) {
+  Widget _tableRow(String label, TextEditingController ctrl, {IconData? icon, TextInputType? keyboard}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
-        controller: ctrl,
-        keyboardType: keyboardType,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, size: 20),
-          border: const OutlineInputBorder(),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        ),
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(children: [
+        if (icon != null) ...[Icon(icon, size: 16, color: Colors.black45), const SizedBox(width: 8)],
+        SizedBox(width: 90, child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black54))),
+        Expanded(child: TextField(
+          controller: ctrl,
+          keyboardType: keyboard,
+          decoration: const InputDecoration(
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+          ),
+          style: const TextStyle(fontSize: 14),
+        )),
+      ]),
     );
   }
 
@@ -1601,8 +1546,8 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     final status = ride['status'] ?? '';
     final driverName = ride['poster_driver_name'] ?? '';
     final contact = ride['poster_contact'] ?? '';
-    final source = ride['created_source'] ?? '';
-    final fare = ride['fare_per_seat'] ?? 0;
+    final seats = ride['total_capacity'] ?? 0;
+    final vehicle = ride['vehicle_number'] ?? '';
     final created = ride['created_at'] ?? '';
 
     Color statusColor;
@@ -1621,46 +1566,47 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(child: Text('$from → $to', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-                  child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor)),
-                ),
-              ],
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text('$from → $to', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+              child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor)),
             ),
-            const SizedBox(height: 4),
-            Text('$driverName • $contact • ₹$fare/seat', style: const TextStyle(fontSize: 12, color: Colors.black54)),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: Colors.indigo.shade100, borderRadius: BorderRadius.circular(6)),
-                  child: const Text('By Admin', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.indigo)),
-                ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(6)),
-                  child: Text(source == 'admin_union' ? 'Union' : 'Independent', style: const TextStyle(fontSize: 10, color: Colors.black54)),
-                ),
-                const Spacer(),
-                Text(_formatDate(created), style: const TextStyle(fontSize: 11, color: Colors.black38)),
-              ],
+          ]),
+          const SizedBox(height: 6),
+          _rideInfoRow(Icons.person, driverName),
+          _rideInfoRow(Icons.phone, contact),
+          if (vehicle.isNotEmpty) _rideInfoRow(Icons.directions_car, vehicle),
+          _rideInfoRow(Icons.event_seat, '$seats seats'),
+          const SizedBox(height: 6),
+          Row(children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(color: Colors.indigo.shade100, borderRadius: BorderRadius.circular(6)),
+              child: const Text('By Admin', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.indigo)),
             ),
-          ],
-        ),
+            const Spacer(),
+            Text(_fmtDate(created), style: const TextStyle(fontSize: 11, color: Colors.black38)),
+          ]),
+        ]),
       ),
     );
   }
 
-  String _formatDate(String? raw) {
+  Widget _rideInfoRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(children: [
+        Icon(icon, size: 14, color: Colors.black38),
+        const SizedBox(width: 8),
+        Text(text, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+      ]),
+    );
+  }
+
+  String _fmtDate(String? raw) {
     if (raw == null || raw.isEmpty) return '';
     final d = DateTime.tryParse(raw);
     if (d == null) return raw;
@@ -1669,13 +1615,8 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
 
   @override
   void dispose() {
-    _fromCtrl.dispose();
-    _toCtrl.dispose();
-    _driverCtrl.dispose();
-    _contactCtrl.dispose();
-    _fareCtrl.dispose();
-    _seatsCtrl.dispose();
-    _vehicleCtrl.dispose();
+    _fromCtrl.dispose(); _toCtrl.dispose(); _driverCtrl.dispose();
+    _contactCtrl.dispose(); _seatsCtrl.dispose(); _vehicleCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }

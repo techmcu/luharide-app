@@ -687,6 +687,8 @@ const getPublicAppConfig = asyncHandler(async (req, res) => {
 const { extractText } = require('../services/ocrService');
 const { parsePosterText, DEFAULT_CONTACT } = require('../services/posterParserService');
 
+const fs = require('fs');
+
 const parsePoster = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
 
@@ -703,7 +705,13 @@ const parsePoster = asyncHandler(async (req, res) => {
   );
   const seq = riderSeq.rows[0]?.seq || 1;
 
-  const rawText = await extractText(req.file.path, mime);
+  let rawText = '';
+  try {
+    rawText = await extractText(req.file.path, mime);
+  } finally {
+    fs.unlink(req.file.path, () => {});
+  }
+
   if (!rawText || rawText.trim().length < 5) {
     return res.json({
       success: true,
@@ -715,7 +723,6 @@ const parsePoster = asyncHandler(async (req, res) => {
         vehicle_type: null,
         departure_date: null,
         departure_time: null,
-        fare_per_seat: null,
         date_is_past: false,
         raw_text: rawText || '',
         extra_details: [],
@@ -736,9 +743,9 @@ const createAdminRide = asyncHandler(async (req, res) => {
 
   const {
     from_location, to_location, departure_time,
-    fare_per_seat, total_seats, vehicle_number,
+    total_seats, vehicle_number,
     driver_name, contact_number, vehicle_type,
-    admin_notes, ride_type,
+    admin_notes,
   } = req.body;
 
   if (!from_location || !to_location) {
@@ -746,9 +753,7 @@ const createAdminRide = asyncHandler(async (req, res) => {
   }
   if (!departure_time) throw ApiError.badRequest('Departure time is required');
 
-  const fare = parseFloat(fare_per_seat) || 0;
-  if (fare <= 0) throw ApiError.badRequest('Fare must be greater than 0');
-
+  const fare = 0;
   const seats = Math.min(32, Math.max(1, parseInt(total_seats, 10) || 7));
   const depTime = new Date(departure_time);
   if (isNaN(depTime.getTime())) throw ApiError.badRequest('Invalid departure time');
@@ -756,7 +761,7 @@ const createAdminRide = asyncHandler(async (req, res) => {
   const arrivalTime = new Date(depTime.getTime() + 2 * 60 * 60 * 1000);
   const contact = contact_number || DEFAULT_CONTACT;
   const dName = driver_name || 'Rider';
-  const source = ride_type === 'union' ? 'admin_union' : 'admin_poster';
+  const source = 'admin_poster';
 
   let driverId = req.user.id;
   if (contact && contact !== DEFAULT_CONTACT) {
