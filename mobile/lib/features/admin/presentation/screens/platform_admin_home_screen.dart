@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/feedback/app_feedback.dart';
@@ -1281,7 +1280,8 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     if (xFile == null) return;
 
     setState(() { _parsing = true; _warnings = []; });
-    final res = await _service.parsePoster(File(xFile.path));
+    final bytes = await xFile.readAsBytes();
+    final res = await _service.parsePoster(bytes, xFile.name);
     if (!mounted) return;
 
     if (res['success'] == true) {

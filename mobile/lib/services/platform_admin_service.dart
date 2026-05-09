@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../core/constants/api_constants.dart';
 import '../core/utils/api_error_messages.dart';
@@ -255,10 +255,10 @@ class PlatformAdminService {
 
   // ---- Phase 3: Poster-to-Ride ----
 
-  Future<Map<String, dynamic>> parsePoster(File file) async {
+  Future<Map<String, dynamic>> parsePoster(Uint8List bytes, String filename) async {
     try {
       final formData = FormData.fromMap({
-        'poster': await MultipartFile.fromFile(file.path, filename: file.path.split(Platform.pathSeparator).last),
+        'poster': MultipartFile.fromBytes(bytes, filename: filename),
       });
       final res = await _api.post(ApiConstants.platformParsePoster, data: formData);
       return {'success': true, ..._unwrap(res.data)};
