@@ -136,10 +136,30 @@ function findNameNearPhone(rawText, phone) {
   return null;
 }
 
+function findLocationsNearPhone(rawText, phone) {
+  const lines = rawText.split(/\n/);
+  for (const line of lines) {
+    if (!line.includes(phone)) continue;
+    const loc = extractLocations(line);
+    if (loc.from) return loc;
+  }
+  return { from: null, to: null };
+}
+
+function findVehicleNearPhone(rawText, phone) {
+  const lines = rawText.split(/\n/);
+  for (const line of lines) {
+    if (!line.includes(phone)) continue;
+    const v = extractVehicleType(line);
+    if (v) return v;
+  }
+  return null;
+}
+
 function parsePosterText(rawText) {
   if (typeof rawText !== 'string' || rawText.length < 5) {
     return {
-      shared: { from_location: null, to_location: null, departure_date: null, departure_time: null, date_is_past: false },
+      shared: { departure_date: null, departure_time: null, date_is_past: false },
       rides: [],
       warnings: ['Could not extract readable text from the uploaded file'],
       raw_text: rawText || '',
@@ -147,13 +167,11 @@ function parsePosterText(rawText) {
   }
   const warnings = [];
   const phones = extractPhoneNumbers(rawText);
-  const locations = extractLocations(rawText);
+  const globalLocations = extractLocations(rawText);
   const dateInfo = extractDate(rawText);
   const time = extractTime(rawText);
-  const vehicleType = extractVehicleType(rawText);
+  const globalVehicle = extractVehicleType(rawText);
 
-  if (!locations.from) warnings.push('Could not detect origin location');
-  if (!locations.to) warnings.push('Could not detect destination location');
   if (dateInfo && dateInfo.isPast) warnings.push('Date appears to be in the past');
 
   const rides = [];
@@ -171,18 +189,20 @@ function parsePosterText(rawText) {
     }
     for (let i = 0; i < take; i++) {
       const name = findNameNearPhone(rawText, phones[i]) || `Rider ${i + 1}`;
+      const lineLoc = findLocationsNearPhone(rawText, phones[i]);
+      const lineVehicle = findVehicleNearPhone(rawText, phones[i]);
       rides.push({
         driver_name: name,
         contact_number: phones[i],
-        vehicle_type: vehicleType || '',
+        from_location: lineLoc.from || globalLocations.from || '',
+        to_location: lineLoc.to || globalLocations.to || '',
+        vehicle_type: lineVehicle || globalVehicle || '',
       });
     }
   }
 
   return {
     shared: {
-      from_location: locations.from,
-      to_location: locations.to,
       departure_date: dateInfo ? dateInfo.date : null,
       departure_time: time,
       date_is_past: dateInfo ? dateInfo.isPast : false,

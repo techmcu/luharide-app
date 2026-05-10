@@ -729,8 +729,8 @@ const parsePoster = asyncHandler(async (req, res) => {
     return res.json({
       success: true,
       data: {
-        shared: { from_location: null, to_location: null, departure_date: null, departure_time: null, date_is_past: false },
-        rides: [{ driver_name: 'Rider 1', contact_number: DEFAULT_CONTACT, vehicle_type: '' }],
+        shared: { departure_date: null, departure_time: null, date_is_past: false },
+        rides: [],
         warnings: ['Could not extract readable text from the uploaded file'],
         raw_text: rawText || '',
       },
@@ -747,12 +747,17 @@ const parsePoster = asyncHandler(async (req, res) => {
 const createAdminRide = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
 
-  const { from_location, to_location, departure_time, rides } = req.body;
+  const { departure_time, rides } = req.body;
 
-  if (!from_location || !to_location) throw ApiError.badRequest('From and To are required');
   if (!departure_time) throw ApiError.badRequest('Departure time is required');
   if (!Array.isArray(rides) || rides.length === 0) throw ApiError.badRequest('At least one ride is required');
   if (rides.length > 20) throw ApiError.badRequest('Maximum 20 rides per batch');
+
+  for (let i = 0; i < rides.length; i++) {
+    if (!rides[i].from_location || !rides[i].to_location) {
+      throw ApiError.badRequest(`Ride #${i + 1}: From and To are required`);
+    }
+  }
 
   const depTime = new Date(departure_time);
   if (isNaN(depTime.getTime())) throw ApiError.badRequest('Invalid departure time');
@@ -769,6 +774,8 @@ const createAdminRide = asyncHandler(async (req, res) => {
       const dName = r.driver_name || `Rider ${i + 1}`;
       const seats = Math.min(32, Math.max(1, parseInt(r.total_seats, 10) || 7));
       const vehicle = r.vehicle_type || '';
+      const from = (r.from_location || '').trim();
+      const to = (r.to_location || '').trim();
 
       let driverId = req.user.id;
       if (contact && contact !== DEFAULT_CONTACT) {
@@ -788,7 +795,7 @@ const createAdminRide = asyncHandler(async (req, res) => {
         ) VALUES ($1,$2,$3,$4,$5,0,$6,$6,$7,'scheduled','admin_poster',$8,$9,$10,$11)
         RETURNING id, from_location, to_location, poster_driver_name, poster_contact, status`,
         [
-          driverId, from_location.trim(), to_location.trim(),
+          driverId, from, to,
           depTime.toISOString(), arrivalTime.toISOString(),
           seats, vehicle,
           req.user.id, dName, contact, r.admin_notes || null,
