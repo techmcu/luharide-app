@@ -84,6 +84,41 @@ class UnionService {
     }
   }
 
+  /// Log a contact click (call or whatsapp) — fire-and-forget from UI.
+  Future<void> logContact({
+    required int driverId,
+    required String unionId,
+    required String contactType,
+  }) async {
+    try {
+      await _api.post(ApiConstants.unionContactLog, data: {
+        'driver_id': driverId,
+        'union_id': unionId,
+        'contact_type': contactType,
+      });
+    } catch (_) {
+      // fire-and-forget — don't block UI if this fails
+    }
+  }
+
+  /// Get contact stats for the union dashboard.
+  Future<Map<String, dynamic>> getContactStats() async {
+    try {
+      final response = await _api.get(ApiConstants.unionContactStats);
+      return {
+        'success': true,
+        'data': response.data['data'] ?? {},
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': dioResponseMessage(e) ?? 'Failed to load contact stats',
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'Unexpected error'};
+    }
+  }
+
   /// Get union dashboard stats for the current union admin.
   Future<Map<String, dynamic>> getDashboard() async {
     try {

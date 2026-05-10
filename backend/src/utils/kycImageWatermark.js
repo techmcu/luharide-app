@@ -3,7 +3,8 @@ const sharp = require('sharp');
 const logger = require('../config/logger');
 const { LINE_PRIMARY, LINE_SECONDARY, LINE_TOP_MARK } = require('./kycWatermarkStrings');
 
-const SHARP_READ_OPTS = { failOn: 'none' };
+const SHARP_READ_OPTS = { failOn: 'none', sequentialRead: true };
+const KYC_MAX_EDGE = 1400;
 
 function renderOverlayWithResvg(svg, width) {
   try {
@@ -32,9 +33,16 @@ async function applyKycWatermark(absolutePath, mimetype) {
   if (!m.startsWith('image/')) return false;
 
   const meta = await sharp(absolutePath, SHARP_READ_OPTS).metadata();
-  const w = meta.width || 0;
-  const h = meta.height || 0;
+  let w = meta.width || 0;
+  let h = meta.height || 0;
   if (w < 1 || h < 1) return false;
+
+  const needsResize = w > KYC_MAX_EDGE || h > KYC_MAX_EDGE;
+  if (needsResize) {
+    const scale = Math.min(KYC_MAX_EDGE / w, KYC_MAX_EDGE / h);
+    w = Math.round(w * scale);
+    h = Math.round(h * scale);
+  }
 
   const minSide = Math.min(w, h);
   const fontLarge = Math.max(20, Math.round(minSide * 0.052));
@@ -87,16 +95,21 @@ async function applyKycWatermark(absolutePath, mimetype) {
   const overlay = renderOverlayWithResvg(svg, w) || Buffer.from(svg);
 
   const tmp = `${absolutePath}.wm.${process.pid}.${Date.now()}.tmp`;
-  let pipeline = sharp(absolutePath, SHARP_READ_OPTS).composite([
-    { input: overlay, blend: 'over' },
-  ]);
+  let pipeline = sharp(absolutePath, SHARP_READ_OPTS);
+  if (needsResize) {
+    pipeline = pipeline.resize(KYC_MAX_EDGE, KYC_MAX_EDGE, {
+      fit: 'inside',
+      withoutEnlargement: true,
+    });
+  }
+  pipeline = pipeline.composite([{ input: overlay, blend: 'over' }]);
 
   if (m === 'image/png') {
     pipeline = pipeline.png({ compressionLevel: 6 });
   } else if (m === 'image/webp') {
     pipeline = pipeline.webp({ quality: 85 });
   } else {
-    pipeline = pipeline.jpeg({ quality: 88, mozjpeg: true });
+    pipeline = pipeline.jpeg({ quality: 82, mozjpeg: true });
   }
 
   try {

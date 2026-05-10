@@ -6,6 +6,7 @@ const {
   getUnionTrips,
   getDashboardStats
 } = require('../controllers/unionTripController');
+const { logContact, getContactStats } = require('../controllers/contactLogController');
 const {
   getMyUnion,
   registerUnion,
@@ -231,6 +232,12 @@ router.get(
 
 // Union Admin routes (after registration / role upgrade)
 router.get('/dashboard', authenticate, authorize('union_admin'), getDashboardStats);
+
+// Contact log — any authenticated user can log a contact click
+router.post('/contact-log', authenticate, writeLimiter, logContact);
+
+// Contact stats — union admin only
+router.get('/contact-stats', authenticate, authorize('union_admin'), getContactStats);
 
 // Create trip for a driver in union
 router.post(

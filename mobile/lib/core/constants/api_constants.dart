@@ -77,6 +77,8 @@ class ApiConstants {
 
   // Union Admin
   static const String unionDashboard = '/union/dashboard';
+  static const String unionContactLog = '/union/contact-log';
+  static const String unionContactStats = '/union/contact-stats';
 
   // Driver Endpoints
   static const String driverTrips = '/drivers/trips';

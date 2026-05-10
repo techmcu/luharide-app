@@ -2,8 +2,8 @@ const fs = require('fs');
 const sharp = require('sharp');
 const { PDFDocument } = require('pdf-lib');
 
-const SHARP_READ_OPTS = { failOn: 'none' };
-const MAX_EDGE = 2200;
+const SHARP_READ_OPTS = { failOn: 'none', sequentialRead: true };
+const MAX_EDGE = 1400;
 
 /**
  * Build a multi-page PDF from image files (already watermarked on upload).
@@ -23,7 +23,7 @@ async function mergeImagePathsToWatermarkedPdf(absoluteImagePaths, outputPath) {
     const buf = await sharp(imgPath, SHARP_READ_OPTS)
       .rotate()
       .resize(MAX_EDGE, MAX_EDGE, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 88, mozjpeg: true })
+      .jpeg({ quality: 80, mozjpeg: true })
       .toBuffer();
 
     const embedded = await doc.embedJpg(buf);

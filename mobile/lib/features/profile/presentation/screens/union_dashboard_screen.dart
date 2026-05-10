@@ -19,16 +19,20 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   bool _loading = true;
   String? _error;
   Map<String, dynamic>? _stats;
+  Map<String, dynamic>? _contactStats;
   List<dynamic> _drivers = const [];
   String _posterHeader = '';
   String _posterCustomText = '';
   String _posterCustomTextPosition = 'right';
   String _posterLayoutType = 'classic';
   String _posterTheme = 'saffron';
+  String? _unionId;
 
   static const _orange = Color(0xFFFF6B00);
   static const _orangeLight = Color(0xFFFFF3E0);
   static const _purple = Color(0xFF7B1FA2);
+  static const _advancedColor = Color(0xFF0D47A1);
+  static const _advancedBg = Color(0xFFE3F2FD);
 
   @override
   void initState() {
@@ -44,17 +48,17 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
     final service = UnionService();
 
-    // Call getMyUnion FIRST — backend self-heals role to union_admin if union is approved.
-    // Only after that call the dashboard (which requires union_admin role).
     final unionResult = await service.getMyUnion();
 
     final results = await Future.wait([
       service.getDashboard(),
       service.getDrivers(),
+      service.getContactStats(),
     ]);
 
     final dashboardResult = results[0];
-    final driversResult   = results[1];
+    final driversResult = results[1];
+    final contactResult = results[2];
 
     Map<String, dynamic>? stats;
     String? error;
@@ -70,11 +74,17 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       if (raw is List) drivers = raw;
     }
 
+    Map<String, dynamic>? contactStats;
+    if (contactResult['success'] == true) {
+      contactStats = contactResult['data'] as Map<String, dynamic>?;
+    }
+
     String posterHeader = '';
     String posterCustomText = '';
     String posterCustomTextPosition = 'right';
     String posterLayoutType = 'classic';
     String posterTheme = 'saffron';
+    String? unionId;
     Map<String, dynamic>? unionMap;
     if (unionResult['success'] == true) {
       unionMap = unionResult['union'] as Map<String, dynamic>?;
@@ -83,28 +93,51 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       posterCustomTextPosition = (unionMap?['poster_custom_text_position'] ?? 'right').toString();
       posterLayoutType = (unionMap?['poster_layout_type'] ?? 'classic').toString();
       posterTheme = (unionMap?['poster_theme'] ?? 'saffron').toString();
+      unionId = unionMap?['id']?.toString();
     }
 
     if (!mounted) return;
     setState(() {
       _stats = stats;
+      _contactStats = contactStats;
       _drivers = drivers;
       _posterHeader = posterHeader;
       _posterCustomText = posterCustomText;
       _posterCustomTextPosition = posterCustomTextPosition;
       _posterLayoutType = posterLayoutType;
       _posterTheme = posterTheme;
+      _unionId = unionId;
       _error = error;
       _loading = false;
     });
   }
 
-  Future<void> _callDriver(String phone) async {
+  Future<void> _callDriver(Map<String, dynamic> driver) async {
+    final phone = (driver['phone'] ?? '').toString();
+    if (phone.isEmpty) return;
+    final driverId = driver['id'];
+    if (driverId != null && _unionId != null) {
+      UnionService().logContact(
+        driverId: driverId is int ? driverId : int.tryParse(driverId.toString()) ?? 0,
+        unionId: _unionId!,
+        contactType: 'call',
+      );
+    }
     final uri = Uri.parse('tel:$phone');
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
-  Future<void> _whatsappDriver(String number) async {
+  Future<void> _whatsappDriver(Map<String, dynamic> driver) async {
+    final number = (driver['whatsapp_number'] ?? '').toString();
+    if (number.isEmpty) return;
+    final driverId = driver['id'];
+    if (driverId != null && _unionId != null) {
+      UnionService().logContact(
+        driverId: driverId is int ? driverId : int.tryParse(driverId.toString()) ?? 0,
+        unionId: _unionId!,
+        contactType: 'whatsapp',
+      );
+    }
     final clean = number.replaceAll(RegExp(r'\D'), '');
     final uri = Uri.parse('https://wa.me/91$clean');
     if (await canLaunchUrl(uri)) {
@@ -118,7 +151,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: const Text(
-          'Union hub',
+          'Union Hub',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: _orange,
@@ -163,6 +196,21 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         child: _buildStatsRow(),
                       ),
                       const SizedBox(height: 24),
+                      // Contact Analytics Section (Advanced Feature)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildSectionLabelWithBadge(
+                          'Contact Analytics',
+                          Icons.analytics_rounded,
+                          advancedBadge: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildContactStatsCard(),
+                      ),
+                      const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: _buildSectionLabel('Quick actions', Icons.touch_app_rounded),
@@ -181,9 +229,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       if (_drivers.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _buildSectionLabel(
-                            'Your drivers (${_drivers.length})',
+                          child: _buildSectionLabelWithBadge(
+                            'Drivers (${_drivers.length})',
                             Icons.people_alt_rounded,
+                            advancedBadge: false,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -323,8 +372,8 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
   Widget _buildStatsRow() {
     final scheduledRides = _stats?['scheduled_rides'] ?? 0;
-    final totalDrivers   = _stats?['total_drivers'] ?? 0;
-    final ridesToday     = _stats?['rides_today'] ?? 0;
+    final totalDrivers = _stats?['total_drivers'] ?? 0;
+    final ridesToday = _stats?['rides_today'] ?? 0;
 
     return Row(
       children: [
@@ -360,6 +409,242 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       ],
     );
   }
+
+  // ── Contact Analytics Card (Advanced Feature) ─────────────────────────────
+
+  Widget _buildContactStatsCard() {
+    final today = _contactStats?['today'] as Map<String, dynamic>? ?? {};
+    final week = _contactStats?['week'] as Map<String, dynamic>? ?? {};
+    final month = _contactStats?['month'] as Map<String, dynamic>? ?? {};
+    final driverStats = _contactStats?['drivers'] as List? ?? [];
+
+    final todayCalls = today['calls'] ?? 0;
+    final todayWa = today['whatsapp'] ?? 0;
+    final weekCalls = week['calls'] ?? 0;
+    final weekWa = week['whatsapp'] ?? 0;
+    final monthCalls = month['calls'] ?? 0;
+    final monthWa = month['whatsapp'] ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _advancedColor.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Summary row: Today / Week / Month
+          Row(
+            children: [
+              Expanded(
+                child: _contactPeriodChip(
+                  'Today',
+                  todayCalls,
+                  todayWa,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _contactPeriodChip(
+                  '7 days',
+                  weekCalls,
+                  weekWa,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _contactPeriodChip(
+                  '30 days',
+                  monthCalls,
+                  monthWa,
+                ),
+              ),
+            ],
+          ),
+          if (driverStats.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
+            const Text(
+              'Per driver (last 30 days)',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+            ),
+            const SizedBox(height: 8),
+            ...driverStats.take(5).map((d) {
+              final name = (d['name'] ?? 'Driver').toString();
+              final calls = d['calls'] ?? 0;
+              final wa = d['whatsapp_clicks'] ?? 0;
+              final total = (calls as int) + (wa as int);
+              if (total == 0) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: _advancedBg,
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : 'D',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: _advancedColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (calls > 0)
+                      _miniContactBadge(Icons.call_rounded, calls, const Color(0xFF43A047)),
+                    if (wa > 0) ...[
+                      const SizedBox(width: 6),
+                      _miniContactBadge(Icons.chat_rounded, wa, const Color(0xFF25D366)),
+                    ],
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _contactPeriodChip(String label, int calls, int whatsapp) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.call_rounded, size: 12, color: Color(0xFF43A047)),
+              const SizedBox(width: 3),
+              Text(
+                '$calls',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.chat_rounded, size: 12, color: Color(0xFF25D366)),
+              const SizedBox(width: 3),
+              Text(
+                '$whatsapp',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniContactBadge(IconData icon, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 3),
+          Text(
+            '$count',
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Section Labels ─────────────────────────────────────────────────────────
+
+  Widget _buildSectionLabel(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: _orange),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF222222),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSectionLabelWithBadge(String title, IconData icon, {bool advancedBadge = false}) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: advancedBadge ? _advancedColor : _orange),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: advancedBadge ? _advancedColor : const Color(0xFF222222),
+          ),
+        ),
+        if (advancedBadge) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: _advancedBg,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: _advancedColor.withValues(alpha: 0.3)),
+            ),
+            child: const Text(
+              'Pro',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: _advancedColor,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Stats Card ─────────────────────────────────────────────────────────────
 
   Widget _buildStatCard({
     required String label,
@@ -405,27 +690,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     );
   }
 
-  Widget _buildSectionLabel(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: _orange),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF222222),
-          ),
-        ),
-      ],
-    );
-  }
+  // ── Quick Actions ──────────────────────────────────────────────────────────
 
   Widget _buildActionGrid(BuildContext context) {
     return Column(
       children: [
-        // Row 1: Drivers + Routes
         Row(
           children: [
             Expanded(
@@ -458,7 +727,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        // Row 2: Create Rides (full width — most important action)
         _buildActionCardWide(
           icon: Icons.add_road_rounded,
           iconBg: const Color(0xFFFFF3E0),
@@ -628,12 +896,27 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     );
   }
 
+  // ── Driver Card with Contact Stats ─────────────────────────────────────────
+
   Widget _buildDriverCard(Map<String, dynamic> driver) {
     final name = (driver['name'] ?? '').toString();
     final vehicleNumber = (driver['vehicle_number'] ?? '').toString();
     final phone = (driver['phone'] ?? '').toString();
     final whatsapp = (driver['whatsapp_number'] ?? '').toString();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
+
+    // Find per-driver stats from contact stats
+    final driverStats = _contactStats?['drivers'] as List? ?? [];
+    final driverId = driver['id'];
+    Map<String, dynamic>? driverStat;
+    for (final ds in driverStats) {
+      if (ds['id'] == driverId) {
+        driverStat = ds as Map<String, dynamic>;
+        break;
+      }
+    }
+    final driverCalls = driverStat?['calls'] ?? 0;
+    final driverWa = driverStat?['whatsapp_clicks'] ?? 0;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -648,82 +931,132 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         children: [
-          CircleAvatar(
-            radius: 22,
-            backgroundColor: _orange.withValues(alpha: 0.15),
-            child: Text(
-              initial,
-              style: const TextStyle(
-                color: _orange,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name.isNotEmpty ? name : 'Driver',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: _orange.withValues(alpha: 0.15),
+                child: Text(
+                  initial,
+                  style: const TextStyle(
+                    color: _orange,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                 ),
-                if (vehicleNumber.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.directions_car_rounded, size: 13, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          vehicleNumber,
-                          style: const TextStyle(fontSize: 12, color: Colors.black54),
-                        ),
-                      ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isNotEmpty ? name : 'Driver',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
-                  ),
-                if (phone.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.phone_rounded, size: 13, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          phone,
-                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    if (vehicleNumber.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.directions_car_rounded, size: 13, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(
+                              vehicleNumber,
+                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+                      ),
+                    if (phone.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.phone_rounded, size: 13, color: Colors.grey),
+                            const SizedBox(width: 4),
+                            Text(
+                              phone,
+                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (phone.isNotEmpty || whatsapp.isNotEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (phone.isNotEmpty)
+                      _iconBtn(
+                        icon: Icons.call_rounded,
+                        color: const Color(0xFF43A047),
+                        onTap: () => _callDriver(driver),
+                        tooltip: 'Call',
+                      ),
+                    if (whatsapp.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      _iconBtn(
+                        icon: Icons.chat_rounded,
+                        color: const Color(0xFF25D366),
+                        onTap: () => _whatsappDriver(driver),
+                        tooltip: 'WhatsApp',
+                      ),
+                    ],
+                  ],
+                ),
+            ],
           ),
-          if (phone.isNotEmpty || whatsapp.isNotEmpty)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (phone.isNotEmpty)
-                  _iconBtn(
-                    icon: Icons.call_rounded,
-                    color: const Color(0xFF43A047),
-                    onTap: () => _callDriver(phone),
-                    tooltip: 'Call',
-                  ),
-                if (whatsapp.isNotEmpty) ...[
+          // Per-driver contact stats (if any)
+          if ((driverCalls as int) > 0 || (driverWa as int) > 0) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.trending_up_rounded, size: 14, color: Colors.black45),
                   const SizedBox(width: 6),
-                  _iconBtn(
-                    icon: Icons.chat_rounded,
-                    color: const Color(0xFF25D366),
-                    onTap: () => _whatsappDriver(whatsapp),
-                    tooltip: 'WhatsApp',
+                  const Text(
+                    '30d: ',
+                    style: TextStyle(fontSize: 11, color: Colors.black45),
+                  ),
+                  if (driverCalls > 0) ...[
+                    const Icon(Icons.call_rounded, size: 11, color: Color(0xFF43A047)),
+                    const SizedBox(width: 2),
+                    Text(
+                      '$driverCalls',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                  if (driverCalls > 0 && driverWa > 0)
+                    const SizedBox(width: 8),
+                  if (driverWa > 0) ...[
+                    const Icon(Icons.chat_rounded, size: 11, color: Color(0xFF25D366)),
+                    const SizedBox(width: 2),
+                    Text(
+                      '$driverWa',
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    'contacts from passengers',
+                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
                   ),
                 ],
-              ],
+              ),
             ),
+          ],
         ],
       ),
     );
@@ -837,11 +1170,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   color: _purple.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: _purple,
-                  size: 22,
-                ),
+                child: const Icon(Icons.picture_as_pdf_rounded, color: _purple, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -868,10 +1197,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           'Small text (${_posterCustomTextPosition.toUpperCase()}): ${_posterCustomText.trim()}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade700,
-                          ),
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                         ),
                       ),
                   ],
@@ -905,10 +1231,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     final customCtrl = TextEditingController(text: _posterCustomText);
     bool saving = false;
     String selectedPosition = _posterCustomTextPosition;
-    final positionLabels = <String, String>{
-      'left': 'Left',
-      'right': 'Right',
-    };
+    final positionLabels = <String, String>{'left': 'Left', 'right': 'Right'};
     final positionIcons = <String, IconData>{
       'left': Icons.vertical_align_center_rounded,
       'right': Icons.vertical_align_center_rounded,
@@ -923,27 +1246,19 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
     Color previewBg(String key) {
       switch (key) {
-        case 'sky':
-          return const Color(0xFFB3E5FC);
-        case 'mint':
-          return const Color(0xFFC8E6C9);
-        case 'rose':
-          return const Color(0xFFF8BBD0);
-        default:
-          return const Color(0xFFFFC107);
+        case 'sky': return const Color(0xFFB3E5FC);
+        case 'mint': return const Color(0xFFC8E6C9);
+        case 'rose': return const Color(0xFFF8BBD0);
+        default: return const Color(0xFFFFC107);
       }
     }
 
     Color previewText(String key) {
       switch (key) {
-        case 'sky':
-          return const Color(0xFF0F172A);
-        case 'mint':
-          return const Color(0xFF1B4332);
-        case 'rose':
-          return const Color(0xFF3F1D2E);
-        default:
-          return const Color(0xFF212121);
+        case 'sky': return const Color(0xFF0F172A);
+        case 'mint': return const Color(0xFF1B4332);
+        case 'rose': return const Color(0xFF3F1D2E);
+        default: return const Color(0xFF212121);
       }
     }
 
@@ -968,7 +1283,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Handle
                 Center(
                   child: Container(
                     width: 40, height: 4,
@@ -1027,7 +1341,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   Text(
                                     header.isEmpty ? 'No custom header' : header,
@@ -1065,7 +1378,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                // Examples row
                 Wrap(
                   spacing: 8,
                   children: [
