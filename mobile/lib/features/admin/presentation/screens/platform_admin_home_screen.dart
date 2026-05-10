@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/platform_admin_service.dart';
-import '../../../../utils/launch_whatsapp.dart';
 import 'platform_user_detail_screen.dart';
 import 'platform_trip_detail_screen.dart';
 import '../../../home/presentation/screens/union_admin_home_screen.dart';
@@ -721,7 +718,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
             Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
             Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
             Tab(icon: Icon(Icons.settings, size: 20), text: 'Config'),
-            Tab(icon: Icon(Icons.image_search, size: 20), text: 'Quick Ride'),
+            Tab(icon: Icon(Icons.add_road, size: 20), text: 'Create Ride'),
           ],
         ),
       ),
@@ -731,7 +728,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
           _NotificationsSection(),
           _ComplaintsSection(),
           _ConfigSection(),
-          _PosterRideSection(),
+          _CreateRideSection(),
         ],
       ),
     );
@@ -1211,524 +1208,86 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
 }
 
 // =============================================================================
-// POSTER-TO-RIDE SECTION  (upload poster → OCR → editable table → save to DB)
+// CREATE RIDE SECTION — links to existing union & independent driver ride features
 // =============================================================================
-class _PosterRideSection extends StatefulWidget {
-  const _PosterRideSection();
-  @override
-  State<_PosterRideSection> createState() => _PosterRideSectionState();
-}
-
-class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKeepAliveClientMixin {
-  final _service = PlatformAdminService();
-  final _picker = ImagePicker();
-
-  final _notesCtrl = TextEditingController();
-
-  DateTime? _departureDate;
-  TimeOfDay? _departureTime;
-
-  bool _parsing = false;
-  bool _creating = false;
-  List<String> _warnings = [];
-  String _rawText = '';
-  List<Map<String, dynamic>> _parsedRides = [];
-  List<dynamic> _adminRides = [];
-  bool _loadingRides = true;
-  bool _showForm = false;
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRides();
-  }
-
-  Future<void> _loadRides() async {
-    setState(() => _loadingRides = true);
-    final res = await _service.getAdminRides();
-    if (!mounted) return;
-    setState(() { _adminRides = res['rides'] ?? []; _loadingRides = false; });
-  }
-
-  void _resetForm() {
-    _notesCtrl.clear();
-    _departureDate = null; _departureTime = null;
-    _warnings = []; _rawText = ''; _parsedRides = [];
-  }
-
-  Map<String, dynamic> _emptyRide() => {
-    'driver_name': '',
-    'contact_number': '',
-    'from_location': '',
-    'to_location': '',
-    'vehicle_type': '',
-  };
-
-  Future<void> _pickAndParse() async {
-    final source = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(leading: const Icon(Icons.camera_alt), title: const Text('Camera'), onTap: () => Navigator.pop(ctx, 'camera')),
-        ListTile(leading: const Icon(Icons.photo_library), title: const Text('Gallery'), onTap: () => Navigator.pop(ctx, 'gallery')),
-      ])),
-    );
-    if (source == null || !mounted) return;
-
-    final xFile = await _picker.pickImage(
-      source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
-      imageQuality: 80, maxWidth: 1600, maxHeight: 2000,
-    );
-    if (xFile == null) return;
-
-    setState(() { _parsing = true; _warnings = []; _parsedRides = []; });
-    final bytes = await xFile.readAsBytes();
-    final res = await _service.parsePoster(bytes, xFile.name);
-    if (!mounted) return;
-
-    if (res['success'] == true) {
-      final shared = res['shared'];
-      if (shared is Map) {
-        final dateStr = shared['departure_date']?.toString() ?? '';
-        if (dateStr.isNotEmpty) _departureDate = DateTime.tryParse(dateStr);
-        final timeStr = shared['departure_time']?.toString() ?? '';
-        if (timeStr.contains(':')) {
-          final tp = timeStr.split(':');
-          _departureTime = TimeOfDay(hour: int.tryParse(tp[0]) ?? 8, minute: int.tryParse(tp[1]) ?? 0);
-        }
-
-        if (shared['date_is_past'] == true && mounted) {
-          AppFeedback.show(context, 'Poster date is old — review before saving', kind: AppFeedbackKind.warning);
-        }
-      }
-
-      final rides = res['rides'];
-      if (rides is List && rides.isNotEmpty) {
-        _parsedRides = rides.map<Map<String, dynamic>>((r) => {
-          'driver_name': r['driver_name']?.toString() ?? '',
-          'contact_number': r['contact_number']?.toString() ?? '',
-          'from_location': r['from_location']?.toString() ?? '',
-          'to_location': r['to_location']?.toString() ?? '',
-          'vehicle_type': r['vehicle_type']?.toString() ?? '',
-        }).toList();
-      }
-
-      _rawText = res['raw_text']?.toString() ?? '';
-      final w = res['warnings'];
-      if (w is List) _warnings = w.map((e) => e.toString()).toList();
-
-      setState(() { _parsing = false; _showForm = _parsedRides.isNotEmpty; });
-      if (_parsedRides.isEmpty && mounted) {
-        AppFeedback.show(context, 'No ride entries found in poster', kind: AppFeedbackKind.warning);
-      }
-    } else {
-      setState(() => _parsing = false);
-      if (mounted) AppFeedback.show(context, res['message'] ?? 'Parse failed', kind: AppFeedbackKind.error);
-    }
-  }
-
-  Future<void> _pickDate() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _departureDate ?? DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (d != null) setState(() => _departureDate = d);
-  }
-
-  Future<void> _pickTime() async {
-    final t = await showTimePicker(context: context, initialTime: _departureTime ?? const TimeOfDay(hour: 8, minute: 0));
-    if (t != null) setState(() => _departureTime = t);
-  }
-
-  Future<void> _saveAllRides() async {
-    if (_departureDate == null || _departureTime == null) {
-      AppFeedback.show(context, 'Select date and time', kind: AppFeedbackKind.warning);
-      return;
-    }
-    final depDt = DateTime(_departureDate!.year, _departureDate!.month, _departureDate!.day, _departureTime!.hour, _departureTime!.minute);
-    final isPastDate = depDt.isBefore(DateTime.now());
-    if (isPastDate) {
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Date is in the past'),
-          content: const Text('The departure date is before today. Are you sure you want to upload these rides?'),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Upload Anyway')),
-          ],
-        ),
-      );
-      if (proceed != true || !mounted) return;
-    }
-    if (_parsedRides.isEmpty) {
-      AppFeedback.show(context, 'No rides to save', kind: AppFeedbackKind.warning);
-      return;
-    }
-    for (int i = 0; i < _parsedRides.length; i++) {
-      final r = _parsedRides[i];
-      final from = (r['from_location'] ?? '').toString().trim();
-      final to = (r['to_location'] ?? '').toString().trim();
-      final c = (r['contact_number'] ?? '').toString().trim();
-      if (from.isEmpty || to.isEmpty) {
-        AppFeedback.show(context, 'Ride #${i + 1} is missing From or To', kind: AppFeedbackKind.warning);
-        return;
-      }
-      if (c.isEmpty) {
-        AppFeedback.show(context, 'Ride #${i + 1} is missing contact number', kind: AppFeedbackKind.warning);
-        return;
-      }
-    }
-
-    setState(() => _creating = true);
-    final res = await _service.createAdminRide({
-      'departure_time': depDt.toIso8601String(),
-      'rides': _parsedRides.map((r) => {
-        'driver_name': (r['driver_name'] ?? '').toString().trim(),
-        'contact_number': (r['contact_number'] ?? '').toString().trim(),
-        'from_location': (r['from_location'] ?? '').toString().trim(),
-        'to_location': (r['to_location'] ?? '').toString().trim(),
-        'vehicle_type': (r['vehicle_type'] ?? '').toString().trim(),
-        'admin_notes': _notesCtrl.text.trim(),
-      }).toList(),
-    });
-    if (!mounted) return;
-    setState(() => _creating = false);
-
-    if (res['success'] == true) {
-      final count = res['created_count'] ?? _parsedRides.length;
-      AppFeedback.show(context, '$count rides saved to database', kind: AppFeedbackKind.success);
-      _resetForm();
-      setState(() => _showForm = false);
-      _loadRides();
-    } else {
-      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
-    }
-  }
+class _CreateRideSection extends StatelessWidget {
+  const _CreateRideSection();
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Row(children: [
-          Expanded(child: FilledButton.icon(
-            onPressed: _parsing ? null : _pickAndParse,
-            icon: _parsing
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.image_search),
-            label: Text(_parsing ? 'Reading...' : 'Upload Poster'),
-          )),
-          const SizedBox(width: 10),
-          OutlinedButton.icon(
-            onPressed: () {
-              _resetForm();
-              _parsedRides = List.generate(3, (_) => _emptyRide());
-              setState(() => _showForm = true);
-            },
-            icon: const Icon(Icons.edit_note),
-            label: const Text('Manual'),
-          ),
-        ]),
-
-        if (_parsing) ...[
-          const SizedBox(height: 16),
-          const Center(child: Column(children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 8),
-            Text('Reading poster (OCR)...', style: TextStyle(fontSize: 13, color: Colors.black54)),
-          ])),
-        ],
-
-        if (_warnings.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(8)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _warnings.map((w) => Padding(
-                padding: const EdgeInsets.only(bottom: 2),
-                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Icon(Icons.warning_amber, size: 15, color: Colors.orange.shade700),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(w, style: TextStyle(fontSize: 12, color: Colors.orange.shade900))),
-                ]),
-              )).toList(),
-            ),
-          ),
-        ],
-
-        if (_showForm) ...[
-          const SizedBox(height: 16),
-          Card(
-            elevation: 1,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Date & Time', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text('Common for all ${_parsedRides.length} rides', style: const TextStyle(fontSize: 12, color: Colors.black45)),
-                const Divider(),
-                Row(children: [
-                  const Icon(Icons.calendar_today, size: 16, color: Colors.black45),
-                  const SizedBox(width: 8),
-                  const Text('Date & Time', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black54)),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _pickDate,
-                    child: Text(_departureDate != null
-                        ? '${_departureDate!.day}/${_departureDate!.month}/${_departureDate!.year}'
-                        : 'Select Date', style: const TextStyle(fontSize: 13)),
-                  ),
-                  TextButton(
-                    onPressed: _pickTime,
-                    child: Text(_departureTime != null
-                        ? '${_departureTime!.hour.toString().padLeft(2, '0')}:${_departureTime!.minute.toString().padLeft(2, '0')}'
-                        : 'Select Time', style: const TextStyle(fontSize: 13)),
-                  ),
-                ]),
-                const Divider(),
-                TextField(
-                  controller: _notesCtrl,
-                  decoration: const InputDecoration(
-                    hintText: 'Extra notes (optional)',
-                    border: InputBorder.none, isDense: true,
-                    contentPadding: EdgeInsets.symmetric(vertical: 6),
-                  ),
-                  maxLines: 2, style: const TextStyle(fontSize: 13),
-                ),
-              ]),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-          Row(children: [
-            Expanded(child: Row(children: [
-              const Text('Rides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(color: Colors.indigo.shade100, borderRadius: BorderRadius.circular(10)),
-                child: Text('${_parsedRides.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.indigo)),
-              ),
-            ])),
-            if (_parsedRides.length < 20)
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline, size: 22),
-                tooltip: 'Add ride',
-                onPressed: () => setState(() => _parsedRides.add(_emptyRide())),
-              ),
-          ]),
-          const SizedBox(height: 8),
-
-          ...List.generate(_parsedRides.length, (i) => _buildEditableRideCard(i)),
-
-          if (_rawText.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            ExpansionTile(
-              tilePadding: EdgeInsets.zero,
-              title: const Text('Raw OCR Text', style: TextStyle(fontSize: 12, color: Colors.black45)),
-              children: [Container(
-                width: double.infinity, padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                child: Text(_rawText, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
-              )],
-            ),
-          ],
-
-          const SizedBox(height: 14),
-          SizedBox(width: double.infinity, child: FilledButton.icon(
-            onPressed: _creating ? null : _saveAllRides,
-            icon: _creating
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.save),
-            label: Text(_creating ? 'Saving...' : 'Save ${_parsedRides.length} Rides to Database'),
-            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-          )),
-        ],
-
+        const Icon(Icons.add_road, size: 48, color: Colors.indigo),
+        const SizedBox(height: 12),
+        const Text(
+          'Create Rides',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Use the existing ride creation features to add new rides.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, color: Colors.black54),
+        ),
         const SizedBox(height: 24),
-        Row(children: [
-          const Expanded(child: Text('Admin Rides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
-          IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _loadRides),
-        ]),
-        const SizedBox(height: 8),
-        if (_loadingRides)
-          const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))
-        else if (_adminRides.isEmpty)
-          const Text('No rides created yet', style: TextStyle(color: Colors.black45))
-        else
-          ..._adminRides.map(_buildRideCard),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.groups, color: Colors.orange.shade700),
+            ),
+            title: const Text('Union Rides', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Create bulk rides for union drivers', style: TextStyle(fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const UnionAdminHomeScreen()));
+            },
+          ),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          elevation: 1,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ListTile(
+            leading: Container(
+              width: 42, height: 42,
+              decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.person_add, color: Colors.blue.shade700),
+            ),
+            title: const Text('Independent Driver Ride', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Create a single ride as a driver', style: TextStyle(fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              AppFeedback.show(context, 'Switch to Driver role from Profile to create independent rides', kind: AppFeedbackKind.info);
+            },
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.indigo.shade50,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('How it works', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.indigo)),
+              SizedBox(height: 8),
+              Text('1. Union Rides — Go to union panel, add drivers, create schedules in bulk. Generate PDF posters to share.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54)),
+              SizedBox(height: 4),
+              Text('2. Independent Rides — Switch to driver role, create trips with from/to, fare, and seat count.',
+                  style: TextStyle(fontSize: 12, color: Colors.black54)),
+            ],
+          ),
+        ),
       ],
     );
-  }
-
-  Widget _buildEditableRideCard(int index) {
-    return Card(
-      elevation: 0,
-      color: Colors.grey.shade50,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Container(
-              width: 24, height: 24,
-              decoration: BoxDecoration(color: Colors.indigo.shade100, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: Text('${index + 1}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.indigo)),
-            ),
-            const SizedBox(width: 8),
-            Text('Ride #${index + 1}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            const Spacer(),
-            if (_parsedRides.length > 1)
-              IconButton(
-                icon: Icon(Icons.close, size: 18, color: Colors.red.shade400),
-                tooltip: 'Remove ride',
-                onPressed: () => setState(() => _parsedRides.removeAt(index)),
-                padding: EdgeInsets.zero, constraints: const BoxConstraints(),
-              ),
-          ]),
-          const SizedBox(height: 6),
-          _rideField(index, 'from_location', 'From', Icons.location_on),
-          _rideField(index, 'to_location', 'To', Icons.flag),
-          _rideField(index, 'driver_name', 'Driver', Icons.person),
-          _rideField(index, 'contact_number', 'Contact', Icons.phone, keyboard: TextInputType.phone),
-          _rideField(index, 'vehicle_type', 'Vehicle', Icons.directions_car),
-        ]),
-      ),
-    );
-  }
-
-  Widget _rideField(int index, String key, String label, IconData icon, {TextInputType? keyboard}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(children: [
-        Icon(icon, size: 14, color: Colors.black38),
-        const SizedBox(width: 8),
-        SizedBox(width: 75, child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54))),
-        Expanded(child: TextFormField(
-          initialValue: _parsedRides[index][key]?.toString() ?? '',
-          keyboardType: keyboard,
-          decoration: const InputDecoration(
-            border: InputBorder.none, isDense: true,
-            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 6),
-          ),
-          style: const TextStyle(fontSize: 13),
-          onChanged: (v) => _parsedRides[index][key] = v,
-        )),
-      ]),
-    );
-  }
-
-  Widget _buildRideCard(dynamic ride) {
-    final from = ride['from_location'] ?? '';
-    final to = ride['to_location'] ?? '';
-    final status = ride['status'] ?? '';
-    final driverName = ride['poster_driver_name'] ?? '';
-    final contact = (ride['poster_contact'] ?? '').toString();
-    final vehicle = ride['vehicle_number'] ?? '';
-    final created = ride['created_at'] ?? '';
-
-    Color statusColor;
-    switch (status) {
-      case 'scheduled': statusColor = Colors.blue; break;
-      case 'in_progress': statusColor = Colors.green; break;
-      case 'completed': statusColor = Colors.teal; break;
-      case 'cancelled': statusColor = Colors.red; break;
-      default: statusColor = Colors.grey;
-    }
-
-    return Card(
-      elevation: 0,
-      color: Colors.indigo.shade50,
-      margin: const EdgeInsets.only(bottom: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text('$from → $to', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: statusColor)),
-            ),
-          ]),
-          const SizedBox(height: 6),
-          _rideInfoRow(Icons.person, driverName),
-          if (vehicle.isNotEmpty) _rideInfoRow(Icons.directions_car, vehicle),
-          const SizedBox(height: 8),
-          if (contact.isNotEmpty) Row(children: [
-            Expanded(child: OutlinedButton.icon(
-              onPressed: () async {
-                try { await launchUrl(Uri.parse('tel:$contact')); } catch (_) {}
-              },
-              icon: const Icon(Icons.call, size: 16),
-              label: const Text('Call', style: TextStyle(fontSize: 12)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.green.shade700,
-                side: BorderSide(color: Colors.green.shade300),
-                padding: const EdgeInsets.symmetric(vertical: 6),
-              ),
-            )),
-            const SizedBox(width: 8),
-            Expanded(child: OutlinedButton.icon(
-              onPressed: () async {
-                try { await launchWhatsApp(contact); } catch (_) {}
-              },
-              icon: const Icon(Icons.chat, size: 16),
-              label: const Text('WhatsApp', style: TextStyle(fontSize: 12)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.teal.shade700,
-                side: BorderSide(color: Colors.teal.shade300),
-                padding: const EdgeInsets.symmetric(vertical: 6),
-              ),
-            )),
-          ]),
-          const SizedBox(height: 6),
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(color: Colors.indigo.shade100, borderRadius: BorderRadius.circular(6)),
-              child: const Text('By Admin', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.indigo)),
-            ),
-            const Spacer(),
-            Text(_fmtDate(created), style: const TextStyle(fontSize: 11, color: Colors.black38)),
-          ]),
-        ]),
-      ),
-    );
-  }
-
-  Widget _rideInfoRow(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: Row(children: [
-        Icon(icon, size: 14, color: Colors.black38),
-        const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-      ]),
-    );
-  }
-
-  String _fmtDate(String? raw) {
-    if (raw == null || raw.isEmpty) return '';
-    final d = DateTime.tryParse(raw);
-    if (d == null) return raw;
-    return '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  void dispose() {
-    _notesCtrl.dispose();
-    super.dispose();
   }
 }

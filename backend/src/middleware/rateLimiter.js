@@ -252,25 +252,6 @@ const simpleAuthChangePasswordLimiter = rateLimit(
 );
 
 /**
- * Admin poster OCR — CPU-heavy, limit strictly.
- * 5 per minute per user.
- */
-const adminPosterLimiter = rateLimit(
-  withStore('admin-poster', {
-    windowMs: 60 * 1000,
-    max: parseLimitEnv('ADMIN_POSTER_MAX_PER_MINUTE', 5, 1, 15),
-    skipSuccessfulRequests: false,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) =>
-      req.user && req.user.id ? `admin-poster:user:${req.user.id}` : `admin-poster:ip:${req.ip}`,
-    handler: () => {
-      throw ApiError.tooManyRequests('Too many poster uploads. Wait a minute.');
-    },
-  })
-);
-
-/**
  * Admin bulk notifications — prevent notification spam.
  * 5 per hour per user.
  */
@@ -285,25 +266,6 @@ const adminBulkNotifyLimiter = rateLimit(
       req.user && req.user.id ? `admin-bulk-notify:user:${req.user.id}` : `admin-bulk-notify:ip:${req.ip}`,
     handler: () => {
       throw ApiError.tooManyRequests('Too many bulk notifications. Try again in an hour.');
-    },
-  })
-);
-
-/**
- * Admin ride creation — prevent DB spam.
- * 10 per minute per user.
- */
-const adminRideCreateLimiter = rateLimit(
-  withStore('admin-ride-create', {
-    windowMs: 60 * 1000,
-    max: parseLimitEnv('ADMIN_RIDE_CREATE_MAX_PER_MINUTE', 10, 1, 30),
-    skipSuccessfulRequests: false,
-    standardHeaders: true,
-    legacyHeaders: false,
-    keyGenerator: (req) =>
-      req.user && req.user.id ? `admin-ride:user:${req.user.id}` : `admin-ride:ip:${req.ip}`,
-    handler: () => {
-      throw ApiError.tooManyRequests('Too many ride creations. Wait a minute.');
     },
   })
 );
@@ -415,9 +377,7 @@ module.exports = {
   simpleAuthForgotPasswordLimiter,
   simpleAuthResetPasswordLimiter,
   simpleAuthChangePasswordLimiter,
-  adminPosterLimiter,
   adminBulkNotifyLimiter,
-  adminRideCreateLimiter,
   writeLimiter,
   stateChangeLimiter,
   destructiveLimiter,

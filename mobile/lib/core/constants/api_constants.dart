@@ -67,11 +67,6 @@ class ApiConstants {
   static const String platformComplaintSubmit = '/platform-admin/complaints/submit';
   static const String platformComplaintsMine = '/platform-admin/complaints/mine';
 
-  // Platform Admin — Poster-to-Ride
-  static const String platformParsePoster = '/platform-admin/rides/parse-poster';
-  static const String platformCreateRide = '/platform-admin/rides/create';
-  static const String platformAdminRides = '/platform-admin/rides';
-
   // Uploads
   static const String uploadDriverDoc = '/uploads/driver-doc';
   static const String uploadUnionDoc = '/uploads/union-doc';
