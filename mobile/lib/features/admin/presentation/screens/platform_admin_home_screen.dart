@@ -1279,7 +1279,7 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
 
     final xFile = await _picker.pickImage(
       source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
-      imageQuality: 85, maxWidth: 2400,
+      imageQuality: 80, maxWidth: 1600, maxHeight: 2000,
     );
     if (xFile == null) return;
 
@@ -1676,7 +1676,9 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
           const SizedBox(height: 8),
           if (contact.isNotEmpty) Row(children: [
             Expanded(child: OutlinedButton.icon(
-              onPressed: () => launchUrl(Uri.parse('tel:$contact')),
+              onPressed: () async {
+                try { await launchUrl(Uri.parse('tel:$contact')); } catch (_) {}
+              },
               icon: const Icon(Icons.call, size: 16),
               label: const Text('Call', style: TextStyle(fontSize: 12)),
               style: OutlinedButton.styleFrom(
@@ -1687,7 +1689,9 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
             )),
             const SizedBox(width: 8),
             Expanded(child: OutlinedButton.icon(
-              onPressed: () => launchWhatsApp(contact),
+              onPressed: () async {
+                try { await launchWhatsApp(contact); } catch (_) {}
+              },
               icon: const Icon(Icons.chat, size: 16),
               label: const Text('WhatsApp', style: TextStyle(fontSize: 12)),
               style: OutlinedButton.styleFrom(

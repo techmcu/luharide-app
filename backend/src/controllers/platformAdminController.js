@@ -311,22 +311,28 @@ const cancelTrip = asyncHandler(async (req, res) => {
     const affectedBookings = await client.query(
       `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
               cancellation_reason = $2
-       WHERE trip_id = $1 AND status IN ('pending', 'confirmed')
+       WHERE id IN (
+         SELECT id FROM bookings WHERE trip_id = $1 AND status IN ('pending', 'confirmed') FOR UPDATE
+       )
        RETURNING passenger_id`,
       [id, reason || 'Cancelled by platform admin']
     );
 
     for (const row of affectedBookings.rows) {
-      await client.query(
-        `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'trip_cancelled', 'Ride cancelled by admin',
-                 $2, $3::jsonb)`,
-        [
-          row.passenger_id,
-          reason || 'This ride has been cancelled by the platform admin. You are not charged.',
-          JSON.stringify({ trip_id: id }),
-        ]
-      );
+      try {
+        await client.query(
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'trip_cancelled', 'Ride cancelled by admin',
+                   $2, $3::jsonb)`,
+          [
+            row.passenger_id,
+            reason || 'This ride has been cancelled by the platform admin. You are not charged.',
+            JSON.stringify({ trip_id: id }),
+          ]
+        );
+      } catch (notifErr) {
+        logger.warn(`Failed to notify passenger ${row.passenger_id} about trip ${id} cancel:`, notifErr.message);
+      }
     }
 
     if (trip.driver_id) {
@@ -429,6 +435,8 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
   const { segment, title, body } = req.body || {};
 
   if (!title || !body) throw ApiError.badRequest('title and body are required');
+  if (title.length > 200) throw ApiError.badRequest('Title must be under 200 characters');
+  if (body.length > 2000) throw ApiError.badRequest('Body must be under 2000 characters');
   const validSegments = ['all', 'passenger', 'drivers', 'union_admins'];
   if (!segment || !validSegments.includes(segment)) {
     throw ApiError.badRequest(`segment must be one of: ${validSegments.join(', ')}`);
@@ -439,19 +447,29 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
     : segment === 'union_admins' ? 'union_admin'
     : 'passenger';
 
+  const countSql = roleFilter
+    ? `SELECT COUNT(*)::int AS total FROM users WHERE role = $1 AND is_active = true`
+    : `SELECT COUNT(*)::int AS total FROM users WHERE is_active = true`;
+  const countParams = roleFilter ? [roleFilter] : [];
+  const countRes = await pool.query(countSql, countParams);
+  const userCount = countRes.rows[0]?.total || 0;
+
+  if (userCount === 0) throw ApiError.badRequest('No active users in this segment');
+  if (userCount > 10000) throw ApiError.badRequest(`Segment has ${userCount} users — contact dev team for large broadcasts`);
+
   const insertSql = roleFilter
     ? `INSERT INTO notifications (user_id, type, title, body)
        SELECT id, 'admin_broadcast', $1, $2 FROM users WHERE role = $3 AND is_active = true
-       RETURNING id, user_id, type, title, body, created_at, is_read`
+       RETURNING id, user_id`
     : `INSERT INTO notifications (user_id, type, title, body)
        SELECT id, 'admin_broadcast', $1, $2 FROM users WHERE is_active = true
-       RETURNING id, user_id, type, title, body, created_at, is_read`;
+       RETURNING id, user_id`;
 
   const params = roleFilter ? [title, body, roleFilter] : [title, body];
   const result = await pool.query(insertSql, params);
 
   for (const row of result.rows) {
-    try { emitNotificationToUser(row.user_id, row); } catch (_) {}
+    try { emitNotificationToUser(row.user_id, { ...row, type: 'admin_broadcast', title, body, is_read: false }); } catch (_) {}
   }
 
   await pool.query(
@@ -642,6 +660,7 @@ const submitComplaint = asyncHandler(async (req, res) => {
   const { subject, body } = req.body || {};
   if (!subject || !body) throw ApiError.badRequest('subject and body are required');
   if (subject.length > 200) throw ApiError.badRequest('subject must be under 200 characters');
+  if (body.length > 2000) throw ApiError.badRequest('body must be under 2000 characters');
 
   const result = await pool.query(
     `INSERT INTO complaints (user_id, subject, body) VALUES ($1, $2, $3) RETURNING id, status, created_at`,

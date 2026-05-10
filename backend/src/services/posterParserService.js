@@ -137,6 +137,14 @@ function findNameNearPhone(rawText, phone) {
 }
 
 function parsePosterText(rawText) {
+  if (typeof rawText !== 'string' || rawText.length < 5) {
+    return {
+      shared: { from_location: null, to_location: null, departure_date: null, departure_time: null, date_is_past: false },
+      rides: [],
+      warnings: ['Could not extract readable text from the uploaded file'],
+      raw_text: rawText || '',
+    };
+  }
   const warnings = [];
   const phones = extractPhoneNumbers(rawText);
   const locations = extractLocations(rawText);
