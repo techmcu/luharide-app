@@ -1210,84 +1210,49 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
 // =============================================================================
 // CREATE RIDE SECTION — links to existing union & independent driver ride features
 // =============================================================================
-class _CreateRideSection extends StatelessWidget {
+class _CreateRideSection extends StatefulWidget {
   const _CreateRideSection();
+  @override
+  State<_CreateRideSection> createState() => _CreateRideSectionState();
+}
+
+class _CreateRideSectionState extends State<_CreateRideSection> {
+  bool _pushed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_pushed && mounted) {
+        _pushed = true;
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const UnionAdminHomeScreen())).then((_) {
+          if (mounted) setState(() => _pushed = false);
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Icon(Icons.add_road, size: 48, color: Colors.indigo),
-        const SizedBox(height: 12),
-        const Text(
-          'Create Rides',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Use the existing ride creation features to add new rides.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: Colors.black54),
-        ),
-        const SizedBox(height: 24),
-        Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.groups, color: Colors.orange.shade700),
-            ),
-            title: const Text('Union Rides', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Create bulk rides for union drivers', style: TextStyle(fontSize: 12)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.groups, size: 48, color: Colors.orange.shade400),
+          const SizedBox(height: 16),
+          const Text('Union Dashboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          const Text('Create rides from the Union panel', style: TextStyle(fontSize: 13, color: Colors.black54)),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const UnionAdminHomeScreen()));
             },
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('Open Union Dashboard'),
           ),
-        ),
-        const SizedBox(height: 10),
-        Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: ListTile(
-            leading: Container(
-              width: 42, height: 42,
-              decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(10)),
-              child: Icon(Icons.person_add, color: Colors.blue.shade700),
-            ),
-            title: const Text('Independent Driver Ride', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Create a single ride as a driver', style: TextStyle(fontSize: 12)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              AppFeedback.show(context, 'Switch to Driver role from Profile to create independent rides', kind: AppFeedbackKind.info);
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.indigo.shade50,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('How it works', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.indigo)),
-              SizedBox(height: 8),
-              Text('1. Union Rides — Go to union panel, add drivers, create schedules in bulk. Generate PDF posters to share.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54)),
-              SizedBox(height: 4),
-              Text('2. Independent Rides — Switch to driver role, create trips with from/to, fare, and seat count.',
-                  style: TextStyle(fontSize: 12, color: Colors.black54)),
-            ],
-          ),
-        ),
-      ],
+        ]),
+      ),
     );
   }
 }
