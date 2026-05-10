@@ -196,19 +196,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         child: _buildStatsRow(),
                       ),
                       const SizedBox(height: 24),
-                      // Contact Analytics Section (Advanced Feature)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildSectionLabelWithBadge(
-                          'Contact Analytics',
-                          Icons.analytics_rounded,
-                          advancedBadge: true,
-                        ),
-                      ),
+                      // Contact Analytics — simple summary card
                       const SizedBox(height: 12),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildContactStatsCard(),
+                        child: _buildContactSummaryCard(),
                       ),
                       const SizedBox(height: 24),
                       Padding(
@@ -229,10 +221,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       if (_drivers.isNotEmpty) ...[
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _buildSectionLabelWithBadge(
-                            'Drivers (${_drivers.length})',
+                          child: _buildSectionLabel(
+                            'Your drivers (${_drivers.length})',
                             Icons.people_alt_rounded,
-                            advancedBadge: false,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -410,181 +401,84 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     );
   }
 
-  // ── Contact Analytics Card (Advanced Feature) ─────────────────────────────
+  // ── Contact Analytics — simple summary card → opens detail page ────────────
 
-  Widget _buildContactStatsCard() {
-    final today = _contactStats?['today'] as Map<String, dynamic>? ?? {};
-    final week = _contactStats?['week'] as Map<String, dynamic>? ?? {};
+  Widget _buildContactSummaryCard() {
     final month = _contactStats?['month'] as Map<String, dynamic>? ?? {};
-    final driverStats = _contactStats?['drivers'] as List? ?? [];
-
-    final todayCalls = today['calls'] ?? 0;
-    final todayWa = today['whatsapp'] ?? 0;
-    final weekCalls = week['calls'] ?? 0;
-    final weekWa = week['whatsapp'] ?? 0;
     final monthCalls = month['calls'] ?? 0;
     final monthWa = month['whatsapp'] ?? 0;
+    final total = (monthCalls as int) + (monthWa as int);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _advancedColor.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => _ContactAnalyticsPage(contactStats: _contactStats ?? {}),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Summary row: Today / Week / Month
-          Row(
-            children: [
-              Expanded(
-                child: _contactPeriodChip(
-                  'Today',
-                  todayCalls,
-                  todayWa,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _contactPeriodChip(
-                  '7 days',
-                  weekCalls,
-                  weekWa,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _contactPeriodChip(
-                  '30 days',
-                  monthCalls,
-                  monthWa,
-                ),
-              ),
-            ],
-          ),
-          if (driverStats.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            const Divider(height: 1),
-            const SizedBox(height: 12),
-            const Text(
-              'Per driver (last 30 days)',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _advancedColor.withValues(alpha: 0.15)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
-            const SizedBox(height: 8),
-            ...driverStats.take(5).map((d) {
-              final name = (d['name'] ?? 'Driver').toString();
-              final calls = d['calls'] ?? 0;
-              final wa = d['whatsapp_clicks'] ?? 0;
-              final total = (calls as int) + (wa as int);
-              if (total == 0) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: _advancedBg,
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : 'D',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: _advancedColor,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _advancedBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.analytics_rounded, color: _advancedColor, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Contact Analytics',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _advancedBg,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: _advancedColor.withValues(alpha: 0.3)),
+                        ),
+                        child: const Text(
+                          'Pro',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _advancedColor),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (calls > 0)
-                      _miniContactBadge(Icons.call_rounded, calls, const Color(0xFF43A047)),
-                    if (wa > 0) ...[
-                      const SizedBox(width: 6),
-                      _miniContactBadge(Icons.chat_rounded, wa, const Color(0xFF25D366)),
                     ],
-                  ],
-                ),
-              );
-            }),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    total > 0
+                        ? '$total contacts this month (${monthCalls} calls, ${monthWa} WhatsApp)'
+                        : 'Track passenger contacts to your drivers',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _contactPeriodChip(String label, int calls, int whatsapp) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.call_rounded, size: 12, color: Color(0xFF43A047)),
-              const SizedBox(width: 3),
-              Text(
-                '$calls',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.chat_rounded, size: 12, color: Color(0xFF25D366)),
-              const SizedBox(width: 3),
-              Text(
-                '$whatsapp',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _miniContactBadge(IconData icon, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 3),
-          Text(
-            '$count',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -608,41 +502,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     );
   }
 
-  Widget _buildSectionLabelWithBadge(String title, IconData icon, {bool advancedBadge = false}) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: advancedBadge ? _advancedColor : _orange),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: advancedBadge ? _advancedColor : const Color(0xFF222222),
-          ),
-        ),
-        if (advancedBadge) ...[
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-              color: _advancedBg,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: _advancedColor.withValues(alpha: 0.3)),
-            ),
-            child: const Text(
-              'Pro',
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.bold,
-                color: _advancedColor,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
 
   // ── Stats Card ─────────────────────────────────────────────────────────────
 
@@ -905,19 +764,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     final whatsapp = (driver['whatsapp_number'] ?? '').toString();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
 
-    // Find per-driver stats from contact stats
-    final driverStats = _contactStats?['drivers'] as List? ?? [];
-    final driverId = driver['id'];
-    Map<String, dynamic>? driverStat;
-    for (final ds in driverStats) {
-      if (ds['id'] == driverId) {
-        driverStat = ds as Map<String, dynamic>;
-        break;
-      }
-    }
-    final driverCalls = driverStat?['calls'] ?? 0;
-    final driverWa = driverStat?['whatsapp_clicks'] ?? 0;
-
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -1011,52 +857,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 ),
             ],
           ),
-          // Per-driver contact stats (if any)
-          if ((driverCalls as int) > 0 || (driverWa as int) > 0) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.trending_up_rounded, size: 14, color: Colors.black45),
-                  const SizedBox(width: 6),
-                  const Text(
-                    '30d: ',
-                    style: TextStyle(fontSize: 11, color: Colors.black45),
-                  ),
-                  if (driverCalls > 0) ...[
-                    const Icon(Icons.call_rounded, size: 11, color: Color(0xFF43A047)),
-                    const SizedBox(width: 2),
-                    Text(
-                      '$driverCalls',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                  if (driverCalls > 0 && driverWa > 0)
-                    const SizedBox(width: 8),
-                  if (driverWa > 0) ...[
-                    const Icon(Icons.chat_rounded, size: 11, color: Color(0xFF25D366)),
-                    const SizedBox(width: 2),
-                    Text(
-                      '$driverWa',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                  const Spacer(),
-                  Text(
-                    'contacts from passengers',
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1583,6 +1383,233 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ── Contact Analytics Detail Page ──────────────────────────────────────────────
+
+class _ContactAnalyticsPage extends StatefulWidget {
+  final Map<String, dynamic> contactStats;
+  const _ContactAnalyticsPage({required this.contactStats});
+
+  @override
+  State<_ContactAnalyticsPage> createState() => _ContactAnalyticsPageState();
+}
+
+class _ContactAnalyticsPageState extends State<_ContactAnalyticsPage> {
+  static const _blue = Color(0xFF0D47A1);
+  static const _blueBg = Color(0xFFE3F2FD);
+
+  String _period = 'month';
+
+  Map<String, dynamic> get _periodData {
+    final data = widget.contactStats[_period] as Map<String, dynamic>? ?? {};
+    return data;
+  }
+
+  List<dynamic> get _drivers =>
+      widget.contactStats['drivers'] as List<dynamic>? ?? [];
+
+  @override
+  Widget build(BuildContext context) {
+    final calls = _periodData['calls'] ?? 0;
+    final whatsapp = _periodData['whatsapp'] ?? 0;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: const Text('Contact Analytics'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0,
+        scrolledUnderElevation: 1,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Period selector
+          _buildPeriodSelector(),
+          const SizedBox(height: 16),
+
+          // Summary row
+          Row(
+            children: [
+              Expanded(child: _buildStatBox('Calls', calls, Icons.phone_rounded, Colors.green)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatBox('WhatsApp', whatsapp, Icons.chat_rounded, const Color(0xFF25D366))),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Per-driver breakdown header
+          Text(
+            'Per Driver (Last 30 days)',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Drivers list
+          if (_drivers.isEmpty)
+            _buildEmptyState()
+          else
+            ..._drivers.map((d) => _buildDriverRow(d)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          _buildPeriodChip('today', 'Today'),
+          _buildPeriodChip('week', '7 Days'),
+          _buildPeriodChip('month', '30 Days'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodChip(String value, String label) {
+    final selected = _period == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _period = value),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? _blue : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : Colors.grey.shade600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatBox(String label, int count, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            '$count',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDriverRow(dynamic driver) {
+    final name = driver['name'] ?? 'Unknown';
+    final calls = driver['calls'] ?? 0;
+    final wa = driver['whatsapp_clicks'] ?? 0;
+    final total = (calls as int) + (wa as int);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 18,
+            backgroundColor: total > 0 ? _blueBg : Colors.grey.shade100,
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: total > 0 ? _blue : Colors.grey,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          _buildMiniStat(Icons.phone_rounded, calls, Colors.green),
+          const SizedBox(width: 12),
+          _buildMiniStat(Icons.chat_rounded, wa, const Color(0xFF25D366)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(IconData icon, int count, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color.withValues(alpha: 0.7)),
+        const SizedBox(width: 3),
+        Text(
+          '$count',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: count > 0 ? color : Colors.grey.shade400,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      alignment: Alignment.center,
+      child: Column(
+        children: [
+          Icon(Icons.people_outline_rounded, size: 40, color: Colors.grey.shade300),
+          const SizedBox(height: 12),
+          Text(
+            'No contact data yet',
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'When passengers tap call or WhatsApp on your rides, stats appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
+          ),
+        ],
       ),
     );
   }

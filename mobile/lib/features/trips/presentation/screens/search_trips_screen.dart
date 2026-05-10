@@ -7,6 +7,7 @@ import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/trip_service.dart';
+import '../../../../services/union_service.dart';
 import '../../../../utils/trip_self_book_guard.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../../widgets/brand_app_bar_title.dart';
@@ -21,13 +22,19 @@ const _kBg     = Color(0xFFF8FAFC);
 const _kCard   = Colors.white;
 
 // ── Utility helpers (pure functions – no state) ─────────────────────────────
-Future<void> _launchPhone(String phone) async {
+Future<void> _launchPhone(String phone, {String? driverId, String? unionId}) async {
+  if (driverId != null && unionId != null) {
+    UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'call');
+  }
   final uri = Uri(scheme: 'tel', path: phone.trim());
   if (await canLaunchUrl(uri)) await launchUrl(uri);
 }
 
-Future<void> _launchWhatsApp(String raw) async {
+Future<void> _launchWhatsApp(String raw, {String? driverId, String? unionId}) async {
   if (raw.trim().isEmpty) return;
+  if (driverId != null && unionId != null) {
+    UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'whatsapp');
+  }
   final number = raw.replaceAll(RegExp(r'\s+'), '');
   final uri = Uri.parse('https://wa.me/$number');
   if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -138,48 +145,6 @@ class _RouteRow extends StatelessWidget {
   }
 }
 
-// ── Contact buttons (Call + WhatsApp) ───────────────────────────────────────
-// Numbers are NEVER shown as text – only icon+label buttons.
-// Requires login: if not authenticated, shows login dialog instead of launching.
-class _ContactButtons extends StatelessWidget {
-  const _ContactButtons({required this.phone, required this.whatsapp});
-  final String phone;
-  final String whatsapp;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasPhone    = phone.trim().isNotEmpty;
-    final effectiveWa = whatsapp.trim().isNotEmpty ? whatsapp : phone;
-    final hasWa       = effectiveWa.trim().isNotEmpty;
-
-    if (!hasPhone && !hasWa) return const SizedBox.shrink();
-
-    return Row(
-      children: [
-        if (hasPhone) ...[
-          Expanded(
-            child: _IconBtn(
-              icon: Icons.call_rounded,
-              label: 'Call',
-              color: _kGreen,
-              onTap: () => _guardedContact(context, () => _launchPhone(phone)),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-        if (hasWa)
-          Expanded(
-            child: _IconBtn(
-              icon: Icons.chat_rounded,
-              label: 'WhatsApp',
-              color: _kWa,
-              onTap: () => _guardedContact(context, () => _launchWhatsApp(effectiveWa)),
-            ),
-          ),
-      ],
-    );
-  }
-}
 
 class _IconBtn extends StatelessWidget {
   const _IconBtn({
@@ -360,6 +325,8 @@ class _UnionCard extends StatelessWidget {
     final phone       = (ride['phone'] ?? '').toString();
     final whatsapp    = (ride['whatsapp_number'] ?? '').toString();
     final departure   = _parseTime(ride['departure_time']);
+    final unionDriverId = ride['union_driver_id']?.toString();
+    final unionId       = ride['union_id']?.toString();
 
     final timeText = departure != null
         ? DateFormat('dd MMM • hh:mm a').format(departure)
@@ -424,10 +391,68 @@ class _UnionCard extends StatelessWidget {
           // ── Contact buttons ──────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: _ContactButtons(phone: phone, whatsapp: whatsapp),
+            child: _ContactButtonsWithLog(
+              phone: phone,
+              whatsapp: whatsapp,
+              unionDriverId: unionDriverId,
+              unionId: unionId,
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ContactButtonsWithLog extends StatelessWidget {
+  const _ContactButtonsWithLog({
+    required this.phone,
+    required this.whatsapp,
+    this.unionDriverId,
+    this.unionId,
+  });
+  final String phone;
+  final String whatsapp;
+  final String? unionDriverId;
+  final String? unionId;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasPhone = phone.trim().isNotEmpty;
+    final effectiveWa = whatsapp.trim().isNotEmpty ? whatsapp : phone;
+    final hasWa = effectiveWa.trim().isNotEmpty;
+
+    if (!hasPhone && !hasWa) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        if (hasPhone) ...[
+          Expanded(
+            child: _IconBtn(
+              icon: Icons.call_rounded,
+              label: 'Call',
+              color: _kGreen,
+              onTap: () => _guardedContact(
+                context,
+                () => _launchPhone(phone, driverId: unionDriverId, unionId: unionId),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (hasWa)
+          Expanded(
+            child: _IconBtn(
+              icon: Icons.chat_rounded,
+              label: 'WhatsApp',
+              color: _kWa,
+              onTap: () => _guardedContact(
+                context,
+                () => _launchWhatsApp(effectiveWa, driverId: unionDriverId, unionId: unionId),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
