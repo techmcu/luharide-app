@@ -304,14 +304,28 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       _driverTimes.clear();
       _loadAll();
 
-      // Auto-download combined poster for all created rides
-      if (createdIds.isNotEmpty) {
-        final snack = AppFeedback.showLoading(
-          context,
-          '${createdIds.length} rides created — generating poster...',
+      if (createdIds.isNotEmpty && mounted) {
+        AppFeedback.show(context, '${createdIds.length} rides created successfully', kind: AppFeedbackKind.success);
+        final shouldShare = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Share Poster?'),
+            content: const Text('Rides saved! Share the poster with drivers or WhatsApp groups?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not Now')),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(ctx, true),
+                icon: const Icon(Icons.share, size: 18),
+                label: const Text('Share'),
+              ),
+            ],
+          ),
         );
-        await _downloadCombinedPoster(createdIds);
-        snack.close();
+        if (shouldShare == true && mounted) {
+          final snack = AppFeedback.showLoading(context, 'Generating poster...');
+          await _downloadCombinedPoster(createdIds);
+          snack.close();
+        }
       }
     } else {
       AppFeedback.show(

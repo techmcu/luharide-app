@@ -1543,7 +1543,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   doc.fillColor('#311B92')
      .font('Helvetica-Bold').fontSize(13)
-     .text('www.luharide.in', ML + 16, y + 28, { width: CW - 30 });
+     .text('www.luharide.cloud', ML + 16, y + 28, { width: CW - 30 });
 
   if (driverPhone) {
     doc.fillColor('#5E35B1')
@@ -1553,13 +1553,13 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   y += bookH + 16;
 
-  // ─── Info note (Hindi, simple, luharide.in correct spelling) ──────────────
+  // ─── Info note (Hindi, simple, luharide.cloud correct spelling) ──────────────
   _hRule(doc, ML, y, CW, '#E0E0E0');
   y += 12;
   doc.fillColor('#888888')
      .font('Helvetica').fontSize(9)
      .text(
-       'सवारी बुक करने के लिए luharide.in पर जाएं। यह पोस्टर WhatsApp या लोकल ग्रुप में शेयर करें।',
+       'सवारी बुक करने के लिए luharide.cloud पर जाएं। यह पोस्टर WhatsApp या लोकल ग्रुप में शेयर करें।',
        ML, y, { width: CW, align: 'center' }
      );
 
@@ -1571,7 +1571,7 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   doc.fillColor('#FFFFFF')
      .font('Helvetica-Bold').fontSize(12)
-     .text('सवारी बुक करने या खोजने के लिए luharide.in पर जाएं', 0, footerY + 20, {
+     .text('सवारी बुक करने या खोजने के लिए luharide.cloud पर जाएं', 0, footerY + 20, {
        width: W, align: 'center'
      });
 
@@ -1867,7 +1867,7 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   _fillRect(doc, 0, footerY, W, 3, '#FFC107');
 
   doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(12)
-    .text('Book or find rides online at luharide.in', 0, footerY + 20,
+    .text('Book or find rides online at luharide.cloud', 0, footerY + 20,
       { width: W, align: 'center' });
 
   doc.end();
