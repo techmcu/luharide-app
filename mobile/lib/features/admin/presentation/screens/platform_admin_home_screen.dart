@@ -695,7 +695,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -718,7 +718,6 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
             Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
             Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
             Tab(icon: Icon(Icons.settings, size: 20), text: 'Config'),
-            Tab(icon: Icon(Icons.add_road, size: 20), text: 'Create Ride'),
           ],
         ),
       ),
@@ -728,7 +727,6 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
           _NotificationsSection(),
           _ComplaintsSection(),
           _ConfigSection(),
-          _CreateRideSection(),
         ],
       ),
     );
@@ -1209,50 +1207,3 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
 
 // =============================================================================
 // CREATE RIDE SECTION — links to existing union & independent driver ride features
-// =============================================================================
-class _CreateRideSection extends StatefulWidget {
-  const _CreateRideSection();
-  @override
-  State<_CreateRideSection> createState() => _CreateRideSectionState();
-}
-
-class _CreateRideSectionState extends State<_CreateRideSection> {
-  bool _pushed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_pushed && mounted) {
-        _pushed = true;
-        Navigator.push(context, MaterialPageRoute(builder: (_) => const UnionAdminHomeScreen())).then((_) {
-          if (mounted) setState(() => _pushed = false);
-        });
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.groups, size: 48, color: Colors.orange.shade400),
-          const SizedBox(height: 16),
-          const Text('Union Dashboard', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          const Text('Create rides from the Union panel', style: TextStyle(fontSize: 13, color: Colors.black54)),
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const UnionAdminHomeScreen()));
-            },
-            icon: const Icon(Icons.open_in_new, size: 18),
-            label: const Text('Open Union Dashboard'),
-          ),
-        ]),
-      ),
-    );
-  }
-}
