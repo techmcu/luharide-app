@@ -28,7 +28,7 @@ const {
 } = require('../controllers/unionController');
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
-const { cancelScheduleLimiter, unionPosterLimiter } = require('../middleware/rateLimiter');
+const { cancelScheduleLimiter, unionPosterLimiter, writeLimiter, destructiveLimiter, bulkWriteLimiter } = require('../middleware/rateLimiter');
 
 // Validation schema for creating trip for driver
 const createTripForDriverSchema = Joi.object({
@@ -98,6 +98,7 @@ const registerUnionSchema = Joi.object({
 router.post(
   '/register',
   authenticate,
+  writeLimiter,
   validate(registerUnionSchema),
   registerUnion
 );
@@ -110,6 +111,7 @@ router.patch(
   '/branding',
   authenticate,
   authorize('union_admin'),
+  writeLimiter,
   validate(updateBrandingSchema),
   updateUnionBranding
 );
@@ -119,6 +121,7 @@ router.patch(
   '/me/documents',
   authenticate,
   authorize('union_admin'),
+  writeLimiter,
   updateUnionDocuments
 );
 
@@ -140,6 +143,7 @@ router.post(
   '/drivers',
   authenticate,
   authorize('union_admin'),
+  writeLimiter,
   validate(addUnionDriverSchema),
   addUnionDriver
 );
@@ -149,6 +153,7 @@ router.delete(
   '/drivers/:driverId',
   authenticate,
   authorize('union_admin'),
+  destructiveLimiter,
   deleteUnionDriver
 );
 
@@ -164,6 +169,7 @@ router.post(
   '/routes',
   authenticate,
   authorize('union_admin'),
+  writeLimiter,
   validate(addUnionRouteSchema),
   addUnionRoute
 );
@@ -173,6 +179,7 @@ router.delete(
   '/routes/:routeId',
   authenticate,
   authorize('union_admin'),
+  destructiveLimiter,
   deleteUnionRoute
 );
 
@@ -181,6 +188,7 @@ router.post(
   '/schedules/bulk',
   authenticate,
   authorize('union_admin'),
+  bulkWriteLimiter,
   validate(createSchedulesSchema),
   createUnionSchedulesBulk
 );
@@ -229,6 +237,7 @@ router.post(
   '/trips',
   authenticate,
   authorize('union_admin'),
+  writeLimiter,
   validate(createTripForDriverSchema),
   createTripForDriver
 );

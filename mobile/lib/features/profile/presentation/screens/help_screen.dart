@@ -157,10 +157,12 @@ class HelpScreen extends StatelessWidget {
             onTap: BrandConfig.privacyPolicyUri == null
                 ? null
                 : () async {
-                    final u = BrandConfig.privacyPolicyUri!;
-                    if (await canLaunchUrl(u)) {
-                      await launchUrl(u, mode: LaunchMode.externalApplication);
-                    }
+                    try {
+                      final u = BrandConfig.privacyPolicyUri!;
+                      if (await canLaunchUrl(u)) {
+                        await launchUrl(u, mode: LaunchMode.externalApplication);
+                      }
+                    } catch (_) {}
                   },
           ),
           const SizedBox(height: 24),

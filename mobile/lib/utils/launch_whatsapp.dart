@@ -15,9 +15,11 @@ Future<bool> launchWhatsApp(String? phoneOrWhatsapp) async {
   if (!digits.startsWith('91') && digits.length <= 10) {
     digits = '91$digits'; // India default
   }
-  final uri = Uri.parse('https://wa.me/$digits');
-  if (await canLaunchUrl(uri)) {
-    return launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
+  try {
+    final uri = Uri.parse('https://wa.me/$digits');
+    if (await canLaunchUrl(uri)) {
+      return launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  } catch (_) {}
   return false;
 }

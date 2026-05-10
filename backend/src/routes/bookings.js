@@ -5,6 +5,7 @@ const { createBooking, respondToBooking, getMyBookings, cancelBooking } = requir
 const { submitRating } = require('../controllers/reviewController');
 const { authenticate, authorize } = require('../middleware/auth'); // authorize used for driver-only respond
 const { validate } = require('../middleware/validation');
+const { writeLimiter, stateChangeLimiter } = require('../middleware/rateLimiter');
 
 const createBookingSchema = Joi.object({
   trip_id: Joi.string().uuid().required(),
@@ -20,6 +21,7 @@ const respondSchema = Joi.object({
 router.post(
   '/',
   authenticate,
+  writeLimiter,
   validate(createBookingSchema),
   createBooking
 );
@@ -29,6 +31,7 @@ router.get('/my-bookings', authenticate, getMyBookings);
 router.post(
   '/:id/cancel',
   authenticate,
+  stateChangeLimiter,
   cancelBooking
 );
 
@@ -36,6 +39,7 @@ router.put(
   '/:id/respond',
   authenticate,
   authorize('driver'),
+  stateChangeLimiter,
   validate(respondSchema),
   respondToBooking
 );
@@ -48,6 +52,7 @@ const rateSchema = Joi.object({
 router.post(
   '/:id/rate',
   authenticate,
+  stateChangeLimiter,
   validate(rateSchema),
   submitRating
 );

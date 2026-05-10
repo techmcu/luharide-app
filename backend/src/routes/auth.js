@@ -21,6 +21,9 @@ const {
   authLimiter,
   otpSendIdentifierLimiter,
   otpVerifyIdentifierLimiter,
+  refreshTokenLimiter,
+  writeLimiter,
+  destructiveLimiter,
 } = require('../middleware/rateLimiter');
 
 // Validation schemas (flat body: phone, email, otp, etc.)
@@ -101,7 +104,7 @@ router.post(
  * @desc    Refresh access token
  * @access  Public
  */
-router.post('/refresh-token', validate(refreshTokenSchema), refreshTokenController);
+router.post('/refresh-token', refreshTokenLimiter, validate(refreshTokenSchema), refreshTokenController);
 
 /**
  * @route   POST /api/auth/logout
@@ -122,13 +125,13 @@ router.get('/me', authenticate, getCurrentUserController);
  * @desc    Update user profile
  * @access  Private
  */
-router.put('/profile', authenticate, validate(updateProfileSchema), updateProfileController);
+router.put('/profile', authenticate, writeLimiter, validate(updateProfileSchema), updateProfileController);
 
 /**
  * @route   DELETE /api/auth/account
  * @desc    Delete user account (requires password confirmation)
  * @access  Private
  */
-router.delete('/account', authenticate, validate(deleteAccountSchema), deleteAccountController);
+router.delete('/account', authenticate, destructiveLimiter, validate(deleteAccountSchema), deleteAccountController);
 
 module.exports = router;

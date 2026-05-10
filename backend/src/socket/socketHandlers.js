@@ -91,7 +91,9 @@ function attachSocketHandlers(io) {
       }
     });
 
-    socket.on('disconnect', () => {});
+    socket.on('disconnect', () => {
+      socket.removeAllListeners();
+    });
   });
 }
 

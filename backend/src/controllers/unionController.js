@@ -897,6 +897,9 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   if (!Array.isArray(union_driver_ids) || union_driver_ids.length === 0) {
     throw ApiError.badRequest('At least one driver must be selected');
   }
+  if (union_driver_ids.length > 50) {
+    throw ApiError.badRequest('Maximum 50 drivers per batch');
+  }
 
   const resUnion = await pool.query(
     `SELECT ua.union_id

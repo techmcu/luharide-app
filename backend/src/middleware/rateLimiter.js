@@ -308,6 +308,99 @@ const adminRideCreateLimiter = rateLimit(
   })
 );
 
+/**
+ * Generic DB write operations — trip/booking/driver/route create, profile update, etc.
+ * 20 per minute per user.
+ */
+const writeLimiter = rateLimit(
+  withStore('write', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('WRITE_MAX_PER_MINUTE', 20, 5, 60),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `write:user:${req.user.id}` : `write:ip:${req.ip}`,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many write requests. Wait a minute.');
+    },
+  })
+);
+
+/**
+ * State transitions — start/complete/cancel trip, accept/reject booking, rating.
+ * 15 per minute per user.
+ */
+const stateChangeLimiter = rateLimit(
+  withStore('state-change', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('STATE_CHANGE_MAX_PER_MINUTE', 15, 3, 40),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `state:user:${req.user.id}` : `state:ip:${req.ip}`,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many requests. Wait a minute.');
+    },
+  })
+);
+
+/**
+ * Destructive operations — account/trip/driver/route delete.
+ * 5 per minute per user.
+ */
+const destructiveLimiter = rateLimit(
+  withStore('destructive', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('DESTRUCTIVE_MAX_PER_MINUTE', 5, 1, 15),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `destroy:user:${req.user.id}` : `destroy:ip:${req.ip}`,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many delete requests. Wait a minute.');
+    },
+  })
+);
+
+/**
+ * Refresh token — prevent token stuffing (per IP, no auth context).
+ * 30 per minute per IP.
+ */
+const refreshTokenLimiter = rateLimit(
+  withStore('refresh-token', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('REFRESH_TOKEN_MAX_PER_MINUTE', 30, 5, 60),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many token refresh attempts. Wait a minute.');
+    },
+  })
+);
+
+/**
+ * Union bulk schedule creation — multiple DB rows per request.
+ * 10 per minute per user.
+ */
+const bulkWriteLimiter = rateLimit(
+  withStore('bulk-write', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('BULK_WRITE_MAX_PER_MINUTE', 10, 1, 30),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `bulk:user:${req.user.id}` : `bulk:ip:${req.ip}`,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many bulk operations. Wait a minute.');
+    },
+  })
+);
+
 module.exports = {
   apiLimiter,
   authLimiter,
@@ -325,4 +418,9 @@ module.exports = {
   adminPosterLimiter,
   adminBulkNotifyLimiter,
   adminRideCreateLimiter,
+  writeLimiter,
+  stateChangeLimiter,
+  destructiveLimiter,
+  refreshTokenLimiter,
+  bulkWriteLimiter,
 };
