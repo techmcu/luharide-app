@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/platform_admin_service.dart';
+import '../../../../utils/launch_whatsapp.dart';
 import 'platform_user_detail_screen.dart';
 import 'platform_trip_detail_screen.dart';
 import '../../../home/presentation/screens/union_admin_home_screen.dart';
@@ -1223,10 +1225,6 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
 
   final _fromCtrl = TextEditingController();
   final _toCtrl = TextEditingController();
-  final _driverCtrl = TextEditingController();
-  final _contactCtrl = TextEditingController();
-  final _seatsCtrl = TextEditingController(text: '7');
-  final _vehicleCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
   DateTime? _departureDate;
@@ -1236,6 +1234,7 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
   bool _creating = false;
   List<String> _warnings = [];
   String _rawText = '';
+  List<Map<String, dynamic>> _parsedRides = [];
   List<dynamic> _adminRides = [];
   bool _loadingRides = true;
   bool _showForm = false;
@@ -1257,11 +1256,16 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
   }
 
   void _resetForm() {
-    _fromCtrl.clear(); _toCtrl.clear(); _driverCtrl.clear();
-    _contactCtrl.clear(); _seatsCtrl.text = '7'; _vehicleCtrl.clear();
-    _notesCtrl.clear(); _departureDate = null; _departureTime = null;
-    _warnings = []; _rawText = '';
+    _fromCtrl.clear(); _toCtrl.clear(); _notesCtrl.clear();
+    _departureDate = null; _departureTime = null;
+    _warnings = []; _rawText = ''; _parsedRides = [];
   }
+
+  Map<String, dynamic> _emptyRide() => {
+    'driver_name': '',
+    'contact_number': '',
+    'vehicle_type': '',
+  };
 
   Future<void> _pickAndParse() async {
     final source = await showModalBottomSheet<String>(
@@ -1279,35 +1283,46 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     );
     if (xFile == null) return;
 
-    setState(() { _parsing = true; _warnings = []; });
+    setState(() { _parsing = true; _warnings = []; _parsedRides = []; });
     final bytes = await xFile.readAsBytes();
     final res = await _service.parsePoster(bytes, xFile.name);
     if (!mounted) return;
 
     if (res['success'] == true) {
-      _fromCtrl.text = res['from_location'] ?? '';
-      _toCtrl.text = res['to_location'] ?? '';
-      _driverCtrl.text = res['driver_name'] ?? '';
-      _contactCtrl.text = res['contact_number'] ?? '';
-      _vehicleCtrl.text = res['vehicle_type'] ?? '';
-      _rawText = res['raw_text'] ?? '';
+      final shared = res['shared'];
+      if (shared is Map) {
+        _fromCtrl.text = shared['from_location']?.toString() ?? '';
+        _toCtrl.text = shared['to_location']?.toString() ?? '';
 
-      final dateStr = res['departure_date']?.toString() ?? '';
-      if (dateStr.isNotEmpty) _departureDate = DateTime.tryParse(dateStr);
-      final timeStr = res['departure_time']?.toString() ?? '';
-      if (timeStr.contains(':')) {
-        final tp = timeStr.split(':');
-        _departureTime = TimeOfDay(hour: int.tryParse(tp[0]) ?? 8, minute: int.tryParse(tp[1]) ?? 0);
+        final dateStr = shared['departure_date']?.toString() ?? '';
+        if (dateStr.isNotEmpty) _departureDate = DateTime.tryParse(dateStr);
+        final timeStr = shared['departure_time']?.toString() ?? '';
+        if (timeStr.contains(':')) {
+          final tp = timeStr.split(':');
+          _departureTime = TimeOfDay(hour: int.tryParse(tp[0]) ?? 8, minute: int.tryParse(tp[1]) ?? 0);
+        }
+
+        if (shared['date_is_past'] == true && mounted) {
+          AppFeedback.show(context, 'Poster date is old — review before saving', kind: AppFeedbackKind.warning);
+        }
       }
 
+      final rides = res['rides'];
+      if (rides is List && rides.isNotEmpty) {
+        _parsedRides = rides.map<Map<String, dynamic>>((r) => {
+          'driver_name': r['driver_name']?.toString() ?? '',
+          'contact_number': r['contact_number']?.toString() ?? '',
+          'vehicle_type': r['vehicle_type']?.toString() ?? '',
+        }).toList();
+      }
+
+      _rawText = res['raw_text']?.toString() ?? '';
       final w = res['warnings'];
       if (w is List) _warnings = w.map((e) => e.toString()).toList();
-      final extra = res['extra_details'];
-      if (extra is List && extra.isNotEmpty) _notesCtrl.text = extra.join('\n');
 
-      setState(() { _parsing = false; _showForm = true; });
-      if (res['date_is_past'] == true && mounted) {
-        AppFeedback.show(context, 'Poster date is old — review before saving', kind: AppFeedbackKind.warning);
+      setState(() { _parsing = false; _showForm = _parsedRides.isNotEmpty; });
+      if (_parsedRides.isEmpty && mounted) {
+        AppFeedback.show(context, 'Poster has too few entries (need at least 3)', kind: AppFeedbackKind.warning);
       }
     } else {
       setState(() => _parsing = false);
@@ -1329,7 +1344,7 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     if (t != null) setState(() => _departureTime = t);
   }
 
-  Future<void> _saveRide() async {
+  Future<void> _saveAllRides() async {
     final from = _fromCtrl.text.trim();
     final to = _toCtrl.text.trim();
     if (from.isEmpty || to.isEmpty) {
@@ -1345,10 +1360,16 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
       AppFeedback.show(context, 'Departure must be in the future', kind: AppFeedbackKind.warning);
       return;
     }
-    final contact = _contactCtrl.text.trim();
-    if (contact.isEmpty) {
-      AppFeedback.show(context, 'Contact number is required', kind: AppFeedbackKind.warning);
+    if (_parsedRides.isEmpty) {
+      AppFeedback.show(context, 'No rides to save', kind: AppFeedbackKind.warning);
       return;
+    }
+    for (int i = 0; i < _parsedRides.length; i++) {
+      final c = _parsedRides[i]['contact_number']?.toString().trim() ?? '';
+      if (c.isEmpty) {
+        AppFeedback.show(context, 'Ride #${i + 1} is missing contact number', kind: AppFeedbackKind.warning);
+        return;
+      }
     }
 
     setState(() => _creating = true);
@@ -1356,17 +1377,19 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
       'from_location': from,
       'to_location': to,
       'departure_time': depDt.toIso8601String(),
-      'total_seats': int.tryParse(_seatsCtrl.text.trim()) ?? 7,
-      'vehicle_number': _vehicleCtrl.text.trim(),
-      'driver_name': _driverCtrl.text.trim(),
-      'contact_number': contact,
-      'admin_notes': _notesCtrl.text.trim(),
+      'rides': _parsedRides.map((r) => {
+        'driver_name': (r['driver_name'] ?? '').toString().trim(),
+        'contact_number': (r['contact_number'] ?? '').toString().trim(),
+        'vehicle_type': (r['vehicle_type'] ?? '').toString().trim(),
+        'admin_notes': _notesCtrl.text.trim(),
+      }).toList(),
     });
     if (!mounted) return;
     setState(() => _creating = false);
 
     if (res['success'] == true) {
-      AppFeedback.show(context, 'Ride saved to database', kind: AppFeedbackKind.success);
+      final count = res['created_count'] ?? _parsedRides.length;
+      AppFeedback.show(context, '$count rides saved to database', kind: AppFeedbackKind.success);
       _resetForm();
       setState(() => _showForm = false);
       _loadRides();
@@ -1381,7 +1404,6 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Upload / Manual buttons
         Row(children: [
           Expanded(child: FilledButton.icon(
             onPressed: _parsing ? null : _pickAndParse,
@@ -1392,7 +1414,11 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
           )),
           const SizedBox(width: 10),
           OutlinedButton.icon(
-            onPressed: () { _resetForm(); setState(() => _showForm = true); },
+            onPressed: () {
+              _resetForm();
+              _parsedRides = List.generate(3, (_) => _emptyRide());
+              setState(() => _showForm = true);
+            },
             icon: const Icon(Icons.edit_note),
             label: const Text('Manual'),
           ),
@@ -1407,7 +1433,6 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
           ])),
         ],
 
-        // Warnings
         if (_warnings.isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(
@@ -1427,7 +1452,6 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
           ),
         ],
 
-        // Editable ride table
         if (_showForm) ...[
           const SizedBox(height: 16),
           Card(
@@ -1436,14 +1460,12 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Ride Details', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                const Text('Shared Details', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                Text('Common for all ${_parsedRides.length} rides', style: const TextStyle(fontSize: 12, color: Colors.black45)),
                 const Divider(),
-                _tableRow('From', _fromCtrl, icon: Icons.location_on),
-                _tableRow('To', _toCtrl, icon: Icons.flag),
-                _tableRow('Driver Name', _driverCtrl, icon: Icons.person),
-                _tableRow('Contact', _contactCtrl, icon: Icons.phone, keyboard: TextInputType.phone),
-                _tableRow('Vehicle', _vehicleCtrl, icon: Icons.directions_car),
-                _tableRow('Seats', _seatsCtrl, icon: Icons.event_seat, keyboard: TextInputType.number),
+                _sharedRow('From', _fromCtrl, icon: Icons.location_on),
+                _sharedRow('To', _toCtrl, icon: Icons.flag),
                 const SizedBox(height: 8),
                 Row(children: [
                   const Icon(Icons.calendar_today, size: 16, color: Colors.black45),
@@ -1468,16 +1490,36 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
                   controller: _notesCtrl,
                   decoration: const InputDecoration(
                     hintText: 'Extra notes (optional)',
-                    border: InputBorder.none,
-                    isDense: true,
+                    border: InputBorder.none, isDense: true,
                     contentPadding: EdgeInsets.symmetric(vertical: 6),
                   ),
-                  maxLines: 2,
-                  style: const TextStyle(fontSize: 13),
+                  maxLines: 2, style: const TextStyle(fontSize: 13),
                 ),
               ]),
             ),
           ),
+
+          const SizedBox(height: 16),
+          Row(children: [
+            Expanded(child: Row(children: [
+              const Text('Rides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: Colors.indigo.shade100, borderRadius: BorderRadius.circular(10)),
+                child: Text('${_parsedRides.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.indigo)),
+              ),
+            ])),
+            if (_parsedRides.length < 20)
+              IconButton(
+                icon: const Icon(Icons.add_circle_outline, size: 22),
+                tooltip: 'Add ride',
+                onPressed: () => setState(() => _parsedRides.add(_emptyRide())),
+              ),
+          ]),
+          const SizedBox(height: 8),
+
+          ...List.generate(_parsedRides.length, (i) => _buildEditableRideCard(i)),
 
           if (_rawText.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -1494,16 +1536,15 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
 
           const SizedBox(height: 14),
           SizedBox(width: double.infinity, child: FilledButton.icon(
-            onPressed: _creating ? null : _saveRide,
+            onPressed: _creating ? null : _saveAllRides,
             icon: _creating
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.save),
-            label: Text(_creating ? 'Saving...' : 'Save to Database'),
+            label: Text(_creating ? 'Saving...' : 'Save ${_parsedRides.length} Rides to Database'),
             style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
           )),
         ],
 
-        // Admin rides list
         const SizedBox(height: 24),
         Row(children: [
           const Expanded(child: Text('Admin Rides', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600))),
@@ -1520,7 +1561,7 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     );
   }
 
-  Widget _tableRow(String label, TextEditingController ctrl, {IconData? icon, TextInputType? keyboard}) {
+  Widget _sharedRow(String label, TextEditingController ctrl, {IconData? icon}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(children: [
@@ -1528,13 +1569,68 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
         SizedBox(width: 90, child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.black54))),
         Expanded(child: TextField(
           controller: ctrl,
-          keyboardType: keyboard,
           decoration: const InputDecoration(
-            border: InputBorder.none,
-            isDense: true,
+            border: InputBorder.none, isDense: true,
             contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 8),
           ),
           style: const TextStyle(fontSize: 14),
+        )),
+      ]),
+    );
+  }
+
+  Widget _buildEditableRideCard(int index) {
+    return Card(
+      elevation: 0,
+      color: Colors.grey.shade50,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 24, height: 24,
+              decoration: BoxDecoration(color: Colors.indigo.shade100, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Text('${index + 1}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.indigo)),
+            ),
+            const SizedBox(width: 8),
+            Text('Ride #${index + 1}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (_parsedRides.length > 1)
+              IconButton(
+                icon: Icon(Icons.close, size: 18, color: Colors.red.shade400),
+                tooltip: 'Remove ride',
+                onPressed: () => setState(() => _parsedRides.removeAt(index)),
+                padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+              ),
+          ]),
+          const SizedBox(height: 6),
+          _rideField(index, 'driver_name', 'Driver Name', Icons.person),
+          _rideField(index, 'contact_number', 'Contact', Icons.phone, keyboard: TextInputType.phone),
+          _rideField(index, 'vehicle_type', 'Vehicle', Icons.directions_car),
+        ]),
+      ),
+    );
+  }
+
+  Widget _rideField(int index, String key, String label, IconData icon, {TextInputType? keyboard}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(children: [
+        Icon(icon, size: 14, color: Colors.black38),
+        const SizedBox(width: 8),
+        SizedBox(width: 75, child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54))),
+        Expanded(child: TextFormField(
+          initialValue: _parsedRides[index][key]?.toString() ?? '',
+          keyboardType: keyboard,
+          decoration: const InputDecoration(
+            border: InputBorder.none, isDense: true,
+            contentPadding: EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+          ),
+          style: const TextStyle(fontSize: 13),
+          onChanged: (v) => _parsedRides[index][key] = v,
         )),
       ]),
     );
@@ -1545,8 +1641,7 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
     final to = ride['to_location'] ?? '';
     final status = ride['status'] ?? '';
     final driverName = ride['poster_driver_name'] ?? '';
-    final contact = ride['poster_contact'] ?? '';
-    final seats = ride['total_capacity'] ?? 0;
+    final contact = (ride['poster_contact'] ?? '').toString();
     final vehicle = ride['vehicle_number'] ?? '';
     final created = ride['created_at'] ?? '';
 
@@ -1577,9 +1672,31 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
           ]),
           const SizedBox(height: 6),
           _rideInfoRow(Icons.person, driverName),
-          _rideInfoRow(Icons.phone, contact),
           if (vehicle.isNotEmpty) _rideInfoRow(Icons.directions_car, vehicle),
-          _rideInfoRow(Icons.event_seat, '$seats seats'),
+          const SizedBox(height: 8),
+          if (contact.isNotEmpty) Row(children: [
+            Expanded(child: OutlinedButton.icon(
+              onPressed: () => launchUrl(Uri.parse('tel:$contact')),
+              icon: const Icon(Icons.call, size: 16),
+              label: const Text('Call', style: TextStyle(fontSize: 12)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.green.shade700,
+                side: BorderSide(color: Colors.green.shade300),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+              ),
+            )),
+            const SizedBox(width: 8),
+            Expanded(child: OutlinedButton.icon(
+              onPressed: () => launchWhatsApp(contact),
+              icon: const Icon(Icons.chat, size: 16),
+              label: const Text('WhatsApp', style: TextStyle(fontSize: 12)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.teal.shade700,
+                side: BorderSide(color: Colors.teal.shade300),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+              ),
+            )),
+          ]),
           const SizedBox(height: 6),
           Row(children: [
             Container(
@@ -1615,9 +1732,7 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
 
   @override
   void dispose() {
-    _fromCtrl.dispose(); _toCtrl.dispose(); _driverCtrl.dispose();
-    _contactCtrl.dispose(); _seatsCtrl.dispose(); _vehicleCtrl.dispose();
-    _notesCtrl.dispose();
+    _fromCtrl.dispose(); _toCtrl.dispose(); _notesCtrl.dispose();
     super.dispose();
   }
 }

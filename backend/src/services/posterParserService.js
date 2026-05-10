@@ -26,26 +26,22 @@ const VEHICLE_KEYWORDS = [
 
 function extractPhoneNumbers(text) {
   const re = /(?:\+91[\s.-]?|91[\s.-]?|0)?([6-9]\d{9})\b/g;
-  const found = new Set();
+  const found = [];
   let m;
-  while ((m = re.exec(text)) !== null) found.add(m[1]);
-  return [...found];
-}
-
-function isValidPhone(num) {
-  return /^[6-9]\d{9}$/.test(num);
+  while ((m = re.exec(text)) !== null) {
+    if (!found.includes(m[1])) found.push(m[1]);
+  }
+  return found;
 }
 
 function extractLocations(text) {
   const lower = text.toLowerCase().replace(/\n/g, ' ');
-
   const patternsExplicit = [
     /from\s+([a-z\s]{2,30})\s+to\s+([a-z\s]{2,30})/i,
     /([a-z\s]{2,30})\s+se\s+([a-z\s]{2,30})\s+(?:tak|ko|jane)/i,
     /([a-z\s]{2,30})\s*(?:→|➡|⟶|->)\s*([a-z\s]{2,30})/i,
     /([a-z\s]{2,30})\s+to\s+([a-z\s]{2,30})/i,
   ];
-
   for (const pat of patternsExplicit) {
     const match = lower.match(pat);
     if (match) {
@@ -54,7 +50,6 @@ function extractLocations(text) {
       if (from.length >= 2 && to.length >= 2) return { from, to };
     }
   }
-
   const found = [];
   for (const loc of KNOWN_LOCATIONS) {
     const idx = lower.indexOf(loc);
@@ -115,16 +110,6 @@ function extractTime(text) {
   return null;
 }
 
-function extractFare(text) {
-  const re1 = /(?:₹|Rs\.?\s*|INR\s*)(\d+(?:\.\d{1,2})?)/i;
-  const m1 = text.match(re1);
-  if (m1) return parseFloat(m1[1]);
-  const re2 = /(?:fare|price|rate|charge|cost|kiraya|kiray[ae])\s*[:\-]?\s*(?:₹|Rs\.?\s*|INR\s*)?(\d+)/i;
-  const m2 = text.match(re2);
-  if (m2) return parseFloat(m2[1]);
-  return null;
-}
-
 function extractVehicleType(text) {
   const lower = text.toLowerCase();
   for (const v of VEHICLE_KEYWORDS) {
@@ -133,80 +118,70 @@ function extractVehicleType(text) {
   return null;
 }
 
-function extractDriverName(text) {
-  const patterns = [
-    /(?:driver|naam|name|contact\s*person|chalak)\s*[:\-–]\s*([A-Za-z][A-Za-z\s]{1,29})/i,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m) {
-      const name = m[1].trim();
-      if (name.length >= 2 && !/^\d/.test(name)) return capitalize(name);
+function capitalize(s) {
+  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function findNameNearPhone(rawText, phone) {
+  const lines = rawText.split(/\n/);
+  for (const line of lines) {
+    if (!line.includes(phone)) continue;
+    const cleaned = line.replace(/[\+]?91[\s.-]?/g, '').replace(phone, '').trim();
+    const nameMatch = cleaned.match(/([A-Za-z][A-Za-z\s]{1,25})/);
+    if (nameMatch) {
+      const name = nameMatch[1].trim();
+      if (name.length >= 2) return capitalize(name);
     }
   }
   return null;
 }
 
-function capitalize(s) {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function parsePosterText(rawText, riderSeq = 1) {
+function parsePosterText(rawText) {
   const warnings = [];
   const phones = extractPhoneNumbers(rawText);
-  let contact = phones.length > 0 ? phones[0] : null;
-
-  if (contact && !isValidPhone(contact)) {
-    warnings.push(`Extracted number "${contact}" appears invalid, using default`);
-    contact = DEFAULT_CONTACT;
-  }
-  if (!contact) {
-    contact = DEFAULT_CONTACT;
-    warnings.push('No contact number found, using default');
-  }
-
   const locations = extractLocations(rawText);
+  const dateInfo = extractDate(rawText);
+  const time = extractTime(rawText);
+  const vehicleType = extractVehicleType(rawText);
+
   if (!locations.from) warnings.push('Could not detect origin location');
   if (!locations.to) warnings.push('Could not detect destination location');
+  if (dateInfo && dateInfo.isPast) warnings.push('Date appears to be in the past');
 
-  const dateInfo = extractDate(rawText);
-  if (dateInfo && dateInfo.isPast) {
-    warnings.push('Date appears to be in the past — ride may not be valid');
+  const rides = [];
+
+  if (phones.length < 3) {
+    warnings.push(
+      phones.length === 0
+        ? 'No phone numbers found in poster — need at least 3 entries'
+        : `Only ${phones.length} entries found — need at least 3 to process poster`
+    );
+  } else {
+    const take = Math.min(phones.length, 20);
+    if (phones.length > 20) {
+      warnings.push(`Poster has ${phones.length} entries — only first 20 taken`);
+    }
+    for (let i = 0; i < take; i++) {
+      const name = findNameNearPhone(rawText, phones[i]) || `Rider ${i + 1}`;
+      rides.push({
+        driver_name: name,
+        contact_number: phones[i],
+        vehicle_type: vehicleType || '',
+      });
+    }
   }
-
-  let driverName = extractDriverName(rawText);
-  if (!driverName) {
-    driverName = `Rider ${riderSeq}`;
-    warnings.push('Driver name not found, using default');
-  }
-
-  const fare = extractFare(rawText);
-  const vehicleType = extractVehicleType(rawText);
-  const time = extractTime(rawText);
-
-  const usedTokens = new Set();
-  [locations.from, locations.to, driverName, contact, vehicleType].forEach((v) => {
-    if (v) usedTokens.add(v.toLowerCase());
-  });
-  const lines = rawText.split(/\n/).map((l) => l.trim()).filter(Boolean);
-  const extra = lines.filter((l) => {
-    const lower = l.toLowerCase();
-    return !([...usedTokens].some((t) => lower.includes(t)));
-  }).slice(0, 5);
 
   return {
-    from_location: locations.from,
-    to_location: locations.to,
-    driver_name: driverName,
-    contact_number: contact,
-    vehicle_type: vehicleType,
-    departure_date: dateInfo ? dateInfo.date : null,
-    departure_time: time,
-    fare_per_seat: fare,
-    date_is_past: dateInfo ? dateInfo.isPast : false,
-    raw_text: rawText,
-    extra_details: extra,
+    shared: {
+      from_location: locations.from,
+      to_location: locations.to,
+      departure_date: dateInfo ? dateInfo.date : null,
+      departure_time: time,
+      date_is_past: dateInfo ? dateInfo.isPast : false,
+    },
+    rides,
     warnings,
+    raw_text: rawText,
   };
 }
 

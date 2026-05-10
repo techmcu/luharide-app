@@ -699,12 +699,6 @@ const parsePoster = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Only JPEG, PNG, or PDF files are accepted');
   }
 
-  const riderSeq = await queryRead(
-    `SELECT COUNT(*)::int + 1 AS seq FROM trips
-     WHERE created_source = 'admin_poster' AND poster_driver_name LIKE 'Rider %'`
-  );
-  const seq = riderSeq.rows[0]?.seq || 1;
-
   let rawText = '';
   try {
     rawText = await extractText(req.file.path, mime);
@@ -716,84 +710,80 @@ const parsePoster = asyncHandler(async (req, res) => {
     return res.json({
       success: true,
       data: {
-        from_location: null,
-        to_location: null,
-        driver_name: `Rider ${seq}`,
-        contact_number: DEFAULT_CONTACT,
-        vehicle_type: null,
-        departure_date: null,
-        departure_time: null,
-        date_is_past: false,
-        raw_text: rawText || '',
-        extra_details: [],
+        shared: { from_location: null, to_location: null, departure_date: null, departure_time: null, date_is_past: false },
+        rides: [{ driver_name: 'Rider 1', contact_number: DEFAULT_CONTACT, vehicle_type: '' }],
         warnings: ['Could not extract readable text from the uploaded file'],
+        raw_text: rawText || '',
       },
     });
   }
 
-  const parsed = parsePosterText(rawText, seq);
+  const parsed = parsePosterText(rawText);
   res.json({ success: true, data: parsed });
 });
 
 // ---------------------------------------------------------------------------
-// POST /api/platform-admin/rides/create
+// POST /api/platform-admin/rides/create  (batch — accepts array of rides)
 // ---------------------------------------------------------------------------
 const createAdminRide = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
 
-  const {
-    from_location, to_location, departure_time,
-    total_seats, vehicle_number,
-    driver_name, contact_number, vehicle_type,
-    admin_notes,
-  } = req.body;
+  const { from_location, to_location, departure_time, rides } = req.body;
 
-  if (!from_location || !to_location) {
-    throw ApiError.badRequest('From and To locations are required');
-  }
+  if (!from_location || !to_location) throw ApiError.badRequest('From and To are required');
   if (!departure_time) throw ApiError.badRequest('Departure time is required');
+  if (!Array.isArray(rides) || rides.length === 0) throw ApiError.badRequest('At least one ride is required');
+  if (rides.length > 20) throw ApiError.badRequest('Maximum 20 rides per batch');
 
-  const fare = 0;
-  const seats = Math.min(32, Math.max(1, parseInt(total_seats, 10) || 7));
   const depTime = new Date(departure_time);
   if (isNaN(depTime.getTime())) throw ApiError.badRequest('Invalid departure time');
-
   const arrivalTime = new Date(depTime.getTime() + 2 * 60 * 60 * 1000);
-  const contact = contact_number || DEFAULT_CONTACT;
-  const dName = driver_name || 'Rider';
-  const source = 'admin_poster';
-
-  let driverId = req.user.id;
-  if (contact && contact !== DEFAULT_CONTACT) {
-    const match = await queryRead(
-      `SELECT id FROM users WHERE phone = $1 AND role = 'driver' AND is_active = true LIMIT 1`,
-      [contact]
-    );
-    if (match.rows.length > 0) driverId = match.rows[0].id;
-  }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const { rows } = await client.query(
-      `INSERT INTO trips (
-        driver_id, from_location, to_location, departure_time, arrival_time,
-        fare_per_seat, total_capacity, available_seats,
-        vehicle_number, status, created_source,
-        created_by, poster_driver_name, poster_contact, admin_notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$7,$8,'scheduled',$9,$10,$11,$12,$13)
-      RETURNING *`,
-      [
-        driverId, from_location.trim(), to_location.trim(),
-        depTime.toISOString(), arrivalTime.toISOString(),
-        fare, seats, vehicle_number || vehicle_type || '',
-        source, req.user.id, dName, contact, admin_notes || null,
-      ]
-    );
+    const created = [];
+    for (let i = 0; i < rides.length; i++) {
+      const r = rides[i];
+      const contact = r.contact_number || DEFAULT_CONTACT;
+      const dName = r.driver_name || `Rider ${i + 1}`;
+      const seats = Math.min(32, Math.max(1, parseInt(r.total_seats, 10) || 7));
+      const vehicle = r.vehicle_type || '';
+
+      let driverId = req.user.id;
+      if (contact && contact !== DEFAULT_CONTACT) {
+        const match = await client.query(
+          `SELECT id FROM users WHERE phone = $1 AND role = 'driver' AND is_active = true LIMIT 1`,
+          [contact]
+        );
+        if (match.rows.length > 0) driverId = match.rows[0].id;
+      }
+
+      const { rows } = await client.query(
+        `INSERT INTO trips (
+          driver_id, from_location, to_location, departure_time, arrival_time,
+          fare_per_seat, total_capacity, available_seats,
+          vehicle_number, status, created_source,
+          created_by, poster_driver_name, poster_contact, admin_notes
+        ) VALUES ($1,$2,$3,$4,$5,0,$6,$6,$7,'scheduled','admin_poster',$8,$9,$10,$11)
+        RETURNING id, from_location, to_location, poster_driver_name, poster_contact, status`,
+        [
+          driverId, from_location.trim(), to_location.trim(),
+          depTime.toISOString(), arrivalTime.toISOString(),
+          seats, vehicle,
+          req.user.id, dName, contact, r.admin_notes || null,
+        ]
+      );
+      created.push(rows[0]);
+    }
 
     await client.query('COMMIT');
-    ApiResponse.created(res, { trip: rows[0] }, 'Ride created by admin');
+    res.status(201).json({
+      success: true,
+      data: { created_count: created.length, rides: created },
+      message: `${created.length} rides saved to database`,
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
