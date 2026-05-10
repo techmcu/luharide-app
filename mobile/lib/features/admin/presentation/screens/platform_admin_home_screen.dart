@@ -1321,7 +1321,7 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
 
       setState(() { _parsing = false; _showForm = _parsedRides.isNotEmpty; });
       if (_parsedRides.isEmpty && mounted) {
-        AppFeedback.show(context, 'Poster has too few entries (need at least 3)', kind: AppFeedbackKind.warning);
+        AppFeedback.show(context, 'No ride entries found in poster', kind: AppFeedbackKind.warning);
       }
     } else {
       setState(() => _parsing = false);
@@ -1349,9 +1349,20 @@ class _PosterRideSectionState extends State<_PosterRideSection> with AutomaticKe
       return;
     }
     final depDt = DateTime(_departureDate!.year, _departureDate!.month, _departureDate!.day, _departureTime!.hour, _departureTime!.minute);
-    if (depDt.isBefore(DateTime.now())) {
-      AppFeedback.show(context, 'Departure must be in the future', kind: AppFeedbackKind.warning);
-      return;
+    final isPastDate = depDt.isBefore(DateTime.now());
+    if (isPastDate) {
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Date is in the past'),
+          content: const Text('The departure date is before today. Are you sure you want to upload these rides?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Upload Anyway')),
+          ],
+        ),
+      );
+      if (proceed != true || !mounted) return;
     }
     if (_parsedRides.isEmpty) {
       AppFeedback.show(context, 'No rides to save', kind: AppFeedbackKind.warning);

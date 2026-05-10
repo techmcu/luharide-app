@@ -176,12 +176,8 @@ function parsePosterText(rawText) {
 
   const rides = [];
 
-  if (phones.length < 3) {
-    warnings.push(
-      phones.length === 0
-        ? 'No phone numbers found in poster — need at least 3 entries'
-        : `Only ${phones.length} entries found — need at least 3 to process poster`
-    );
+  if (phones.length === 0) {
+    warnings.push('No phone numbers found in poster');
   } else {
     const take = Math.min(phones.length, 20);
     if (phones.length > 20) {
