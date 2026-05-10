@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS contact_logs (
     id BIGSERIAL PRIMARY KEY,
     caller_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    driver_id INT NOT NULL REFERENCES union_drivers(id) ON DELETE CASCADE,
+    driver_id UUID NOT NULL REFERENCES union_drivers(id) ON DELETE CASCADE,
     union_id UUID NOT NULL REFERENCES unions(id) ON DELETE CASCADE,
     contact_type VARCHAR(10) NOT NULL CHECK (contact_type IN ('call', 'whatsapp')),
     created_at TIMESTAMP DEFAULT NOW()

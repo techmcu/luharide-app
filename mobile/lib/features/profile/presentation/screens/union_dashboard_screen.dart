@@ -115,10 +115,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   Future<void> _callDriver(Map<String, dynamic> driver) async {
     final phone = (driver['phone'] ?? '').toString();
     if (phone.isEmpty) return;
-    final driverId = driver['id'];
-    if (driverId != null && _unionId != null) {
+    final driverId = driver['id']?.toString();
+    if (driverId != null && driverId.isNotEmpty && _unionId != null) {
       UnionService().logContact(
-        driverId: driverId is int ? driverId : int.tryParse(driverId.toString()) ?? 0,
+        driverId: driverId,
         unionId: _unionId!,
         contactType: 'call',
       );
@@ -130,10 +130,10 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   Future<void> _whatsappDriver(Map<String, dynamic> driver) async {
     final number = (driver['whatsapp_number'] ?? '').toString();
     if (number.isEmpty) return;
-    final driverId = driver['id'];
-    if (driverId != null && _unionId != null) {
+    final driverId = driver['id']?.toString();
+    if (driverId != null && driverId.isNotEmpty && _unionId != null) {
       UnionService().logContact(
-        driverId: driverId is int ? driverId : int.tryParse(driverId.toString()) ?? 0,
+        driverId: driverId,
         unionId: _unionId!,
         contactType: 'whatsapp',
       );

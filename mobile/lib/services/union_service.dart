@@ -86,7 +86,7 @@ class UnionService {
 
   /// Log a contact click (call or whatsapp) — fire-and-forget from UI.
   Future<void> logContact({
-    required int driverId,
+    required String driverId,
     required String unionId,
     required String contactType,
   }) async {

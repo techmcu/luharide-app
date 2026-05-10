@@ -16,8 +16,8 @@ const logContact = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('contact_type must be call or whatsapp');
   }
 
-  const driverId = parseInt(driver_id, 10);
-  if (!Number.isFinite(driverId) || driverId < 1) {
+  const driverId = String(driver_id).trim();
+  if (!driverId) {
     throw ApiError.badRequest('Invalid driver_id');
   }
 
