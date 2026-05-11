@@ -11,6 +11,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../utils/trip_self_book_guard.dart';
 import '../../../../services/trip_service.dart';
+import '../../../../services/union_service.dart';
 import '../../../../services/notification_service.dart';
 import '../../../trips/presentation/screens/trip_details_screen.dart';
 import '../../../trips/presentation/screens/passenger_my_rides_screen.dart';
@@ -644,6 +645,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final phone       = (ride['phone']          ?? '').toString();
     final whatsapp    = (ride['whatsapp_number']?? '').toString();
     final effectiveWa = whatsapp.isNotEmpty ? whatsapp : phone;
+    final unionDriverId = ride['union_driver_id']?.toString();
+    final unionId       = ride['union_id']?.toString();
 
     // UTC-safe parsing: backend stores UTC without 'Z', add it before parsing
     final depRaw = ride['departure_time']?.toString() ?? '';
@@ -712,11 +715,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   const SizedBox(height: 12),
                   Row(children: [
                     if (phone.isNotEmpty) ...[
-                      Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(phone))),
+                      Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(phone, driverId: unionDriverId, unionId: unionId))),
                       const SizedBox(width: 8),
                     ],
                     if (effectiveWa.isNotEmpty)
-                      Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(effectiveWa))),
+                      Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(effectiveWa, driverId: unionDriverId, unionId: unionId))),
                   ]),
                 ],
               ],
@@ -986,13 +989,19 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
-  Future<void> _launchPhone(String phone) async {
+  Future<void> _launchPhone(String phone, {String? driverId, String? unionId}) async {
+    if (driverId != null && unionId != null) {
+      UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'call');
+    }
     final uri = Uri(scheme: 'tel', path: phone.trim());
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
-  Future<void> _launchWhatsApp(String raw) async {
+  Future<void> _launchWhatsApp(String raw, {String? driverId, String? unionId}) async {
     if (raw.trim().isEmpty) return;
+    if (driverId != null && unionId != null) {
+      UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'whatsapp');
+    }
     final number = raw.replaceAll(RegExp(r'\s+'), '');
     final uri = Uri.parse('https://wa.me/$number');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);

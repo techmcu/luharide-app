@@ -9,6 +9,7 @@ import '../../../../providers/app_language_provider.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/trip_service.dart';
+import '../../../../services/union_service.dart';
 import '../../../../utils/trip_self_book_guard.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../auth/presentation/screens/simple_signup_screen.dart';
@@ -622,6 +623,8 @@ class _LandingScreenState extends State<LandingScreen> {
     final vehicleNumber = (ride['vehicle_number'] ?? '').toString();
     final phone = (ride['phone'] ?? '').toString();
     final whatsapp = (ride['whatsapp_number'] ?? '').toString();
+    final unionDriverId = ride['union_driver_id']?.toString();
+    final unionId = ride['union_id']?.toString();
 
     // UTC-safe parsing: backend stores UTC without 'Z' suffix
     DateTime? departure;
@@ -742,11 +745,11 @@ class _LandingScreenState extends State<LandingScreen> {
             const SizedBox(height: 12),
             Row(children: [
               if (phone.isNotEmpty) ...[
-                Expanded(child: _contactBtn(Icons.call_rounded, loc.t('landing.contact.call'), const Color(0xFF16A34A), () => _guardedContact(() => _launchPhone(phone)))),
+                Expanded(child: _contactBtn(Icons.call_rounded, loc.t('landing.contact.call'), const Color(0xFF16A34A), () => _guardedContact(() => _launchPhone(phone, driverId: unionDriverId, unionId: unionId)))),
                 const SizedBox(width: 8),
               ],
               if ((whatsapp.isNotEmpty || phone.isNotEmpty))
-                Expanded(child: _contactBtn(Icons.chat_rounded, loc.t('landing.contact.whatsapp'), const Color(0xFF25D366), () => _guardedContact(() => _launchWhatsApp(whatsapp.isNotEmpty ? whatsapp : phone)))),
+                Expanded(child: _contactBtn(Icons.chat_rounded, loc.t('landing.contact.whatsapp'), const Color(0xFF25D366), () => _guardedContact(() => _launchWhatsApp(whatsapp.isNotEmpty ? whatsapp : phone, driverId: unionDriverId, unionId: unionId)))),
             ]),
           ],
         ),
@@ -754,13 +757,19 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Future<void> _launchPhone(String phone) async {
+  Future<void> _launchPhone(String phone, {String? driverId, String? unionId}) async {
+    if (driverId != null && unionId != null) {
+      UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'call');
+    }
     final uri = Uri(scheme: 'tel', path: phone.trim());
     if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
-  Future<void> _launchWhatsApp(String raw) async {
+  Future<void> _launchWhatsApp(String raw, {String? driverId, String? unionId}) async {
     if (raw.trim().isEmpty) return;
+    if (driverId != null && unionId != null) {
+      UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'whatsapp');
+    }
     final number = raw.replaceAll(RegExp(r'\s+'), '');
     final uri = Uri.parse('https://wa.me/$number');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
