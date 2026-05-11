@@ -48,6 +48,7 @@ const logContact = asyncHandler(async (req, res) => {
 
 const getContactStats = asyncHandler(async (req, res) => {
   const userId = req.user.id;
+  const { from, to, driver_id } = req.query;
 
   // Get union_id for this admin
   const unionRes = await pool.query(
@@ -65,12 +66,31 @@ const getContactStats = asyncHandler(async (req, res) => {
       week: { calls: 0, whatsapp: 0 },
       month: { calls: 0, whatsapp: 0 },
       drivers: [],
+      grand_total: { calls: 0, whatsapp: 0 },
     }, 'No union').send(res);
   }
 
   const unionId = unionRes.rows[0].union_id;
 
-  const [todayRes, weekRes, monthRes, driverRes] = await Promise.all([
+  // Build optional date and driver filters for per-driver breakdown
+  let driverDateFilter = `cl.created_at >= (CURRENT_DATE - INTERVAL '30 days')::timestamp`;
+  const driverParams = [unionId];
+
+  if (from && to) {
+    driverDateFilter = `cl.created_at >= $2::timestamp AND cl.created_at < ($3::date + INTERVAL '1 day')::timestamp`;
+    driverParams.push(from, to);
+  } else if (from) {
+    driverDateFilter = `cl.created_at >= $2::timestamp`;
+    driverParams.push(from);
+  }
+
+  let driverFilter = '';
+  if (driver_id) {
+    driverFilter = ` AND d.id = $${driverParams.length + 1}`;
+    driverParams.push(driver_id);
+  }
+
+  const [todayRes, weekRes, monthRes, driverRes, grandTotalRes] = await Promise.all([
     pool.query(
       `SELECT contact_type, COUNT(*)::int AS count
        FROM contact_logs
@@ -98,11 +118,18 @@ const getContactStats = asyncHandler(async (req, res) => {
               COUNT(*) FILTER (WHERE cl.contact_type = 'whatsapp')::int AS whatsapp_clicks
        FROM union_drivers d
        LEFT JOIN contact_logs cl ON cl.driver_id = d.id
-         AND cl.created_at >= (CURRENT_DATE - INTERVAL '30 days')::timestamp
-       WHERE d.union_id = $1
+         AND ${driverDateFilter}
+       WHERE d.union_id = $1${driverFilter}
        GROUP BY d.id, d.name, d.phone, d.whatsapp_number
        ORDER BY (COUNT(*) FILTER (WHERE cl.contact_type = 'call') +
                  COUNT(*) FILTER (WHERE cl.contact_type = 'whatsapp')) DESC`,
+      driverParams
+    ),
+    pool.query(
+      `SELECT contact_type, COUNT(*)::int AS count
+       FROM contact_logs
+       WHERE union_id = $1
+       GROUP BY contact_type`,
       [unionId]
     ),
   ]);
@@ -121,6 +148,7 @@ const getContactStats = asyncHandler(async (req, res) => {
     week: extractCounts(weekRes.rows),
     month: extractCounts(monthRes.rows),
     drivers: driverRes.rows,
+    grand_total: extractCounts(grandTotalRes.rows),
   }, 'Contact stats').send(res);
 });
 

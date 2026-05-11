@@ -392,7 +392,8 @@ const searchTrips = asyncHandler(async (req, res) => {
         try {
           return queryRead(
             `SELECT s.id, s.from_location, s.to_location, s.departure_time, s.status,
-                    d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number, u.name AS union_name
+                    d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number, u.name AS union_name,
+                    s.union_driver_id, s.union_id
              FROM union_schedules s
              JOIN union_drivers d ON d.id = s.union_driver_id
              JOIN unions u ON u.id = s.union_id

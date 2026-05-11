@@ -102,9 +102,20 @@ class UnionService {
   }
 
   /// Get contact stats for the union dashboard.
-  Future<Map<String, dynamic>> getContactStats() async {
+  Future<Map<String, dynamic>> getContactStats({
+    String? from,
+    String? to,
+    String? driverId,
+  }) async {
     try {
-      final response = await _api.get(ApiConstants.unionContactStats);
+      final params = <String, dynamic>{};
+      if (from != null) params['from'] = from;
+      if (to != null) params['to'] = to;
+      if (driverId != null) params['driver_id'] = driverId;
+      final response = await _api.get(
+        ApiConstants.unionContactStats,
+        queryParameters: params.isNotEmpty ? params : null,
+      );
       return {
         'success': true,
         'data': response.data['data'] ?? {},

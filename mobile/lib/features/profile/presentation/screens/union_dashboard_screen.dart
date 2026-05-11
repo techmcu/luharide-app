@@ -28,6 +28,11 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   String _posterTheme = 'saffron';
   String? _unionId;
 
+  // Contact filter state
+  String _contactPeriod = 'today'; // today, week, month
+  String? _contactDriverFilter; // null = all drivers
+  bool _contactLoading = false;
+
   static const _orange = Color(0xFFFF6B00);
   static const _orangeLight = Color(0xFFFFF3E0);
   static const _purple = Color(0xFF7B1FA2);
@@ -109,6 +114,38 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       _unionId = unionId;
       _error = error;
       _loading = false;
+    });
+  }
+
+  Future<void> _refreshContactStats() async {
+    setState(() => _contactLoading = true);
+    final now = DateTime.now();
+    String? from;
+    String? to;
+    if (_contactPeriod == 'today') {
+      final d = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      from = d;
+      to = d;
+    } else if (_contactPeriod == 'week') {
+      final start = now.subtract(const Duration(days: 7));
+      from = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+      to = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    } else if (_contactPeriod == 'month') {
+      final start = now.subtract(const Duration(days: 30));
+      from = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+      to = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    }
+    final result = await UnionService().getContactStats(
+      from: from,
+      to: to,
+      driverId: _contactDriverFilter,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (result['success'] == true) {
+        _contactStats = result['data'] as Map<String, dynamic>?;
+      }
+      _contactLoading = false;
     });
   }
 
@@ -196,13 +233,6 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         child: _buildStatsRow(),
                       ),
                       const SizedBox(height: 24),
-                      // Contact Analytics — simple summary card
-                      const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: _buildContactSummaryCard(),
-                      ),
-                      const SizedBox(height: 24),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: _buildSectionLabel('Quick actions', Icons.touch_app_rounded),
@@ -222,17 +252,33 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: _buildSectionLabel(
-                            'Your drivers (${_drivers.length})',
+                            'Drivers & Calls (${_drivers.length})',
                             Icons.people_alt_rounded,
                           ),
                         ),
                         const SizedBox(height: 12),
-                        ..._drivers
-                            .map((d) => Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                                  child: _buildDriverCard(d as Map<String, dynamic>),
-                                ))
-                            .toList(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildContactFilters(),
+                        ),
+                        const SizedBox(height: 10),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _buildContactTotalBar(),
+                        ),
+                        const SizedBox(height: 12),
+                        if (_contactLoading)
+                          const Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          )
+                        else
+                          ..._drivers
+                              .map((d) => Padding(
+                                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                    child: _buildDriverCard(d as Map<String, dynamic>),
+                                  ))
+                              .toList(),
                         const SizedBox(height: 8),
                       ] else ...[
                         Padding(
@@ -401,84 +447,226 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
     );
   }
 
-  // ── Contact Analytics — simple summary card → opens detail page ────────────
+  // ── Contact Filters (period + driver dropdown) ─────────────────────────────
 
-  Widget _buildContactSummaryCard() {
-    final month = _contactStats?['month'] as Map<String, dynamic>? ?? {};
-    final monthCalls = month['calls'] ?? 0;
-    final monthWa = month['whatsapp'] ?? 0;
-    final total = (monthCalls as int) + (monthWa as int);
+  Widget _buildContactFilters() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.filter_alt_rounded, size: 16, color: _advancedColor),
+              const SizedBox(width: 6),
+              const Text(
+                'Filter calls',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              if (_contactDriverFilter != null || _contactPeriod != 'today')
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _contactPeriod = 'today';
+                      _contactDriverFilter = null;
+                    });
+                    _refreshContactStats();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Reset',
+                      style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Period chips
+          Row(
+            children: [
+              _buildFilterChip('today', 'Today'),
+              const SizedBox(width: 8),
+              _buildFilterChip('week', '7 Days'),
+              const SizedBox(width: 8),
+              _buildFilterChip('month', '30 Days'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Driver dropdown
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FA),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _contactDriverFilter,
+                hint: const Text('All drivers', style: TextStyle(fontSize: 13)),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
+                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: null,
+                    child: Text('All drivers'),
+                  ),
+                  ..._drivers.map((d) {
+                    final id = (d as Map<String, dynamic>)['id']?.toString() ?? '';
+                    final name = (d['name'] ?? 'Driver').toString();
+                    return DropdownMenuItem<String>(
+                      value: id,
+                      child: Text(name, overflow: TextOverflow.ellipsis),
+                    );
+                  }),
+                ],
+                onChanged: (val) {
+                  setState(() => _contactDriverFilter = val);
+                  _refreshContactStats();
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildFilterChip(String value, String label) {
+    final selected = _contactPeriod == value;
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => _ContactAnalyticsPage(contactStats: _contactStats ?? {}),
+      onTap: () {
+        setState(() => _contactPeriod = value);
+        _refreshContactStats();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? _advancedColor : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : Colors.grey.shade700,
+          ),
         ),
       ),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _advancedColor.withValues(alpha: 0.15)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
+    );
+  }
+
+  // ── Grand total bar for calls ─────────────────────────────────────────────
+
+  Widget _buildContactTotalBar() {
+    final periodData = _contactStats?[_contactPeriod] as Map<String, dynamic>? ?? {};
+    final calls = periodData['calls'] ?? 0;
+    final wa = periodData['whatsapp'] ?? 0;
+    final grandTotal = _contactStats?['grand_total'] as Map<String, dynamic>? ?? {};
+    final grandCalls = grandTotal['calls'] ?? 0;
+    final grandWa = grandTotal['whatsapp'] ?? 0;
+
+    final periodLabel = _contactPeriod == 'today'
+        ? 'Today'
+        : _contactPeriod == 'week'
+            ? 'Last 7 days'
+            : 'Last 30 days';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A237E), Color(0xFF283593)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _advancedBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.analytics_rounded, color: _advancedColor, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Contact Analytics',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _advancedBg,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: _advancedColor.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      periodLabel,
+                      style: const TextStyle(color: Colors.white60, fontSize: 11),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone_rounded, size: 14, color: Colors.greenAccent),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$calls',
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        child: const Text(
-                          'Pro',
-                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _advancedColor),
+                        const SizedBox(width: 14),
+                        const Icon(Icons.chat_rounded, size: 14, color: Color(0xFF25D366)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$wa',
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    total > 0
-                        ? '$total contacts this month (${monthCalls} calls, ${monthWa} WhatsApp)'
-                        : 'Track passenger contacts to your drivers',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-          ],
-        ),
+              Container(
+                width: 1,
+                height: 36,
+                color: Colors.white24,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Grand Total',
+                      style: TextStyle(color: Colors.white60, fontSize: 11),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.phone_rounded, size: 14, color: Colors.greenAccent),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$grandCalls',
+                          style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 14),
+                        const Icon(Icons.chat_rounded, size: 14, color: Color(0xFF25D366)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$grandWa',
+                          style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -757,18 +945,37 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
 
   // ── Driver Card with Contact Stats ─────────────────────────────────────────
 
+  Map<String, dynamic>? _getDriverContactData(String driverId) {
+    final drivers = _contactStats?['drivers'] as List<dynamic>? ?? [];
+    for (final d in drivers) {
+      if (d is Map<String, dynamic> && d['id']?.toString() == driverId) {
+        return d;
+      }
+    }
+    return null;
+  }
+
   Widget _buildDriverCard(Map<String, dynamic> driver) {
     final name = (driver['name'] ?? '').toString();
     final vehicleNumber = (driver['vehicle_number'] ?? '').toString();
     final phone = (driver['phone'] ?? '').toString();
     final whatsapp = (driver['whatsapp_number'] ?? '').toString();
     final initial = name.isNotEmpty ? name[0].toUpperCase() : 'D';
+    final driverId = driver['id']?.toString() ?? '';
+
+    final contactData = _getDriverContactData(driverId);
+    final driverCalls = contactData?['calls'] ?? 0;
+    final driverWa = contactData?['whatsapp_clicks'] ?? 0;
+    final totalContacts = (driverCalls as int) + (driverWa as int);
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: totalContacts > 0
+            ? Border.all(color: _advancedColor.withValues(alpha: 0.15))
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -856,6 +1063,64 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   ],
                 ),
             ],
+          ),
+          // Call stats row
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: totalContacts > 0
+                  ? _advancedBg.withValues(alpha: 0.5)
+                  : Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.analytics_rounded,
+                  size: 14,
+                  color: totalContacts > 0 ? _advancedColor : Colors.grey.shade400,
+                ),
+                const SizedBox(width: 6),
+                Icon(Icons.phone_rounded, size: 13, color: Colors.green.shade600),
+                const SizedBox(width: 3),
+                Text(
+                  '$driverCalls',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: driverCalls > 0 ? Colors.green.shade700 : Colors.grey.shade500,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                const Icon(Icons.chat_rounded, size: 13, color: Color(0xFF25D366)),
+                const SizedBox(width: 3),
+                Text(
+                  '$driverWa',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: driverWa > 0 ? const Color(0xFF25D366) : Colors.grey.shade500,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: totalContacts > 0 ? _advancedColor.withValues(alpha: 0.1) : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Total: $totalContacts',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: totalContacts > 0 ? _advancedColor : Colors.grey.shade500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1388,229 +1653,3 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   }
 }
 
-// ── Contact Analytics Detail Page ──────────────────────────────────────────────
-
-class _ContactAnalyticsPage extends StatefulWidget {
-  final Map<String, dynamic> contactStats;
-  const _ContactAnalyticsPage({required this.contactStats});
-
-  @override
-  State<_ContactAnalyticsPage> createState() => _ContactAnalyticsPageState();
-}
-
-class _ContactAnalyticsPageState extends State<_ContactAnalyticsPage> {
-  static const _blue = Color(0xFF0D47A1);
-  static const _blueBg = Color(0xFFE3F2FD);
-
-  String _period = 'month';
-
-  Map<String, dynamic> get _periodData {
-    final data = widget.contactStats[_period] as Map<String, dynamic>? ?? {};
-    return data;
-  }
-
-  List<dynamic> get _drivers =>
-      widget.contactStats['drivers'] as List<dynamic>? ?? [];
-
-  @override
-  Widget build(BuildContext context) {
-    final calls = _periodData['calls'] ?? 0;
-    final whatsapp = _periodData['whatsapp'] ?? 0;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text('Contact Analytics'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        scrolledUnderElevation: 1,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Period selector
-          _buildPeriodSelector(),
-          const SizedBox(height: 16),
-
-          // Summary row
-          Row(
-            children: [
-              Expanded(child: _buildStatBox('Calls', calls, Icons.phone_rounded, Colors.green)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatBox('WhatsApp', whatsapp, Icons.chat_rounded, const Color(0xFF25D366))),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Per-driver breakdown header
-          Text(
-            'Per Driver (Last 30 days)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade700,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Drivers list
-          if (_drivers.isEmpty)
-            _buildEmptyState()
-          else
-            ..._drivers.map((d) => _buildDriverRow(d)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPeriodSelector() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          _buildPeriodChip('today', 'Today'),
-          _buildPeriodChip('week', '7 Days'),
-          _buildPeriodChip('month', '30 Days'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPeriodChip(String value, String label) {
-    final selected = _period == value;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _period = value),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? _blue : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : Colors.grey.shade600,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatBox(String label, int count, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(height: 8),
-          Text(
-            '$count',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDriverRow(dynamic driver) {
-    final name = driver['name'] ?? 'Unknown';
-    final calls = driver['calls'] ?? 0;
-    final wa = driver['whatsapp_clicks'] ?? 0;
-    final total = (calls as int) + (wa as int);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade100),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: total > 0 ? _blueBg : Colors.grey.shade100,
-            child: Text(
-              name.isNotEmpty ? name[0].toUpperCase() : '?',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: total > 0 ? _blue : Colors.grey,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          _buildMiniStat(Icons.phone_rounded, calls, Colors.green),
-          const SizedBox(width: 12),
-          _buildMiniStat(Icons.chat_rounded, wa, const Color(0xFF25D366)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniStat(IconData icon, int count, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: color.withValues(alpha: 0.7)),
-        const SizedBox(width: 3),
-        Text(
-          '$count',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: count > 0 ? color : Colors.grey.shade400,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      alignment: Alignment.center,
-      child: Column(
-        children: [
-          Icon(Icons.people_outline_rounded, size: 40, color: Colors.grey.shade300),
-          const SizedBox(height: 12),
-          Text(
-            'No contact data yet',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'When passengers tap call or WhatsApp on your rides, stats appear here.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade400),
-          ),
-        ],
-      ),
-    );
-  }
-}
