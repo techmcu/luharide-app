@@ -20,25 +20,27 @@ class FirebaseAuthService {
 
   FirebaseAuthService(this._apiService);
 
+  static const _webClientId = '698013485373-fkd9oupqd5srtgrnle155t4h4elkvc9o.apps.googleusercontent.com';
+
   /// Google Sign-In: one-tap login, creates account if new
   Future<Map<String, dynamic>> signInWithGoogle({String role = 'passenger'}) async {
     try {
       final googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.initialize();
+      await googleSignIn.initialize(serverClientId: _webClientId);
 
       final GoogleSignInAccount account = await googleSignIn.authenticate();
       final idToken = account.authentication.idToken;
 
-      if (idToken == null || idToken.isEmpty) {
-        throw Exception('Failed to get Google ID token');
-      }
-
-      // Use Google credential to sign in with Firebase
+      // Sign in with Firebase using Google credential
       final credential = fb.GoogleAuthProvider.credential(idToken: idToken);
       final userCredential = await _firebaseAuth.signInWithCredential(credential);
       final firebaseIdToken = await userCredential.user?.getIdToken();
 
       final tokenToSend = firebaseIdToken ?? idToken;
+
+      if (tokenToSend == null || tokenToSend.isEmpty) {
+        throw Exception('Failed to get authentication token');
+      }
 
       // Send token to our backend
       final response = await _apiService.post(
