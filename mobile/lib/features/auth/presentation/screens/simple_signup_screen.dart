@@ -344,11 +344,15 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
         SizedBox(
           width: double.infinity,
           height: 56,
-          child: OutlinedButton.icon(
+          child: ElevatedButton.icon(
             onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-            style: OutlinedButton.styleFrom(
+            style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              side: BorderSide(color: Colors.grey[300]!),
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black87,
+              elevation: 2,
+              shadowColor: Colors.black26,
+              side: BorderSide(color: Colors.grey.shade200),
             ),
             icon: _isGoogleLoading
                 ? const SizedBox(
@@ -356,15 +360,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Image.network(
-                    'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
-                    height: 24,
-                    width: 24,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 28),
-                  ),
+                : const Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF4285F4))),
             label: const Text(
               'Continue with Google',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
             ),
           ),
         ),
