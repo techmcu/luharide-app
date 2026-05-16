@@ -29,18 +29,18 @@ class FirebaseAuthService {
       await googleSignIn.initialize(serverClientId: _webClientId);
 
       final GoogleSignInAccount account = await googleSignIn.authenticate();
-      final idToken = account.authentication.idToken;
+      final googleIdToken = account.authentication.idToken;
 
-      // Sign in with Firebase using Google credential
-      final credential = fb.GoogleAuthProvider.credential(idToken: idToken);
-      final userCredential = await _firebaseAuth.signInWithCredential(credential);
-      final firebaseIdToken = await userCredential.user?.getIdToken();
-
-      final tokenToSend = firebaseIdToken ?? idToken;
-
-      if (tokenToSend == null || tokenToSend.isEmpty) {
-        throw Exception('Failed to get authentication token');
+      if (googleIdToken == null || googleIdToken.isEmpty) {
+        throw Exception('Failed to get Google ID token');
       }
+
+      // Sign in with Firebase (for local state tracking)
+      final credential = fb.GoogleAuthProvider.credential(idToken: googleIdToken);
+      await _firebaseAuth.signInWithCredential(credential);
+
+      // Send the GOOGLE ID token to backend (not Firebase token)
+      final tokenToSend = googleIdToken;
 
       // Send token to our backend
       final response = await _apiService.post(
