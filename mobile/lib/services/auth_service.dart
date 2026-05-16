@@ -10,7 +10,8 @@ import 'api_service.dart';
 
 class AuthService {
   final ApiService _apiService;
-  
+  ApiService get apiService => _apiService;
+
   AuthService(this._apiService);
 
   // Storage keys - minimal, no extra keys

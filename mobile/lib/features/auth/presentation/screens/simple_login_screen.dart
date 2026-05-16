@@ -25,6 +25,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final SimpleLoginViewModel _viewModel = SimpleLoginViewModel();
+  bool _isGoogleLoading = false;
 
   @override
   void dispose() {
@@ -32,6 +33,30 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _signInWithGoogle() async {
+    if (_isGoogleLoading || _viewModel.isLoading) return;
+
+    setState(() => _isGoogleLoading = true);
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _isGoogleLoading = false);
+
+    if (success) {
+      if (navigatorKey.currentState != null) {
+        navigatorKey.currentState!.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
+    } else {
+      final err = authProvider.error ?? 'Google sign-in failed';
+      if (!err.contains('cancelled')) {
+        AppFeedback.show(context, err, kind: AppFeedbackKind.error);
+      }
+    }
   }
 
   Future<void> _login() async {
@@ -265,6 +290,45 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                                   letterSpacing: 0.3,
                                 ),
                               ),
+                      ),
+                    ),
+                    SizedBox(height: spacing * 0.75),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text('OR', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                    SizedBox(height: spacing * 0.75),
+                    SizedBox(
+                      height: 52,
+                      child: OutlinedButton.icon(
+                        onPressed: _isGoogleLoading ? null : _signInWithGoogle,
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          backgroundColor: Colors.white,
+                        ),
+                        icon: _isGoogleLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : Image.network(
+                                'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                                height: 22,
+                                width: 22,
+                                errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 28),
+                              ),
+                        label: const Text(
+                          'Continue with Google',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+                        ),
                       ),
                     ),
                     SizedBox(height: spacing),

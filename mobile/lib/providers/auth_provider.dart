@@ -5,6 +5,7 @@ import '../core/utils/api_error_messages.dart';
 import '../core/utils/auth_headers_sync.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/firebase_auth_service.dart';
 import '../services/realtime_socket_service.dart';
 import '../services/review_cache_store.dart';
 import '../services/review_service.dart';
@@ -19,8 +20,10 @@ enum AuthStatus {
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
+  late final FirebaseAuthService _firebaseAuthService;
 
   AuthProvider(this._authService) {
+    _firebaseAuthService = FirebaseAuthService(_authService.apiService);
     _checkAuthStatus();
   }
 
@@ -194,12 +197,89 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Google Sign-In (one-tap)
+  Future<bool> signInWithGoogle({String role = 'passenger'}) async {
+    try {
+      _setLoading(true);
+      _error = null;
+
+      final result = await _firebaseAuthService.signInWithGoogle(role: role);
+
+      _user = result['user'] as UserModel;
+      _status = AuthStatus.authenticated;
+      await RealtimeSocketService.instance.connect();
+      unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+      final uid = _user?.id;
+      if (uid != null && uid.isNotEmpty) {
+        unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
+      }
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _error = userFacingAuthError(e);
+      _setLoading(false);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Firebase Email Link: send sign-in link
+  Future<bool> sendEmailLink(String email) async {
+    try {
+      _setLoading(true);
+      _error = null;
+      await _firebaseAuthService.sendSignInLink(email: email);
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _error = userFacingAuthError(e);
+      _setLoading(false);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Firebase Email Link: verify and sign in
+  Future<bool> verifyEmailLink({
+    required String emailLink,
+    String? name,
+    String role = 'passenger',
+  }) async {
+    try {
+      _setLoading(true);
+      _error = null;
+
+      final result = await _firebaseAuthService.verifyEmailLink(
+        emailLink: emailLink,
+        name: name,
+        role: role,
+      );
+
+      _user = result['user'] as UserModel;
+      _status = AuthStatus.authenticated;
+      await RealtimeSocketService.instance.connect();
+      unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+      final uid = _user?.id;
+      if (uid != null && uid.isNotEmpty) {
+        unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
+      }
+      _setLoading(false);
+      return true;
+    } catch (e) {
+      _error = userFacingAuthError(e);
+      _setLoading(false);
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Logout user
   Future<void> logout() async {
     try {
       _setLoading(true);
       final uid = _user?.id;
       await RealtimeSocketService.instance.disconnect();
+      await _firebaseAuthService.signOut();
       await _authService.logout();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       if (uid != null && uid.isNotEmpty) {

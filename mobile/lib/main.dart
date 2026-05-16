@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -40,6 +41,7 @@ void main() async {
     return true;
   };
 
+  await Firebase.initializeApp();
   await EnvConfig.init();
 
   // Single instance for app lifecycle (stable, no recreate on rebuild)

@@ -10,6 +10,10 @@ const {
   requestPasswordReset,
   resetPassword
 } = require('../controllers/simpleAuthController');
+const {
+  googleSignIn,
+  firebaseEmailSignIn
+} = require('../controllers/firebaseAuthController');
 
 const { validate } = require('../middleware/validation');
 const { authenticate } = require('../middleware/auth');
@@ -121,5 +125,19 @@ router.post(
   validate(resetPasswordSchema),
   resetPassword
 );
+
+/**
+ * @route   POST /api/simple-auth/google
+ * @desc    Google Sign-In (one-tap / button)
+ * @access  Public
+ */
+router.post('/google', simpleAuthLoginLimiter, googleSignIn);
+
+/**
+ * @route   POST /api/simple-auth/firebase-email
+ * @desc    Firebase Email Link passwordless sign-in
+ * @access  Public
+ */
+router.post('/firebase-email', simpleAuthLoginLimiter, firebaseEmailSignIn);
 
 module.exports = router;

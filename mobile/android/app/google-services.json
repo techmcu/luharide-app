@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "698013485373",
+    "project_id": "luharide-app",
+    "storage_bucket": "luharide-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:698013485373:android:beff9fbf80a4cd106c9d54",
+        "android_client_info": {
+          "package_name": "cloud.luharide.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "698013485373-lb6ndrscsg8e6g0q5m0na1dvqgsq0t8t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "cloud.luharide.app",
+            "certificate_hash": "01433d1ba85effc709df599b66d88001af8504e7"
+          }
+        },
+        {
+          "client_id": "698013485373-tdjt6bbr9dffcrdbuflnbumc0bjkba7o.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "cloud.luharide.app",
+            "certificate_hash": "cf4cd5e2f2d7f9b8423b112b39f47d679ae15c5a"
+          }
+        },
+        {
+          "client_id": "698013485373-fkd9oupqd5srtgrnle155t4h4elkvc9o.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBz8tV23bXtq5uYGKrN2b6sSiyujzOFhLo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "698013485373-fkd9oupqd5srtgrnle155t4h4elkvc9o.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

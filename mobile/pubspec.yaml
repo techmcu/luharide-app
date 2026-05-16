@@ -58,6 +58,9 @@ dependencies:
   # Authentication
   pinput: ^3.0.1
   pdfx: ^2.9.2
+  firebase_core: ^4.9.0
+  firebase_auth: ^6.5.1
+  google_sign_in: ^7.2.0
   
 dev_dependencies:
   flutter_test:
