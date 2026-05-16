@@ -348,11 +348,11 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
             onPressed: _isGoogleLoading ? null : _signInWithGoogle,
             style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black87,
-              elevation: 2,
-              shadowColor: Colors.black26,
-              side: BorderSide(color: Colors.grey.shade200),
+              backgroundColor: const Color(0xFFE8F5E9),
+              foregroundColor: const Color(0xFF2E7D32),
+              elevation: 1,
+              shadowColor: Colors.green.withValues(alpha: 0.3),
+              side: const BorderSide(color: Color(0xFFA5D6A7)),
             ),
             icon: _isGoogleLoading
                 ? const SizedBox(
@@ -363,7 +363,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                 : const Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF4285F4))),
             label: const Text(
               'Continue with Google',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
             ),
           ),
         ),
