@@ -64,15 +64,21 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   void _onToFocusChange() {
     if (_toFocusNode.hasFocus) {
-      Future.delayed(const Duration(milliseconds: 350), () {
+      Future.delayed(const Duration(milliseconds: 300), () {
         if (!mounted || !_toFocusNode.hasFocus) return;
+        if (!_scrollController.hasClients) return;
         final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
-        final scrollTarget = keyboardHeight > 0 ? 180.0 : 160.0;
-        _scrollController.animateTo(
-          scrollTarget,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-        );
+        if (keyboardHeight > 0) {
+          final target = (_scrollController.offset + 60).clamp(
+            0.0,
+            _scrollController.position.maxScrollExtent,
+          );
+          _scrollController.animateTo(
+            target,
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+          );
+        }
       });
     } else {
       _toAutoDismiss?.cancel();
@@ -83,16 +89,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   }
 
   void _onFromFocusChange() {
-    if (_fromFocusNode.hasFocus) {
-      Future.delayed(const Duration(milliseconds: 350), () {
-        if (!mounted || !_fromFocusNode.hasFocus) return;
-        _scrollController.animateTo(
-          100.0,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-        );
-      });
-    } else {
+    if (!_fromFocusNode.hasFocus) {
       _fromAutoDismiss?.cancel();
       if (_fromSuggestions.isNotEmpty) {
         setState(() => _fromSuggestions = []);
@@ -389,219 +386,159 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               ),
             ),
 
-            // Search Box - smooth, flexible, non-technical friendly
+            // Search Box - BlaBlaCar style: full width, clean, outer border
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Card(
-                elevation: 3,
-                shadowColor: Colors.black.withValues(alpha: 0.12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[300]!, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
-                  child: Column(
-                    children: [
-                      // From + To with visual route connector
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Route dots connector
-                          Padding(
-                            padding: const EdgeInsets.only(top: 14, left: 2, right: 10),
-                            child: Column(
-                              children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: Colors.green[400],
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.green[700]!, width: 2),
-                                  ),
-                                ),
-                                Container(
-                                  width: 2,
-                                  height: 50,
-                                  margin: const EdgeInsets.symmetric(vertical: 4),
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [Colors.green[300]!, Colors.red[300]!],
-                                    ),
-                                    borderRadius: BorderRadius.circular(1),
-                                  ),
-                                ),
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: Colors.red[400],
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.red[700]!, width: 2),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          // From and To fields
-                          Expanded(
-                            child: Column(
-                              children: [
-                                // From field
-                                _buildLocationField(
-                                  controller: _fromController,
-                                  focusNode: _fromFocusNode,
-                                  label: t.t('ride.from.label'),
-                                  hint: t.t('ride.from.placeholder'),
-                                  onChanged: _onFromChanged,
-                                  onSubmitted: (_) => _toFocusNode.requestFocus(),
-                                  textInputAction: TextInputAction.next,
-                                ),
-                                const SizedBox(height: 12),
-                                // To field
-                                _buildLocationField(
-                                  controller: _toController,
-                                  focusNode: _toFocusNode,
-                                  label: t.t('ride.to.label'),
-                                  hint: t.t('ride.to.placeholder'),
-                                  onChanged: _onToChanged,
-                                  onSubmitted: (_) {
-                                    _toFocusNode.unfocus();
-                                    _searchTrips();
-                                  },
-                                  textInputAction: TextInputAction.search,
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Swap button
-                          Padding(
-                            padding: const EdgeInsets.only(top: 24, left: 6),
-                            child: InkWell(
-                              onTap: _swapLocations,
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[100],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(Icons.swap_vert_rounded, size: 22, color: Colors.grey[600]),
+                child: Column(
+                  children: [
+                    // From field
+                    _buildSearchField(
+                      controller: _fromController,
+                      focusNode: _fromFocusNode,
+                      icon: Icons.circle,
+                      iconColor: Colors.green[600]!,
+                      iconSize: 12,
+                      hint: t.t('ride.from.placeholder'),
+                      label: t.t('ride.from.label'),
+                      onChanged: _onFromChanged,
+                      onSubmitted: (_) => _toFocusNode.requestFocus(),
+                      textInputAction: TextInputAction.next,
+                      isTop: true,
+                    ),
+                    // From suggestions
+                    _buildSuggestionsList(
+                      suggestions: _fromSuggestions,
+                      hasFocus: _fromFocusNode.hasFocus,
+                      onTap: (s) {
+                        _fromController.text = s;
+                        _fromController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: s.length),
+                        );
+                        _fromAutoDismiss?.cancel();
+                        setState(() => _fromSuggestions = []);
+                        _toFocusNode.requestFocus();
+                      },
+                    ),
+                    // Divider between From and To
+                    Divider(height: 1, thickness: 1, color: Colors.grey[200], indent: 44, endIndent: 16),
+                    // To field
+                    _buildSearchField(
+                      controller: _toController,
+                      focusNode: _toFocusNode,
+                      icon: Icons.location_on_rounded,
+                      iconColor: Colors.red[500]!,
+                      iconSize: 20,
+                      hint: t.t('ride.to.placeholder'),
+                      label: t.t('ride.to.label'),
+                      onChanged: _onToChanged,
+                      onSubmitted: (_) {
+                        _toFocusNode.unfocus();
+                        _searchTrips();
+                      },
+                      textInputAction: TextInputAction.search,
+                      isTop: false,
+                    ),
+                    // To suggestions
+                    _buildSuggestionsList(
+                      suggestions: _toSuggestions,
+                      hasFocus: _toFocusNode.hasFocus,
+                      onTap: (s) {
+                        _toController.text = s;
+                        _toController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: s.length),
+                        );
+                        _toAutoDismiss?.cancel();
+                        setState(() => _toSuggestions = []);
+                        _toFocusNode.unfocus();
+                      },
+                    ),
+                    // Divider before date
+                    Divider(height: 1, thickness: 1, color: Colors.grey[200], indent: 44, endIndent: 16),
+                    // Date Selector
+                    InkWell(
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 30)),
+                        );
+                        if (date != null) {
+                          setState(() => _selectedDate = date);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 18),
+                            const SizedBox(width: 12),
+                            Text(
+                              DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[800],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-
-                      // From suggestions (animated)
-                      _buildSuggestionsList(
-                        suggestions: _fromSuggestions,
-                        hasFocus: _fromFocusNode.hasFocus,
-                        onTap: (s) {
-                          _fromController.text = s;
-                          _fromController.selection = TextSelection.fromPosition(
-                            TextPosition(offset: s.length),
-                          );
-                          _fromAutoDismiss?.cancel();
-                          setState(() => _fromSuggestions = []);
-                          _toFocusNode.requestFocus();
-                        },
-                      ),
-
-                      // To suggestions (animated)
-                      _buildSuggestionsList(
-                        suggestions: _toSuggestions,
-                        hasFocus: _toFocusNode.hasFocus,
-                        onTap: (s) {
-                          _toController.text = s;
-                          _toController.selection = TextSelection.fromPosition(
-                            TextPosition(offset: s.length),
-                          );
-                          _toAutoDismiss?.cancel();
-                          setState(() => _toSuggestions = []);
-                          _toFocusNode.unfocus();
-                        },
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      // Date Selector
-                      InkWell(
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 30)),
-                          );
-                          if (date != null) {
-                            setState(() => _selectedDate = date);
-                          }
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[50],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.calendar_today_rounded, color: Colors.blue[700], size: 20),
-                              const SizedBox(width: 10),
-                              Text(
-                                DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.blue[800],
-                                ),
-                              ),
-                              const Spacer(),
-                              Icon(Icons.arrow_drop_down_rounded, color: Colors.blue[700]),
-                            ],
-                          ),
+                            const Spacer(),
+                            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[500], size: 22),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Search Button
-                      SizedBox(
+                    ),
+                    // Divider before search button
+                    Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+                    // Search Button
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: SizedBox(
                         width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
+                        height: 48,
+                        child: ElevatedButton(
                           onPressed: _isSearching ? null : _searchTrips,
-                          icon: _isSearching
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0066FF),
+                            disabledBackgroundColor: Colors.blue[300],
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isSearching
                               ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
+                                  width: 22,
+                                  height: 22,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
-                                    strokeWidth: 2,
+                                    strokeWidth: 2.5,
                                   ),
                                 )
-                              : const Icon(Icons.search_rounded),
-                          label: Text(
-                            _isSearching ? 'Searching...' : 'Search Trips',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[600],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 2,
-                          ),
+                              : const Text(
+                                  'Search',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -718,68 +655,50 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
-  void _swapLocations() {
-    final from = _fromController.text;
-    final to = _toController.text;
-    setState(() {
-      _fromController.text = to;
-      _toController.text = from;
-      _fromSuggestions = [];
-      _toSuggestions = [];
-    });
-  }
-
-  Widget _buildLocationField({
+  Widget _buildSearchField({
     required TextEditingController controller,
     required FocusNode focusNode,
-    required String label,
+    required IconData icon,
+    required Color iconColor,
+    required double iconSize,
     required String hint,
+    required String label,
     required ValueChanged<String> onChanged,
     required ValueChanged<String> onSubmitted,
     required TextInputAction textInputAction,
+    required bool isTop,
   }) {
-    final isFocused = focusNode.hasFocus;
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isFocused ? Colors.blue[400]! : Colors.grey[300]!,
-          width: isFocused ? 1.5 : 1.0,
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      textCapitalization: TextCapitalization.words,
+      textInputAction: textInputAction,
+      onChanged: onChanged,
+      onSubmitted: onSubmitted,
+      onTap: () => setState(() {}),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15, fontWeight: FontWeight.w400),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 16, right: 12),
+          child: Icon(icon, color: iconColor, size: iconSize),
         ),
-        color: isFocused ? Colors.blue[50]?.withValues(alpha: 0.3) : Colors.grey[50],
-      ),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textCapitalization: TextCapitalization.words,
-        textInputAction: textInputAction,
-        onChanged: onChanged,
-        onSubmitted: onSubmitted,
-        onTap: () => setState(() {}),
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w400),
-          labelStyle: TextStyle(
-            color: isFocused ? Colors.blue[600] : Colors.grey[600],
-            fontWeight: FontWeight.w500,
-          ),
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          suffixIcon: controller.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(Icons.close_rounded, size: 18, color: Colors.grey[500]),
-                  onPressed: () {
-                    controller.clear();
-                    onChanged('');
-                    setState(() {});
-                  },
-                )
-              : null,
-        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 44),
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                icon: Icon(Icons.close_rounded, size: 18, color: Colors.grey[400]),
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                  setState(() {});
+                },
+              )
+            : null,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        contentPadding: const EdgeInsets.symmetric(vertical: 16),
       ),
     );
   }
@@ -796,44 +715,32 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       alignment: Alignment.topCenter,
       child: show
           ? Container(
-              margin: const EdgeInsets.only(top: 6, left: 24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              constraints: const BoxConstraints(maxHeight: 160),
-              clipBehavior: Clip.antiAlias,
+              color: Colors.grey[50],
+              constraints: const BoxConstraints(maxHeight: 150),
               child: ListView.separated(
                 shrinkWrap: true,
-                padding: const EdgeInsets.symmetric(vertical: 4),
+                padding: EdgeInsets.zero,
                 itemCount: suggestions.length,
-                separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200]),
+                separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200], indent: 44),
                 itemBuilder: (context, i) {
                   final s = suggestions[i];
                   return InkWell(
                     onTap: () => onTap(s),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(
                         children: [
-                          Icon(Icons.place_rounded, size: 18, color: Colors.grey[500]),
-                          const SizedBox(width: 10),
+                          Icon(Icons.history_rounded, size: 18, color: Colors.grey[400]),
+                          const SizedBox(width: 12),
                           Expanded(
                             child: Text(
                               s,
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                              style: TextStyle(fontSize: 15, color: Colors.grey[800]),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          Icon(Icons.north_west_rounded, size: 14, color: Colors.grey[400]),
+                          Icon(Icons.north_west_rounded, size: 14, color: Colors.grey[350]),
                         ],
                       ),
                     ),
