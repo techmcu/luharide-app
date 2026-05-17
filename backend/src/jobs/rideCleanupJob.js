@@ -124,6 +124,32 @@ async function runEveningMaintenance() {
   } catch (e) {
     logger.warn(`${label} refresh_tokens cleanup failed: ${e.message}`);
   }
+
+  // Notification & FCM token hygiene
+  try {
+    const notifDel = await pool.query(
+      `DELETE FROM notifications WHERE created_at < (NOW() - INTERVAL '12 hours')`
+    );
+    if (notifDel.rowCount > 0) logger.info(`${label} purged ${notifDel.rowCount} old notification(s)`);
+
+    const capDel = await pool.query(
+      `DELETE FROM notifications WHERE id IN (
+         SELECT n.id FROM notifications n
+         INNER JOIN (
+           SELECT user_id, (array_agg(id ORDER BY created_at DESC))[101:] AS old_ids
+           FROM notifications GROUP BY user_id HAVING count(*) > 100
+         ) excess ON n.id = ANY(excess.old_ids)
+       )`
+    );
+    if (capDel.rowCount > 0) logger.info(`${label} capped ${capDel.rowCount} notification(s) over 100/user`);
+
+    const fcmDel = await pool.query(
+      `DELETE FROM fcm_tokens WHERE updated_at < (NOW() - INTERVAL '30 days')`
+    );
+    if (fcmDel.rowCount > 0) logger.info(`${label} purged ${fcmDel.rowCount} stale FCM token(s)`);
+  } catch (e) {
+    logger.warn(`${label} notification/FCM cleanup failed: ${e.message}`);
+  }
 }
 
 async function runStartupTokenCleanupOnly() {

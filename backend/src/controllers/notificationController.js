@@ -9,12 +9,21 @@ const asyncHandler = require('../utils/asyncHandler');
 const getMyNotifications = asyncHandler(async (req, res) => {
   const userId = req.user.id;
 
-  // Keep table light: remove already-read notifications older than 24h.
+  // Cleanup: read >24h, unread >12h, keep max 100 per user
   await pool.query(
     `DELETE FROM notifications
      WHERE user_id = $1
-       AND is_read = TRUE
-       AND created_at < (NOW() - INTERVAL '24 hours')`,
+       AND (
+         (is_read = TRUE AND created_at < (NOW() - INTERVAL '24 hours'))
+         OR created_at < (NOW() - INTERVAL '12 hours')
+       )`,
+    [userId]
+  );
+  await pool.query(
+    `DELETE FROM notifications WHERE id IN (
+       SELECT id FROM notifications WHERE user_id = $1
+       ORDER BY created_at DESC OFFSET 100
+     )`,
     [userId]
   );
 

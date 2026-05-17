@@ -8,6 +8,8 @@ const { RATING, RATING_COMMENT_MAX_WORDS, ROLES } = require('../constants/valida
 const { REVIEWS_WINDOW_MAX } = require('../constants/pagination');
 const rideRatingsRepository = require('../repositories/rideRatingsRepository');
 const bookingRepository = require('../repositories/bookingRepository');
+const { pool } = require('../config/database');
+const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 
 function buildTripContext(booking) {
   const from = (booking.from_location || '').trim();
@@ -84,6 +86,21 @@ async function submitRating(bookingId, userId, { rating, comment }) {
     comment: safeComment,
     tripContext: buildTripContext(booking),
   });
+
+  try {
+    const roleLabel = fromRole === ROLES.PASSENGER ? 'passenger' : 'driver';
+    const n = await pool.query(
+      `INSERT INTO notifications (user_id, type, title, body, data)
+       VALUES ($1, 'review_received', 'New review received', $2, $3::jsonb)
+       RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+      [
+        ratedUserId,
+        `Your ${roleLabel} rated you ${rating} star${rating > 1 ? 's' : ''}.`,
+        JSON.stringify({ booking_id: bookingId, rating }),
+      ]
+    );
+    if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+  } catch (_) {}
 
   return { message: 'Rating submitted', rated_user_id: ratedUserId };
 }
