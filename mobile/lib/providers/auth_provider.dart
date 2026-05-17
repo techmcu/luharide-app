@@ -282,33 +282,26 @@ class AuthProvider with ChangeNotifier {
 
   /// Logout user
   Future<void> logout() async {
-    try {
-      _setLoading(true);
-      final uid = _user?.id;
-      await PushNotificationService.instance.unregisterToken();
-      await RealtimeSocketService.instance.disconnect();
-      await _firebaseAuthService.signOut();
-      await _authService.logout();
-      unawaited(AuthHeadersSync.refreshAuthHeadersCache());
-      if (uid != null && uid.isNotEmpty) {
-        await ReviewCacheStore.clearBundle(uid);
-        await SubmittedDocumentsService().clearCacheForUser(uid);
-      }
-      ReviewService.clearAllMemoryCache();
+    final uid = _user?.id;
 
-      _user = null;
-      _status = AuthStatus.unauthenticated;
-      _error = null;
-      
-      _setLoading(false);
-      notifyListeners(); // Notify UI to rebuild
-    } catch (e) {
-      _error = userFacingAuthError(e);
-      _user = null;
-      _status = AuthStatus.unauthenticated;
-      _setLoading(false);
-      notifyListeners();
+    _user = null;
+    _status = AuthStatus.unauthenticated;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authService.logout();
+    } catch (_) {}
+
+    unawaited(PushNotificationService.instance.unregisterToken());
+    unawaited(RealtimeSocketService.instance.disconnect());
+    unawaited(_firebaseAuthService.signOut().catchError((_) {}));
+    unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+    if (uid != null && uid.isNotEmpty) {
+      unawaited(ReviewCacheStore.clearBundle(uid));
+      unawaited(SubmittedDocumentsService().clearCacheForUser(uid));
     }
+    ReviewService.clearAllMemoryCache();
   }
 
   /// Update user profile
