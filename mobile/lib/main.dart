@@ -44,7 +44,9 @@ void main() async {
   };
 
   await Firebase.initializeApp();
-  await PushNotificationService.instance.initialize();
+  if (!kIsWeb) {
+    await PushNotificationService.instance.initialize();
+  }
   await EnvConfig.init();
 
   // Single instance for app lifecycle (stable, no recreate on rebuild)
