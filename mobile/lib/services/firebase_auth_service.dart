@@ -11,7 +11,7 @@ import 'api_service.dart';
 
 class FirebaseAuthService {
   final ApiService _apiService;
-  final fb.FirebaseAuth _firebaseAuth = fb.FirebaseAuth.instance;
+  fb.FirebaseAuth get _firebaseAuth => fb.FirebaseAuth.instance;
 
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';
