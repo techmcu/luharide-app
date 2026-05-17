@@ -435,8 +435,8 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
   const { segment, title, body } = req.body || {};
 
   if (!title || !body) throw ApiError.badRequest('title and body are required');
-  if (title.length > 200) throw ApiError.badRequest('Title must be under 200 characters');
-  if (body.length > 2000) throw ApiError.badRequest('Body must be under 2000 characters');
+  if (title.length > 50) throw ApiError.badRequest('Title max 50 characters (push notification me zyada nahi dikhta)');
+  if (body.length > 150) throw ApiError.badRequest('Body max 150 characters (push notification me zyada nahi dikhta)');
   const validSegments = ['all', 'passenger', 'drivers', 'union_admins'];
   if (!segment || !validSegments.includes(segment)) {
     throw ApiError.badRequest(`segment must be one of: ${validSegments.join(', ')}`);

@@ -206,41 +206,53 @@ const createBooking = asyncHandler(async (req, res) => {
 
     emitTripUpdated(trip_id, { bookingId: booking.id, status: bookingStatus, reason: 'booking_created' });
 
-    // Rate reminders: union/legacy = 4h after confirm. Independent driver trips = trip departure_time + 4h (after scheduled ride start).
     if (bookingStatus === 'confirmed') {
+      // Notify driver: a new booking was confirmed on their trip
+      try {
+        const dn = await pool.query(
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'booking_confirmed', 'New booking confirmed!', 'A passenger booked a seat on your ride.', $2::jsonb)
+           RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+          [trip.driver_id, JSON.stringify({ booking_id: booking.id, trip_id })]
+        );
+        if (dn.rows[0]) emitNotificationToUser(dn.rows[0].user_id, dn.rows[0]);
+      } catch (e) {
+        logger.warn('Booking confirmed notification failed:', e.message);
+      }
+
+      // Rate reminders: departure_time + 5h (independent) or NOW + 5h (union/legacy)
       try {
         const independent = trip.created_source === 'independent_driver' && trip.departure_time;
         if (independent) {
           await pool.query(
             `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-             VALUES ($1, $2, $3, $4::timestamp + INTERVAL '4 hours')`,
+             VALUES ($1, $2, $3, $4::timestamp + INTERVAL '5 hours')`,
             [booking.id, passengerId, trip.driver_id, trip.departure_time]
           );
         } else {
           await pool.query(
             `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-             VALUES ($1, $2, $3, NOW() + INTERVAL '4 hours')`,
+             VALUES ($1, $2, $3, NOW() + INTERVAL '5 hours')`,
             [booking.id, passengerId, trip.driver_id]
           );
         }
       } catch (err) {
-        if (err.code === '42P01') {
-          const dataJson = JSON.stringify({ booking_id: booking.id });
-          try {
-            const fb = await pool.query(
-              `INSERT INTO notifications (user_id, type, title, body, data)
-               VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. Rate your driver.', $2::jsonb),
-                      ($3, 'rate_ride', 'Rate your passenger', 'A passenger booked your ride. Rate them after the trip.', $2::jsonb)
-               RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-              [passengerId, dataJson, trip.driver_id]
-            );
-            for (const row of fb.rows) emitNotificationToUser(row.user_id, row);
-          } catch (e) {
-            logger.warn('Fallback rate notifications failed:', e.message);
-          }
-        } else {
+        if (err.code !== '42P01') {
           logger.warn('Pending rate notification insert failed:', err.message);
         }
+      }
+    } else if (bookingStatus === 'pending') {
+      // Notify driver: new booking request needs approval
+      try {
+        const dn = await pool.query(
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'booking_pending', 'New booking request!', 'A passenger wants to book a seat. Tap to approve or reject.', $2::jsonb)
+           RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+          [trip.driver_id, JSON.stringify({ booking_id: booking.id, trip_id })]
+        );
+        if (dn.rows[0]) emitNotificationToUser(dn.rows[0].user_id, dn.rows[0]);
+      } catch (e) {
+        logger.warn('Booking pending notification failed:', e.message);
       }
     }
 
@@ -378,38 +390,37 @@ const respondToBooking = asyncHandler(async (req, res) => {
     }
   }
 
-  // Independent driver trips: rate reminder at scheduled departure + 4h. Union/legacy: 3 min after accept.
+  // Notify passenger: booking accepted
+  try {
+    const pn = await pool.query(
+      `INSERT INTO notifications (user_id, type, title, body, data)
+       VALUES ($1, 'booking_accepted', 'Booking accepted!', 'Your booking has been approved by the driver. Have a safe ride!', $2::jsonb)
+       RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+      [booking.passenger_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id })]
+    );
+    if (pn.rows[0]) emitNotificationToUser(pn.rows[0].user_id, pn.rows[0]);
+  } catch (e) {
+    logger.warn('Booking accepted notification failed:', e.message);
+  }
+
+  // Rate reminders: departure_time + 5h (independent) or NOW + 5h (union/legacy)
   try {
     const independent = booking.created_source === 'independent_driver' && booking.departure_time;
     if (independent) {
       await pool.query(
         `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-         VALUES ($1, $2, $3, $4::timestamp + INTERVAL '4 hours')`,
+         VALUES ($1, $2, $3, $4::timestamp + INTERVAL '5 hours')`,
         [bookingId, booking.passenger_id, booking.driver_id, booking.departure_time]
       );
     } else {
       await pool.query(
         `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-         VALUES ($1, $2, $3, NOW() + INTERVAL '3 minutes')`,
+         VALUES ($1, $2, $3, NOW() + INTERVAL '5 hours')`,
         [bookingId, booking.passenger_id, booking.driver_id]
       );
     }
   } catch (err) {
-    if (err.code === '42P01') {
-      const dataJson = JSON.stringify({ booking_id: bookingId });
-      try {
-        const fb = await pool.query(
-          `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'rate_ride', 'Rate your driver', 'Your ride was confirmed. You can rate 4 min after confirm.', $2::jsonb),
-                  ($3, 'rate_ride', 'Rate your passenger', 'You accepted a booking. You can rate 4 min after confirm.', $2::jsonb)
-           RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-          [booking.passenger_id, dataJson, booking.driver_id]
-        );
-        for (const row of fb.rows) emitNotificationToUser(row.user_id, row);
-      } catch (e) {
-        logger.warn('Fallback rate notifications failed:', e.message);
-      }
-    } else {
+    if (err.code !== '42P01') {
       logger.warn('Pending rate notification insert failed:', err.message);
     }
   }
