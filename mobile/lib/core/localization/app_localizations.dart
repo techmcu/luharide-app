@@ -254,6 +254,16 @@ class AppLocalizations {
       'hi':
           'प्रोफ़ाइल में ड्राइवर खंड से दस्तावेज़ जमा करें। एडमिन की मंज़ूरी के बाद आप राइड बना सकते हैं।',
     },
+    'help.faq.google_password.q': {
+      'en': 'How do I set a password if I signed in with Google?',
+      'hi': 'अगर मैंने Google से साइन इन किया है तो पासवर्ड कैसे सेट करूँ?',
+    },
+    'help.faq.google_password.a': {
+      'en':
+          'If you signed in with Google and want to set a password:\n\n1. Logout from the app\n2. Go to the Login screen\n3. Tap "Forgot Password"\n4. Enter your email address\n5. You will receive an OTP on your email\n6. Enter the OTP and set your new password\n\nAfter this, you can login with both Google and your password.',
+      'hi':
+          'अगर आपने Google से साइन इन किया है और पासवर्ड सेट करना चाहते हैं:\n\n1. ऐप से लॉगआउट करें\n2. लॉगिन स्क्रीन पर जाएँ\n3. "Forgot Password" पर टैप करें\n4. अपना ईमेल डालें\n5. आपके ईमेल पर OTP आएगा\n6. OTP डालें और नया पासवर्ड सेट करें\n\nइसके बाद, आप Google और पासवर्ड दोनों से लॉगिन कर सकते हैं।',
+    },
     'help.safety.title': {
       'en': 'Safety tips',
       'hi': 'सुरक्षा सुझाव',

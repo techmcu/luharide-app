@@ -58,6 +58,15 @@ class HelpScreen extends StatelessWidget {
               ),
             ],
           ),
+          ExpansionTile(
+            title: Text(loc.t('help.faq.google_password.q')),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(loc.t('help.faq.google_password.a')),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
           Text(
             loc.t('help.safety.title'),

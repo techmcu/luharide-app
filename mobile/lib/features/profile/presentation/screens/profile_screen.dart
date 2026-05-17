@@ -15,7 +15,6 @@ import '../../../trips/presentation/screens/create_trip_screen.dart';
 import 'edit_profile_screen.dart';
 import 'ratings_screen.dart';
 import 'driver_verification_form_screen.dart';
-import 'change_password_screen.dart';
 import 'help_screen.dart';
 import 'terms_screen.dart';
 import 'union_registration_screen.dart';
@@ -416,18 +415,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const EditProfileScreen()),
-              );
-            },
-          ),
-          _buildMenuItem(
-            context,
-            icon: Icons.lock_outline,
-            title: loc.t('profile.change_password.title'),
-            subtitle: loc.t('profile.change_password.subtitle'),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
               );
             },
           ),
