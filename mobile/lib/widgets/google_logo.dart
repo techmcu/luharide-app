@@ -25,43 +25,40 @@ class _GoogleLogoPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double s = size.width;
     final center = Offset(s / 2, s / 2);
-    final radius = s * 0.45;
-    final strokeWidth = s * 0.2;
+    final outerR = s * 0.48;
+    final innerR = s * 0.24;
 
-    final rect = Rect.fromCircle(center: center, radius: radius);
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.butt;
+    final path = Path();
 
-    // Draw arcs (angles in radians, 0 = 3 o'clock, clockwise)
-    // Blue: top-right (from -45deg to +45deg)
-    paint.color = _blue;
-    canvas.drawArc(rect, -pi / 4, pi / 2, false, paint);
+    // Blue: right side, 0° down to 90°
+    _addArcSegment(path, center, innerR, outerR, 0, pi / 2, _blue, canvas);
+    // Green: 90° to 180°
+    _addArcSegment(path, center, innerR, outerR, pi / 2, pi / 2, _green, canvas);
+    // Yellow: 180° to 270°
+    _addArcSegment(path, center, innerR, outerR, pi, pi / 2, _yellow, canvas);
+    // Red: 270° to 345° (75° sweep — leaves 15° gap at upper-right)
+    _addArcSegment(path, center, innerR, outerR, 3 * pi / 2, 5 * pi / 12, _red, canvas);
 
-    // Green: bottom-right (from +45deg to +135deg)
-    paint.color = _green;
-    canvas.drawArc(rect, pi / 4, pi / 2, false, paint);
-
-    // Yellow: bottom-left (from +135deg to +225deg)
-    paint.color = _yellow;
-    canvas.drawArc(rect, 3 * pi / 4, pi / 2, false, paint);
-
-    // Red: top-left (from +225deg to +315deg = -45deg)
-    paint.color = _red;
-    canvas.drawArc(rect, 5 * pi / 4, pi / 2, false, paint);
-
-    // Horizontal bar of the "G" (blue)
-    final barPaint = Paint()
-      ..color = _blue
-      ..style = PaintingStyle.fill;
-    final barHeight = strokeWidth * 0.75;
-    final barLeft = center.dx;
-    final barTop = center.dy - barHeight / 2;
+    // Blue horizontal bar from center to right edge
+    final barTop = center.dy - (outerR - innerR) / 2;
+    final barBottom = center.dy + (outerR - innerR) / 2;
     canvas.drawRect(
-      Rect.fromLTWH(barLeft, barTop, radius + strokeWidth / 2, barHeight),
-      barPaint,
+      Rect.fromLTRB(center.dx, barTop, center.dx + outerR, barBottom),
+      Paint()..color = _blue,
     );
+  }
+
+  void _addArcSegment(Path path, Offset center, double innerR, double outerR,
+      double startAngle, double sweepAngle, Color color, Canvas canvas) {
+    final outerRect = Rect.fromCircle(center: center, radius: outerR);
+    final innerRect = Rect.fromCircle(center: center, radius: innerR);
+
+    final segPath = Path()
+      ..arcTo(outerRect, startAngle, sweepAngle, true)
+      ..arcTo(innerRect, startAngle + sweepAngle, -sweepAngle, false)
+      ..close();
+
+    canvas.drawPath(segPath, Paint()..color = color);
   }
 
   @override
