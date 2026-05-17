@@ -1,6 +1,7 @@
 /**
- * Trip / schedule retention & search visibility. Env overrides optional.
- * Ratings (ride_ratings) are never deleted by cleanup — only trip/booking rows.
+ * Retention & storage limits for all entities.
+ * Keeps VPS clean — every table has a cap or TTL.
+ * Env overrides optional.
  */
 
 function intEnv(name, fallback, min, max) {
@@ -10,38 +11,27 @@ function intEnv(name, fallback, min, max) {
 }
 
 module.exports = {
-  /**
-   * Per-ride: hide from search when NOW() is past that row's departure_time + N minutes.
-   * (Not a fixed clock time like "10am" — every trip uses its own scheduled departure.)
-   * Example: dep 10:00 with N=1 → hidden from 10:01 onward. Default N=15 is lenient for late bookers.
-   */
-  tripSearchGraceMinutesAfterDeparture: intEnv(
-    'TRIP_SEARCH_GRACE_MINUTES_AFTER_DEPARTURE',
-    0,
-    0,
-    180
-  ),
+  // --- Trips ---
+  tripSearchGraceMinutesAfterDeparture: intEnv('TRIP_SEARCH_GRACE_MINUTES_AFTER_DEPARTURE', 0, 0, 180),
+  tripRetentionDaysIndependent: intEnv('TRIP_RETENTION_DAYS_INDEPENDENT', 7, 1, 90),
+  tripRetentionDaysUnion: intEnv('TRIP_RETENTION_DAYS_UNION', 15, 1, 90),
+  tripHistoryMaxPerDriver: intEnv('TRIP_HISTORY_MAX_PER_DRIVER', 100, 10, 500),
+  tripAutoCompleteAfterDepartureHours: intEnv('TRIP_AUTO_COMPLETE_AFTER_DEPARTURE_HOURS', 1, 0, 48),
 
-  /** Purge completed/cancelled trips for independent / legacy drivers (not union_admin). */
-  tripRetentionDaysIndependent: intEnv('TRIP_RETENTION_DAYS_INDEPENDENT', 10, 1, 365),
+  // --- Union schedules ---
+  unionScheduleRetentionDays: intEnv('UNION_SCHEDULE_RETENTION_DAYS', 15, 1, 90),
+  unionScheduleMaxPerUnion: intEnv('UNION_SCHEDULE_MAX_PER_UNION', 100, 10, 500),
 
-  /** Purge completed/cancelled trips created by union flow. */
-  tripRetentionDaysUnion: intEnv('TRIP_RETENTION_DAYS_UNION', 20, 1, 730),
+  // --- Notifications (user) ---
+  notificationReadRetentionHours: 12,
+  notificationUnreadRetentionHours: 24,
 
-  /** Max completed/cancelled trip rows kept per driver (FIFO by newest departure). */
-  tripHistoryMaxPerDriver: intEnv('TRIP_HISTORY_MAX_PER_DRIVER', 200, 10, 5000),
+  // --- FCM tokens ---
+  fcmTokenRetentionDays: 30,
 
-  /** Past union_schedules rows older than this are eligible for delete. */
-  unionScheduleRetentionDays: intEnv('UNION_SCHEDULE_RETENTION_DAYS', 20, 1, 730),
+  // --- Reviews ---
+  reviewsMaxPerUser: intEnv('REVIEWS_MAX_PER_USER', 500, 50, 5000),
 
-  /** Max past union_schedules rows per union (newest kept). */
-  unionScheduleMaxPerUnion: intEnv('UNION_SCHEDULE_MAX_PER_UNION', 200, 10, 5000),
-
-  /** Mark scheduled → completed when departure is older than this (evening job). */
-  tripAutoCompleteAfterDepartureHours: intEnv(
-    'TRIP_AUTO_COMPLETE_AFTER_DEPARTURE_HOURS',
-    1,
-    0,
-    48
-  ),
+  // --- Admin broadcasts (permanent, display capped) ---
+  broadcastDisplayLimit: 10,
 };

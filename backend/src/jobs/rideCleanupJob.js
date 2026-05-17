@@ -125,30 +125,32 @@ async function runEveningMaintenance() {
     logger.warn(`${label} refresh_tokens cleanup failed: ${e.message}`);
   }
 
-  // Notification & FCM token hygiene
+  // Notification, FCM token, review hygiene
   try {
     const notifDel = await pool.query(
-      `DELETE FROM notifications WHERE created_at < (NOW() - INTERVAL '12 hours')`
+      `DELETE FROM notifications
+       WHERE (is_read = TRUE AND created_at < (NOW() - INTERVAL '${rc.notificationReadRetentionHours} hours'))
+          OR created_at < (NOW() - INTERVAL '${rc.notificationUnreadRetentionHours} hours')`
     );
-    if (notifDel.rowCount > 0) logger.info(`${label} purged ${notifDel.rowCount} old notification(s)`);
-
-    const capDel = await pool.query(
-      `DELETE FROM notifications WHERE id IN (
-         SELECT n.id FROM notifications n
-         INNER JOIN (
-           SELECT user_id, (array_agg(id ORDER BY created_at DESC))[101:] AS old_ids
-           FROM notifications GROUP BY user_id HAVING count(*) > 100
-         ) excess ON n.id = ANY(excess.old_ids)
-       )`
-    );
-    if (capDel.rowCount > 0) logger.info(`${label} capped ${capDel.rowCount} notification(s) over 100/user`);
+    if (notifDel.rowCount > 0) logger.info(`${label} purged ${notifDel.rowCount} expired notification(s)`);
 
     const fcmDel = await pool.query(
-      `DELETE FROM fcm_tokens WHERE updated_at < (NOW() - INTERVAL '30 days')`
+      `DELETE FROM fcm_tokens WHERE updated_at < (NOW() - INTERVAL '${rc.fcmTokenRetentionDays} days')`
     );
     if (fcmDel.rowCount > 0) logger.info(`${label} purged ${fcmDel.rowCount} stale FCM token(s)`);
+
+    const revDel = await pool.query(
+      `DELETE FROM ride_ratings WHERE id IN (
+         SELECT r.id FROM ride_ratings r
+         INNER JOIN (
+           SELECT rated_user_id, (array_agg(id ORDER BY created_at DESC))[${rc.reviewsMaxPerUser + 1}:] AS old_ids
+           FROM ride_ratings GROUP BY rated_user_id HAVING count(*) > ${rc.reviewsMaxPerUser}
+         ) excess ON r.id = ANY(excess.old_ids)
+       )`
+    );
+    if (revDel.rowCount > 0) logger.info(`${label} capped ${revDel.rowCount} review(s) over ${rc.reviewsMaxPerUser}/user`);
   } catch (e) {
-    logger.warn(`${label} notification/FCM cleanup failed: ${e.message}`);
+    logger.warn(`${label} notification/FCM/review cleanup failed: ${e.message}`);
   }
 }
 

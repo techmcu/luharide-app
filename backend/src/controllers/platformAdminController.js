@@ -487,7 +487,7 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
 const getBroadcastHistory = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const limit = Math.min(10, Math.max(1, parseInt(req.query.limit, 10) || 10));
   const offset = (page - 1) * limit;
 
   const countRes = await queryRead('SELECT COUNT(*)::int AS total FROM broadcasts');
