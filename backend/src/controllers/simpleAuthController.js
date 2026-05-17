@@ -31,13 +31,12 @@ const signup = asyncHandler(async (req, res) => {
   // Hash password
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Create user (phone VARCHAR(15) UNIQUE - use placeholder for email-only signup)
-  const phonePlaceholder = `E${Date.now().toString().slice(-14)}`;
+  // Create user — phone left NULL, user can add from profile
   const result = await pool.query(
-    `INSERT INTO users (name, email, password_hash, role, is_verified, is_active, phone)
-     VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
+    `INSERT INTO users (name, email, password_hash, role, is_verified, is_active)
+     VALUES ($1, $2, $3, $4, TRUE, TRUE)
      RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, driver_code, created_at`,
-    [name, emailNorm, passwordHash, effectiveRole, phonePlaceholder]
+    [name, emailNorm, passwordHash, effectiveRole]
   );
 
   const user = result.rows[0];

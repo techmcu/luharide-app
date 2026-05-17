@@ -114,14 +114,14 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     if (!name || name.length < 2) {
       throw ApiError.badRequest('Name is required for registration (min 2 characters)');
     }
-    const phonePlaceholder = byPhone ? value : `E${Date.now().toString().slice(-14)}`;
+    const phoneVal = byPhone ? value : null;
     const emailVal = byPhone ? null : value;
     const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, 10) : null;
     const insertResult = await pool.query(
       `INSERT INTO users (name, phone, email, role, is_verified, is_active, password_hash)
        VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
        RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, created_at`,
-      [name.trim(), phonePlaceholder, emailVal, effectiveRole, passwordHash]
+      [name.trim(), phoneVal, emailVal, effectiveRole, passwordHash]
     );
     user = insertResult.rows[0];
     isNewUser = true;

@@ -5,6 +5,8 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '698013485373-fkd9oupqd5srtgrnle155t4h4elkvc9o.apps.googleusercontent.com';
+
 /**
  * Google / Firebase Sign-In
  * POST /api/simple-auth/google
@@ -37,6 +39,12 @@ const googleSignIn = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Google account has no email');
   }
 
+  // Verify aud (audience) matches our app's client ID
+  if (payload.aud !== GOOGLE_CLIENT_ID) {
+    logger.warn(`Google sign-in: aud mismatch. Expected ${GOOGLE_CLIENT_ID}, got ${payload.aud}`);
+    throw ApiError.unauthorized('Invalid Google token: audience mismatch');
+  }
+
   if (payload.email_verified !== 'true' && payload.email_verified !== true) {
     throw ApiError.badRequest('Google email not verified');
   }
@@ -67,15 +75,14 @@ const googleSignIn = asyncHandler(async (req, res) => {
       [googleId, user.id]
     );
   } else {
-    // Create new user
+    // Create new user — phone left NULL, user can add from profile
     isNewUser = true;
-    const phonePlaceholder = `G${Date.now().toString().slice(-14)}`;
 
     const result = await pool.query(
-      `INSERT INTO users (name, email, google_id, role, is_verified, is_active, phone)
-       VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
+      `INSERT INTO users (name, email, google_id, role, is_verified, is_active)
+       VALUES ($1, $2, $3, $4, TRUE, TRUE)
        RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, driver_code, created_at`,
-      [name, email, googleId, effectiveRole, phonePlaceholder]
+      [name, email, googleId, effectiveRole]
     );
 
     user = result.rows[0];
@@ -181,13 +188,12 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
     );
   } else {
     isNewUser = true;
-    const phonePlaceholder = `F${Date.now().toString().slice(-14)}`;
 
     const result = await pool.query(
-      `INSERT INTO users (name, email, firebase_uid, role, is_verified, is_active, phone)
-       VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
+      `INSERT INTO users (name, email, firebase_uid, role, is_verified, is_active)
+       VALUES ($1, $2, $3, $4, TRUE, TRUE)
        RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, driver_code, created_at`,
-      [displayName, email, firebaseUid, effectiveRole, phonePlaceholder]
+      [displayName, email, firebaseUid, effectiveRole]
     );
 
     user = result.rows[0];
