@@ -7,7 +7,8 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/realtime_socket_service.dart';
-import '../services/push_notification_service.dart';
+import '../services/push_notification_service.dart'
+    if (dart.library.html) '../services/push_notification_service_web.dart';
 import '../services/review_cache_store.dart';
 import '../services/review_service.dart';
 import '../services/submitted_documents_service.dart';

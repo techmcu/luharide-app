@@ -13,7 +13,8 @@ import 'providers/auth_provider.dart';
 import 'providers/app_language_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
-import 'services/push_notification_service.dart';
+import 'services/push_notification_service.dart'
+    if (dart.library.html) 'services/push_notification_service_web.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/landing/presentation/screens/landing_screen.dart';
 
