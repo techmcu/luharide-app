@@ -300,6 +300,7 @@ app.use(apiProxy(CORE_URL, '/api/drivers', 'core'));
 app.use(apiProxy(CORE_URL, '/api/driver-verification', 'core'));
 
 const server = http.createServer(app);
+server.setMaxListeners(25);
 // Same origin rules as REST (CORS_ALLOWED_ORIGINS / CLIENT_URL + localhost dev).
 const io = socketIo(server, {
   cors: {
