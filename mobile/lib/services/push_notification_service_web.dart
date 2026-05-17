@@ -1,5 +1,3 @@
-import 'api_service.dart';
-
 class PushNotificationService {
   PushNotificationService._();
   static final PushNotificationService instance = PushNotificationService._();
