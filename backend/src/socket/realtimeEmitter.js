@@ -27,15 +27,18 @@ function emitTripUpdated(tripId, extra = {}) {
  * @param {object} notification - shape similar to API row (id, type, title, body, data, is_read, created_at)
  */
 function emitNotificationToUser(userId, notification) {
+  if (!userId) return;
+
+  if (notification && notification.title) {
+    sendPushToUser(userId, notification.title, notification.body || '').catch(() => {});
+  }
+
   const io = getIo();
-  if (!io || !userId) return;
+  if (!io) return;
   try {
     io.to(`user:${userId}`).emit('notification:new', { notification });
   } catch (e) {
     logger.warn('emitNotificationToUser failed:', e.message);
-  }
-  if (notification && notification.title) {
-    sendPushToUser(userId, notification.title, notification.body || '').catch(() => {});
   }
 }
 
