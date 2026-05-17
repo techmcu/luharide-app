@@ -277,11 +277,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         }
       },
       child: Scaffold(
+      backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
         centerTitle: false,
         title: const BrandAppBarTitleAppName(),
         elevation: 0,
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF8F9FB),
         foregroundColor: Colors.grey[800],
         actions: [
           if (showCreateRideAction)
@@ -386,6 +387,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               ),
             ),
 
+            // Search Box heading
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Text(
+                'Where are you going?',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[700],
+                ),
+              ),
+            ),
             // Search Box
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -393,23 +406,23 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.grey[200]!, width: 1.2),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.15), width: 1.4),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.withValues(alpha: 0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
+                      color: Colors.blue.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
                     ),
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 6,
-                      offset: const Offset(0, 1),
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     // From field
                     _buildSearchField(
                       controller: _fromController,
@@ -437,11 +450,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         setState(() => _fromSuggestions = []);
                         _toFocusNode.requestFocus();
                       },
-                    ),
-                    // Subtle separator
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Divider(height: 1, thickness: 0.8, color: Colors.grey[150]),
                     ),
                     // To field
                     _buildSearchField(
@@ -474,48 +482,51 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         _toFocusNode.unfocus();
                       },
                     ),
-                    // Subtle separator
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Divider(height: 1, thickness: 0.8, color: Colors.grey[150]),
-                    ),
                     // Date Selector
-                    InkWell(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now().add(const Duration(days: 30)),
-                        );
-                        if (date != null) {
-                          setState(() => _selectedDate = date);
-                        }
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(8),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDate,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(const Duration(days: 30)),
+                          );
+                          if (date != null) {
+                            setState(() => _selectedDate = date);
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue[50],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 16),
                               ),
-                              child: Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 16),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey[800],
+                              const SizedBox(width: 12),
+                              Text(
+                                DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[800],
+                                ),
                               ),
-                            ),
-                            const Spacer(),
-                            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400], size: 22),
-                          ],
+                              const Spacer(),
+                              Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400], size: 22),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -695,41 +706,53 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     required TextInputAction textInputAction,
     required bool isTop,
   }) {
-    return TextField(
-      controller: controller,
-      focusNode: focusNode,
-      textCapitalization: TextCapitalization.words,
-      textInputAction: textInputAction,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      onTap: () => setState(() {}),
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[350], fontSize: 14.5, fontWeight: FontWeight.w400),
-        prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 14, right: 10),
-          child: Icon(icon, color: iconColor, size: iconSize),
+    final hasFocus = focusNode.hasFocus;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: hasFocus ? Colors.blue[50] : Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasFocus ? Colors.blue.withValues(alpha: 0.3) : Colors.transparent,
+          width: 1.2,
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 42),
-        suffixIcon: controller.text.isNotEmpty
-            ? GestureDetector(
-                onTap: () {
-                  controller.clear();
-                  onChanged('');
-                  setState(() {});
-                },
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Icon(Icons.close_rounded, size: 16, color: Colors.grey[350]),
-                ),
-              )
-            : null,
-        suffixIconConstraints: const BoxConstraints(minWidth: 36),
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: textInputAction,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        onTap: () => setState(() {}),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14.5, fontWeight: FontWeight.w400),
+          prefixIcon: Padding(
+            padding: const EdgeInsets.only(left: 14, right: 10),
+            child: Icon(icon, color: iconColor, size: iconSize),
+          ),
+          prefixIconConstraints: const BoxConstraints(minWidth: 42),
+          suffixIcon: controller.text.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    controller.clear();
+                    onChanged('');
+                    setState(() {});
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: Icon(Icons.close_rounded, size: 16, color: Colors.grey[400]),
+                  ),
+                )
+              : null,
+          suffixIconConstraints: const BoxConstraints(minWidth: 36),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
       ),
     );
   }
