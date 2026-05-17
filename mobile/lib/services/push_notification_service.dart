@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -10,6 +9,18 @@ import 'api_service.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('FCM background message: ${message.messageId}');
+}
+
+String _detectPlatform() {
+  if (kIsWeb) return 'web';
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return 'android';
+    case TargetPlatform.iOS:
+      return 'ios';
+    default:
+      return 'unknown';
+  }
 }
 
 class PushNotificationService {
@@ -91,7 +102,7 @@ class PushNotificationService {
   }
 
   Future<void> registerToken() async {
-    if (_currentToken == null) return;
+    if (kIsWeb || _currentToken == null) return;
     await _registerTokenWithBackend(_currentToken!);
   }
 
@@ -101,7 +112,7 @@ class PushNotificationService {
         '/notifications/fcm-token',
         data: {
           'token': token,
-          'platform': Platform.isAndroid ? 'android' : 'ios',
+          'platform': _detectPlatform(),
         },
       );
     } catch (e) {
@@ -110,7 +121,7 @@ class PushNotificationService {
   }
 
   Future<void> unregisterToken() async {
-    if (_currentToken == null) return;
+    if (kIsWeb || _currentToken == null) return;
     try {
       await ApiService().delete(
         '/notifications/fcm-token',
