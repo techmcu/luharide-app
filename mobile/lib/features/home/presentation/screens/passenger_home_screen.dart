@@ -256,7 +256,27 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final showCreateRideAction =
         (user?.role ?? '').toString().toLowerCase() != 'union_admin';
 
-    return Scaffold(
+    return PopScope(
+      canPop: _fromController.text.isEmpty && _toController.text.isEmpty,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_toController.text.isNotEmpty) {
+          _toController.clear();
+          setState(() {
+            _toSuggestions = [];
+            _hasSearched = false;
+            _searchResults = [];
+            _unionSearchResults = const [];
+          });
+          return;
+        }
+        if (_fromController.text.isNotEmpty) {
+          _fromController.clear();
+          setState(() => _fromSuggestions = []);
+          return;
+        }
+      },
+      child: Scaffold(
       appBar: AppBar(
         centerTitle: false,
         title: const BrandAppBarTitleAppName(),
@@ -352,34 +372,14 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   ),
                   const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _displayName(user?.name),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[800],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        // Rating reminder is handled by backend job (pending_rate_notifications + notifications table).
-                        Row(
-                          children: [
-                            Icon(Icons.star_outline_rounded, color: Colors.grey[500], size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Complete rides to get rated',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    child: Text(
+                      _displayName(user?.name),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[800],
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -678,6 +678,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         ),
       ),
       bottomNavigationBar: _buildFooter(context),
+    ),
     );
   }
 
