@@ -12,7 +12,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 String _detectPlatform() {
-  if (kIsWeb) return 'web';
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       return 'android';
@@ -27,9 +26,8 @@ class PushNotificationService {
   PushNotificationService._();
   static final PushNotificationService instance = PushNotificationService._();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
-      FlutterLocalNotificationsPlugin();
+  FirebaseMessaging? _messaging;
+  FlutterLocalNotificationsPlugin? _localNotifications;
 
   bool _initialized = false;
   String? _currentToken;
@@ -40,9 +38,12 @@ class PushNotificationService {
     if (_initialized || kIsWeb) return;
     _initialized = true;
 
+    _messaging = FirebaseMessaging.instance;
+    _localNotifications = FlutterLocalNotificationsPlugin();
+
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    final settings = await _messaging.requestPermission(
+    final settings = await _messaging!.requestPermission(
       alert: true,
       badge: true,
       sound: true,
@@ -59,23 +60,23 @@ class PushNotificationService {
       importance: Importance.high,
     );
 
-    await _localNotifications
+    await _localNotifications!
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(androidChannel);
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const darwinInit = DarwinInitializationSettings();
-    await _localNotifications.initialize(
+    await _localNotifications!.initialize(
       const InitializationSettings(android: androidInit, iOS: darwinInit),
     );
 
     FirebaseMessaging.onMessage.listen(_showForegroundNotification);
 
-    _currentToken = await _messaging.getToken();
+    _currentToken = await _messaging!.getToken();
     debugPrint('FCM token: $_currentToken');
 
-    _messaging.onTokenRefresh.listen((newToken) {
+    _messaging!.onTokenRefresh.listen((newToken) {
       _currentToken = newToken;
       _registerTokenWithBackend(newToken);
     });
@@ -83,9 +84,9 @@ class PushNotificationService {
 
   void _showForegroundNotification(RemoteMessage message) {
     final notification = message.notification;
-    if (notification == null) return;
+    if (notification == null || _localNotifications == null) return;
 
-    _localNotifications.show(
+    _localNotifications!.show(
       notification.hashCode,
       notification.title,
       notification.body,
