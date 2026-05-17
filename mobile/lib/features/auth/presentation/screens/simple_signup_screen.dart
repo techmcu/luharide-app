@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -330,6 +331,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                 : const Text('Send OTP', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           ),
         ),
+        if (!kIsWeb) ...[
         const SizedBox(height: 20),
         Row(
           children: [
@@ -367,6 +369,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
             ),
           ),
         ),
+        ],
         const SizedBox(height: 24),
         Center(
           child: TextButton(

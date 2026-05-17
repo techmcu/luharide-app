@@ -293,6 +293,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                               ),
                       ),
                     ),
+                    if (!kIsWeb) ...[
                     SizedBox(height: spacing * 0.75),
                     Row(
                       children: [
@@ -329,6 +330,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         ),
                       ),
                     ),
+                    ],
                     SizedBox(height: spacing),
                     Center(
                       child: TextButton(
