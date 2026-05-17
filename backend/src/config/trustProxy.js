@@ -34,6 +34,7 @@ function trustProxyExpressValue() {
 
 /**
  * Apply trust proxy to an Express app. Safe to call on gateway, monolith, and each microservice.
+ * Logs the result so misconfiguration is immediately visible at startup.
  * @returns {{ applied: boolean, hops: number|false|null }}
  */
 function applyTrustProxy(app) {
@@ -43,6 +44,16 @@ function applyTrustProxy(app) {
   }
   app.set('trust proxy', val);
   return { applied: true, hops: val };
+}
+
+/**
+ * One-line summary for startup logs. Call after applyTrustProxy().
+ */
+function trustProxyStatus() {
+  const p = parseTrustProxy();
+  if (p === null) return 'TRUST_PROXY not set (rate limits keyed to proxy IP — all users share one bucket behind nginx)';
+  if (p === 0) return 'TRUST_PROXY=0 (explicitly disabled)';
+  return `TRUST_PROXY=${p} (rate limits use real client IP via X-Forwarded-For)`;
 }
 
 /** User explicitly disabled (TRUST_PROXY=0|false|…) */
@@ -67,6 +78,7 @@ module.exports = {
   parseTrustProxy,
   trustProxyExpressValue,
   applyTrustProxy,
+  trustProxyStatus,
   isTrustProxyExplicitlyDisabled,
   isTrustProxyEnabled,
   shouldWarnTrustProxyUnsetInProduction,

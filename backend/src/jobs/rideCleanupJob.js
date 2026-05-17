@@ -1,18 +1,16 @@
 /**
- * Ride / union schedule retention — single evening batch (~midnight IST = 18:30 UTC).
+ * Evening batch maintenance (~midnight IST = 18:30 UTC).
  *
+ * - Every table with data growth has retention or FIFO cap here.
  * - Passenger search hides past departures immediately (tripController + retentionConfig grace).
- * - This job: auto-complete stale scheduled trips, purge old completed/cancelled trips,
- *   trim per-driver FIFO cap, union_schedules age + FIFO cap.
  * - ride_ratings are NOT deleted (booking_id SET NULL via migration); trust/reviews kept forever.
- *
- * Startup: refresh_tokens cleanup only (no trip purge) to avoid load on every deploy.
+ * - Startup: refresh_tokens cleanup only (no heavy purge on every deploy).
  */
 
 const cron = require('node-cron');
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
-const retentionConfig = require('../config/retentionConfig');
+const rc = require('../config/retentionConfig');
 const {
   withPgAdvisoryTryLock,
   JOB_NS,
@@ -20,24 +18,23 @@ const {
 } = require('./pgAdvisoryTryLock');
 const { cleanupExpiredTokens } = require('../services/tokenService');
 
+function logPurge(label, name, count) {
+  if (count > 0) logger.info(`${label} purged ${count} ${name}`);
+}
+
 async function runEveningMaintenance() {
-  const label = '[RideCleanup]';
-  const rc = retentionConfig;
-  let unionAge = 0;
-  let unionFifo = 0;
-  let tripsCompleted = 0;
-  let tripsAge = 0;
-  let tripsFifo = 0;
+  const label = '[Cleanup]';
 
   try {
     const ran = await withPgAdvisoryTryLock(pool, JOB_NS, JOB_RIDE_CLEANUP, async (client) => {
+
+      // ── Union schedules: age + FIFO ──
       const u1 = await client.query(
         `DELETE FROM union_schedules
-         WHERE departure_time < NOW() - ($1::int * INTERVAL '1 day')
-         RETURNING id`,
+         WHERE departure_time < NOW() - ($1::int * INTERVAL '1 day')`,
         [rc.unionScheduleRetentionDays]
       );
-      unionAge = u1.rowCount;
+      logPurge(label, 'union_schedules (age)', u1.rowCount);
 
       const u2 = await client.query(
         `WITH past AS (
@@ -46,25 +43,22 @@ async function runEveningMaintenance() {
            FROM union_schedules
            WHERE departure_time < NOW()
          )
-         DELETE FROM union_schedules s
-         USING past p
-         WHERE s.id = p.id AND p.rn > $1
-         RETURNING s.id`,
+         DELETE FROM union_schedules s USING past p
+         WHERE s.id = p.id AND p.rn > $1`,
         [rc.unionScheduleMaxPerUnion]
       );
-      unionFifo = u2.rowCount;
+      logPurge(label, 'union_schedules (fifo)', u2.rowCount);
 
-      const completeH = rc.tripAutoCompleteAfterDepartureHours;
-      const td = await client.query(
-        `UPDATE trips
-         SET status = 'completed', updated_at = NOW()
+      // ── Trips: auto-complete stale scheduled ──
+      const tc = await client.query(
+        `UPDATE trips SET status = 'completed', updated_at = NOW()
          WHERE status = 'scheduled'
-           AND departure_time < NOW() - ($1::int * INTERVAL '1 hour')
-         RETURNING id`,
-        [completeH]
+           AND departure_time < NOW() - ($1::int * INTERVAL '1 hour')`,
+        [rc.tripAutoCompleteAfterDepartureHours]
       );
-      tripsCompleted = td.rowCount;
+      logPurge(label, 'trips auto-completed', tc.rowCount);
 
+      // ── Trips: age-based purge (completed/cancelled only) ──
       const tp = await client.query(
         `DELETE FROM trips t
          WHERE t.status IN ('completed', 'cancelled')
@@ -73,12 +67,12 @@ async function runEveningMaintenance() {
                AND t.departure_time < NOW() - ($1::int * INTERVAL '1 day'))
              OR (t.created_source = 'union_admin'
                AND t.departure_time < NOW() - ($2::int * INTERVAL '1 day'))
-           )
-         RETURNING t.id`,
+           )`,
         [rc.tripRetentionDaysIndependent, rc.tripRetentionDaysUnion]
       );
-      tripsAge = tp.rowCount;
+      logPurge(label, 'trips (age)', tp.rowCount);
 
+      // ── Trips: FIFO per driver ──
       const tf = await client.query(
         `WITH ranked AS (
            SELECT id,
@@ -86,32 +80,139 @@ async function runEveningMaintenance() {
                PARTITION BY driver_id
                ORDER BY departure_time DESC NULLS LAST, created_at DESC NULLS LAST
              ) AS rn
-           FROM trips
-           WHERE status IN ('completed', 'cancelled')
+           FROM trips WHERE status IN ('completed', 'cancelled')
          )
-         DELETE FROM trips t
-         USING ranked r
-         WHERE t.id = r.id AND r.rn > $1
-         RETURNING t.id`,
+         DELETE FROM trips t USING ranked r
+         WHERE t.id = r.id AND r.rn > $1`,
         [rc.tripHistoryMaxPerDriver]
       );
-      tripsFifo = tf.rowCount;
+      logPurge(label, 'trips (fifo)', tf.rowCount);
+
+      // ── Login history: age ──
+      const lh = await client.query(
+        `DELETE FROM login_history
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.loginHistoryRetentionDays]
+      );
+      logPurge(label, 'login_history', lh.rowCount);
+
+      // ── Location history (GPS): age ──
+      const loc = await client.query(
+        `DELETE FROM location_history
+         WHERE recorded_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.locationHistoryRetentionDays]
+      );
+      logPurge(label, 'location_history', loc.rowCount);
+
+      // ── SOS logs: age ──
+      const sos = await client.query(
+        `DELETE FROM sos_logs
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.sosLogRetentionDays]
+      );
+      logPurge(label, 'sos_logs', sos.rowCount);
+
+      // ── Recent routes: FIFO per user ──
+      const rr = await client.query(
+        `WITH ranked AS (
+           SELECT id, user_id,
+             ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) AS rn
+           FROM recent_routes
+         )
+         DELETE FROM recent_routes USING ranked r
+         WHERE recent_routes.id = r.id AND r.rn > $1`,
+        [rc.recentRoutesMaxPerUser]
+      );
+      logPurge(label, 'recent_routes (fifo)', rr.rowCount);
+
+      // ── Pending rate notifications: stale ──
+      const prn = await client.query(
+        `DELETE FROM pending_rate_notifications
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 hour')`,
+        [rc.pendingRateNotificationRetentionHours]
+      );
+      logPurge(label, 'pending_rate_notifications', prn.rowCount);
+
+      // ── Contact logs: age ──
+      const cl = await client.query(
+        `DELETE FROM contact_logs
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.contactLogRetentionDays]
+      );
+      logPurge(label, 'contact_logs', cl.rowCount);
+
+      // ── Payments: age ──
+      const pay = await client.query(
+        `DELETE FROM payments
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.paymentRetentionDays]
+      );
+      logPurge(label, 'payments', pay.rowCount);
+
+      // ── Complaints: resolved + old ──
+      const cmp = await client.query(
+        `DELETE FROM complaints
+         WHERE status = 'resolved'
+           AND COALESCE(resolved_at, created_at) < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.complaintResolvedRetentionDays]
+      );
+      logPurge(label, 'complaints (resolved)', cmp.rowCount);
+
+      // ── Driver verification requests: completed/rejected + old ──
+      const dvr = await client.query(
+        `DELETE FROM driver_verification_requests
+         WHERE status IN ('approved', 'rejected')
+           AND updated_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.driverVerificationCompletedRetentionDays]
+      );
+      logPurge(label, 'driver_verification_requests', dvr.rowCount);
+
+      // ── Driver documents (legacy): age ──
+      const dd = await client.query(
+        `DELETE FROM driver_documents
+         WHERE uploaded_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.driverDocumentRetentionDays]
+      );
+      logPurge(label, 'driver_documents (legacy)', dd.rowCount);
+
+      // ── Reviews (legacy table): age ──
+      const rev = await client.query(
+        `DELETE FROM reviews
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.legacyReviewRetentionDays]
+      );
+      logPurge(label, 'reviews (legacy)', rev.rowCount);
+
+      // ── Broadcasts: FIFO cap ──
+      const br = await client.query(
+        `WITH ranked AS (
+           SELECT id, ROW_NUMBER() OVER (ORDER BY created_at DESC) AS rn
+           FROM broadcasts
+         )
+         DELETE FROM broadcasts USING ranked r
+         WHERE broadcasts.id = r.id AND r.rn > $1`,
+        [rc.broadcastMaxTotal]
+      );
+      logPurge(label, 'broadcasts (fifo)', br.rowCount);
+
+      // ── Ride ratings: FIFO per user ──
+      const rat = await client.query(
+        `DELETE FROM ride_ratings WHERE id IN (
+           SELECT r.id FROM ride_ratings r
+           INNER JOIN (
+             SELECT rated_user_id,
+               (array_agg(id ORDER BY created_at DESC))[${rc.reviewsMaxPerUser + 1}:] AS old_ids
+             FROM ride_ratings GROUP BY rated_user_id HAVING count(*) > ${rc.reviewsMaxPerUser}
+           ) excess ON r.id = ANY(excess.old_ids)
+         )`
+      );
+      logPurge(label, 'ride_ratings (fifo)', rat.rowCount);
     });
 
     if (ran === false) {
-      logger.debug(`${label} skipped — another instance holds cleanup lock`);
+      logger.debug(`${label} skipped — another instance holds lock`);
     } else {
-      const parts = [];
-      if (unionAge > 0) parts.push(`union_schedules age ${unionAge}`);
-      if (unionFifo > 0) parts.push(`union_schedules fifo ${unionFifo}`);
-      if (tripsCompleted > 0) parts.push(`auto-completed ${tripsCompleted} trip(s)`);
-      if (tripsAge > 0) parts.push(`purged ${tripsAge} trip(s) by retention`);
-      if (tripsFifo > 0) parts.push(`fifo-trimmed ${tripsFifo} trip(s)`);
-      if (parts.length > 0) {
-        logger.info(`${label} ${parts.join(', ')}`);
-      } else {
-        logger.info(`${label} Nothing to clean up`);
-      }
+      logger.info(`${label} evening maintenance complete`);
     }
   } catch (err) {
     if (err.code !== '42P01') {
@@ -119,38 +220,28 @@ async function runEveningMaintenance() {
     }
   }
 
+  // ── Refresh tokens (outside advisory lock — lightweight) ──
   try {
     await cleanupExpiredTokens();
   } catch (e) {
     logger.warn(`${label} refresh_tokens cleanup failed: ${e.message}`);
   }
 
-  // Notification, FCM token, review hygiene
+  // ── Notifications + FCM tokens (outside advisory lock — pool queries) ──
   try {
     const notifDel = await pool.query(
       `DELETE FROM notifications
        WHERE (is_read = TRUE AND created_at < (NOW() - INTERVAL '${rc.notificationReadRetentionHours} hours'))
           OR created_at < (NOW() - INTERVAL '${rc.notificationUnreadRetentionHours} hours')`
     );
-    if (notifDel.rowCount > 0) logger.info(`${label} purged ${notifDel.rowCount} expired notification(s)`);
+    logPurge(label, 'notifications', notifDel.rowCount);
 
     const fcmDel = await pool.query(
       `DELETE FROM fcm_tokens WHERE updated_at < (NOW() - INTERVAL '${rc.fcmTokenRetentionDays} days')`
     );
-    if (fcmDel.rowCount > 0) logger.info(`${label} purged ${fcmDel.rowCount} stale FCM token(s)`);
-
-    const revDel = await pool.query(
-      `DELETE FROM ride_ratings WHERE id IN (
-         SELECT r.id FROM ride_ratings r
-         INNER JOIN (
-           SELECT rated_user_id, (array_agg(id ORDER BY created_at DESC))[${rc.reviewsMaxPerUser + 1}:] AS old_ids
-           FROM ride_ratings GROUP BY rated_user_id HAVING count(*) > ${rc.reviewsMaxPerUser}
-         ) excess ON r.id = ANY(excess.old_ids)
-       )`
-    );
-    if (revDel.rowCount > 0) logger.info(`${label} capped ${revDel.rowCount} review(s) over ${rc.reviewsMaxPerUser}/user`);
+    logPurge(label, 'fcm_tokens', fcmDel.rowCount);
   } catch (e) {
-    logger.warn(`${label} notification/FCM/review cleanup failed: ${e.message}`);
+    logger.warn(`${label} notification/FCM cleanup failed: ${e.message}`);
   }
 }
 
@@ -158,7 +249,7 @@ async function runStartupTokenCleanupOnly() {
   try {
     await cleanupExpiredTokens();
   } catch (e) {
-    logger.warn('[RideCleanup] startup refresh_tokens cleanup failed:', e.message);
+    logger.warn('[Cleanup] startup refresh_tokens cleanup failed:', e.message);
   }
 }
 
@@ -166,12 +257,12 @@ function start() {
   runStartupTokenCleanupOnly();
 
   cron.schedule('30 18 * * *', () => {
-    logger.info('[RideCleanup] Evening IST maintenance (trips, union_schedules, tokens)');
+    logger.info('[Cleanup] Evening IST maintenance starting');
     runEveningMaintenance();
   });
 
   logger.info(
-    `[RideCleanup] Evening batch 18:30 UTC (~midnight IST). Retention: independent ${retentionConfig.tripRetentionDaysIndependent}d / union ${retentionConfig.tripRetentionDaysUnion}d; driver fifo ${retentionConfig.tripHistoryMaxPerDriver}; union fifo ${retentionConfig.unionScheduleMaxPerUnion}. Startup: tokens only.`
+    `[Cleanup] Evening batch 18:30 UTC. Retention: trips ${rc.tripRetentionDaysIndependent}d/${rc.tripRetentionDaysUnion}d, login ${rc.loginHistoryRetentionDays}d, GPS ${rc.locationHistoryRetentionDays}d, payments ${rc.paymentRetentionDays}d, contacts ${rc.contactLogRetentionDays}d.`
   );
 }
 

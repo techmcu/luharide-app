@@ -44,7 +44,7 @@ const { apiVersionRewrite } = require('./src/middleware/apiVersionRewrite');
 const { recordMiddleware, getMetrics } = require('./src/middleware/metricsCollector');
 const { requestContext } = require('./src/middleware/requestContext');
 const logger = require('./src/config/logger');
-const { applyTrustProxy, shouldWarnTrustProxyUnsetInProduction } = require('./src/config/trustProxy');
+const { applyTrustProxy, trustProxyStatus, shouldWarnTrustProxyUnsetInProduction } = require('./src/config/trustProxy');
 
 // Import socket handlers
 const { attachSocketIoRedisAdapter } = require('./src/socket/socketRedisAdapter');
@@ -54,13 +54,7 @@ const rateNotificationJob = require('./src/jobs/rateNotificationJob');
 const rideCleanupJob = require('./src/jobs/rideCleanupJob');
 
 const app = express();
-
-
-// If behind nginx / load balancer, set TRUST_PROXY=1 so express-rate-limit uses real client IP
-// (X-Forwarded-For). Without this, all traffic can look like one IP → shared limit → random 429s.
-if (process.env.TRUST_PROXY === '1' || process.env.TRUST_PROXY === 'true') {
-  app.set('trust proxy', 1);
-}
+applyTrustProxy(app);
 
 const server = http.createServer(app);
 
@@ -209,9 +203,10 @@ server.listen(PORT, LISTEN_HOST, () => {
   logger.info(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`🔗 API: http://127.0.0.1:${PORT}/api  |  http://localhost:${PORT}/api`);
   logger.info(`❤️  Health: http://localhost:${PORT}/health`);
+  logger.info(`🔒 ${trustProxyStatus()}`);
   if (shouldWarnTrustProxyUnsetInProduction()) {
     logger.warn(
-      '⚠️  TRUST_PROXY not set — behind nginx/Cloudflare all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in .env (see docs/TRUST_PROXY_AND_NGINX_A_TO_Z.md)'
+      '⚠️  TRUST_PROXY not set — behind nginx all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in .env'
     );
   }
   rateNotificationJob.start();

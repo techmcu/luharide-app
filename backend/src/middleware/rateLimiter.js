@@ -253,12 +253,12 @@ const simpleAuthChangePasswordLimiter = rateLimit(
 
 /**
  * Admin bulk notifications — prevent notification spam.
- * 5 per hour per user.
+ * 15 per hour per user (env: ADMIN_BULK_NOTIFY_MAX_PER_HOUR).
  */
 const adminBulkNotifyLimiter = rateLimit(
   withStore('admin-bulk-notify', {
     windowMs: 60 * 60 * 1000,
-    max: parseLimitEnv('ADMIN_BULK_NOTIFY_MAX_PER_HOUR', 5, 1, 20),
+    max: parseLimitEnv('ADMIN_BULK_NOTIFY_MAX_PER_HOUR', 15, 1, 50),
     skipSuccessfulRequests: false,
     standardHeaders: true,
     legacyHeaders: false,

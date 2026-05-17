@@ -34,7 +34,7 @@ const attachSocketHandlers = require('../src/socket/socketHandlers');
 const { setIo } = require('../src/socket/socketIoRegistry');
 const { requestContext } = require('../src/middleware/requestContext');
 const logger = require('../src/config/logger');
-const { applyTrustProxy, shouldWarnTrustProxyUnsetInProduction } = require('../src/config/trustProxy');
+const { applyTrustProxy, trustProxyStatus, shouldWarnTrustProxyUnsetInProduction } = require('../src/config/trustProxy');
 const { getBreaker, getAllBreakers } = require('./circuitBreaker');
 const { recordMiddleware, getMetrics } = require('../src/middleware/metricsCollector');
 
@@ -341,9 +341,10 @@ server.listen(PORT, LISTEN_HOST, () => {
       + '(monolith uses default port 3000, no LOCAL_API_PORT).'
     );
   }
+  logger.info(`🔒 ${trustProxyStatus()}`);
   if (shouldWarnTrustProxyUnsetInProduction()) {
     logger.warn(
-      '⚠️  TRUST_PROXY not set — behind nginx/HTTPS all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in backend/.env (see docs/TRUST_PROXY_AND_NGINX_A_TO_Z.md)'
+      '⚠️  TRUST_PROXY not set — behind nginx/HTTPS all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in backend/.env'
     );
   }
 });
