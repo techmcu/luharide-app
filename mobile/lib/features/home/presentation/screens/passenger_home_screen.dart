@@ -386,31 +386,37 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               ),
             ),
 
-            // Search Box - BlaBlaCar style: full width, clean, outer border
+            // Search Box
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[300]!, width: 1),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.grey[200]!, width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+                      color: Colors.blue.withValues(alpha: 0.04),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
+                    const SizedBox(height: 6),
                     // From field
                     _buildSearchField(
                       controller: _fromController,
                       focusNode: _fromFocusNode,
-                      icon: Icons.circle,
-                      iconColor: Colors.green[600]!,
-                      iconSize: 12,
+                      icon: Icons.radio_button_checked_rounded,
+                      iconColor: const Color(0xFF22C55E),
+                      iconSize: 16,
                       hint: t.t('ride.from.placeholder'),
                       label: t.t('ride.from.label'),
                       onChanged: _onFromChanged,
@@ -432,15 +438,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         _toFocusNode.requestFocus();
                       },
                     ),
-                    // Divider between From and To
-                    Divider(height: 1, thickness: 1, color: Colors.grey[200], indent: 44, endIndent: 16),
+                    // Subtle separator
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(height: 1, thickness: 0.8, color: Colors.grey[150]),
+                    ),
                     // To field
                     _buildSearchField(
                       controller: _toController,
                       focusNode: _toFocusNode,
                       icon: Icons.location_on_rounded,
-                      iconColor: Colors.red[500]!,
-                      iconSize: 20,
+                      iconColor: const Color(0xFFEF4444),
+                      iconSize: 18,
                       hint: t.t('ride.to.placeholder'),
                       label: t.t('ride.to.label'),
                       onChanged: _onToChanged,
@@ -465,8 +474,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         _toFocusNode.unfocus();
                       },
                     ),
-                    // Divider before date
-                    Divider(height: 1, thickness: 1, color: Colors.grey[200], indent: 44, endIndent: 16),
+                    // Subtle separator
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Divider(height: 1, thickness: 0.8, color: Colors.grey[150]),
+                    ),
                     // Date Selector
                     InkWell(
                       onTap: () async {
@@ -481,10 +493,17 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 18),
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[50],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 16),
+                            ),
                             const SizedBox(width: 12),
                             Text(
                               DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
@@ -495,24 +514,23 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                               ),
                             ),
                             const Spacer(),
-                            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[500], size: 22),
+                            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400], size: 22),
                           ],
                         ),
                       ),
                     ),
-                    // Divider before search button
-                    Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+                    const SizedBox(height: 4),
                     // Search Button
                     Padding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
                       child: SizedBox(
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
                           onPressed: _isSearching ? null : _searchTrips,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0066FF),
-                            disabledBackgroundColor: Colors.blue[300],
+                            backgroundColor: const Color(0xFF2563EB),
+                            disabledBackgroundColor: const Color(0xFF93C5FD),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -527,13 +545,21 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                                     strokeWidth: 2.5,
                                   ),
                                 )
-                              : const Text(
-                                  'Search',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.search_rounded, size: 20, color: Colors.white),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Search',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                         ),
                       ),
@@ -676,29 +702,33 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       onChanged: onChanged,
       onSubmitted: onSubmitted,
       onTap: () => setState(() {}),
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15, fontWeight: FontWeight.w400),
+        hintStyle: TextStyle(color: Colors.grey[350], fontSize: 14.5, fontWeight: FontWeight.w400),
         prefixIcon: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 12),
+          padding: const EdgeInsets.only(left: 14, right: 10),
           child: Icon(icon, color: iconColor, size: iconSize),
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 44),
+        prefixIconConstraints: const BoxConstraints(minWidth: 42),
         suffixIcon: controller.text.isNotEmpty
-            ? IconButton(
-                icon: Icon(Icons.close_rounded, size: 18, color: Colors.grey[400]),
-                onPressed: () {
+            ? GestureDetector(
+                onTap: () {
                   controller.clear();
                   onChanged('');
                   setState(() {});
                 },
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Icon(Icons.close_rounded, size: 16, color: Colors.grey[350]),
+                ),
               )
             : null,
+        suffixIconConstraints: const BoxConstraints(minWidth: 36),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
       ),
     );
   }
