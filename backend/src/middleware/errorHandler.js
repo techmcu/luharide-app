@@ -2,6 +2,7 @@ const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 const { applyCorsHeadersOnError } = require('./corsLuha');
 const { maxFileMb } = require('../config/uploadLimits');
+const { sendTelegramAlert, formatErrorAlert } = require('../utils/telegramAlert');
 
 /**
  * Convert error to ApiError if needed (preserve PostgreSQL err.code for handler)
@@ -116,6 +117,10 @@ const errorHandler = (err, req, res, next) => {
       ip: req.ip,
       userId: req.user?.id
     });
+  }
+
+  if (statusCode >= 500) {
+    sendTelegramAlert(formatErrorAlert(statusCode, message, req.originalUrl, req.method, err.stack));
   }
   
   const isProd = process.env.NODE_ENV === 'production';

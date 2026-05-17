@@ -1,4 +1,5 @@
 const logger = require('../config/logger');
+const { sendTelegramAlert, formatCrashAlert } = require('./telegramAlert');
 
 function installProcessGuard() {
   process.on('uncaughtException', (err) => {
@@ -7,7 +8,8 @@ function installProcessGuard() {
       error: err.message,
       stack: err.stack,
     });
-    process.exit(1);
+    sendTelegramAlert(formatCrashAlert('uncaughtException', err));
+    setTimeout(() => process.exit(1), 500);
   });
 
   process.on('unhandledRejection', (reason) => {
@@ -16,7 +18,8 @@ function installProcessGuard() {
       reason: reason instanceof Error ? reason.message : String(reason),
       stack: reason instanceof Error ? reason.stack : undefined,
     });
-    process.exit(1);
+    sendTelegramAlert(formatCrashAlert('unhandledRejection', reason));
+    setTimeout(() => process.exit(1), 500);
   });
 }
 
