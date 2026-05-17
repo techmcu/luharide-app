@@ -128,7 +128,7 @@ const getContactStats = asyncHandler(async (req, res) => {
     pool.query(
       `SELECT contact_type, COUNT(*)::int AS count
        FROM contact_logs
-       WHERE union_id = $1
+       WHERE union_id = $1 AND created_at >= (CURRENT_DATE - INTERVAL '30 days')::timestamp
        GROUP BY contact_type`,
       [unionId]
     ),

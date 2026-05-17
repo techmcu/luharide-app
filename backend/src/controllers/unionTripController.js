@@ -241,11 +241,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const unionId = unionRes.rows[0].union_id;
 
   const [ridesRes, driversRes, todayRes, allTimeRes] = await Promise.all([
-    // Active scheduled rides for this union
+    // Active rides: scheduled + departure in the future (upcoming, not yet departed)
     pool.query(
       `SELECT COUNT(*)::int AS count
        FROM union_schedules
-       WHERE union_id = $1 AND status = 'scheduled'`,
+       WHERE union_id = $1 AND status = 'scheduled'
+         AND departure_time > NOW()`,
       [unionId]
     ),
     // Drivers registered under this union
@@ -255,13 +256,13 @@ const getDashboardStats = asyncHandler(async (req, res) => {
        WHERE union_id = $1`,
       [unionId]
     ),
-    // Rides departing today (UTC day, same as stored departure_time)
+    // Rides departing today (IST)
     pool.query(
       `SELECT COUNT(*)::int AS count
        FROM union_schedules
        WHERE union_id = $1
-         AND departure_time >= CURRENT_DATE::timestamp
-         AND departure_time <  CURRENT_DATE::timestamp + interval '1 day'`,
+         AND departure_time >= (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata')
+         AND departure_time <  (CURRENT_DATE AT TIME ZONE 'Asia/Kolkata') + interval '1 day'`,
       [unionId]
     ),
     // Grand total: all rides ever created by this union

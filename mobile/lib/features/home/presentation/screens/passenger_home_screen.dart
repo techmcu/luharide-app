@@ -50,11 +50,54 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   List<String> _toSuggestions = [];
   Timer? _debounceFrom;
   Timer? _debounceTo;
-  static const _suggestionDebounce = Duration(milliseconds: 350);
+  Timer? _fromAutoDismiss;
+  Timer? _toAutoDismiss;
+  static const _suggestionDebounce = Duration(milliseconds: 300);
+  static const _suggestionAutoDismiss = Duration(seconds: 2);
   @override
   void initState() {
     super.initState();
+    _toFocusNode.addListener(_onToFocusChange);
+    _fromFocusNode.addListener(_onFromFocusChange);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadNotificationsOnce());
+  }
+
+  void _onToFocusChange() {
+    if (_toFocusNode.hasFocus) {
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (!mounted || !_toFocusNode.hasFocus) return;
+        final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
+        final scrollTarget = keyboardHeight > 0 ? 180.0 : 160.0;
+        _scrollController.animateTo(
+          scrollTarget,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    } else {
+      _toAutoDismiss?.cancel();
+      if (_toSuggestions.isNotEmpty) {
+        setState(() => _toSuggestions = []);
+      }
+    }
+  }
+
+  void _onFromFocusChange() {
+    if (_fromFocusNode.hasFocus) {
+      Future.delayed(const Duration(milliseconds: 350), () {
+        if (!mounted || !_fromFocusNode.hasFocus) return;
+        _scrollController.animateTo(
+          100.0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    } else {
+      _fromAutoDismiss?.cancel();
+      if (_fromSuggestions.isNotEmpty) {
+        setState(() => _fromSuggestions = []);
+      }
+    }
   }
 
   /// Single API call for both verification snackbar and unread badge — no duplicate requests.
@@ -86,6 +129,10 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   void dispose() {
     _debounceFrom?.cancel();
     _debounceTo?.cancel();
+    _fromAutoDismiss?.cancel();
+    _toAutoDismiss?.cancel();
+    _fromFocusNode.removeListener(_onFromFocusChange);
+    _toFocusNode.removeListener(_onToFocusChange);
     _fromFocusNode.dispose();
     _toFocusNode.dispose();
     _fromController.dispose();
@@ -96,6 +143,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   void _onFromChanged(String value) {
     _debounceFrom?.cancel();
+    _fromAutoDismiss?.cancel();
     if (value.trim().length < 2) {
       setState(() => _fromSuggestions = []);
       return;
@@ -104,11 +152,18 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       final suggestions = await _tripService.getLocationSuggestions(value.trim());
       if (!mounted) return;
       setState(() => _fromSuggestions = suggestions);
+      if (suggestions.isNotEmpty) {
+        _fromAutoDismiss = Timer(_suggestionAutoDismiss, () {
+          if (!mounted) return;
+          setState(() => _fromSuggestions = []);
+        });
+      }
     });
   }
 
   void _onToChanged(String value) {
     _debounceTo?.cancel();
+    _toAutoDismiss?.cancel();
     if (value.trim().length < 2) {
       setState(() => _toSuggestions = []);
       return;
@@ -117,6 +172,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       final suggestions = await _tripService.getLocationSuggestions(value.trim());
       if (!mounted) return;
       setState(() => _toSuggestions = suggestions);
+      if (suggestions.isNotEmpty) {
+        _toAutoDismiss = Timer(_suggestionAutoDismiss, () {
+          if (!mounted) return;
+          setState(() => _toSuggestions = []);
+        });
+      }
     });
   }
 
@@ -271,6 +332,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       ),
       body: SingleChildScrollView(
         controller: _scrollController,
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -327,127 +389,143 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               ),
             ),
 
-            // Search Box
+            // Search Box - smooth, flexible, non-technical friendly
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Card(
-                elevation: 4,
+                elevation: 3,
+                shadowColor: Colors.black.withValues(alpha: 0.12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
                   child: Column(
                     children: [
-                      // From Location with suggestions
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                      // From + To with visual route connector
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextField(
-                            controller: _fromController,
-                            focusNode: _fromFocusNode,
-                            textCapitalization: TextCapitalization.words,
-                            onChanged: _onFromChanged,
-                            onTap: () => setState(() {}),
-                            decoration: InputDecoration(
-                              labelText: t.t('ride.from.label'),
-                              hintText: t.t('ride.from.placeholder'),
-                              prefixIcon: const Icon(Icons.trip_origin, color: Colors.green),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          // Route dots connector
+                          Padding(
+                            padding: const EdgeInsets.only(top: 14, left: 2, right: 10),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.green[400],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.green[700]!, width: 2),
+                                  ),
+                                ),
+                                Container(
+                                  width: 2,
+                                  height: 50,
+                                  margin: const EdgeInsets.symmetric(vertical: 4),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Colors.green[300]!, Colors.red[300]!],
+                                    ),
+                                    borderRadius: BorderRadius.circular(1),
+                                  ),
+                                ),
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.red[400],
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.red[700]!, width: 2),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          if (_fromSuggestions.isNotEmpty && _fromFocusNode.hasFocus)
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              constraints: const BoxConstraints(maxHeight: 180),
-                              child: ListView.builder(
-                                shrinkWrap: true,
-                                padding: EdgeInsets.zero,
-                                itemCount: _fromSuggestions.length,
-                                itemBuilder: (context, i) {
-                                  final s = _fromSuggestions[i];
-                                  return ListTile(
-                                    dense: true,
-                                    leading: Icon(Icons.place, size: 20, color: Colors.grey[600]),
-                                    title: Text(s, style: const TextStyle(fontSize: 14)),
-                                    onTap: () {
-                                      _fromController.text = s;
-                                      setState(() => _fromSuggestions = []);
-                                      _fromFocusNode.unfocus();
-                                    },
-                                  );
-                                },
+                          // From and To fields
+                          Expanded(
+                            child: Column(
+                              children: [
+                                // From field
+                                _buildLocationField(
+                                  controller: _fromController,
+                                  focusNode: _fromFocusNode,
+                                  label: t.t('ride.from.label'),
+                                  hint: t.t('ride.from.placeholder'),
+                                  onChanged: _onFromChanged,
+                                  onSubmitted: (_) => _toFocusNode.requestFocus(),
+                                  textInputAction: TextInputAction.next,
+                                ),
+                                const SizedBox(height: 12),
+                                // To field
+                                _buildLocationField(
+                                  controller: _toController,
+                                  focusNode: _toFocusNode,
+                                  label: t.t('ride.to.label'),
+                                  hint: t.t('ride.to.placeholder'),
+                                  onChanged: _onToChanged,
+                                  onSubmitted: (_) {
+                                    _toFocusNode.unfocus();
+                                    _searchTrips();
+                                  },
+                                  textInputAction: TextInputAction.search,
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Swap button
+                          Padding(
+                            padding: const EdgeInsets.only(top: 24, left: 6),
+                            child: InkWell(
+                              onTap: _swapLocations,
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[100],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.swap_vert_rounded, size: 22, color: Colors.grey[600]),
                               ),
                             ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 16),
 
-                      // To Location with suggestions
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _toController,
-                            focusNode: _toFocusNode,
-                            textCapitalization: TextCapitalization.words,
-                            onChanged: _onToChanged,
-                            onTap: () => setState(() {}),
-                            decoration: InputDecoration(
-                              labelText: t.t('ride.to.label'),
-                              hintText: t.t('ride.to.placeholder'),
-                              prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                          if (_toSuggestions.isNotEmpty && _toFocusNode.hasFocus)
-                            Container(
-                              margin: const EdgeInsets.only(top: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              constraints: const BoxConstraints(maxHeight: 180),
-                              child: ListView.builder(
-                                shrinkWrap: true,
-                                padding: EdgeInsets.zero,
-                                itemCount: _toSuggestions.length,
-                                itemBuilder: (context, i) {
-                                  final s = _toSuggestions[i];
-                                  return ListTile(
-                                    dense: true,
-                                    leading: Icon(Icons.place, size: 20, color: Colors.grey[600]),
-                                    title: Text(s, style: const TextStyle(fontSize: 14)),
-                                    onTap: () {
-                                      _toController.text = s;
-                                      setState(() => _toSuggestions = []);
-                                      _toFocusNode.unfocus();
-                                    },
-                                  );
-                                },
-                              ),
-                            ),
-                        ],
+                      // From suggestions (animated)
+                      _buildSuggestionsList(
+                        suggestions: _fromSuggestions,
+                        hasFocus: _fromFocusNode.hasFocus,
+                        onTap: (s) {
+                          _fromController.text = s;
+                          _fromController.selection = TextSelection.fromPosition(
+                            TextPosition(offset: s.length),
+                          );
+                          _fromAutoDismiss?.cancel();
+                          setState(() => _fromSuggestions = []);
+                          _toFocusNode.requestFocus();
+                        },
                       ),
-                      const SizedBox(height: 16),
+
+                      // To suggestions (animated)
+                      _buildSuggestionsList(
+                        suggestions: _toSuggestions,
+                        hasFocus: _toFocusNode.hasFocus,
+                        onTap: (s) {
+                          _toController.text = s;
+                          _toController.selection = TextSelection.fromPosition(
+                            TextPosition(offset: s.length),
+                          );
+                          _toAutoDismiss?.cancel();
+                          setState(() => _toSuggestions = []);
+                          _toFocusNode.unfocus();
+                        },
+                      ),
+
+                      const SizedBox(height: 14),
 
                       // Date Selector
                       InkWell(
@@ -462,27 +540,32 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                             setState(() => _selectedDate = date);
                           }
                         },
+                        borderRadius: BorderRadius.circular(12),
                         child: Container(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey[400]!),
+                            color: Colors.blue[50],
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.calendar_today, color: Colors.blue),
-                              const SizedBox(width: 12),
+                              Icon(Icons.calendar_today_rounded, color: Colors.blue[700], size: 20),
+                              const SizedBox(width: 10),
                               Text(
-                                '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                                style: const TextStyle(fontSize: 16),
+                                DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.blue[800],
+                                ),
                               ),
                               const Spacer(),
-                              const Icon(Icons.arrow_drop_down),
+                              Icon(Icons.arrow_drop_down_rounded, color: Colors.blue[700]),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
 
                       // Search Button
                       SizedBox(
@@ -499,7 +582,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Icon(Icons.search),
+                              : const Icon(Icons.search_rounded),
                           label: Text(
                             _isSearching ? 'Searching...' : 'Search Trips',
                             style: const TextStyle(
@@ -509,10 +592,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: Colors.blue[600],
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                             ),
+                            elevation: 2,
                           ),
                         ),
                       ),
@@ -626,12 +710,138 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 ),
               ),
 
-            // Space above custom footer so last cards / Book are not tight against nav row.
-            SizedBox(height: 12 + MediaQuery.viewPaddingOf(context).bottom),
+            SizedBox(height: 12 + MediaQuery.viewPaddingOf(context).bottom + MediaQuery.viewInsetsOf(context).bottom * 0.3),
           ],
         ),
       ),
       bottomNavigationBar: _buildFooter(context),
+    );
+  }
+
+  void _swapLocations() {
+    final from = _fromController.text;
+    final to = _toController.text;
+    setState(() {
+      _fromController.text = to;
+      _toController.text = from;
+      _fromSuggestions = [];
+      _toSuggestions = [];
+    });
+  }
+
+  Widget _buildLocationField({
+    required TextEditingController controller,
+    required FocusNode focusNode,
+    required String label,
+    required String hint,
+    required ValueChanged<String> onChanged,
+    required ValueChanged<String> onSubmitted,
+    required TextInputAction textInputAction,
+  }) {
+    final isFocused = focusNode.hasFocus;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isFocused ? Colors.blue[400]! : Colors.grey[300]!,
+          width: isFocused ? 1.5 : 1.0,
+        ),
+        color: isFocused ? Colors.blue[50]?.withValues(alpha: 0.3) : Colors.grey[50],
+      ),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: textInputAction,
+        onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        onTap: () => setState(() {}),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w400),
+          labelStyle: TextStyle(
+            color: isFocused ? Colors.blue[600] : Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          suffixIcon: controller.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(Icons.close_rounded, size: 18, color: Colors.grey[500]),
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                    setState(() {});
+                  },
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuggestionsList({
+    required List<String> suggestions,
+    required bool hasFocus,
+    required ValueChanged<String> onTap,
+  }) {
+    final show = suggestions.isNotEmpty && hasFocus;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOut,
+      alignment: Alignment.topCenter,
+      child: show
+          ? Container(
+              margin: const EdgeInsets.only(top: 6, left: 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              constraints: const BoxConstraints(maxHeight: 160),
+              clipBehavior: Clip.antiAlias,
+              child: ListView.separated(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                itemCount: suggestions.length,
+                separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200]),
+                itemBuilder: (context, i) {
+                  final s = suggestions[i];
+                  return InkWell(
+                    onTap: () => onTap(s),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                      child: Row(
+                        children: [
+                          Icon(Icons.place_rounded, size: 18, color: Colors.grey[500]),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              s,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Icon(Icons.north_west_rounded, size: 14, color: Colors.grey[400]),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            )
+          : const SizedBox.shrink(),
     );
   }
 

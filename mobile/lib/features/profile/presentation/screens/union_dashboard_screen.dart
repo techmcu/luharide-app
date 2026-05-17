@@ -33,6 +33,14 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
   String? _contactDriverFilter; // null = all drivers
   bool _contactLoading = false;
 
+  List<dynamic> get _filteredDrivers {
+    if (_contactDriverFilter == null) return _drivers;
+    return _drivers.where((d) {
+      final id = (d as Map<String, dynamic>)['id']?.toString();
+      return id == _contactDriverFilter;
+    }).toList();
+  }
+
   static const _orange = Color(0xFFFF6B00);
   static const _orangeLight = Color(0xFFFFF3E0);
   static const _purple = Color(0xFF7B1FA2);
@@ -273,7 +281,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                           )
                         else
-                          ..._drivers
+                          ..._filteredDrivers
                               .map((d) => Padding(
                                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                                     child: _buildDriverCard(d as Map<String, dynamic>),
@@ -416,9 +424,9 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       children: [
         Expanded(
           child: _buildStatCard(
-            label: 'Active Rides',
+            label: 'Upcoming',
             value: scheduledRides.toString(),
-            icon: Icons.directions_car_filled_rounded,
+            icon: Icons.schedule_rounded,
             color: const Color(0xFF1E88E5),
             bgColor: const Color(0xFFE3F2FD),
           ),
@@ -640,7 +648,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Grand Total',
+                      '30 Days Total',
                       style: TextStyle(color: Colors.white60, fontSize: 11),
                     ),
                     const SizedBox(height: 4),
