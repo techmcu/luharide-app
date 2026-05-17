@@ -117,6 +117,7 @@ const googleSignIn = asyncHandler(async (req, res) => {
       driverVerificationStatus: user.driver_verification_status || 'none',
       driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
       driverCode: user.driver_code || null,
+      has_password: isNewUser ? false : !!user.password_hash,
       isAppAdmin
     },
     tokens,
@@ -224,6 +225,7 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
       driverVerificationStatus: user.driver_verification_status || 'none',
       driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
       driverCode: user.driver_code || null,
+      has_password: isNewUser ? false : !!user.password_hash,
       isAppAdmin
     },
     tokens,

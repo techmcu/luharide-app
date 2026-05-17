@@ -66,6 +66,7 @@ const signup = asyncHandler(async (req, res) => {
         driverVerificationStatus: user.driver_verification_status || 'none',
         driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
         driverCode: user.driver_code || null,
+        has_password: true,
         isAppAdmin
       },
       tokens
@@ -147,6 +148,7 @@ const login = asyncHandler(async (req, res) => {
         isActive: user.is_active,
         driverVerificationStatus: user.driver_verification_status || 'none',
         driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
+        has_password: !!user.password_hash,
         isAppAdmin
       },
       tokens
