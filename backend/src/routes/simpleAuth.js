@@ -22,7 +22,8 @@ const {
   simpleAuthSignupLimiter,
   simpleAuthForgotPasswordLimiter,
   simpleAuthResetPasswordLimiter,
-  simpleAuthChangePasswordLimiter
+  simpleAuthChangePasswordLimiter,
+  googleSignInLimiter
 } = require('../middleware/rateLimiter');
 
 // Validation schemas
@@ -39,7 +40,7 @@ const loginSchema = Joi.object({
 });
 
 const changePasswordSchema = Joi.object({
-  currentPassword: Joi.string().max(128).required(),
+  currentPassword: Joi.string().max(128).allow('', null),
   newPassword: Joi.string().min(6).max(128).required()
 });
 
@@ -131,7 +132,7 @@ router.post(
  * @desc    Google Sign-In (one-tap / button)
  * @access  Public
  */
-router.post('/google', simpleAuthLoginLimiter, googleSignIn);
+router.post('/google', googleSignInLimiter, googleSignIn);
 
 /**
  * @route   POST /api/simple-auth/firebase-email

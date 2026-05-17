@@ -31,8 +31,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     setState(() => _loading = true);
 
     final authProvider = context.read<AuthProvider>();
+    final hasPassword = authProvider.user?.hasPassword ?? true;
+
     final ok = await authProvider.changePassword(
-      current: _currentController.text.trim(),
+      current: hasPassword ? _currentController.text.trim() : null,
       newPassword: _newController.text.trim(),
     );
 
@@ -41,7 +43,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     AppFeedback.show(
       context,
-      ok ? 'Password updated successfully' : (authProvider.error ?? 'Failed to update password'),
+      ok
+          ? (hasPassword ? 'Password updated successfully' : 'Password set successfully')
+          : (authProvider.error ?? 'Failed to update password'),
       kind: ok ? AppFeedbackKind.success : AppFeedbackKind.error,
     );
 
@@ -50,28 +54,54 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hasPassword = context.watch<AuthProvider>().user?.hasPassword ?? true;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Change Password'),
+        title: Text(hasPassword ? 'Change Password' : 'Set Password'),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextFormField(
-              controller: _currentController,
-              maxLength: InputLimits.password,
-              decoration: const InputDecoration(
-                counterText: '',
-                labelText: 'Current Password',
-                prefixIcon: Icon(Icons.lock_outline),
-                border: OutlineInputBorder(),
+            if (!hasPassword)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'You signed in with Google. Set a password to also log in with email & password.',
+                          style: TextStyle(fontSize: 13, color: Colors.blue[800]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              obscureText: true,
-              validator: (v) => (v == null || v.isEmpty) ? 'Current password is required' : null,
-            ),
-            const SizedBox(height: 16),
+            if (hasPassword)
+              TextFormField(
+                controller: _currentController,
+                maxLength: InputLimits.password,
+                decoration: const InputDecoration(
+                  counterText: '',
+                  labelText: 'Current Password',
+                  prefixIcon: Icon(Icons.lock_outline),
+                  border: OutlineInputBorder(),
+                ),
+                obscureText: true,
+                validator: (v) => (v == null || v.isEmpty) ? 'Current password is required' : null,
+              ),
+            if (hasPassword) const SizedBox(height: 16),
             TextFormField(
               controller: _newController,
               maxLength: InputLimits.password,
@@ -119,9 +149,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Update Password',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    : Text(
+                        hasPassword ? 'Update Password' : 'Set Password',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
               ),
             ),
@@ -131,4 +161,3 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
   }
 }
-

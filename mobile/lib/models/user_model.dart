@@ -22,6 +22,8 @@ class UserModel {
   final String? driverCode;
   /// True only for global app admin (super admin)
   final bool isAppAdmin;
+  /// Whether the user has a password set (false for Google-only sign-in users)
+  final bool hasPassword;
 
   UserModel({
     required this.id,
@@ -41,6 +43,7 @@ class UserModel {
     this.luggageAllowancePerPassenger,
     this.driverCode,
     this.isAppAdmin = false,
+    this.hasPassword = true,
   });
 
   bool get isDriverVerified => driverVerificationStatus == 'approved';
@@ -69,6 +72,7 @@ class UserModel {
       luggageAllowancePerPassenger: json['luggage_allowance_per_passenger'] ?? json['luggageAllowancePerPassenger']?.toString(),
       driverCode: json['driver_code']?.toString() ?? json['driverCode']?.toString(),
       isAppAdmin: json['isAppAdmin'] == true || json['is_app_admin'] == true,
+      hasPassword: json['has_password'] ?? json['hasPassword'] ?? true,
     );
   }
 
@@ -91,6 +95,7 @@ class UserModel {
       'luggageAllowancePerPassenger': luggageAllowancePerPassenger,
       'driverCode': driverCode,
       'isAppAdmin': isAppAdmin,
+      'hasPassword': hasPassword,
     };
   }
 
@@ -112,6 +117,7 @@ class UserModel {
     String? luggageAllowancePerPassenger,
     String? driverCode,
     bool? isAppAdmin,
+    bool? hasPassword,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -131,6 +137,7 @@ class UserModel {
       luggageAllowancePerPassenger: luggageAllowancePerPassenger ?? this.luggageAllowancePerPassenger,
       driverCode: driverCode ?? this.driverCode,
       isAppAdmin: isAppAdmin ?? this.isAppAdmin,
+      hasPassword: hasPassword ?? this.hasPassword,
     );
   }
 }

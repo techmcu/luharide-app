@@ -337,9 +337,9 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  /// Change password (email/password users)
+  /// Change or set password. currentPassword is optional for Google-only users.
   Future<bool> changePassword({
-    required String current,
+    String? current,
     required String newPassword,
   }) async {
     try {
@@ -347,9 +347,13 @@ class AuthProvider with ChangeNotifier {
       _error = null;
 
       final ok = await _authService.changePassword(
-        currentPassword: current,
+        currentPassword: current ?? '',
         newPassword: newPassword,
       );
+
+      if (ok && _user != null && !_user!.hasPassword) {
+        _user = _user!.copyWith(hasPassword: true);
+      }
 
       _setLoading(false);
       return ok;

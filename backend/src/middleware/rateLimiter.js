@@ -363,6 +363,23 @@ const bulkWriteLimiter = rateLimit(
   })
 );
 
+/**
+ * POST /api/simple-auth/google — Google Sign-In (per IP).
+ * 10 attempts per 5 minutes; only failed requests count.
+ */
+const googleSignInLimiter = rateLimit(
+  withStore('google-signin', {
+    windowMs: 5 * 60 * 1000,
+    max: parseLimitEnv('GOOGLE_SIGNIN_MAX', 10, 3, 30),
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many Google sign-in attempts. Try again in 5 minutes.');
+    },
+  })
+);
+
 module.exports = {
   apiLimiter,
   authLimiter,
@@ -377,6 +394,7 @@ module.exports = {
   simpleAuthForgotPasswordLimiter,
   simpleAuthResetPasswordLimiter,
   simpleAuthChangePasswordLimiter,
+  googleSignInLimiter,
   adminBulkNotifyLimiter,
   writeLimiter,
   stateChangeLimiter,

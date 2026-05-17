@@ -266,14 +266,13 @@ const getCurrentUserController = asyncHandler(async (req, res) => {
   let userResult;
   try {
     userResult = await pool.query(
-      `SELECT ${baseCols}, bio, luggage_allowance_per_passenger FROM users WHERE id = $1`,
+      `SELECT ${baseCols}, bio, luggage_allowance_per_passenger, (password_hash IS NOT NULL) AS has_password FROM users WHERE id = $1`,
       [req.user.id]
     );
   } catch (err) {
     if (err.code === '42703') {
-      // Backward compatible: older DBs may not have bio/luggage or driver_kyc_reupload_allowed.
       const fallbackCols = baseCols.replace(', driver_kyc_reupload_allowed', '');
-      userResult = await pool.query(`SELECT ${fallbackCols} FROM users WHERE id = $1`, [req.user.id]);
+      userResult = await pool.query(`SELECT ${fallbackCols}, (password_hash IS NOT NULL) AS has_password FROM users WHERE id = $1`, [req.user.id]);
     } else {
       throw err;
     }

@@ -178,8 +178,8 @@ const changePassword = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const { currentPassword, newPassword } = req.body;
 
-  if (!currentPassword || !newPassword) {
-    throw ApiError.badRequest('Current and new password are required');
+  if (!newPassword) {
+    throw ApiError.badRequest('New password is required');
   }
 
   const result = await pool.query(
@@ -192,10 +192,16 @@ const changePassword = asyncHandler(async (req, res) => {
   }
 
   const user = result.rows[0];
-  const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
+  const hasExistingPassword = !!user.password_hash;
 
-  if (!isValidPassword) {
-    throw ApiError.badRequest('Current password is incorrect');
+  if (hasExistingPassword) {
+    if (!currentPassword) {
+      throw ApiError.badRequest('Current password is required');
+    }
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isValidPassword) {
+      throw ApiError.badRequest('Current password is incorrect');
+    }
   }
 
   const newHash = await bcrypt.hash(newPassword, 10);
@@ -204,9 +210,10 @@ const changePassword = asyncHandler(async (req, res) => {
     [newHash, userId]
   );
 
-  logger.info(`Password changed for user ${userId}`);
+  const action = hasExistingPassword ? 'changed' : 'set';
+  logger.info(`Password ${action} for user ${userId}`);
 
-  ApiResponse.success(null, 'Password updated successfully').send(res);
+  ApiResponse.success(null, hasExistingPassword ? 'Password updated successfully' : 'Password set successfully').send(res);
 });
 
 /**
