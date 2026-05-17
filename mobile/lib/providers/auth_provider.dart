@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/realtime_socket_service.dart';
+import '../services/push_notification_service.dart';
 import '../services/review_cache_store.dart';
 import '../services/review_service.dart';
 import '../services/submitted_documents_service.dart';
@@ -72,6 +73,7 @@ class AuthProvider with ChangeNotifier {
             .timeout(const Duration(seconds: 5))
             .catchError((_) {});
         unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+        unawaited(PushNotificationService.instance.registerToken());
         final uid = _user?.id;
         if (uid != null && uid.isNotEmpty) {
           unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -129,6 +131,7 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+      unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -183,6 +186,7 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+      unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -209,6 +213,7 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+      unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -259,6 +264,7 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+      unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -278,6 +284,7 @@ class AuthProvider with ChangeNotifier {
     try {
       _setLoading(true);
       final uid = _user?.id;
+      await PushNotificationService.instance.unregisterToken();
       await RealtimeSocketService.instance.disconnect();
       await _firebaseAuthService.signOut();
       await _authService.logout();
@@ -446,6 +453,7 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       _error = null;
       await RealtimeSocketService.instance.connect();
+      unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));
@@ -494,6 +502,7 @@ class AuthProvider with ChangeNotifier {
       _status = AuthStatus.authenticated;
       _error = null;
       await RealtimeSocketService.instance.connect();
+      unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;
       if (uid != null && uid.isNotEmpty) {
         unawaited(ReviewService.refreshFingerprintAfterLogin(uid));

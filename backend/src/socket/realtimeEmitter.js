@@ -4,6 +4,7 @@
  */
 const { getIo } = require('./socketIoRegistry');
 const logger = require('../config/logger');
+const { sendPushToUser } = require('../utils/pushNotification');
 
 function emitToTrip(tripId, event, payload) {
   const io = getIo();
@@ -32,6 +33,9 @@ function emitNotificationToUser(userId, notification) {
     io.to(`user:${userId}`).emit('notification:new', { notification });
   } catch (e) {
     logger.warn('emitNotificationToUser failed:', e.message);
+  }
+  if (notification && notification.title) {
+    sendPushToUser(userId, notification.title, notification.body || '').catch(() => {});
   }
 }
 

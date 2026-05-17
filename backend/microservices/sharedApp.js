@@ -1,6 +1,9 @@
 /**
  * Shared Express baseline for LuhaRide microservices (reuse src/ controllers & routes).
  */
+const { initFirebaseAdmin } = require('../src/utils/pushNotification');
+initFirebaseAdmin();
+
 const express = require('express');
 const compression = require('compression');
 const { createHelmetMiddleware } = require('../src/config/helmetConfig');

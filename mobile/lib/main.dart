@@ -13,6 +13,7 @@ import 'providers/auth_provider.dart';
 import 'providers/app_language_provider.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
+import 'services/push_notification_service.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/landing/presentation/screens/landing_screen.dart';
 
@@ -42,6 +43,7 @@ void main() async {
   };
 
   await Firebase.initializeApp();
+  await PushNotificationService.instance.initialize();
   await EnvConfig.init();
 
   // Single instance for app lifecycle (stable, no recreate on rebuild)

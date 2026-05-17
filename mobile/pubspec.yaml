@@ -42,7 +42,9 @@ dependencies:
   cross_file: ^0.3.4
   cached_network_image: ^3.3.1
   
-  # Push / FCM not used — notifications are in-app only (REST + bell icon). Add Firebase here if you want background pushes later.
+  # Push notifications (FCM)
+  firebase_messaging: ^16.2.2
+  flutter_local_notifications: ^18.0.1
   
   # Permissions
   permission_handler: ^11.2.0
