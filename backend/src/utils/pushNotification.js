@@ -27,20 +27,27 @@ function initFirebaseAdmin() {
 }
 
 async function sendPushToUser(userId, title, body, data = {}) {
-  if (!_initialized || !admin.apps.length) return;
+  if (!_initialized || !admin.apps.length) {
+    logger.warn({ msg: 'FCM skip: Firebase Admin not initialized', userId });
+    return;
+  }
 
   const result = await pool.query(
     'SELECT token FROM fcm_tokens WHERE user_id = $1',
     [userId]
   );
-  if (result.rows.length === 0) return;
+  if (result.rows.length === 0) {
+    logger.info({ msg: 'FCM skip: no tokens for user', userId });
+    return;
+  }
 
   const tokens = result.rows.map((r) => r.token);
   const staleTokens = [];
+  logger.info({ msg: 'FCM sending', userId, tokenCount: tokens.length, title });
 
   for (const token of tokens) {
     try {
-      await admin.messaging().send({
+      const msgId = await admin.messaging().send({
         token,
         notification: { title, body },
         data: Object.fromEntries(
@@ -51,12 +58,14 @@ async function sendPushToUser(userId, title, body, data = {}) {
           notification: { channelId: 'luharide_default' },
         },
       });
+      logger.info({ msg: 'FCM sent OK', userId, msgId });
     } catch (err) {
       if (
         err.code === 'messaging/registration-token-not-registered' ||
         err.code === 'messaging/invalid-registration-token'
       ) {
         staleTokens.push(token);
+        logger.warn({ msg: 'FCM stale token removed', userId, code: err.code });
       } else {
         logger.warn({ msg: 'FCM send failed', userId, code: err.code, error: err.message });
       }
