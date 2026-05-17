@@ -12,6 +12,7 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../features/home/presentation/screens/home_screen.dart';
 import '../../../profile/presentation/screens/terms_screen.dart';
 import 'simple_login_screen.dart';
+import '../../../../widgets/google_logo.dart';
 
 Future<void> _openPrivacyPolicy(BuildContext context) async {
   final uri = BrandConfig.privacyPolicyUri;
@@ -343,16 +344,15 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
         const SizedBox(height: 20),
         SizedBox(
           width: double.infinity,
-          height: 56,
-          child: ElevatedButton.icon(
+          height: 52,
+          child: OutlinedButton.icon(
             onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              backgroundColor: const Color(0xFFE8F5E9),
-              foregroundColor: const Color(0xFF2E7D32),
-              elevation: 1,
-              shadowColor: Colors.green.withValues(alpha: 0.3),
-              side: const BorderSide(color: Color(0xFFA5D6A7)),
+            style: OutlinedButton.styleFrom(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.grey[800],
+              side: BorderSide(color: Colors.grey[300]!),
+              elevation: 0,
             ),
             icon: _isGoogleLoading
                 ? const SizedBox(
@@ -360,10 +360,10 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF4285F4))),
-            label: const Text(
+                : const GoogleLogo(size: 20),
+            label: Text(
               'Continue with Google',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.grey[800]),
             ),
           ),
         ),

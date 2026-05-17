@@ -12,6 +12,7 @@ import '../../../../core/feedback/app_feedback.dart';
 import 'forgot_password_screen.dart';
 import 'simple_signup_screen.dart';
 import '../view_models/simple_login_view_model.dart';
+import '../../../../widgets/google_logo.dart';
 
 class SimpleLoginScreen extends StatefulWidget {
   const SimpleLoginScreen({super.key});
@@ -306,15 +307,14 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                     SizedBox(height: spacing * 0.75),
                     SizedBox(
                       height: 52,
-                      child: ElevatedButton.icon(
+                      child: OutlinedButton.icon(
                         onPressed: _isGoogleLoading ? null : _signInWithGoogle,
-                        style: ElevatedButton.styleFrom(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          backgroundColor: const Color(0xFFE8F5E9),
-                          foregroundColor: const Color(0xFF2E7D32),
-                          elevation: 1,
-                          shadowColor: Colors.green.withValues(alpha: 0.3),
-                          side: const BorderSide(color: Color(0xFFA5D6A7)),
+                        style: OutlinedButton.styleFrom(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.grey[800],
+                          side: BorderSide(color: Colors.grey[300]!),
+                          elevation: 0,
                         ),
                         icon: _isGoogleLoading
                             ? const SizedBox(
@@ -322,10 +322,10 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Text('G', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF4285F4))),
-                        label: const Text(
+                            : const GoogleLogo(size: 20),
+                        label: Text(
                           'Continue with Google',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.grey[800]),
                         ),
                       ),
                     ),
