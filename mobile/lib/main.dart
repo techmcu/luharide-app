@@ -43,8 +43,8 @@ void main() async {
     return true;
   };
 
-  await Firebase.initializeApp();
   if (!kIsWeb) {
+    await Firebase.initializeApp();
     await PushNotificationService.instance.initialize();
   }
   await EnvConfig.init();
