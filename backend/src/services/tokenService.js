@@ -46,36 +46,37 @@ const generateRefreshToken = (userId, role) => {
  * Store refresh token in database (SHA-256 hash only when token_hash column exists).
  */
 const storeRefreshToken = async (userId, token, deviceInfo = {}, ipAddress = null) => {
-  try {
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-    const tokenHash = hashRefreshToken(token);
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const tokenHash = hashRefreshToken(token);
+  const deviceJson = JSON.stringify(deviceInfo || {});
 
-    try {
-      const result = await pool.query(
-        `INSERT INTO refresh_tokens (user_id, token, token_hash, device_info, ip_address, expires_at)
-         VALUES ($1, NULL, $2, $3, $4, $5)
-         RETURNING id`,
-        [userId, tokenHash, JSON.stringify(deviceInfo), ipAddress, expiresAt]
-      );
-      logger.info(`Refresh token stored (hashed) for user: ${userId}`);
-      return result.rows[0].id;
-    } catch (e) {
-      // Pre-migration DB: no token_hash column or token NOT NULL
-      if (e.code === '42703' || e.code === '23502') {
-        const result = await pool.query(
-          `INSERT INTO refresh_tokens (user_id, token, device_info, ip_address, expires_at)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING id`,
-          [userId, token, JSON.stringify(deviceInfo), ipAddress, expiresAt]
-        );
-        logger.info(`Refresh token stored (legacy plaintext) for user: ${userId}`);
-        return result.rows[0].id;
-      }
-      throw e;
-    }
-  } catch (error) {
-    logger.error('Error storing refresh token:', error);
-    throw ApiError.internal('Failed to store refresh token');
+  // Primary path: hashed token (migration 033+)
+  try {
+    const result = await pool.query(
+      `INSERT INTO refresh_tokens (user_id, token, token_hash, device_info, ip_address, expires_at)
+       VALUES ($1, NULL, $2, $3, $4, $5)
+       RETURNING id`,
+      [userId, tokenHash, deviceJson, ipAddress, expiresAt]
+    );
+    logger.info(`Refresh token stored (hashed) for user: ${userId}`);
+    return result.rows[0].id;
+  } catch (primaryErr) {
+    logger.warn(`Refresh token primary insert failed (code=${primaryErr.code}): ${primaryErr.message}`);
+  }
+
+  // Fallback: legacy plaintext (pre-migration or schema mismatch)
+  try {
+    const result = await pool.query(
+      `INSERT INTO refresh_tokens (user_id, token, device_info, ip_address, expires_at)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id`,
+      [userId, token, deviceJson, ipAddress, expiresAt]
+    );
+    logger.info(`Refresh token stored (legacy plaintext) for user: ${userId}`);
+    return result.rows[0].id;
+  } catch (fallbackErr) {
+    logger.error(`Refresh token fallback insert also failed (code=${fallbackErr.code}): ${fallbackErr.message}`);
+    throw ApiError.internal(`Failed to store refresh token: ${fallbackErr.code} — ${fallbackErr.message}`);
   }
 };
 
@@ -127,15 +128,12 @@ const verifyRefreshToken = async (token) => {
         [tokenHash, token]
       );
     } catch (e) {
-      if (e.code === '42703') {
-        result = await pool.query(
-          `SELECT * FROM refresh_tokens
-           WHERE token = $1 AND is_revoked = FALSE AND expires_at > CURRENT_TIMESTAMP`,
-          [token]
-        );
-      } else {
-        throw e;
-      }
+      logger.warn(`verifyRefreshToken primary query failed (code=${e.code}): ${e.message}`);
+      result = await pool.query(
+        `SELECT * FROM refresh_tokens
+         WHERE token = $1 AND is_revoked = FALSE AND expires_at > CURRENT_TIMESTAMP`,
+        [token]
+      );
     }
 
     if (result.rows.length === 0) {
@@ -175,17 +173,14 @@ const revokeRefreshToken = async (token) => {
         [tokenHash, token]
       );
     } catch (e) {
-      if (e.code === '42703') {
-        result = await pool.query(
-          `UPDATE refresh_tokens
-           SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
-           WHERE token = $1
-           RETURNING id`,
-          [token]
-        );
-      } else {
-        throw e;
-      }
+      logger.warn(`revokeRefreshToken primary query failed (code=${e.code}): ${e.message}`);
+      result = await pool.query(
+        `UPDATE refresh_tokens
+         SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
+         WHERE token = $1
+         RETURNING id`,
+        [token]
+      );
     }
 
     if (result.rows.length === 0) {
