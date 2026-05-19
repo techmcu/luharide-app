@@ -12,85 +12,81 @@ function hashRefreshToken(raw) {
   return crypto.createHash('sha256').update(String(raw), 'utf8').digest('hex');
 }
 
-/**
- * Generate access token (JWT)
- */
-const generateAccessToken = (userId, role) => {
-  const payload = {
-    userId,
-    role,
-    type: 'access'
-  };
+// ── Schema state (detected once at startup, used for every request) ──
+let _schemaReady = false;
+let _hasTokenHash = false;
 
-  return jwt.sign(payload, JWT_SECRET, {
+async function ensureSchema() {
+  if (_schemaReady) return;
+  try {
+    const col = await pool.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'refresh_tokens' AND column_name = 'token_hash'`
+    );
+    if (col.rows.length > 0) {
+      _hasTokenHash = true;
+      await pool.query('ALTER TABLE refresh_tokens ALTER COLUMN token DROP NOT NULL').catch(() => {});
+      logger.info('[TokenService] schema: token_hash column present, hashed mode active');
+    } else {
+      _hasTokenHash = false;
+      logger.info('[TokenService] schema: token_hash column missing, plaintext mode active — run migration 033');
+    }
+    _schemaReady = true;
+  } catch (err) {
+    logger.error(`[TokenService] schema detection failed: ${err.message}`);
+    _hasTokenHash = false;
+    _schemaReady = true;
+  }
+}
+
+const generateAccessToken = (userId, role) => {
+  return jwt.sign({ userId, role, type: 'access' }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN
   });
 };
 
-/**
- * Generate refresh token
- */
 const generateRefreshToken = (userId, role) => {
-  const payload = {
-    userId,
-    role,
-    type: 'refresh'
-  };
-
-  return jwt.sign(payload, JWT_SECRET, {
+  return jwt.sign({ userId, role, type: 'refresh' }, JWT_SECRET, {
     expiresIn: REFRESH_TOKEN_EXPIRES_IN
   });
 };
 
-/**
- * Store refresh token in database (SHA-256 hash only when token_hash column exists).
- */
 const storeRefreshToken = async (userId, token, deviceInfo = {}, ipAddress = null) => {
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-  const tokenHash = hashRefreshToken(token);
+  await ensureSchema();
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
   const deviceJson = JSON.stringify(deviceInfo || {});
 
-  // Primary path: hashed token (migration 033+)
   try {
-    const result = await pool.query(
-      `INSERT INTO refresh_tokens (user_id, token, token_hash, device_info, ip_address, expires_at)
-       VALUES ($1, NULL, $2, $3, $4, $5)
-       RETURNING id`,
-      [userId, tokenHash, deviceJson, ipAddress, expiresAt]
-    );
-    logger.info(`Refresh token stored (hashed) for user: ${userId}`);
-    return result.rows[0].id;
-  } catch (primaryErr) {
-    logger.warn(`Refresh token primary insert failed (code=${primaryErr.code}): ${primaryErr.message}`);
-  }
+    if (_hasTokenHash) {
+      const tokenHash = hashRefreshToken(token);
+      const result = await pool.query(
+        `INSERT INTO refresh_tokens (user_id, token, token_hash, device_info, ip_address, expires_at)
+         VALUES ($1, NULL, $2, $3, $4, $5)
+         RETURNING id`,
+        [userId, tokenHash, deviceJson, ipAddress, expiresAt]
+      );
+      return result.rows[0].id;
+    }
 
-  // Fallback: legacy plaintext (pre-migration or schema mismatch)
-  try {
     const result = await pool.query(
       `INSERT INTO refresh_tokens (user_id, token, device_info, ip_address, expires_at)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
       [userId, token, deviceJson, ipAddress, expiresAt]
     );
-    logger.info(`Refresh token stored (legacy plaintext) for user: ${userId}`);
     return result.rows[0].id;
-  } catch (fallbackErr) {
-    logger.error(`Refresh token fallback insert also failed (code=${fallbackErr.code}): ${fallbackErr.message}`);
-    throw ApiError.internal(`Failed to store refresh token: ${fallbackErr.code} — ${fallbackErr.message}`);
+  } catch (err) {
+    logger.error(`[TokenService] storeRefreshToken failed (code=${err.code}): ${err.message}`);
+    throw ApiError.internal(`Failed to store refresh token: ${err.code} — ${err.message}`);
   }
 };
 
-/**
- * Verify access token
- */
 const verifyAccessToken = (token) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-
     if (decoded.type !== 'access') {
       throw ApiError.unauthorized('Invalid token type');
     }
-
     return decoded;
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -103,21 +99,18 @@ const verifyAccessToken = (token) => {
   }
 };
 
-/**
- * Verify refresh token
- */
 const verifyRefreshToken = async (token) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-
     if (decoded.type !== 'refresh') {
       throw ApiError.unauthorized('Invalid token type');
     }
 
-    const tokenHash = hashRefreshToken(token);
-
+    await ensureSchema();
     let result;
-    try {
+
+    if (_hasTokenHash) {
+      const tokenHash = hashRefreshToken(token);
       result = await pool.query(
         `SELECT * FROM refresh_tokens
          WHERE is_revoked = FALSE AND expires_at > CURRENT_TIMESTAMP
@@ -127,8 +120,7 @@ const verifyRefreshToken = async (token) => {
            )`,
         [tokenHash, token]
       );
-    } catch (e) {
-      logger.warn(`verifyRefreshToken primary query failed (code=${e.code}): ${e.message}`);
+    } else {
       result = await pool.query(
         `SELECT * FROM refresh_tokens
          WHERE token = $1 AND is_revoked = FALSE AND expires_at > CURRENT_TIMESTAMP`,
@@ -140,10 +132,7 @@ const verifyRefreshToken = async (token) => {
       throw ApiError.unauthorized('Refresh token is invalid or expired');
     }
 
-    return {
-      ...decoded,
-      tokenId: result.rows[0].id
-    };
+    return { ...decoded, tokenId: result.rows[0].id };
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       throw ApiError.unauthorized('Refresh token expired');
@@ -155,70 +144,50 @@ const verifyRefreshToken = async (token) => {
   }
 };
 
-/**
- * Revoke refresh token
- */
 const revokeRefreshToken = async (token) => {
-  try {
-    const tokenHash = hashRefreshToken(token);
+  await ensureSchema();
+  const tokenHash = hashRefreshToken(token);
 
-    let result;
-    try {
-      result = await pool.query(
-        `UPDATE refresh_tokens
-         SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
-         WHERE is_revoked = FALSE
-           AND ((token_hash IS NOT NULL AND token_hash = $1) OR (token IS NOT NULL AND token = $2))
-         RETURNING id`,
-        [tokenHash, token]
-      );
-    } catch (e) {
-      logger.warn(`revokeRefreshToken primary query failed (code=${e.code}): ${e.message}`);
-      result = await pool.query(
-        `UPDATE refresh_tokens
-         SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
-         WHERE token = $1
-         RETURNING id`,
-        [token]
-      );
-    }
-
-    if (result.rows.length === 0) {
-      throw ApiError.notFound('Refresh token not found');
-    }
-
-    logger.info(`Refresh token revoked: ${result.rows[0].id}`);
-    return true;
-  } catch (error) {
-    logger.error('Error revoking refresh token:', error);
-    throw error;
-  }
-};
-
-/**
- * Revoke all refresh tokens for a user
- */
-const revokeAllUserTokens = async (userId) => {
-  try {
-    const result = await pool.query(
+  let result;
+  if (_hasTokenHash) {
+    result = await pool.query(
       `UPDATE refresh_tokens
        SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
-       WHERE user_id = $1 AND is_revoked = FALSE
+       WHERE is_revoked = FALSE
+         AND ((token_hash IS NOT NULL AND token_hash = $1) OR (token IS NOT NULL AND token = $2))
        RETURNING id`,
-      [userId]
+      [tokenHash, token]
     );
-
-    logger.info(`Revoked ${result.rowCount} tokens for user: ${userId}`);
-    return result.rowCount;
-  } catch (error) {
-    logger.error('Error revoking user tokens:', error);
-    throw ApiError.internal('Failed to revoke tokens');
+  } else {
+    result = await pool.query(
+      `UPDATE refresh_tokens
+       SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
+       WHERE token = $1 AND is_revoked = FALSE
+       RETURNING id`,
+      [token]
+    );
   }
+
+  if (result.rows.length === 0) {
+    logger.warn(`revokeRefreshToken: token not found (already revoked or expired)`);
+    return false;
+  }
+  logger.info(`Refresh token revoked: ${result.rows[0].id}`);
+  return true;
 };
 
-/**
- * Clean up expired tokens (run periodically)
- */
+const revokeAllUserTokens = async (userId) => {
+  const result = await pool.query(
+    `UPDATE refresh_tokens
+     SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
+     WHERE user_id = $1 AND is_revoked = FALSE
+     RETURNING id`,
+    [userId]
+  );
+  logger.info(`Revoked ${result.rowCount} tokens for user: ${userId}`);
+  return result.rowCount;
+};
+
 const cleanupExpiredTokens = async () => {
   try {
     const result = await pool.query(
@@ -233,22 +202,15 @@ const cleanupExpiredTokens = async () => {
   }
 };
 
-/**
- * Generate both access and refresh tokens
- */
 const generateTokenPair = async (userId, role, deviceInfo = {}, ipAddress = null) => {
   const accessToken = generateAccessToken(userId, role);
   const refreshToken = generateRefreshToken(userId, role);
-
   await storeRefreshToken(userId, refreshToken, deviceInfo, ipAddress);
-
-  return {
-    accessToken,
-    refreshToken
-  };
+  return { accessToken, refreshToken };
 };
 
 module.exports = {
+  ensureSchema,
   generateAccessToken,
   generateRefreshToken,
   generateTokenPair,
