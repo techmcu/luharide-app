@@ -103,6 +103,9 @@ const login = asyncHandler(async (req, res) => {
   }
 
   // Verify password
+  if (!user.password_hash) {
+    throw ApiError.unauthorized('Invalid email or password');
+  }
   const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
   if (!isValidPassword) {

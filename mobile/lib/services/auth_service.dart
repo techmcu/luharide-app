@@ -43,23 +43,42 @@ class AuthService {
 
   /// Send OTP to email (for signup / login)
   Future<Map<String, dynamic>> sendOTPByEmail(String email, {String purpose = 'registration'}) async {
-    try {
-      final response = await _apiService.post(
-        ApiConstants.sendOTP,
-        data: {
-          'email': email.trim().toLowerCase(),
-          'purpose': purpose,
-        },
-      );
+    DioException? lastTimeout;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final response = await _apiService.post(
+          ApiConstants.sendOTP,
+          data: {
+            'email': email.trim().toLowerCase(),
+            'purpose': purpose,
+          },
+        );
 
-      if (response.statusCode == 200 && response.data['success'] == true) {
-        return response.data['data'] as Map<String, dynamic>;
-      } else {
-        throw Exception(response.data['message'] ?? 'Failed to send OTP');
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          return response.data['data'] as Map<String, dynamic>;
+        } else {
+          throw Exception(response.data['message'] ?? 'Failed to send OTP');
+        }
+      } on DioException catch (e) {
+        final canRetry = attempt == 0 &&
+            (e.type == DioExceptionType.connectionTimeout ||
+                e.type == DioExceptionType.receiveTimeout ||
+                e.type == DioExceptionType.connectionError);
+        if (canRetry) {
+          lastTimeout = e;
+          await Future<void>.delayed(const Duration(milliseconds: 900));
+          continue;
+        }
+        if (e.response?.statusCode == 429) {
+          throw Exception('Too many OTP requests. Please wait a few minutes and try again.');
+        }
+        if (e.response != null) {
+          throw Exception(dioResponseMessage(e) ?? 'Failed to send OTP');
+        }
+        throw Exception(userMessageFromDio(lastTimeout ?? e));
       }
-    } on DioException catch (e) {
-      throw Exception(userMessageFromDio(e));
     }
+    throw Exception(userMessageFromDio(lastTimeout!));
   }
 
   /// Verify OTP and login/register (email) – for signup pass name, role, password
@@ -97,6 +116,9 @@ class AuthService {
         throw Exception(response.data['message'] ?? 'Failed to verify OTP');
       }
     } on DioException catch (e) {
+      if (e.response?.statusCode == 429) {
+        throw Exception('Too many attempts. Please request a new OTP.');
+      }
       if (e.response != null) {
         throw Exception(dioResponseMessage(e) ?? 'Failed to verify OTP');
       }

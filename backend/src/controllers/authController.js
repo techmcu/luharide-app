@@ -109,6 +109,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
 
   let user;
   let isNewUser = false;
+  let hasPassword = false;
 
   if (userResult.rows.length === 0) {
     if (!name || name.length < 2) {
@@ -117,6 +118,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     const phoneVal = byPhone ? value : null;
     const emailVal = byPhone ? null : value;
     const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, 10) : null;
+    hasPassword = !!passwordHash;
     const insertResult = await pool.query(
       `INSERT INTO users (name, phone, email, role, is_verified, is_active, password_hash)
        VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
@@ -140,6 +142,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
         [user.id]
       );
     }
+    hasPassword = !!user.password_hash;
     logger.info(`User logged in: ${user.id} - ${value}`);
   }
 
@@ -171,6 +174,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
       driverVerificationStatus: user.driver_verification_status || 'none',
       driverKycReuploadAllowed: user.driver_kyc_reupload_allowed === true,
       driverCode: user.driver_code || null,
+      has_password: hasPassword,
       isAppAdmin
     },
     tokens,
