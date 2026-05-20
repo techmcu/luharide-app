@@ -437,14 +437,14 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
   if (!title || !body) throw ApiError.badRequest('title and body are required');
   if (title.length > 50) throw ApiError.badRequest('Title max 50 characters (push notification me zyada nahi dikhta)');
   if (body.length > 150) throw ApiError.badRequest('Body max 150 characters (push notification me zyada nahi dikhta)');
-  const validSegments = ['all', 'passenger', 'drivers', 'union_admins'];
+  const validSegments = ['all', 'passenger', 'driver', 'drivers', 'union_admin', 'union_admins'];
   if (!segment || !validSegments.includes(segment)) {
-    throw ApiError.badRequest(`segment must be one of: ${validSegments.join(', ')}`);
+    throw ApiError.badRequest(`segment must be one of: all, passenger, driver, union_admin`);
   }
 
   const roleFilter = segment === 'all' ? null
-    : segment === 'drivers' ? 'driver'
-    : segment === 'union_admins' ? 'union_admin'
+    : (segment === 'driver' || segment === 'drivers') ? 'driver'
+    : (segment === 'union_admin' || segment === 'union_admins') ? 'union_admin'
     : 'passenger';
 
   const countSql = roleFilter
