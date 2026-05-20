@@ -243,7 +243,7 @@ class PlatformAdminService {
 
   Future<Map<String, dynamic>> updateAppConfig(Map<String, dynamic> settings) async {
     try {
-      final res = await _api.patch(ApiConstants.platformConfig, data: {'settings': settings});
+      final res = await _api.patch(ApiConstants.platformConfig, data: settings);
       return {'success': true, ..._unwrap(res.data)};
     } on DioException catch (e) {
       return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};

@@ -77,7 +77,7 @@ android {
             )
         }
         debug {
-            applicationIdSuffix = ".debug"
+            // No applicationIdSuffix — must match google-services.json package_name
         }
     }
 }

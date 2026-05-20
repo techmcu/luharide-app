@@ -34,3 +34,19 @@
 -dontwarn com.google.android.gms.auth.api.credentials.CredentialsClient
 -dontwarn com.google.android.gms.auth.api.credentials.HintRequest$Builder
 -dontwarn com.google.android.gms.auth.api.credentials.HintRequest
+
+# --- Firebase Messaging (FCM) ---
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**
+
+# --- Google Sign-In ---
+-keep class com.google.android.gms.auth.** { *; }
+-keep class com.google.android.gms.common.** { *; }
+
+# --- Firebase Auth ---
+-keep class com.google.firebase.auth.** { *; }
+
+# --- Crashlytics / Analytics (if added later) ---
+-keepattributes SourceFile,LineNumberTable

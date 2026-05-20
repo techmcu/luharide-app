@@ -16,6 +16,7 @@ import 'services/auth_service.dart';
 import 'services/push_notification_service.dart'
     if (dart.library.html) 'services/push_notification_service_web.dart';
 import 'features/home/presentation/screens/home_screen.dart';
+import 'features/landing/presentation/screens/app_gate_screen.dart';
 import 'features/landing/presentation/screens/landing_screen.dart';
 
 void main() async {
@@ -93,25 +94,25 @@ class LuhaRideApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            home: Builder(
-              builder: (context) {
-                // Show loading while checking auth status
-                if (authProvider.status == AuthStatus.initial ||
-                    !langProvider.isInitialized) {
-                  return const Scaffold(
-                    body: Center(
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
+            home: AppGate(
+              child: Builder(
+                builder: (context) {
+                  if (authProvider.status == AuthStatus.initial ||
+                      !langProvider.isInitialized) {
+                    return const Scaffold(
+                      body: Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
 
-                // Navigate based on auth status
-                if (authProvider.isAuthenticated) {
-                  return const HomeScreen();
-                }
+                  if (authProvider.isAuthenticated) {
+                    return const HomeScreen();
+                  }
 
-                return const LandingScreen();
-              },
+                  return const LandingScreen();
+                },
+              ),
             ),
           );
         },
