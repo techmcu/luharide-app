@@ -217,6 +217,9 @@ const refreshTokenController = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('Account is deactivated');
   }
 
+  // Revoke old refresh token BEFORE generating new one (prevents race condition)
+  await revokeRefreshToken(refreshToken);
+
   // Generate new token pair
   const deviceInfo = {
     userAgent: req.headers['user-agent'],
@@ -229,9 +232,6 @@ const refreshTokenController = asyncHandler(async (req, res) => {
     deviceInfo,
     req.ip
   );
-
-  // Revoke old refresh token
-  await revokeRefreshToken(refreshToken);
 
   ApiResponse.success(
     { tokens },

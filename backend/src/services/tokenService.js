@@ -46,9 +46,11 @@ const generateAccessToken = (userId, role) => {
 };
 
 const generateRefreshToken = (userId, role) => {
-  return jwt.sign({ userId, role, type: 'refresh' }, JWT_SECRET, {
-    expiresIn: REFRESH_TOKEN_EXPIRES_IN
-  });
+  return jwt.sign(
+    { userId, role, type: 'refresh', jti: crypto.randomBytes(16).toString('hex') },
+    JWT_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
+  );
 };
 
 const storeRefreshToken = async (userId, token, deviceInfo = {}, ipAddress = null) => {
@@ -76,6 +78,22 @@ const storeRefreshToken = async (userId, token, deviceInfo = {}, ipAddress = nul
     );
     return result.rows[0].id;
   } catch (err) {
+    if (err.code === '23505') {
+      logger.warn(`[TokenService] duplicate token hash — revoking stale entry and retrying`);
+      const tokenHash = hashRefreshToken(token);
+      await pool.query(
+        `UPDATE refresh_tokens SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
+         WHERE token_hash = $1 AND is_revoked = FALSE`,
+        [tokenHash]
+      );
+      const retry = await pool.query(
+        `INSERT INTO refresh_tokens (user_id, token, token_hash, device_info, ip_address, expires_at)
+         VALUES ($1, NULL, $2, $3, $4, $5)
+         RETURNING id`,
+        [userId, tokenHash, JSON.stringify(deviceInfo || {}), ipAddress, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)]
+      );
+      return retry.rows[0].id;
+    }
     logger.error(`[TokenService] storeRefreshToken failed (code=${err.code}): ${err.message}`);
     throw ApiError.internal(`Failed to store refresh token: ${err.code} — ${err.message}`);
   }
