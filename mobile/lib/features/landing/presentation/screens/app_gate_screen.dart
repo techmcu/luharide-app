@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../providers/auth_provider.dart';
 import '../../../../services/app_config_service.dart';
 import '../../../../services/push_notification_service.dart';
 import '../../../../services/realtime_socket_service.dart';
@@ -278,11 +280,14 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     }
 
     if (_config != null && _config!.maintenanceMode) {
-      return MaintenanceScreen(
-        message: _config!.maintenanceMessage,
-        onRetry: _retryCheck,
-        checking: _checking,
-      );
+      final auth = context.watch<AuthProvider>();
+      if (auth.isAuthenticated) {
+        return MaintenanceScreen(
+          message: _config!.maintenanceMessage,
+          onRetry: _retryCheck,
+          checking: _checking,
+        );
+      }
     }
 
     return widget.child;

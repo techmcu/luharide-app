@@ -732,6 +732,20 @@ const getPublicAppConfig = asyncHandler(async (req, res) => {
     config[row.key] = row.value;
   }
 
+  if (config.maintenance_mode === 'true' && adminEmail) {
+    try {
+      const auth = req.headers.authorization;
+      if (auth && auth.startsWith('Bearer ')) {
+        const { verifyAccessToken } = require('../services/tokenService');
+        const decoded = verifyAccessToken(auth.slice(7));
+        const email = decoded.email ? String(decoded.email).toLowerCase().trim() : null;
+        if (email === adminEmail) {
+          config.maintenance_mode = 'false';
+        }
+      }
+    } catch (_) {}
+  }
+
   res.json({ success: true, data: config });
 });
 
