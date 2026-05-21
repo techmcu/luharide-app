@@ -42,8 +42,19 @@ function emitNotificationToUser(userId, notification) {
   }
 }
 
+function emitMaintenanceBroadcast(maintenanceMode, message) {
+  const io = getIo();
+  if (!io) return;
+  try {
+    io.emit('maintenance:update', { maintenanceMode, message });
+  } catch (e) {
+    logger.warn('emitMaintenanceBroadcast failed:', e.message);
+  }
+}
+
 module.exports = {
   emitToTrip,
   emitTripUpdated,
   emitNotificationToUser,
+  emitMaintenanceBroadcast,
 };

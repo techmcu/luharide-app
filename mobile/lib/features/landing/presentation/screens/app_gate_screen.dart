@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../services/app_config_service.dart';
+import '../../../../services/realtime_socket_service.dart';
 
 class MaintenanceScreen extends StatelessWidget {
   final String message;
@@ -27,7 +30,7 @@ class MaintenanceScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                message.isNotEmpty ? message : 'We are upgrading. Please try again later.',
+                message.isNotEmpty ? message : 'We are currently performing scheduled maintenance. Service will resume shortly. We apologise for the inconvenience.',
                 style: const TextStyle(fontSize: 15, color: Colors.black54, height: 1.5),
                 textAlign: TextAlign.center,
               ),
@@ -103,11 +106,27 @@ class AppGate extends StatefulWidget {
 class _AppGateState extends State<AppGate> {
   AppConfigResult? _config;
   bool _loading = true;
+  StreamSubscription<Map<String, dynamic>>? _maintenanceSub;
 
   @override
   void initState() {
     super.initState();
     _check();
+    _maintenanceSub = RealtimeSocketService.instance.maintenanceStream.listen(_onMaintenanceEvent);
+  }
+
+  void _onMaintenanceEvent(Map<String, dynamic> data) {
+    if (!mounted) return;
+    final mode = data['maintenanceMode'] == true;
+    final message = data['message']?.toString() ?? '';
+    setState(() {
+      _config = AppConfigResult(
+        maintenanceMode: mode,
+        maintenanceMessage: message,
+        forceUpdate: _config?.forceUpdate ?? false,
+        minVersion: _config?.minVersion ?? '',
+      );
+    });
   }
 
   Future<void> _check() async {
@@ -118,6 +137,12 @@ class _AppGateState extends State<AppGate> {
       _config = result;
       _loading = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _maintenanceSub?.cancel();
+    super.dispose();
   }
 
   @override

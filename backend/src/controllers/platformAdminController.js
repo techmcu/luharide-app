@@ -3,7 +3,8 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
-const { emitNotificationToUser } = require('../socket/realtimeEmitter');
+const { emitNotificationToUser, emitMaintenanceBroadcast } = require('../socket/realtimeEmitter');
+const { sendPushToMultipleUsers } = require('../utils/pushNotification');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -638,6 +639,11 @@ const updateAppConfig = asyncHandler(async (req, res) => {
     'platform_commission_driver', 'platform_commission_passenger',
   ];
 
+  const prevRow = await queryRead(
+    `SELECT value FROM settings WHERE key = 'maintenance_mode'`
+  );
+  const wasMaintenance = prevRow.rows[0]?.value === 'true';
+
   const applied = [];
   for (const [key, value] of Object.entries(updates)) {
     if (!allowedKeys.includes(key)) continue;
@@ -647,6 +653,35 @@ const updateAppConfig = asyncHandler(async (req, res) => {
       [key, String(value)]
     );
     applied.push(key);
+  }
+
+  const nowMaintenance = String(updates.maintenance_mode) === 'true';
+  const maintenanceMsg = updates.maintenance_message
+    ? String(updates.maintenance_message).trim()
+    : '';
+
+  if (applied.includes('maintenance_mode')) {
+    emitMaintenanceBroadcast(nowMaintenance, maintenanceMsg);
+  }
+
+  if (!wasMaintenance && nowMaintenance) {
+    const pushTitle = 'LuhaRide — Maintenance';
+    const pushBody = maintenanceMsg || 'We are currently performing scheduled maintenance. Service will resume shortly. We apologise for the inconvenience.';
+
+    const userResult = await queryRead(
+      `SELECT id FROM users WHERE is_active = true`
+    );
+    const userIds = userResult.rows.map((r) => r.id);
+
+    if (userIds.length > 0) {
+      const insertSql = `INSERT INTO notifications (user_id, type, title, body)
+         SELECT id, 'maintenance', $1, $2 FROM users WHERE is_active = true
+         RETURNING id, user_id`;
+      await pool.query(insertSql, [pushTitle, pushBody]);
+
+      sendPushToMultipleUsers(userIds, pushTitle, pushBody, { type: 'maintenance' }).catch(() => {});
+      logger.info(`Maintenance ON — push queued for ${userIds.length} users`);
+    }
   }
 
   logger.info(`Platform admin ${req.user.id} updated config: ${applied.join(', ')}`);

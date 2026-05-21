@@ -20,6 +20,7 @@ class RealtimeSocketService {
   final _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
   final _notifications = StreamController<Map<String, dynamic>>.broadcast();
   final _driverLocation = StreamController<Map<String, dynamic>>.broadcast();
+  final _maintenance = StreamController<Map<String, dynamic>>.broadcast();
 
   /// Booking / seat changes for a trip (payload includes `tripId`).
   Stream<Map<String, dynamic>> get tripUpdatedStream => _tripUpdated.stream;
@@ -29,6 +30,9 @@ class RealtimeSocketService {
 
   /// Live driver GPS for passengers in the same trip room.
   Stream<Map<String, dynamic>> get driverLocationStream => _driverLocation.stream;
+
+  /// Maintenance mode toggle from server.
+  Stream<Map<String, dynamic>> get maintenanceStream => _maintenance.stream;
 
   bool get isConnected => _socket != null && _socket!.disconnected == false;
 
@@ -106,6 +110,12 @@ class RealtimeSocketService {
     _socket!.on('driver-location', (dynamic data) {
       if (data is Map) {
         _driverLocation.add(Map<String, dynamic>.from(data));
+      }
+    });
+
+    _socket!.on('maintenance:update', (dynamic data) {
+      if (data is Map) {
+        _maintenance.add(Map<String, dynamic>.from(data));
       }
     });
   }
