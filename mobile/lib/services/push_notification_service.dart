@@ -36,6 +36,9 @@ class PushNotificationService {
 
   String? get currentToken => _currentToken;
 
+  final _foregroundMessages = StreamController<RemoteMessage>.broadcast();
+  Stream<RemoteMessage> get foregroundMessages => _foregroundMessages.stream;
+
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
     _initialized = true;
@@ -85,6 +88,8 @@ class PushNotificationService {
   }
 
   void _showForegroundNotification(RemoteMessage message) {
+    _foregroundMessages.add(message);
+
     final notification = message.notification;
     if (notification == null || _localNotifications == null) return;
 

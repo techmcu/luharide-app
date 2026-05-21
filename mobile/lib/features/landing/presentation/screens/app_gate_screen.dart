@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../services/app_config_service.dart';
+import '../../../../services/push_notification_service.dart';
 import '../../../../services/realtime_socket_service.dart';
 
 class MaintenanceScreen extends StatelessWidget {
@@ -108,6 +110,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   bool _loading = true;
   StreamSubscription<Map<String, dynamic>>? _maintenanceSub;
   StreamSubscription<Map<String, dynamic>>? _notifSub;
+  StreamSubscription<RemoteMessage>? _fcmSub;
 
   @override
   void initState() {
@@ -116,6 +119,11 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     _check();
     _maintenanceSub = RealtimeSocketService.instance.maintenanceStream.listen(_onMaintenanceEvent);
     _notifSub = RealtimeSocketService.instance.notificationStream.listen(_onNotification);
+    _fcmSub = PushNotificationService.instance.foregroundMessages.listen(_onFcmForeground);
+  }
+
+  void _onFcmForeground(RemoteMessage message) {
+    if (message.data['type'] == 'maintenance') _silentCheck();
   }
 
   @override
@@ -165,6 +173,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _maintenanceSub?.cancel();
     _notifSub?.cancel();
+    _fcmSub?.cancel();
     super.dispose();
   }
 
