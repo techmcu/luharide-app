@@ -103,21 +103,32 @@ class AppGate extends StatefulWidget {
   State<AppGate> createState() => _AppGateState();
 }
 
-class _AppGateState extends State<AppGate> {
+class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   AppConfigResult? _config;
   bool _loading = true;
   StreamSubscription<Map<String, dynamic>>? _maintenanceSub;
+  StreamSubscription<Map<String, dynamic>>? _notifSub;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _check();
     _maintenanceSub = RealtimeSocketService.instance.maintenanceStream.listen(_onMaintenanceEvent);
+    _notifSub = RealtimeSocketService.instance.notificationStream.listen(_onNotification);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _silentCheck();
+    }
   }
 
   void _onMaintenanceEvent(Map<String, dynamic> data) {
     if (!mounted) return;
-    final mode = data['maintenanceMode'] == true;
+    final raw = data['maintenanceMode'];
+    final mode = raw == true || raw == 'true';
     final message = data['message']?.toString() ?? '';
     setState(() {
       _config = AppConfigResult(
@@ -127,6 +138,10 @@ class _AppGateState extends State<AppGate> {
         minVersion: _config?.minVersion ?? '',
       );
     });
+  }
+
+  void _onNotification(Map<String, dynamic> data) {
+    if (data['type'] == 'maintenance') _silentCheck();
   }
 
   Future<void> _check() async {
@@ -139,9 +154,17 @@ class _AppGateState extends State<AppGate> {
     });
   }
 
+  Future<void> _silentCheck() async {
+    final result = await AppConfigService.instance.check();
+    if (!mounted) return;
+    setState(() => _config = result);
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _maintenanceSub?.cancel();
+    _notifSub?.cancel();
     super.dispose();
   }
 
