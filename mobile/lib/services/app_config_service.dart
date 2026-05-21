@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -24,14 +23,13 @@ class AppConfigService {
 
   Future<AppConfigResult> check() async {
     try {
-      final res = await Dio().get(buildApiUrl('/app-config'));
+      final res = await ApiService().get('/app-config');
       final data = res.data;
-      if (data is! Map || data['success'] != true) {
-        return const AppConfigResult();
-      }
+      if (data is! Map) return const AppConfigResult();
 
-      final config = data['data'] as Map? ?? {};
-      final maintenance = config['maintenance_mode'] == 'true' || config['maintenance_mode'] == true;
+      final config = (data['data'] ?? data) as Map? ?? {};
+      final raw = config['maintenance_mode'];
+      final maintenance = raw == 'true' || raw == true;
       final message = config['maintenance_message']?.toString() ?? '';
       final minVersion = config['force_update_min_version']?.toString() ?? '';
 
