@@ -287,6 +287,7 @@ app.use('/api', apiLimiter);
 app.use(apiProxy(AUTH_URL, '/api/simple-auth', 'auth'));
 app.use(apiProxy(AUTH_URL, '/api/auth', 'auth'));
 app.use(apiProxy(UNION_URL, '/api/union', 'union'));
+app.use(apiProxy(PLATFORM_URL, '/api/app-config', 'platform'));
 app.use(apiProxy(PLATFORM_URL, '/api/platform-admin', 'platform'));
 app.use(apiProxy(PLATFORM_URL, '/api/admin', 'platform'));
 app.use(apiProxy(PLATFORM_URL, '/api/payments', 'platform'));
