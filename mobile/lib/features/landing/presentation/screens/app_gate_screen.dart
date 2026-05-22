@@ -8,98 +8,6 @@ import '../../../../services/app_config_service.dart';
 import '../../../../services/push_notification_service.dart';
 import '../../../../services/realtime_socket_service.dart';
 
-class MaintenanceScreen extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  final bool checking;
-
-  const MaintenanceScreen({
-    super.key,
-    required this.message,
-    required this.onRetry,
-    this.checking = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.build_rounded,
-                    size: 56,
-                    color: Colors.orange.shade600,
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'Under Maintenance',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey.shade900,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  message.isNotEmpty
-                      ? message
-                      : 'We are currently performing scheduled maintenance. Service will resume shortly. We apologise for the inconvenience.',
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: Colors.grey.shade600,
-                    height: 1.6,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: FilledButton.icon(
-                    onPressed: checking ? null : onRetry,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.orange.shade600,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    icon: checking
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.refresh_rounded),
-                    label: Text(checking ? 'Checking...' : 'Try Again'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class ForceUpdateScreen extends StatelessWidget {
   final String minVersion;
 
@@ -181,30 +89,6 @@ class ForceUpdateScreen extends StatelessWidget {
   }
 }
 
-/// Provides [AppConfigResult] to descendants via InheritedWidget.
-class AppConfigData extends InheritedWidget {
-  final AppConfigResult? config;
-  final bool checking;
-  final VoidCallback onRetry;
-
-  const AppConfigData({
-    super.key,
-    required this.config,
-    required this.checking,
-    required this.onRetry,
-    required super.child,
-  });
-
-  static AppConfigData? of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppConfigData>();
-
-  @override
-  bool updateShouldNotify(AppConfigData old) =>
-      config?.maintenanceMode != old.config?.maintenanceMode ||
-      config?.maintenanceMessage != old.config?.maintenanceMessage ||
-      checking != old.checking;
-}
-
 class AppGate extends StatefulWidget {
   final Widget child;
 
@@ -217,7 +101,6 @@ class AppGate extends StatefulWidget {
 class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   AppConfigResult? _config;
   bool _loading = true;
-  bool _checking = false;
   Timer? _pollTimer;
   StreamSubscription<Map<String, dynamic>>? _maintenanceSub;
   StreamSubscription<RemoteMessage>? _fcmSub;
@@ -228,22 +111,13 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _check();
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _silentCheck());
-    _maintenanceSub = RealtimeSocketService.instance.maintenanceStream.listen(_onMaintenanceEvent);
-    _fcmSub = PushNotificationService.instance.foregroundMessages.listen(_onFcmForeground);
+    _maintenanceSub = RealtimeSocketService.instance.maintenanceStream.listen((_) {});
+    _fcmSub = PushNotificationService.instance.foregroundMessages.listen((_) {});
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _silentCheck();
-  }
-
-  void _onMaintenanceEvent(Map<String, dynamic> data) {
-    if (!mounted) return;
-    _silentCheck();
-  }
-
-  void _onFcmForeground(RemoteMessage message) {
-    if (message.data['type'] == 'maintenance') _silentCheck();
   }
 
   Future<void> _check() async {
@@ -253,16 +127,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     setState(() {
       _config = result;
       _loading = false;
-    });
-  }
-
-  Future<void> _retryCheck() async {
-    setState(() => _checking = true);
-    final result = await AppConfigService.instance.check();
-    if (!mounted) return;
-    setState(() {
-      _config = result;
-      _checking = false;
     });
   }
 
@@ -291,13 +155,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       return ForceUpdateScreen(minVersion: _config!.minVersion);
     }
 
-    // Maintenance is NOT blocked here — it's handled downstream,
-    // only inside the authenticated flow (see main.dart).
-    return AppConfigData(
-      config: _config,
-      checking: _checking,
-      onRetry: _retryCheck,
-      child: widget.child,
-    );
+    return widget.child;
   }
 }
