@@ -4,7 +4,8 @@ const { pool } = require('../config/database');
 const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const { config } = require('../config/env');
+const JWT_SECRET = config.jwt.secret;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
 

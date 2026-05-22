@@ -22,8 +22,8 @@ function ensurePlatformAdmin(user) {
  * After union reject/cancel: demote union_admin users who have no remaining
  * pending/approved union (stale role otherwise blocks independent driver + APIs).
  */
-async function demoteUnionAdminsOrphanedByReject(unionId) {
-  const r = await pool.query(
+async function demoteUnionAdminsOrphanedByReject(unionId, queryFn = pool) {
+  const r = await queryFn.query(
     `UPDATE users u
      SET role = CASE
        WHEN u.driver_verification_status = 'approved' THEN 'driver'
@@ -48,8 +48,8 @@ async function demoteUnionAdminsOrphanedByReject(unionId) {
 }
 
 /** Remove registrar links so getMyUnion / clients see no union after reject (re-apply works). */
-async function unlinkUnionAdminsForRejectedUnion(unionId) {
-  await pool.query('DELETE FROM union_admins WHERE union_id = $1', [unionId]);
+async function unlinkUnionAdminsForRejectedUnion(unionId, queryFn = pool) {
+  await queryFn.query('DELETE FROM union_admins WHERE union_id = $1', [unionId]);
 }
 
 /**
@@ -217,41 +217,53 @@ const getPendingUnionRequests = asyncHandler(async (req, res) => {
  */
 const approveUnionRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const client = await pool.connect();
 
-  const unionRes = await pool.query(
-    'SELECT * FROM unions WHERE id = $1 AND status = $2',
-    [id, 'pending']
-  );
-  if (unionRes.rows.length === 0) {
-    throw ApiError.notFound('Pending union not found');
+  try {
+    await client.query('BEGIN');
+
+    const unionRes = await client.query(
+      'SELECT * FROM unions WHERE id = $1 AND status = $2 FOR UPDATE',
+      [id, 'pending']
+    );
+    if (unionRes.rows.length === 0) {
+      throw ApiError.notFound('Pending union not found');
+    }
+
+    await client.query(
+      `UPDATE unions
+       SET status = 'approved',
+           is_active = TRUE,
+           documents_status = 'approved',
+           documents_reupload_allowed = FALSE,
+           documents_reupload_deadline = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id]
+    );
+
+    await client.query(
+      `UPDATE users
+       SET role = 'union_admin'
+       WHERE id IN (SELECT user_id FROM union_admins WHERE union_id = $1)
+         AND role <> 'union_admin'`,
+      [id]
+    );
+
+    await client.query('COMMIT');
+
+    logger.info(`Union approved from admin panel ${id} by user ${req.user.id}`);
+
+    ApiResponse.success(
+      { id, status: 'approved' },
+      'Union approved successfully'
+    ).send(res);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  await pool.query(
-    `UPDATE unions
-     SET status = 'approved',
-         is_active = TRUE,
-         documents_status = 'approved',
-         documents_reupload_allowed = FALSE,
-         documents_reupload_deadline = NULL,
-         updated_at = NOW()
-     WHERE id = $1`,
-    [id]
-  );
-
-  await pool.query(
-    `UPDATE users
-     SET role = 'union_admin'
-     WHERE id IN (SELECT user_id FROM union_admins WHERE union_id = $1)
-       AND role <> 'union_admin'`,
-    [id]
-  );
-
-  logger.info(`Union approved from admin panel ${id} by user ${req.user.id}`);
-
-  ApiResponse.success(
-    { id, status: 'approved' },
-    'Union approved successfully'
-  ).send(res);
 });
 
 /**
@@ -260,36 +272,48 @@ const approveUnionRequest = asyncHandler(async (req, res) => {
  */
 const rejectUnionRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const client = await pool.connect();
 
-  const unionRes = await pool.query(
-    'SELECT * FROM unions WHERE id = $1 AND status = $2',
-    [id, 'pending']
-  );
-  if (unionRes.rows.length === 0) {
-    throw ApiError.notFound('Pending union not found');
+  try {
+    await client.query('BEGIN');
+
+    const unionRes = await client.query(
+      'SELECT * FROM unions WHERE id = $1 AND status = $2 FOR UPDATE',
+      [id, 'pending']
+    );
+    if (unionRes.rows.length === 0) {
+      throw ApiError.notFound('Pending union not found');
+    }
+
+    await client.query(
+      `UPDATE unions
+       SET status = 'rejected',
+           is_active = FALSE,
+           documents_status = 'rejected',
+           documents_reupload_allowed = FALSE,
+           documents_reupload_deadline = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [id]
+    );
+
+    await demoteUnionAdminsOrphanedByReject(id, client);
+    await unlinkUnionAdminsForRejectedUnion(id, client);
+
+    await client.query('COMMIT');
+
+    logger.info(`Union rejected from admin panel ${id} by user ${req.user.id}`);
+
+    ApiResponse.success(
+      { id, status: 'rejected' },
+      'Union rejected'
+    ).send(res);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  await pool.query(
-    `UPDATE unions
-     SET status = 'rejected',
-         is_active = FALSE,
-         documents_status = 'rejected',
-         documents_reupload_allowed = FALSE,
-         documents_reupload_deadline = NULL,
-         updated_at = NOW()
-     WHERE id = $1`,
-    [id]
-  );
-
-  await demoteUnionAdminsOrphanedByReject(id);
-  await unlinkUnionAdminsForRejectedUnion(id);
-
-  logger.info(`Union rejected from admin panel ${id} by user ${req.user.id}`);
-
-  ApiResponse.success(
-    { id, status: 'rejected' },
-    'Union rejected'
-  ).send(res);
 });
 
 /**

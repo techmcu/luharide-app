@@ -127,9 +127,9 @@ router.patch(
 );
 
 // Platform admin: list / approve / reject unions
-router.get('/admin/unions', authenticate, listUnions);
-router.post('/admin/unions/:id/approve', authenticate, approveUnion);
-router.post('/admin/unions/:id/reject', authenticate, rejectUnion);
+router.get('/admin/unions', authenticate, authorize('union_admin'), listUnions);
+router.post('/admin/unions/:id/approve', authenticate, authorize('union_admin'), approveUnion);
+router.post('/admin/unions/:id/reject', authenticate, authorize('union_admin'), rejectUnion);
 
 // Union admin: basic read-only drivers list
 router.get(

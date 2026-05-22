@@ -165,6 +165,16 @@ const toggleUserActive = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Cannot suspend your own account');
   }
 
+  if (!is_active && adminEmail) {
+    const target = await pool.query('SELECT email FROM users WHERE id = $1', [id]);
+    const targetEmail = target.rows[0]?.email
+      ? String(target.rows[0].email).toLowerCase().trim()
+      : null;
+    if (targetEmail === adminEmail) {
+      throw ApiError.badRequest('Cannot suspend the platform admin account');
+    }
+  }
+
   const result = await pool.query(
     `UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2
      RETURNING id, name, email, is_active`,
@@ -738,9 +748,17 @@ const getPublicAppConfig = asyncHandler(async (req, res) => {
       if (auth && auth.startsWith('Bearer ')) {
         const { verifyAccessToken } = require('../services/tokenService');
         const decoded = verifyAccessToken(auth.slice(7));
-        const email = decoded.email ? String(decoded.email).toLowerCase().trim() : null;
-        if (email === adminEmail) {
-          config.maintenance_mode = 'false';
+        if (decoded.userId) {
+          const userRow = await queryRead(
+            'SELECT email FROM users WHERE id = $1',
+            [decoded.userId]
+          );
+          const email = userRow.rows[0]?.email
+            ? String(userRow.rows[0].email).toLowerCase().trim()
+            : null;
+          if (email === adminEmail) {
+            config.maintenance_mode = 'false';
+          }
         }
       }
     } catch (_) {}

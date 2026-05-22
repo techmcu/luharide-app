@@ -314,57 +314,69 @@ const getPendingRequests = asyncHandler(async (req, res) => {
 const approveRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const adminId = req.user.id;
+  const client = await pool.connect();
 
-  const requestResult = await pool.query(
-    'SELECT * FROM driver_verification_requests WHERE id = $1 AND status = $2',
-    [id, 'pending']
-  );
-
-  if (requestResult.rows.length === 0) {
-    throw ApiError.notFound('Pending request not found');
-  }
-
-  const request = requestResult.rows[0];
-
-  await pool.query(
-    `UPDATE driver_verification_requests 
-     SET status = 'approved', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP 
-     WHERE id = $2`,
-    [adminId, id]
-  );
-
-  await pool.query(
-    `UPDATE users 
-     SET driver_verification_status = 'approved',
-         role = 'driver',
-         driver_code = COALESCE(driver_code, SUBSTRING(id::text, 1, 8)),
-         driver_kyc_reupload_allowed = FALSE,
-         driver_kyc_reupload_deadline = NULL
-     WHERE id = $1`,
-    [request.user_id]
-  );
-
-  // Notify driver: verification approved
   try {
-    const n = await pool.query(
-      `INSERT INTO notifications (user_id, type, title, body) 
-       VALUES ($1, 'verification_approved', 'Verification Approved', 'Your driver verification has been approved! You can now create rides.')
-       RETURNING id, user_id, type, title, body, created_at, is_read`,
+    await client.query('BEGIN');
+
+    const requestResult = await client.query(
+      'SELECT * FROM driver_verification_requests WHERE id = $1 AND status = $2 FOR UPDATE',
+      [id, 'pending']
+    );
+
+    if (requestResult.rows.length === 0) {
+      throw ApiError.notFound('Pending request not found');
+    }
+
+    const request = requestResult.rows[0];
+
+    await client.query(
+      `UPDATE driver_verification_requests
+       SET status = 'approved', reviewed_by = $1, reviewed_at = CURRENT_TIMESTAMP
+       WHERE id = $2`,
+      [adminId, id]
+    );
+
+    await client.query(
+      `UPDATE users
+       SET driver_verification_status = 'approved',
+           role = 'driver',
+           driver_code = COALESCE(driver_code, SUBSTRING(id::text, 1, 8)),
+           driver_kyc_reupload_allowed = FALSE,
+           driver_kyc_reupload_deadline = NULL
+       WHERE id = $1`,
       [request.user_id]
     );
-    if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+
+    await client.query('COMMIT');
+
+    // Notify driver outside transaction (non-critical)
+    try {
+      const n = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body)
+         VALUES ($1, 'verification_approved', 'Verification Approved', 'Your driver verification has been approved! You can now create rides.')
+         RETURNING id, user_id, type, title, body, created_at, is_read`,
+        [request.user_id]
+      );
+      if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+    } catch (err) {
+      logger.warn(
+        `Notifications insert failed. Driver still approved. Error: ${err.message}`
+      );
+    }
+
+    logger.info(`Driver approved: ${request.user_id} by admin ${adminId}`);
+
+    ApiResponse.success(
+      { message: 'Driver approved successfully' },
+      'Driver approved'
+    ).send(res);
   } catch (err) {
-    logger.warn(
-      `Notifications insert failed. Driver still approved. Error: ${err.message}`
-    );
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  logger.info(`Driver approved: ${request.user_id} by admin ${adminId}`);
-
-  ApiResponse.success(
-    { message: 'Driver approved successfully' },
-    'Driver approved'
-  ).send(res);
 });
 
 /**
@@ -375,39 +387,51 @@ const rejectRequest = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { reason } = req.body;
   const adminId = req.user.id;
+  const client = await pool.connect();
 
-  const requestResult = await pool.query(
-    'SELECT * FROM driver_verification_requests WHERE id = $1 AND status = $2',
-    [id, 'pending']
-  );
+  try {
+    await client.query('BEGIN');
 
-  if (requestResult.rows.length === 0) {
-    throw ApiError.notFound('Pending request not found');
+    const requestResult = await client.query(
+      'SELECT * FROM driver_verification_requests WHERE id = $1 AND status = $2 FOR UPDATE',
+      [id, 'pending']
+    );
+
+    if (requestResult.rows.length === 0) {
+      throw ApiError.notFound('Pending request not found');
+    }
+
+    const request = requestResult.rows[0];
+
+    await client.query(
+      `UPDATE driver_verification_requests
+       SET status = 'rejected', rejection_reason = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP
+       WHERE id = $3`,
+      [reason || 'Documents rejected', adminId, id]
+    );
+
+    await client.query(
+      `UPDATE users
+       SET driver_verification_status = 'rejected',
+           driver_kyc_reupload_allowed = TRUE
+       WHERE id = $1`,
+      [request.user_id]
+    );
+
+    await client.query('COMMIT');
+
+    logger.info(`Driver rejected: ${request.user_id} by admin ${adminId}`);
+
+    ApiResponse.success(
+      { message: 'Request rejected' },
+      'Request rejected'
+    ).send(res);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  const request = requestResult.rows[0];
-
-  await pool.query(
-    `UPDATE driver_verification_requests 
-     SET status = 'rejected', rejection_reason = $1, reviewed_by = $2, reviewed_at = CURRENT_TIMESTAMP 
-     WHERE id = $3`,
-    [reason || 'Documents rejected', adminId, id]
-  );
-
-  await pool.query(
-    `UPDATE users
-     SET driver_verification_status = 'rejected',
-         driver_kyc_reupload_allowed = TRUE
-     WHERE id = $1`,
-    [request.user_id]
-  );
-
-  logger.info(`Driver rejected: ${request.user_id} by admin ${adminId}`);
-
-  ApiResponse.success(
-    { message: 'Request rejected' },
-    'Request rejected'
-  ).send(res);
 });
 
 module.exports = {

@@ -805,7 +805,7 @@ class _NotificationsSectionState extends State<_NotificationsSection> with Autom
         const Text('Send Notification', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
-          initialValue: _segment,
+          value: _segment,
           decoration: const InputDecoration(labelText: 'Audience', border: OutlineInputBorder()),
           items: _segments.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
           onChanged: (v) => setState(() => _segment = v ?? 'all'),
