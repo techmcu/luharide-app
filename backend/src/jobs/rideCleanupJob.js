@@ -17,6 +17,7 @@ const {
   JOB_RIDE_CLEANUP,
 } = require('./pgAdvisoryTryLock');
 const { cleanupExpiredTokens } = require('../services/tokenService');
+const { cleanupExpiredOTPs } = require('../services/otpService');
 
 function logPurge(label, name, count) {
   if (count > 0) logger.info(`${label} purged ${count} ${name}`);
@@ -225,6 +226,13 @@ async function runEveningMaintenance() {
     await cleanupExpiredTokens();
   } catch (e) {
     logger.warn(`${label} refresh_tokens cleanup failed: ${e.message}`);
+  }
+
+  // ── OTP verifications cleanup ──
+  try {
+    await cleanupExpiredOTPs();
+  } catch (e) {
+    logger.warn(`${label} OTP cleanup failed: ${e.message}`);
   }
 
   // ── Notifications + FCM tokens (outside advisory lock — pool queries) ──

@@ -95,10 +95,12 @@ async function sendPushToMultipleUsers(userIds, title, body, data = {}) {
     Object.entries(data).map(([k, v]) => [k, String(v)])
   );
 
-  for (const token of tokens) {
+  const BATCH_SIZE = 500;
+  for (let i = 0; i < tokens.length; i += BATCH_SIZE) {
+    const batch = tokens.slice(i, i + BATCH_SIZE);
     try {
-      await admin.messaging().send({
-        token,
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: batch,
         notification: { title, body },
         data: dataStrings,
         android: {
@@ -106,13 +108,19 @@ async function sendPushToMultipleUsers(userIds, title, body, data = {}) {
           notification: { channelId: 'luharide_default' },
         },
       });
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success && resp.error) {
+          const code = resp.error.code;
+          if (
+            code === 'messaging/registration-token-not-registered' ||
+            code === 'messaging/invalid-registration-token'
+          ) {
+            staleTokens.push(batch[idx]);
+          }
+        }
+      });
     } catch (err) {
-      if (
-        err.code === 'messaging/registration-token-not-registered' ||
-        err.code === 'messaging/invalid-registration-token'
-      ) {
-        staleTokens.push(token);
-      }
+      logger.warn({ msg: 'FCM multicast batch failed', error: err.message, batchSize: batch.length });
     }
   }
 

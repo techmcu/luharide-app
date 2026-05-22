@@ -782,17 +782,14 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
     return ApiResponse.success({ suggestions: [] }, 'No suggestions').send(res);
   }
 
-  // Get unique locations from trips
   const result = await pool.query(
-    `SELECT DISTINCT location
-    FROM (
-      SELECT from_location as location FROM trips
-      UNION
-      SELECT to_location as location FROM trips
-    ) as locations
-    WHERE LOWER(location) LIKE LOWER($1)
-    ORDER BY location
-    LIMIT 10`,
+    `SELECT DISTINCT location FROM (
+       SELECT from_location AS location FROM trips WHERE LOWER(from_location) LIKE LOWER($1)
+       UNION
+       SELECT to_location AS location FROM trips WHERE LOWER(to_location) LIKE LOWER($1)
+     ) AS locations
+     ORDER BY location
+     LIMIT 10`,
     [`%${q}%`]
   );
 
@@ -1116,46 +1113,49 @@ const cancelTrip = asyncHandler(async (req, res) => {
 const deleteTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
   const driverId = req.user.id;
+  const client = await pool.connect();
 
-  const tripResult = await pool.query(
-    'SELECT * FROM trips WHERE id = $1 AND driver_id = $2',
-    [tripId, driverId]
-  );
+  try {
+    await client.query('BEGIN');
 
-  if (tripResult.rows.length === 0) {
-    throw ApiError.notFound('Trip not found');
+    const tripResult = await client.query(
+      'SELECT id FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      [tripId, driverId]
+    );
+
+    if (tripResult.rows.length === 0) {
+      throw ApiError.notFound('Trip not found');
+    }
+
+    const bookingsCheck = await client.query(
+      `SELECT status FROM bookings
+       WHERE trip_id = $1 AND status IN ('confirmed', 'pending')`,
+      [tripId]
+    );
+
+    if (bookingsCheck.rows.length > 0) {
+      const confirmedCount = bookingsCheck.rows.filter(r => r.status === 'confirmed').length;
+      const pendingCount = bookingsCheck.rows.filter(r => r.status === 'pending').length;
+      const msg = confirmedCount > 0
+        ? `Cannot delete ride. ${confirmedCount} seat(s) are already booked. Passengers would be affected.`
+        : `Cannot delete ride. ${pendingCount} booking request(s) are pending. Please accept or reject them first.`;
+      throw ApiError.badRequest(msg);
+    }
+
+    await client.query('DELETE FROM bookings WHERE trip_id = $1', [tripId]);
+    await client.query('DELETE FROM trips WHERE id = $1', [tripId]);
+
+    await client.query('COMMIT');
+
+    logger.info(`Trip deleted: ${tripId} by driver ${driverId}`);
+
+    ApiResponse.success({ deleted: true }, 'Ride deleted successfully').send(res);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  const bookingsCheck = await pool.query(
-    `SELECT status, seat_numbers FROM bookings 
-     WHERE trip_id = $1 AND status IN ('confirmed', 'pending')`,
-    [tripId]
-  );
-
-  if (bookingsCheck.rows.length > 0) {
-    const confirmedCount = bookingsCheck.rows.filter(r => r.status === 'confirmed').length;
-    const pendingCount = bookingsCheck.rows.filter(r => r.status === 'pending').length;
-    const msg = confirmedCount > 0
-      ? `Cannot delete ride. ${confirmedCount} seat(s) are already booked. Passengers would be affected.`
-      : `Cannot delete ride. ${pendingCount} booking request(s) are pending. Please accept or reject them first.`;
-    throw ApiError.badRequest(msg);
-  }
-
-  await pool.query(
-    'DELETE FROM bookings WHERE trip_id = $1',
-    [tripId]
-  );
-  await pool.query(
-    'DELETE FROM trips WHERE id = $1',
-    [tripId]
-  );
-
-  logger.info(`Trip deleted: ${tripId} by driver ${driverId}`);
-
-  ApiResponse.success(
-    { deleted: true },
-    'Ride deleted successfully'
-  ).send(res);
 });
 
 module.exports = {

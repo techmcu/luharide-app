@@ -275,162 +275,176 @@ const createBooking = asyncHandler(async (req, res) => {
  */
 const respondToBooking = asyncHandler(async (req, res) => {
   const { id: bookingId } = req.params;
-  const { action } = req.body; // 'accept' or 'reject'
+  const { action } = req.body;
   const driverId = req.user.id;
 
   if (!['accept', 'reject'].includes(action)) {
     throw ApiError.badRequest('action must be accept or reject');
   }
 
-  let bookingResult;
+  const client = await pool.connect();
+
   try {
-    bookingResult = await pool.query(
-      `SELECT b.*, t.driver_id, t.available_seats, t.departure_time, t.created_source
-       FROM bookings b
-       JOIN trips t ON b.trip_id = t.id
-       WHERE b.id = $1`,
-      [bookingId]
-    );
-  } catch (qErr) {
-    if (qErr.code === '42703' && (qErr.message || '').includes('created_source')) {
-      bookingResult = await pool.query(
-        `SELECT b.*, t.driver_id, t.available_seats, t.departure_time
+    await client.query('BEGIN');
+
+    let bookingResult;
+    try {
+      bookingResult = await client.query(
+        `SELECT b.*, t.driver_id, t.available_seats, t.departure_time, t.created_source
          FROM bookings b
          JOIN trips t ON b.trip_id = t.id
-         WHERE b.id = $1`,
+         WHERE b.id = $1
+         FOR UPDATE OF b`,
         [bookingId]
       );
-    } else {
-      throw qErr;
+    } catch (qErr) {
+      if (qErr.code === '42703' && (qErr.message || '').includes('created_source')) {
+        bookingResult = await client.query(
+          `SELECT b.*, t.driver_id, t.available_seats, t.departure_time
+           FROM bookings b
+           JOIN trips t ON b.trip_id = t.id
+           WHERE b.id = $1
+           FOR UPDATE OF b`,
+          [bookingId]
+        );
+      } else {
+        throw qErr;
+      }
     }
-  }
 
-  if (bookingResult.rows.length === 0) {
-    throw ApiError.notFound('Booking not found');
-  }
+    if (bookingResult.rows.length === 0) {
+      throw ApiError.notFound('Booking not found');
+    }
 
-  const booking = bookingResult.rows[0];
-  if (booking.driver_id !== driverId) {
-    throw ApiError.forbidden('You can only respond to bookings for your trips');
-  }
+    const booking = bookingResult.rows[0];
+    if (booking.driver_id !== driverId) {
+      throw ApiError.forbidden('You can only respond to bookings for your trips');
+    }
 
-  if (booking.status !== 'pending') {
-    throw ApiError.badRequest('Booking is not pending');
-  }
+    if (booking.status !== 'pending') {
+      throw ApiError.badRequest('Booking is not pending');
+    }
 
-  const seatNums = Array.isArray(booking.seat_numbers) 
-    ? booking.seat_numbers 
-    : (booking.seat_numbers ? [].concat(booking.seat_numbers) : []);
-  const seatCount = seatNums.length;
+    const seatNums = Array.isArray(booking.seat_numbers)
+      ? booking.seat_numbers
+      : (booking.seat_numbers ? [].concat(booking.seat_numbers) : []);
+    const seatCount = seatNums.length;
 
-  if (action === 'reject') {
-    await pool.query(
-      'UPDATE bookings SET status = $1 WHERE id = $2',
-      ['cancelled', bookingId]
+    if (action === 'reject') {
+      await client.query(
+        "UPDATE bookings SET status = 'cancelled' WHERE id = $1",
+        [bookingId]
+      );
+      await client.query('COMMIT');
+      emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'booking_rejected' });
+      return ApiResponse.success({ status: 'cancelled' }, 'Booking rejected').send(res);
+    }
+
+    // Lock the trip row for seat count safety
+    const tripLock = await client.query(
+      'SELECT available_seats FROM trips WHERE id = $1 FOR UPDATE',
+      [booking.trip_id]
     );
-    emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'booking_rejected' });
-    return ApiResponse.success(
-      { status: 'cancelled' },
-      'Booking rejected'
-    ).send(res);
-  }
+    const availableSeats = parseInt(tripLock.rows[0]?.available_seats, 10) || 0;
 
-  // Accept – check seats are not already confirmed by another booking
-  const confirmedBookings = await pool.query(
-    `SELECT seat_numbers FROM bookings 
-     WHERE trip_id = $1 AND status = 'confirmed' AND id != $2`,
-    [booking.trip_id, bookingId]
-  );
-
-  const takenSeats = new Set();
-  for (const row of confirmedBookings.rows) {
-    (row.seat_numbers || []).forEach(s => takenSeats.add(s));
-  }
-
-  for (const seat of seatNums) {
-    if (takenSeats.has(seat)) {
-      await pool.query(
-        'UPDATE bookings SET status = $1 WHERE id = $2',
-        ['cancelled', bookingId]
-      );
-      throw ApiError.badRequest(`Seat ${seat} is no longer available. Another booking was already approved.`);
-    }
-  }
-
-  const availableSeats = parseInt(booking.available_seats, 10) || 0;
-  if (seatCount > availableSeats) {
-    throw ApiError.badRequest('Not enough seats available');
-  }
-
-  await pool.query(
-    `UPDATE bookings SET status = 'confirmed', confirmed_at = NOW() WHERE id = $1`,
-    [bookingId]
-  );
-  await pool.query(
-    'UPDATE trips SET available_seats = available_seats - $1 WHERE id = $2',
-    [seatCount, booking.trip_id]
-  );
-
-  // Cancel other pending bookings that overlap with these seats
-  const otherPending = await pool.query(
-    `SELECT id, seat_numbers FROM bookings 
-     WHERE trip_id = $1 AND status = 'pending' AND id != $2`,
-    [booking.trip_id, bookingId]
-  );
-
-  const approvedSet = new Set(seatNums);
-  for (const row of otherPending.rows) {
-    const others = row.seat_numbers || [];
-    const overlaps = others.some(s => approvedSet.has(s));
-    if (overlaps) {
-      await pool.query(
-        'UPDATE bookings SET status = $1 WHERE id = $2',
-        ['cancelled', row.id]
-      );
-    }
-  }
-
-  // Notify passenger: booking accepted
-  try {
-    const pn = await pool.query(
-      `INSERT INTO notifications (user_id, type, title, body, data)
-       VALUES ($1, 'booking_accepted', 'Booking accepted!', 'Your booking has been approved by the driver. Have a safe ride!', $2::jsonb)
-       RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-      [booking.passenger_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id })]
+    const confirmedBookings = await client.query(
+      `SELECT seat_numbers FROM bookings
+       WHERE trip_id = $1 AND status = 'confirmed' AND id != $2`,
+      [booking.trip_id, bookingId]
     );
-    if (pn.rows[0]) emitNotificationToUser(pn.rows[0].user_id, pn.rows[0]);
-  } catch (e) {
-    logger.warn('Booking accepted notification failed:', e.message);
-  }
 
-  // Rate reminders: departure_time + 5h (independent) or NOW + 5h (union/legacy)
-  try {
-    const independent = booking.created_source === 'independent_driver' && booking.departure_time;
-    if (independent) {
-      await pool.query(
-        `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-         VALUES ($1, $2, $3, $4::timestamp + INTERVAL '5 hours')`,
-        [bookingId, booking.passenger_id, booking.driver_id, booking.departure_time]
-      );
-    } else {
-      await pool.query(
-        `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-         VALUES ($1, $2, $3, NOW() + INTERVAL '5 hours')`,
-        [bookingId, booking.passenger_id, booking.driver_id]
-      );
+    const takenSeats = new Set();
+    for (const row of confirmedBookings.rows) {
+      (row.seat_numbers || []).forEach(s => takenSeats.add(s));
     }
+
+    for (const seat of seatNums) {
+      if (takenSeats.has(seat)) {
+        await client.query(
+          "UPDATE bookings SET status = 'cancelled' WHERE id = $1",
+          [bookingId]
+        );
+        await client.query('COMMIT');
+        throw ApiError.badRequest(`Seat ${seat} is no longer available. Another booking was already approved.`);
+      }
+    }
+
+    if (seatCount > availableSeats) {
+      throw ApiError.badRequest('Not enough seats available');
+    }
+
+    await client.query(
+      "UPDATE bookings SET status = 'confirmed', confirmed_at = NOW() WHERE id = $1",
+      [bookingId]
+    );
+    await client.query(
+      'UPDATE trips SET available_seats = available_seats - $1 WHERE id = $2 AND available_seats >= $1',
+      [seatCount, booking.trip_id]
+    );
+
+    // Cancel other pending bookings that overlap with these seats
+    const otherPending = await client.query(
+      `SELECT id, seat_numbers FROM bookings
+       WHERE trip_id = $1 AND status = 'pending' AND id != $2`,
+      [booking.trip_id, bookingId]
+    );
+
+    const approvedSet = new Set(seatNums);
+    for (const row of otherPending.rows) {
+      const others = row.seat_numbers || [];
+      if (others.some(s => approvedSet.has(s))) {
+        await client.query(
+          "UPDATE bookings SET status = 'cancelled' WHERE id = $1",
+          [row.id]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // Post-transaction: notifications (non-critical, use pool not client)
+    try {
+      const pn = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1, 'booking_accepted', 'Booking accepted!', 'Your booking has been approved by the driver. Have a safe ride!', $2::jsonb)
+         RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+        [booking.passenger_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id })]
+      );
+      if (pn.rows[0]) emitNotificationToUser(pn.rows[0].user_id, pn.rows[0]);
+    } catch (e) {
+      logger.warn('Booking accepted notification failed:', e.message);
+    }
+
+    try {
+      const independent = booking.created_source === 'independent_driver' && booking.departure_time;
+      if (independent) {
+        await pool.query(
+          `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+           VALUES ($1, $2, $3, $4::timestamp + INTERVAL '5 hours')`,
+          [bookingId, booking.passenger_id, booking.driver_id, booking.departure_time]
+        );
+      } else {
+        await pool.query(
+          `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+           VALUES ($1, $2, $3, NOW() + INTERVAL '5 hours')`,
+          [bookingId, booking.passenger_id, booking.driver_id]
+        );
+      }
+    } catch (err) {
+      if (err.code !== '42P01') {
+        logger.warn('Pending rate notification insert failed:', err.message);
+      }
+    }
+
+    emitTripUpdated(booking.trip_id, { bookingId, status: 'confirmed', reason: 'booking_confirmed' });
+
+    ApiResponse.success({ status: 'confirmed' }, 'Booking approved').send(res);
   } catch (err) {
-    if (err.code !== '42P01') {
-      logger.warn('Pending rate notification insert failed:', err.message);
-    }
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  emitTripUpdated(booking.trip_id, { bookingId, status: 'confirmed', reason: 'booking_confirmed' });
-
-  ApiResponse.success(
-    { status: 'confirmed' },
-    'Booking approved'
-  ).send(res);
 });
 
 /**
@@ -456,7 +470,16 @@ const getMyBookings = asyncHandler(async (req, res) => {
 
   // days=0 → no date filter (show everything within retention window)
   const dateClause = days > 0
-    ? `AND b.created_at >= NOW() - INTERVAL '${days} days'`
+    ? 'AND b.created_at >= NOW() - make_interval(days => $4)'
+    : '';
+  const dataParams = days > 0
+    ? [passengerId, limit, offset, days]
+    : [passengerId, limit, offset];
+  const countParams = days > 0
+    ? [passengerId, days]
+    : [passengerId];
+  const countDateClause = days > 0
+    ? 'AND b.created_at >= NOW() - make_interval(days => $2)'
     : '';
 
   const [dataRes, countRes] = await Promise.all([
@@ -475,14 +498,14 @@ const getMyBookings = asyncHandler(async (req, res) => {
          ${dateClause}
        ORDER BY b.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [passengerId, limit, offset]
+      dataParams
     ),
     pool.query(
       `SELECT COUNT(*)::int AS total
        FROM bookings b
        WHERE b.passenger_id = $1
-         ${dateClause}`,
-      [passengerId]
+         ${countDateClause}`,
+      countParams
     ),
   ]);
 
@@ -531,78 +554,90 @@ const cancelBooking = asyncHandler(async (req, res) => {
   const passengerId = req.user.id;
   const reason = (req.body && req.body.reason != null) ? String(req.body.reason).trim() : null;
 
-  const bookingResult = await pool.query(
-    `SELECT b.id, b.trip_id, b.passenger_id, b.status, b.seat_numbers,
-            t.driver_id, t.departure_time
-     FROM bookings b
-     JOIN trips t ON b.trip_id = t.id
-     WHERE b.id = $1`,
-    [bookingId]
-  );
-
-  if (bookingResult.rows.length === 0) {
-    throw ApiError.notFound('Booking not found');
-  }
-
-  const booking = bookingResult.rows[0];
-  if (booking.passenger_id !== passengerId) {
-    throw ApiError.forbidden('You can only cancel your own booking');
-  }
-
-  if (booking.status === 'cancelled') {
-    throw ApiError.badRequest('Booking is already cancelled');
-  }
-
-  const departureTime = new Date(booking.departure_time).getTime();
-  const now = Date.now();
-
-  // After ride start: cancel disabled (both sides rule)
-  if (now >= departureTime) {
-    throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
-  }
-
-  // Within 2 min of departure: cancel disabled
-  const cutoffMs = CANCEL_BEFORE_DEPARTURE_MINUTES * 60 * 1000;
-  if (booking.status === 'confirmed' && (departureTime - now) < cutoffMs) {
-    throw ApiError.badRequest(
-      `Cancellation not allowed. Cancel at least ${CANCEL_BEFORE_DEPARTURE_MINUTES} minutes before departure.`
-    );
-  }
-
-  const seatCount = Array.isArray(booking.seat_numbers) ? booking.seat_numbers.length : 0;
-
-  await pool.query(
-    `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = $2 WHERE id = $1`,
-    [bookingId, reason || null]
-  );
-
-  if (booking.status === 'confirmed' && seatCount > 0) {
-    await pool.query(
-      'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
-      [seatCount, booking.trip_id]
-    );
-  }
+  const client = await pool.connect();
 
   try {
-    const nRes = await pool.query(
-      `INSERT INTO notifications (user_id, type, title, body)
-       VALUES ($1, 'booking_cancelled', 'Booking cancelled', $2)
-       RETURNING id, user_id, type, title, body, created_at, is_read`,
-      [booking.driver_id, `A passenger cancelled their booking.${reason ? ` Reason: ${reason}` : ''}`]
+    await client.query('BEGIN');
+
+    const bookingResult = await client.query(
+      `SELECT b.id, b.trip_id, b.passenger_id, b.status, b.seat_numbers,
+              t.driver_id, t.departure_time
+       FROM bookings b
+       JOIN trips t ON b.trip_id = t.id
+       WHERE b.id = $1
+       FOR UPDATE OF b`,
+      [bookingId]
     );
-    if (nRes.rows[0]) {
-      emitNotificationToUser(nRes.rows[0].user_id, nRes.rows[0]);
+
+    if (bookingResult.rows.length === 0) {
+      throw ApiError.notFound('Booking not found');
     }
-  } catch (e) {
-    logger.warn('Driver cancel notification failed:', e.message);
+
+    const booking = bookingResult.rows[0];
+    if (booking.passenger_id !== passengerId) {
+      throw ApiError.forbidden('You can only cancel your own booking');
+    }
+
+    if (booking.status === 'cancelled') {
+      throw ApiError.badRequest('Booking is already cancelled');
+    }
+
+    const departureTime = new Date(booking.departure_time).getTime();
+    const now = Date.now();
+
+    if (now >= departureTime) {
+      throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
+    }
+
+    const cutoffMs = CANCEL_BEFORE_DEPARTURE_MINUTES * 60 * 1000;
+    if (booking.status === 'confirmed' && (departureTime - now) < cutoffMs) {
+      throw ApiError.badRequest(
+        `Cancellation not allowed. Cancel at least ${CANCEL_BEFORE_DEPARTURE_MINUTES} minutes before departure.`
+      );
+    }
+
+    const seatCount = Array.isArray(booking.seat_numbers) ? booking.seat_numbers.length : 0;
+    const wasConfirmed = booking.status === 'confirmed';
+
+    await client.query(
+      `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = $2
+       WHERE id = $1 AND status != 'cancelled'`,
+      [bookingId, reason || null]
+    );
+
+    if (wasConfirmed && seatCount > 0) {
+      await client.query(
+        'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+        [seatCount, booking.trip_id]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Post-transaction notifications (non-critical)
+    try {
+      const nRes = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body)
+         VALUES ($1, 'booking_cancelled', 'Booking cancelled', $2)
+         RETURNING id, user_id, type, title, body, created_at, is_read`,
+        [booking.driver_id, `A passenger cancelled their booking.${reason ? ` Reason: ${reason}` : ''}`]
+      );
+      if (nRes.rows[0]) {
+        emitNotificationToUser(nRes.rows[0].user_id, nRes.rows[0]);
+      }
+    } catch (e) {
+      logger.warn('Driver cancel notification failed:', e.message);
+    }
+
+    emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'passenger_cancelled' });
+
+    ApiResponse.success({ status: 'cancelled' }, 'Booking cancelled').send(res);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'passenger_cancelled' });
-
-  ApiResponse.success(
-    { status: 'cancelled' },
-    'Booking cancelled'
-  ).send(res);
 });
 
 module.exports = {

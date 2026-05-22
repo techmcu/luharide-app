@@ -1,13 +1,11 @@
+const crypto = require('crypto');
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 const { sendOTPEmail, isEmailConfigured } = require('./emailService');
 
-/**
- * Generate a random 6-digit OTP
- */
 const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 };
 
 /**
@@ -83,84 +81,102 @@ const createOTPByEmail = async (email, purpose = 'login') => {
  * Verify OTP (phone)
  */
 const verifyOTP = async (phone, otp) => {
-  try {
-    const result = await pool.query(
-      `SELECT * FROM otp_verifications 
+  // Atomic: claim the OTP row in one UPDATE...RETURNING — prevents concurrent double-use
+  const result = await pool.query(
+    `UPDATE otp_verifications
+     SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP
+     WHERE id = (
+       SELECT id FROM otp_verifications
        WHERE phone = $1 AND otp = $2 AND is_verified = FALSE
-       ORDER BY created_at DESC LIMIT 1`,
-      [phone, otp]
-    );
+         AND expires_at > NOW() AND attempts < 5
+       ORDER BY created_at DESC LIMIT 1
+       FOR UPDATE SKIP LOCKED
+     )
+     RETURNING id, phone, purpose`,
+    [phone, otp]
+  );
 
-    if (result.rows.length === 0) {
-      throw ApiError.badRequest('Invalid OTP');
-    }
-
-    const otpRecord = result.rows[0];
-    if (new Date() > new Date(otpRecord.expires_at)) {
-      throw ApiError.badRequest('OTP has expired');
-    }
-    if (otpRecord.attempts >= 5) {
-      throw ApiError.tooManyRequests('Too many failed attempts. Please request a new OTP');
-    }
-
-    await pool.query(
-      `UPDATE otp_verifications SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [otpRecord.id]
-    );
-
+  if (result.rows.length > 0) {
     logger.info(`OTP verified for phone: ${phone}`);
-    return { verified: true, phone, purpose: otpRecord.purpose };
-  } catch (error) {
-    if (error instanceof ApiError && error.statusCode === 400) {
-      await pool.query(
-        `UPDATE otp_verifications SET attempts = attempts + 1 WHERE phone = $1 AND otp = $2 AND is_verified = FALSE`,
-        [phone, otp]
-      );
-    }
-    throw error;
+    return { verified: true, phone, purpose: result.rows[0].purpose };
   }
+
+  // Determine why it failed — increment attempts on the matching unverified row
+  const check = await pool.query(
+    `SELECT id, expires_at, attempts FROM otp_verifications
+     WHERE phone = $1 AND otp = $2 AND is_verified = FALSE
+     ORDER BY created_at DESC LIMIT 1`,
+    [phone, otp]
+  );
+
+  if (check.rows.length === 0) {
+    throw ApiError.badRequest('Invalid OTP');
+  }
+
+  const rec = check.rows[0];
+  await pool.query(
+    'UPDATE otp_verifications SET attempts = attempts + 1 WHERE id = $1',
+    [rec.id]
+  );
+
+  if (rec.attempts >= 5) {
+    throw ApiError.tooManyRequests('Too many failed attempts. Please request a new OTP');
+  }
+  if (new Date() > new Date(rec.expires_at)) {
+    throw ApiError.badRequest('OTP has expired');
+  }
+  throw ApiError.badRequest('Invalid OTP');
 };
 
 /**
  * Verify OTP (email)
  */
 const verifyOTPByEmail = async (email, otp) => {
-  try {
-    const result = await pool.query(
-      `SELECT * FROM otp_verifications 
+  const emailNorm = email.toLowerCase().trim();
+
+  const result = await pool.query(
+    `UPDATE otp_verifications
+     SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP
+     WHERE id = (
+       SELECT id FROM otp_verifications
        WHERE email = $1 AND otp = $2 AND is_verified = FALSE
-       ORDER BY created_at DESC LIMIT 1`,
-      [email.toLowerCase().trim(), otp]
-    );
+         AND expires_at > NOW() AND attempts < 5
+       ORDER BY created_at DESC LIMIT 1
+       FOR UPDATE SKIP LOCKED
+     )
+     RETURNING id, email, purpose`,
+    [emailNorm, otp]
+  );
 
-    if (result.rows.length === 0) {
-      throw ApiError.badRequest('Invalid OTP');
-    }
-
-    const otpRecord = result.rows[0];
-    if (new Date() > new Date(otpRecord.expires_at)) {
-      throw ApiError.badRequest('OTP has expired');
-    }
-    if (otpRecord.attempts >= 5) {
-      throw ApiError.tooManyRequests('Too many failed attempts. Please request a new OTP');
-    }
-
-    await pool.query(
-      `UPDATE otp_verifications SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP WHERE id = $1`,
-      [otpRecord.id]
-    );
-
-    logger.info(`OTP verified for email: ${email}`);
-    return { verified: true, email: otpRecord.email, purpose: otpRecord.purpose };
-  } catch (error) {
-    if (error instanceof ApiError && error.statusCode === 400) {
-      await pool.query(
-        `UPDATE otp_verifications SET attempts = attempts + 1 WHERE email = $1 AND otp = $2 AND is_verified = FALSE`,
-        [email, otp]
-      );
-    }
-    throw error;
+  if (result.rows.length > 0) {
+    logger.info(`OTP verified for email: ${emailNorm}`);
+    return { verified: true, email: result.rows[0].email, purpose: result.rows[0].purpose };
   }
+
+  const check = await pool.query(
+    `SELECT id, expires_at, attempts FROM otp_verifications
+     WHERE email = $1 AND otp = $2 AND is_verified = FALSE
+     ORDER BY created_at DESC LIMIT 1`,
+    [emailNorm, otp]
+  );
+
+  if (check.rows.length === 0) {
+    throw ApiError.badRequest('Invalid OTP');
+  }
+
+  const rec = check.rows[0];
+  await pool.query(
+    'UPDATE otp_verifications SET attempts = attempts + 1 WHERE id = $1',
+    [rec.id]
+  );
+
+  if (rec.attempts >= 5) {
+    throw ApiError.tooManyRequests('Too many failed attempts. Please request a new OTP');
+  }
+  if (new Date() > new Date(rec.expires_at)) {
+    throw ApiError.badRequest('OTP has expired');
+  }
+  throw ApiError.badRequest('Invalid OTP');
 };
 
 /**

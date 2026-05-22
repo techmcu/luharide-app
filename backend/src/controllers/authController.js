@@ -217,8 +217,11 @@ const refreshTokenController = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('Account is deactivated');
   }
 
-  // Revoke old refresh token BEFORE generating new one (prevents race condition)
-  await revokeRefreshToken(refreshToken);
+  // Atomic: if another request already revoked this token, reject this one
+  const revoked = await revokeRefreshToken(refreshToken);
+  if (!revoked) {
+    throw ApiError.unauthorized('Token already used or expired');
+  }
 
   // Generate new token pair
   const deviceInfo = {
