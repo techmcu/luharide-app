@@ -107,6 +107,17 @@ class LuhaRideApp extends StatelessWidget {
                   }
 
                   if (authProvider.isAuthenticated) {
+                    // Maintenance gate: only blocks logged-in non-admin users.
+                    // Non-logged-in users NEVER see this — they go to LandingScreen below.
+                    final appConfig = AppConfigData.of(context);
+                    if (appConfig?.config?.maintenanceMode == true &&
+                        authProvider.user?.isAppAdmin != true) {
+                      return MaintenanceScreen(
+                        message: appConfig!.config!.maintenanceMessage,
+                        onRetry: appConfig.onRetry,
+                        checking: appConfig.checking,
+                      );
+                    }
                     return const HomeScreen();
                   }
 

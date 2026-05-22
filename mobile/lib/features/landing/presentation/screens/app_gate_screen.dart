@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../../providers/auth_provider.dart';
 import '../../../../services/app_config_service.dart';
 import '../../../../services/push_notification_service.dart';
 import '../../../../services/realtime_socket_service.dart';
@@ -183,6 +181,30 @@ class ForceUpdateScreen extends StatelessWidget {
   }
 }
 
+/// Provides [AppConfigResult] to descendants via InheritedWidget.
+class AppConfigData extends InheritedWidget {
+  final AppConfigResult? config;
+  final bool checking;
+  final VoidCallback onRetry;
+
+  const AppConfigData({
+    super.key,
+    required this.config,
+    required this.checking,
+    required this.onRetry,
+    required super.child,
+  });
+
+  static AppConfigData? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppConfigData>();
+
+  @override
+  bool updateShouldNotify(AppConfigData old) =>
+      config?.maintenanceMode != old.config?.maintenanceMode ||
+      config?.maintenanceMessage != old.config?.maintenanceMessage ||
+      checking != old.checking;
+}
+
 class AppGate extends StatefulWidget {
   final Widget child;
 
@@ -217,8 +239,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
 
   void _onMaintenanceEvent(Map<String, dynamic> data) {
     if (!mounted) return;
-    // Don't trust WebSocket data directly — re-check via API so the backend's
-    // admin exemption logic runs (it returns maintenance_mode=false for admin).
     _silentCheck();
   }
 
@@ -271,17 +291,13 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
       return ForceUpdateScreen(minVersion: _config!.minVersion);
     }
 
-    if (_config != null && _config!.maintenanceMode) {
-      final auth = context.watch<AuthProvider>();
-      if (auth.isAuthenticated && auth.user?.isAppAdmin != true) {
-        return MaintenanceScreen(
-          message: _config!.maintenanceMessage,
-          onRetry: _retryCheck,
-          checking: _checking,
-        );
-      }
-    }
-
-    return widget.child;
+    // Maintenance is NOT blocked here — it's handled downstream,
+    // only inside the authenticated flow (see main.dart).
+    return AppConfigData(
+      config: _config,
+      checking: _checking,
+      onRetry: _retryCheck,
+      child: widget.child,
+    );
   }
 }
