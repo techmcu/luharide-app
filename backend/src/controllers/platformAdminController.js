@@ -295,6 +295,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
   const { id } = req.params;
   const { reason } = req.body || {};
+  if (reason && reason.length > 500) throw ApiError.badRequest('Reason must be under 500 characters');
 
   const client = await pool.connect();
   try {
@@ -314,20 +315,34 @@ const cancelTrip = asyncHandler(async (req, res) => {
       throw ApiError.badRequest(`Trip is already ${trip.status}`);
     }
 
-    await client.query(
-      `UPDATE trips SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+    const activeBookings = await client.query(
+      `SELECT id, passenger_id, seat_numbers FROM bookings
+       WHERE trip_id = $1 AND status IN ('pending', 'confirmed')
+       FOR UPDATE`,
       [id]
     );
 
-    const affectedBookings = await client.query(
-      `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
-              cancellation_reason = $2
-       WHERE id IN (
-         SELECT id FROM bookings WHERE trip_id = $1 AND status IN ('pending', 'confirmed') FOR UPDATE
-       )
-       RETURNING passenger_id`,
-      [id, reason || 'Cancelled by platform admin']
+    const confirmedSeatCount = activeBookings.rows
+      .filter(r => r.status === 'confirmed')
+      .reduce((sum, r) => sum + (Array.isArray(r.seat_numbers) ? r.seat_numbers.length : 0), 0);
+
+    if (activeBookings.rows.length > 0) {
+      await client.query(
+        `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+                cancellation_reason = $2
+         WHERE id = ANY($1::uuid[])`,
+        [activeBookings.rows.map(r => r.id), reason || 'Cancelled by platform admin']
+      );
+    }
+
+    await client.query(
+      `UPDATE trips SET status = 'cancelled', updated_at = NOW(),
+              available_seats = available_seats + $2
+       WHERE id = $1`,
+      [id, confirmedSeatCount]
     );
+
+    const affectedBookings = { rows: activeBookings.rows, rowCount: activeBookings.rowCount };
 
     for (const row of affectedBookings.rows) {
       try {
@@ -596,6 +611,7 @@ const resolveComplaint = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
   const { id } = req.params;
   const { resolution_note } = req.body || {};
+  if (resolution_note && resolution_note.length > 2000) throw ApiError.badRequest('Resolution note must be under 2000 characters');
 
   const result = await pool.query(
     `UPDATE complaints SET status = 'resolved', resolution_note = $1,
@@ -657,10 +673,25 @@ const updateAppConfig = asyncHandler(async (req, res) => {
   const applied = [];
   for (const [key, value] of Object.entries(updates)) {
     if (!allowedKeys.includes(key)) continue;
+    const strVal = String(value).trim();
+
+    if (key === 'platform_commission_driver' || key === 'platform_commission_passenger') {
+      const num = parseFloat(strVal);
+      if (isNaN(num) || num < 0 || num > 100) {
+        throw ApiError.badRequest(`${key} must be a number between 0 and 100`);
+      }
+    }
+    if (key === 'maintenance_message' && strVal.length > 500) {
+      throw ApiError.badRequest('maintenance_message must be under 500 characters');
+    }
+    if (key === 'force_update_min_version' && strVal.length > 0 && !/^\d+\.\d+\.\d+$/.test(strVal)) {
+      throw ApiError.badRequest('force_update_min_version must be semver format (e.g. 1.2.3)');
+    }
+
     await pool.query(
       `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW())
        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
-      [key, String(value)]
+      [key, strVal]
     );
     applied.push(key);
   }

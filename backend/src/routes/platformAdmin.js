@@ -24,6 +24,10 @@ const {
 
 const guard = [authenticate, authorize('union_admin')];
 
+// User-facing complaint endpoints (any authenticated user) — MUST be before :id routes
+router.post('/complaints/submit', authenticate, submitComplaint);
+router.get('/complaints/mine', authenticate, getMyComplaints);
+
 // Phase 1 — Dashboard, Users, Trips, Revenue
 router.get('/dashboard', ...guard, getDashboard);
 router.get('/users', ...guard, getUsers);
@@ -42,9 +46,5 @@ router.get('/complaints/:id', ...guard, getComplaintDetail);
 router.post('/complaints/:id/resolve', ...guard, resolveComplaint);
 router.get('/config', ...guard, getAppConfig);
 router.patch('/config', ...guard, updateAppConfig);
-
-// User-facing complaint endpoints (any authenticated user)
-router.post('/complaints/submit', authenticate, submitComplaint);
-router.get('/complaints/mine', authenticate, getMyComplaints);
 
 module.exports = router;
