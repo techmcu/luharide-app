@@ -217,17 +217,9 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
 
   void _onMaintenanceEvent(Map<String, dynamic> data) {
     if (!mounted) return;
-    final raw = data['maintenanceMode'];
-    final mode = raw == true || raw == 'true';
-    final message = data['message']?.toString() ?? '';
-    setState(() {
-      _config = AppConfigResult(
-        maintenanceMode: mode,
-        maintenanceMessage: message,
-        forceUpdate: _config?.forceUpdate ?? false,
-        minVersion: _config?.minVersion ?? '',
-      );
-    });
+    // Don't trust WebSocket data directly — re-check via API so the backend's
+    // admin exemption logic runs (it returns maintenance_mode=false for admin).
+    _silentCheck();
   }
 
   void _onFcmForeground(RemoteMessage message) {
@@ -281,7 +273,7 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
 
     if (_config != null && _config!.maintenanceMode) {
       final auth = context.watch<AuthProvider>();
-      if (auth.isAuthenticated) {
+      if (auth.isAuthenticated && auth.user?.isAppAdmin != true) {
         return MaintenanceScreen(
           message: _config!.maintenanceMessage,
           onRetry: _retryCheck,
