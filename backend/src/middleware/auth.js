@@ -127,9 +127,25 @@ const requireVerified = asyncHandler(async (req, res, next) => {
   next();
 });
 
+const _adminEmail = process.env.ADMIN_EMAIL
+  ? process.env.ADMIN_EMAIL.toLowerCase().trim()
+  : null;
+
+const authorizePlatformAdmin = asyncHandler(async (req, res, next) => {
+  if (!req.user) {
+    throw ApiError.unauthorized('Authentication required');
+  }
+  const email = req.user.email ? String(req.user.email).toLowerCase().trim() : null;
+  if (!_adminEmail || !email || email !== _adminEmail) {
+    throw ApiError.forbidden('Access denied');
+  }
+  next();
+});
+
 module.exports = {
   authenticate,
   authorize,
   optionalAuth,
-  requireVerified
+  requireVerified,
+  authorizePlatformAdmin
 };

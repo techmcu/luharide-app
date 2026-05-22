@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorizePlatformAdmin } = require('../middleware/auth');
 const { adminBulkNotifyLimiter } = require('../middleware/rateLimiter');
 const {
   getDashboard,
@@ -22,7 +22,7 @@ const {
   getMyComplaints,
 } = require('../controllers/platformAdminController');
 
-const guard = [authenticate, authorize('union_admin')];
+const guard = [authenticate, authorizePlatformAdmin];
 
 // User-facing complaint endpoints (any authenticated user) — MUST be before :id routes
 router.post('/complaints/submit', authenticate, submitComplaint);
