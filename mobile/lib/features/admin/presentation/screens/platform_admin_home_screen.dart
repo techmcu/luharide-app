@@ -1113,8 +1113,6 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
   final _service = PlatformAdminService();
   bool _loading = true;
   bool _saving = false;
-  bool _maintenanceMode = false;
-  final _maintenanceMsgCtrl = TextEditingController();
   final _minVersionCtrl = TextEditingController();
 
   @override
@@ -1132,8 +1130,6 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
     if (!mounted) return;
     final config = res['config'];
     if (config is Map) {
-      _maintenanceMode = config['maintenance_mode'] == 'true' || config['maintenance_mode'] == true;
-      _maintenanceMsgCtrl.text = config['maintenance_message']?.toString() ?? '';
       _minVersionCtrl.text = config['force_update_min_version']?.toString() ?? '';
     }
     setState(() => _loading = false);
@@ -1142,8 +1138,6 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
   Future<void> _save() async {
     setState(() => _saving = true);
     final res = await _service.updateAppConfig({
-      'maintenance_mode': _maintenanceMode.toString(),
-      'maintenance_message': _maintenanceMsgCtrl.text.trim(),
       'force_update_min_version': _minVersionCtrl.text.trim(),
     });
     if (!mounted) return;
@@ -1163,20 +1157,6 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
       padding: const EdgeInsets.all(16),
       children: [
         const Text('App Configuration', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 16),
-        SwitchListTile(
-          title: const Text('Maintenance Mode'),
-          subtitle: const Text('Blocks app access for all users'),
-          value: _maintenanceMode,
-          onChanged: (v) => setState(() => _maintenanceMode = v),
-          contentPadding: EdgeInsets.zero,
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _maintenanceMsgCtrl,
-          decoration: const InputDecoration(labelText: 'Maintenance Message', border: OutlineInputBorder(), hintText: 'e.g. We are upgrading. Back soon!'),
-          maxLines: 2,
-        ),
         const SizedBox(height: 16),
         TextField(
           controller: _minVersionCtrl,
@@ -1199,7 +1179,6 @@ class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveC
 
   @override
   void dispose() {
-    _maintenanceMsgCtrl.dispose();
     _minVersionCtrl.dispose();
     super.dispose();
   }

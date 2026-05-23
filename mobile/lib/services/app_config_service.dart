@@ -4,14 +4,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'api_service.dart';
 
 class AppConfigResult {
-  final bool maintenanceMode;
-  final String maintenanceMessage;
   final bool forceUpdate;
   final String minVersion;
 
   const AppConfigResult({
-    this.maintenanceMode = false,
-    this.maintenanceMessage = '',
     this.forceUpdate = false,
     this.minVersion = '',
   });
@@ -28,9 +24,6 @@ class AppConfigService {
       if (data is! Map) return const AppConfigResult();
 
       final config = (data['data'] ?? data) as Map? ?? {};
-      final raw = config['maintenance_mode'];
-      final maintenance = raw == 'true' || raw == true;
-      final message = config['maintenance_message']?.toString() ?? '';
       final minVersion = config['force_update_min_version']?.toString() ?? '';
 
       bool needsUpdate = false;
@@ -42,8 +35,6 @@ class AppConfigService {
       }
 
       return AppConfigResult(
-        maintenanceMode: maintenance,
-        maintenanceMessage: message,
         forceUpdate: needsUpdate,
         minVersion: minVersion,
       );

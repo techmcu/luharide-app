@@ -135,7 +135,7 @@ if (String(process.env.PAYMENTS_ENABLED || 'false').toLowerCase() === 'true') {
     });
   });
 }
-// Public app config (no auth) — maintenance mode, force-update check
+// Public app config (no auth) — force-update check
 const { getPublicAppConfig } = require('./src/controllers/platformAdminController');
 app.get('/api/app-config', getPublicAppConfig);
 

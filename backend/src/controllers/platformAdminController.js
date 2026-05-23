@@ -3,8 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
-const { emitNotificationToUser, emitMaintenanceBroadcast } = require('../socket/realtimeEmitter');
-const { sendPushToMultipleUsers } = require('../utils/pushNotification');
+const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -641,7 +640,7 @@ const getAppConfig = asyncHandler(async (req, res) => {
 
   const result = await queryRead(
     `SELECT key, value, description FROM settings
-     WHERE key IN ('maintenance_mode','maintenance_message','force_update_min_version',
+     WHERE key IN ('force_update_min_version',
                    'platform_commission_driver','platform_commission_passenger')`
   );
 
@@ -661,14 +660,9 @@ const updateAppConfig = asyncHandler(async (req, res) => {
   const updates = req.body || {};
 
   const allowedKeys = [
-    'maintenance_mode', 'maintenance_message', 'force_update_min_version',
+    'force_update_min_version',
     'platform_commission_driver', 'platform_commission_passenger',
   ];
-
-  const prevRow = await queryRead(
-    `SELECT value FROM settings WHERE key = 'maintenance_mode'`
-  );
-  const wasMaintenance = prevRow.rows[0]?.value === 'true';
 
   const applied = [];
   for (const [key, value] of Object.entries(updates)) {
@@ -681,9 +675,6 @@ const updateAppConfig = asyncHandler(async (req, res) => {
         throw ApiError.badRequest(`${key} must be a number between 0 and 100`);
       }
     }
-    if (key === 'maintenance_message' && strVal.length > 500) {
-      throw ApiError.badRequest('maintenance_message must be under 500 characters');
-    }
     if (key === 'force_update_min_version' && strVal.length > 0 && !/^\d+\.\d+\.\d+$/.test(strVal)) {
       throw ApiError.badRequest('force_update_min_version must be semver format (e.g. 1.2.3)');
     }
@@ -694,35 +685,6 @@ const updateAppConfig = asyncHandler(async (req, res) => {
       [key, strVal]
     );
     applied.push(key);
-  }
-
-  const nowMaintenance = String(updates.maintenance_mode) === 'true';
-  const maintenanceMsg = updates.maintenance_message
-    ? String(updates.maintenance_message).trim()
-    : '';
-
-  if (applied.includes('maintenance_mode')) {
-    emitMaintenanceBroadcast(nowMaintenance, maintenanceMsg);
-  }
-
-  if (!wasMaintenance && nowMaintenance) {
-    const pushTitle = 'LuhaRide — Maintenance';
-    const pushBody = maintenanceMsg || 'We are currently performing scheduled maintenance. Service will resume shortly. We apologise for the inconvenience.';
-
-    const userResult = await queryRead(
-      `SELECT id FROM users WHERE is_active = true`
-    );
-    const userIds = userResult.rows.map((r) => r.id);
-
-    if (userIds.length > 0) {
-      const insertSql = `INSERT INTO notifications (user_id, type, title, body)
-         SELECT id, 'maintenance', $1, $2 FROM users WHERE is_active = true
-         RETURNING id, user_id`;
-      await pool.query(insertSql, [pushTitle, pushBody]);
-
-      sendPushToMultipleUsers(userIds, pushTitle, pushBody, { type: 'maintenance' }).catch(() => {});
-      logger.info(`Maintenance ON — push queued for ${userIds.length} users`);
-    }
   }
 
   logger.info(`Platform admin ${req.user.id} updated config: ${applied.join(', ')}`);
@@ -765,34 +727,12 @@ const getMyComplaints = asyncHandler(async (req, res) => {
 const getPublicAppConfig = asyncHandler(async (req, res) => {
   const result = await queryRead(
     `SELECT key, value FROM settings
-     WHERE key IN ('maintenance_mode','maintenance_message','force_update_min_version')`
+     WHERE key IN ('force_update_min_version')`
   );
 
   const config = {};
   for (const row of result.rows) {
     config[row.key] = row.value;
-  }
-
-  if (config.maintenance_mode === 'true' && adminEmail) {
-    try {
-      const auth = req.headers.authorization;
-      if (auth && auth.startsWith('Bearer ')) {
-        const { verifyAccessToken } = require('../services/tokenService');
-        const decoded = verifyAccessToken(auth.slice(7));
-        if (decoded.userId) {
-          const userRow = await queryRead(
-            'SELECT email FROM users WHERE id = $1',
-            [decoded.userId]
-          );
-          const email = userRow.rows[0]?.email
-            ? String(userRow.rows[0].email).toLowerCase().trim()
-            : null;
-          if (email === adminEmail) {
-            config.maintenance_mode = 'false';
-          }
-        }
-      }
-    } catch (_) {}
   }
 
   res.json({ success: true, data: config });

@@ -6,8 +6,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../services/app_config_service.dart';
 import '../../../../services/push_notification_service.dart';
-import '../../../../services/realtime_socket_service.dart';
-
 class ForceUpdateScreen extends StatelessWidget {
   final String minVersion;
 
@@ -102,7 +100,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   AppConfigResult? _config;
   bool _loading = true;
   Timer? _pollTimer;
-  StreamSubscription<Map<String, dynamic>>? _maintenanceSub;
   StreamSubscription<RemoteMessage>? _fcmSub;
 
   @override
@@ -111,7 +108,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _check();
     _pollTimer = Timer.periodic(const Duration(seconds: 30), (_) => _silentCheck());
-    _maintenanceSub = RealtimeSocketService.instance.maintenanceStream.listen((_) {});
     _fcmSub = PushNotificationService.instance.foregroundMessages.listen((_) {});
   }
 
@@ -140,7 +136,6 @@ class _AppGateState extends State<AppGate> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _pollTimer?.cancel();
-    _maintenanceSub?.cancel();
     _fcmSub?.cancel();
     super.dispose();
   }
