@@ -22,7 +22,7 @@ const {
   listIndependentDriversDirectory,
   listUnionsDirectory,
 } = require('../controllers/adminDirectoryController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorizeKycAdmin } = require('../middleware/auth');
 
 /**
  * @route   GET /api/admin/driver-requests
@@ -32,7 +32,7 @@ const { authenticate, authorize } = require('../middleware/auth');
 router.get(
   '/driver-requests',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   getPendingRequests
 );
 
@@ -44,7 +44,7 @@ router.get(
 router.post(
   '/driver-requests/:id/approve',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   approveRequest
 );
 
@@ -56,7 +56,7 @@ router.post(
 router.post(
   '/driver-requests/:id/reject',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   rejectRequest
 );
 
@@ -68,7 +68,7 @@ router.post(
 router.get(
   '/union-requests',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   getPendingUnionRequests
 );
 
@@ -80,7 +80,7 @@ router.get(
 router.post(
   '/union-requests/:id/approve',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   approveUnionRequest
 );
 
@@ -92,7 +92,7 @@ router.post(
 router.post(
   '/union-requests/:id/reject',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   rejectUnionRequest
 );
 
@@ -105,21 +105,21 @@ router.post(
 router.post(
   '/kyc/drivers/:userId/reverify',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   grantDriverReverify
 );
 
 router.post(
   '/kyc/unions/:unionId/reverify',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   grantUnionReverify
 );
 
 router.get(
   '/union-doc-requests',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   listPendingUnionDocRequests
 );
 
@@ -127,14 +127,14 @@ router.get(
 router.get(
   '/directory/independent-drivers',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   listIndependentDriversDirectory
 );
 
 router.get(
   '/directory/unions',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   listUnionsDirectory
 );
 
@@ -145,21 +145,21 @@ router.get(
 router.get(
   '/document-file',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   streamAdminKycDocumentFile
 );
 
 router.post(
   '/union-doc-requests/:id/approve',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   approveUnionDocRequest
 );
 
 router.post(
   '/union-doc-requests/:id/reject',
   authenticate,
-  authorize('union_admin'),
+  authorizeKycAdmin,
   rejectUnionDocRequest
 );
 

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/platform_admin_service.dart';
+import '../../../../services/admin_service.dart';
 import 'platform_user_detail_screen.dart';
 import 'platform_trip_detail_screen.dart';
+import 'simple_kyc_preview_screen.dart';
 import '../../../home/presentation/screens/union_admin_home_screen.dart';
 
 class PlatformAdminHomeScreen extends StatefulWidget {
@@ -82,7 +84,7 @@ class _DashboardTabState extends State<_DashboardTab> {
         actions: [
           IconButton(
             icon: const Icon(Icons.admin_panel_settings_outlined),
-            tooltip: 'Union Admin View',
+            tooltip: 'KYC & Union Management',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const UnionAdminHomeScreen()),
             ),
@@ -130,6 +132,14 @@ class _DashboardTabState extends State<_DashboardTab> {
                         _StatItem('Confirmed', _data?['confirmed_bookings'] ?? 0, Icons.bookmark_added, Colors.green),
                         _StatItem('Pending', _data?['pending_bookings'] ?? 0, Icons.pending_actions, Colors.orange),
                         _StatItem('Cancelled', _data?['cancelled_bookings'] ?? 0, Icons.bookmark_remove, Colors.red),
+                      ]),
+                      const SizedBox(height: 20),
+                      _sectionTitle('KYC & Verification'),
+                      const SizedBox(height: 8),
+                      _statsRow([
+                        _StatItem('Driver KYC', _data?['pending_driver_kyc'] ?? 0, Icons.assignment_ind, Colors.deepOrange),
+                        _StatItem('Union Req', _data?['pending_union_requests'] ?? 0, Icons.business_center, Colors.purple),
+                        _StatItem('Total Unions', _data?['total_unions'] ?? 0, Icons.groups, Colors.indigo),
                       ]),
                     ],
                   ),
@@ -681,7 +691,7 @@ class _RevenueTabState extends State<_RevenueTab> {
 }
 
 // =============================================================================
-// MORE TAB  (Notifications · Complaints)
+// MORE TAB  (Notifications · Complaints · KYC)
 // =============================================================================
 class _MoreTab extends StatefulWidget {
   const _MoreTab();
@@ -695,7 +705,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -717,6 +727,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
           tabs: const [
             Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
             Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
+            Tab(icon: Icon(Icons.verified_user, size: 20), text: 'KYC'),
           ],
         ),
       ),
@@ -725,6 +736,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
         children: const [
           _NotificationsSection(),
           _ComplaintsSection(),
+          _KycSection(),
         ],
       ),
     );
@@ -1100,6 +1112,355 @@ class _ComplaintsSectionState extends State<_ComplaintsSection> with AutomaticKe
   }
 }
 
+
+// =============================================================================
+// KYC SECTION — Driver & Union verification requests
+// =============================================================================
+class _KycSection extends StatefulWidget {
+  const _KycSection();
+  @override
+  State<_KycSection> createState() => _KycSectionState();
+}
+
+class _KycSectionState extends State<_KycSection> with AutomaticKeepAliveClientMixin {
+  final _adminService = AdminService();
+  List<dynamic> _driverRequests = [];
+  List<dynamic> _unionRequests = [];
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final driverRes = await _adminService.getDriverRequests();
+    final unionRes = await _adminService.getUnionRequests();
+    if (!mounted) return;
+    setState(() {
+      _driverRequests = driverRes['requests'] ?? [];
+      _unionRequests = unionRes['requests'] ?? [];
+      _loading = false;
+    });
+  }
+
+  Future<void> _approveDriver(String requestId) async {
+    final confirmed = await _confirmDialog('Approve Driver', 'Approve this driver verification request?');
+    if (confirmed != true || !mounted) return;
+    final res = await _adminService.approveDriver(requestId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Driver approved', kind: AppFeedbackKind.success);
+      _load();
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  Future<void> _rejectDriver(String requestId) async {
+    final reasonCtrl = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Driver'),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
+          maxLines: 2,
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final res = await _adminService.rejectDriver(requestId, reason: reasonCtrl.text.trim());
+    reasonCtrl.dispose();
+    if (!mounted) return;
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Request rejected', kind: AppFeedbackKind.success);
+      _load();
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  Future<void> _approveUnion(String unionId) async {
+    final confirmed = await _confirmDialog('Approve Union', 'Approve this union registration?');
+    if (confirmed != true || !mounted) return;
+    final res = await _adminService.approveUnion(unionId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Union approved', kind: AppFeedbackKind.success);
+      _load();
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  Future<void> _rejectUnion(String unionId) async {
+    final confirmed = await _confirmDialog('Reject Union', 'Reject this union registration request?');
+    if (confirmed != true || !mounted) return;
+    final res = await _adminService.rejectUnion(unionId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Union rejected', kind: AppFeedbackKind.success);
+      _load();
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  Future<bool?> _confirmDialog(String title, String message) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm')),
+        ],
+      ),
+    );
+  }
+
+  void _viewDocument(String url, String label) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SimpleKycPreviewScreen(url: url, label: label, useAdminFileApi: true),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            children: [
+              const Expanded(child: Text('Pending Driver KYC', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: Colors.deepOrange.shade50, borderRadius: BorderRadius.circular(12)),
+                child: Text('${_driverRequests.length}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade700)),
+              ),
+              const SizedBox(width: 8),
+              IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _load),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_driverRequests.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No pending driver requests', style: TextStyle(color: Colors.black45)),
+            )
+          else
+            ..._driverRequests.map(_buildDriverCard),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              const Expanded(child: Text('Pending Union Registrations', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(12)),
+                child: Text('${_unionRequests.length}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_unionRequests.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No pending union requests', style: TextStyle(color: Colors.black45)),
+            )
+          else
+            ..._unionRequests.map(_buildUnionCard),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDriverCard(dynamic req) {
+    final id = req['id']?.toString() ?? '';
+    final name = req['name'] ?? 'Unknown';
+    final phone = req['phone'] ?? '';
+    final vehicleType = req['vehicle_type'] ?? '';
+    final vehicleModel = req['vehicle_model'] ?? '';
+    final licenseNum = req['driving_license_number'] ?? '';
+
+    final docUrls = <String, String>{};
+    if (_hasUrl(req['aadhaar_document_url'])) docUrls['Aadhaar'] = req['aadhaar_document_url'];
+    if (_hasUrl(req['driving_license_url'])) docUrls['DL'] = req['driving_license_url'];
+    if (_hasUrl(req['rc_document_url'])) docUrls['RC'] = req['rc_document_url'];
+    if (_hasUrl(req['permit_document_url'])) docUrls['Permit'] = req['permit_document_url'];
+    if (_hasUrl(req['insurance_document_url'])) docUrls['Insurance'] = req['insurance_document_url'];
+
+    return Card(
+      elevation: 0,
+      color: Colors.orange.shade50,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.orange.shade100,
+                  child: const Icon(Icons.person, color: Colors.deepOrange),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      Text('$phone${vehicleType.isNotEmpty ? ' • $vehicleType' : ''}',
+                          style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (vehicleModel.isNotEmpty || licenseNum.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${vehicleModel.isNotEmpty ? "Vehicle: $vehicleModel" : ""}${licenseNum.isNotEmpty ? " • DL: $licenseNum" : ""}',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            if (docUrls.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: docUrls.entries.map((e) => ActionChip(
+                  avatar: const Icon(Icons.visibility, size: 16),
+                  label: Text(e.key, style: const TextStyle(fontSize: 11)),
+                  onPressed: () => _viewDocument(e.value, e.key),
+                  visualDensity: VisualDensity.compact,
+                )).toList(),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _rejectDriver(id),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => _approveDriver(id),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Approve'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnionCard(dynamic req) {
+    final id = req['id']?.toString() ?? '';
+    final name = req['name'] ?? 'Unknown';
+    final registrationNumber = req['registration_number'] ?? '';
+    final applicantName = req['applicant_name'] ?? '';
+    final applicantPhone = req['applicant_phone'] ?? '';
+
+    return Card(
+      elevation: 0,
+      color: Colors.purple.shade50,
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.purple.shade100,
+                  child: const Icon(Icons.business, color: Colors.purple),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      if (registrationNumber.isNotEmpty)
+                        Text('Reg: $registrationNumber', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (applicantName.isNotEmpty || applicantPhone.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Applicant: $applicantName${applicantPhone.isNotEmpty ? ' • $applicantPhone' : ''}',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _rejectUnion(id),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red, side: const BorderSide(color: Colors.red)),
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => _approveUnion(id),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Approve'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _hasUrl(dynamic url) => url != null && url.toString().trim().isNotEmpty;
+}
 
 // =============================================================================
 // CREATE RIDE SECTION — links to existing union & independent driver ride features

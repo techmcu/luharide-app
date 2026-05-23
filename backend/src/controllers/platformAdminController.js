@@ -38,7 +38,10 @@ const getDashboard = asyncHandler(async (req, res) => {
       (SELECT COUNT(*)::int FROM bookings WHERE status = 'cancelled') AS cancelled_bookings,
       (SELECT COUNT(*)::int FROM trips WHERE departure_time::date = CURRENT_DATE) AS today_trips,
       (SELECT COUNT(*)::int FROM users WHERE created_at >= NOW() - INTERVAL '7 days') AS new_users_week,
-      (SELECT COUNT(DISTINCT driver_id)::int FROM trips WHERE created_at >= NOW() - INTERVAL '30 days') AS active_drivers
+      (SELECT COUNT(DISTINCT driver_id)::int FROM trips WHERE created_at >= NOW() - INTERVAL '30 days') AS active_drivers,
+      (SELECT COUNT(*)::int FROM driver_verification_requests WHERE status = 'pending') AS pending_driver_kyc,
+      (SELECT COUNT(*)::int FROM unions WHERE status = 'pending') AS pending_union_requests,
+      (SELECT COUNT(*)::int FROM unions WHERE status = 'approved') AS total_unions
   `);
 
   ApiResponse.success(rows[0], 'Dashboard stats').send(res);

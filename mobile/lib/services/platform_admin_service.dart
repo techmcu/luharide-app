@@ -230,26 +230,4 @@ class PlatformAdminService {
     }
   }
 
-  Future<Map<String, dynamic>> getAppConfig() async {
-    try {
-      final res = await _api.get(ApiConstants.platformConfig);
-      return {'success': true, ..._unwrap(res.data)};
-    } on DioException catch (e) {
-      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
-    } catch (_) {
-      return {'success': false, 'message': 'An error occurred'};
-    }
-  }
-
-  Future<Map<String, dynamic>> updateAppConfig(Map<String, dynamic> settings) async {
-    try {
-      final res = await _api.patch(ApiConstants.platformConfig, data: settings);
-      return {'success': true, ..._unwrap(res.data)};
-    } on DioException catch (e) {
-      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
-    } catch (_) {
-      return {'success': false, 'message': 'An error occurred'};
-    }
-  }
-
 }

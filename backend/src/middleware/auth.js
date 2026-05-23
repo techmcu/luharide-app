@@ -142,10 +142,20 @@ const authorizePlatformAdmin = asyncHandler(async (req, res, next) => {
   next();
 });
 
+const authorizeKycAdmin = asyncHandler(async (req, res, next) => {
+  if (!req.user) throw ApiError.unauthorized('Authentication required');
+  const userRole = String(req.user.role ?? '').trim().toLowerCase();
+  if (userRole === 'union_admin') return next();
+  const email = req.user.email ? String(req.user.email).toLowerCase().trim() : null;
+  if (_adminEmail && email && email === _adminEmail) return next();
+  throw ApiError.forbidden('Access denied');
+});
+
 module.exports = {
   authenticate,
   authorize,
   optionalAuth,
   requireVerified,
-  authorizePlatformAdmin
+  authorizePlatformAdmin,
+  authorizeKycAdmin,
 };
