@@ -640,8 +640,7 @@ const getAppConfig = asyncHandler(async (req, res) => {
 
   const result = await queryRead(
     `SELECT key, value, description FROM settings
-     WHERE key IN ('force_update_min_version',
-                   'platform_commission_driver','platform_commission_passenger')`
+     WHERE key IN ('platform_commission_driver','platform_commission_passenger')`
   );
 
   const config = {};
@@ -660,7 +659,6 @@ const updateAppConfig = asyncHandler(async (req, res) => {
   const updates = req.body || {};
 
   const allowedKeys = [
-    'force_update_min_version',
     'platform_commission_driver', 'platform_commission_passenger',
   ];
 
@@ -675,10 +673,6 @@ const updateAppConfig = asyncHandler(async (req, res) => {
         throw ApiError.badRequest(`${key} must be a number between 0 and 100`);
       }
     }
-    if (key === 'force_update_min_version' && strVal.length > 0 && !/^\d+\.\d+\.\d+$/.test(strVal)) {
-      throw ApiError.badRequest('force_update_min_version must be semver format (e.g. 1.2.3)');
-    }
-
     await pool.query(
       `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW())
        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
@@ -721,23 +715,6 @@ const getMyComplaints = asyncHandler(async (req, res) => {
   ApiResponse.success({ complaints: result.rows }, 'My complaints').send(res);
 });
 
-// ---------------------------------------------------------------------------
-// Public: GET /api/app-config  (no auth)
-// ---------------------------------------------------------------------------
-const getPublicAppConfig = asyncHandler(async (req, res) => {
-  const result = await queryRead(
-    `SELECT key, value FROM settings
-     WHERE key IN ('force_update_min_version')`
-  );
-
-  const config = {};
-  for (const row of result.rows) {
-    config[row.key] = row.value;
-  }
-
-  res.json({ success: true, data: config });
-});
-
 module.exports = {
   getDashboard,
   getUsers,
@@ -756,5 +733,4 @@ module.exports = {
   updateAppConfig,
   submitComplaint,
   getMyComplaints,
-  getPublicAppConfig,
 };

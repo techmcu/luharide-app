@@ -16,7 +16,6 @@ import 'services/auth_service.dart';
 import 'services/push_notification_service.dart'
     if (dart.library.html) 'services/push_notification_service_web.dart';
 import 'features/home/presentation/screens/home_screen.dart';
-import 'features/landing/presentation/screens/app_gate_screen.dart';
 import 'features/landing/presentation/screens/landing_screen.dart';
 
 void main() async {
@@ -94,8 +93,7 @@ class LuhaRideApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            home: AppGate(
-              child: Builder(
+            home: Builder(
                 builder: (context) {
                   if (authProvider.status == AuthStatus.initial ||
                       !langProvider.isInitialized) {
@@ -113,7 +111,6 @@ class LuhaRideApp extends StatelessWidget {
                   return const LandingScreen();
                 },
               ),
-            ),
           );
         },
       ),

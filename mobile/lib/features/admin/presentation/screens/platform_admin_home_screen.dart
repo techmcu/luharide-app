@@ -695,7 +695,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -717,7 +717,6 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
           tabs: const [
             Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
             Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
-            Tab(icon: Icon(Icons.settings, size: 20), text: 'Config'),
           ],
         ),
       ),
@@ -726,7 +725,6 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
         children: const [
           _NotificationsSection(),
           _ComplaintsSection(),
-          _ConfigSection(),
         ],
       ),
     );
@@ -1102,87 +1100,6 @@ class _ComplaintsSectionState extends State<_ComplaintsSection> with AutomaticKe
   }
 }
 
-// --------------- Config Section ---------------
-class _ConfigSection extends StatefulWidget {
-  const _ConfigSection();
-  @override
-  State<_ConfigSection> createState() => _ConfigSectionState();
-}
-
-class _ConfigSectionState extends State<_ConfigSection> with AutomaticKeepAliveClientMixin {
-  final _service = PlatformAdminService();
-  bool _loading = true;
-  bool _saving = false;
-  final _minVersionCtrl = TextEditingController();
-
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final res = await _service.getAppConfig();
-    if (!mounted) return;
-    final config = res['config'];
-    if (config is Map) {
-      _minVersionCtrl.text = config['force_update_min_version']?.toString() ?? '';
-    }
-    setState(() => _loading = false);
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    final res = await _service.updateAppConfig({
-      'force_update_min_version': _minVersionCtrl.text.trim(),
-    });
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (res['success'] == true) {
-      AppFeedback.show(context, 'Config saved', kind: AppFeedbackKind.success);
-    } else {
-      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Text('App Configuration', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _minVersionCtrl,
-          decoration: const InputDecoration(labelText: 'Min App Version (force update)', border: OutlineInputBorder(), hintText: 'e.g. 2.0.0'),
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.save),
-            label: Text(_saving ? 'Saving...' : 'Save Config'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  @override
-  void dispose() {
-    _minVersionCtrl.dispose();
-    super.dispose();
-  }
-}
 
 // =============================================================================
 // CREATE RIDE SECTION — links to existing union & independent driver ride features
