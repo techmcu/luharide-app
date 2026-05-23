@@ -681,7 +681,7 @@ class _RevenueTabState extends State<_RevenueTab> {
 }
 
 // =============================================================================
-// MORE TAB  (Notifications · Complaints · App Config)
+// MORE TAB  (Notifications · Complaints)
 // =============================================================================
 class _MoreTab extends StatefulWidget {
   const _MoreTab();
