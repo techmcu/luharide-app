@@ -41,50 +41,56 @@ class PushNotificationService {
 
   Future<void> initialize() async {
     if (_initialized || kIsWeb) return;
-    _initialized = true;
 
-    _messaging = FirebaseMessaging.instance;
-    _localNotifications = FlutterLocalNotificationsPlugin();
+    try {
+      _messaging = FirebaseMessaging.instance;
+      _localNotifications = FlutterLocalNotificationsPlugin();
 
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    final settings = await _messaging!.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      debugPrint('FCM: user denied notification permission');
-      return;
+      final settings = await _messaging!.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        debugPrint('FCM: user denied notification permission');
+        _initialized = true;
+        return;
+      }
+
+      const androidChannel = AndroidNotificationChannel(
+        'luharide_default',
+        'LuhaRide Notifications',
+        description: 'Ride bookings, approvals and updates',
+        importance: Importance.high,
+      );
+
+      await _localNotifications!
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(androidChannel);
+
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const darwinInit = DarwinInitializationSettings();
+      await _localNotifications!.initialize(
+        const InitializationSettings(android: androidInit, iOS: darwinInit),
+      );
+
+      FirebaseMessaging.onMessage.listen(_showForegroundNotification);
+
+      _currentToken = await _messaging!.getToken();
+      debugPrint('FCM token: $_currentToken');
+
+      _messaging!.onTokenRefresh.listen((newToken) {
+        _currentToken = newToken;
+        _registerTokenWithBackend(newToken);
+      });
+
+      _initialized = true;
+    } catch (e) {
+      debugPrint('FCM initialization failed: $e');
     }
-
-    const androidChannel = AndroidNotificationChannel(
-      'luharide_default',
-      'LuhaRide Notifications',
-      description: 'Ride bookings, approvals and updates',
-      importance: Importance.high,
-    );
-
-    await _localNotifications!
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidChannel);
-
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwinInit = DarwinInitializationSettings();
-    await _localNotifications!.initialize(
-      const InitializationSettings(android: androidInit, iOS: darwinInit),
-    );
-
-    FirebaseMessaging.onMessage.listen(_showForegroundNotification);
-
-    _currentToken = await _messaging!.getToken();
-    debugPrint('FCM token: $_currentToken');
-
-    _messaging!.onTokenRefresh.listen((newToken) {
-      _currentToken = newToken;
-      _registerTokenWithBackend(newToken);
-    });
   }
 
   void _showForegroundNotification(RemoteMessage message) {

@@ -173,7 +173,8 @@ class AuthService {
     }
   }
 
-  /// Get current user profile
+  /// Get current user profile.
+  /// 401 handling is done by ApiService interceptor (auto-refresh + retry).
   Future<UserModel> getCurrentUser() async {
     try {
       final response = await _apiService.get(ApiConstants.currentUser);
@@ -184,12 +185,7 @@ class AuthService {
         throw Exception('Failed to get user profile');
       }
     } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
-        // Token expired, try to refresh
-        await refreshToken();
-        return getCurrentUser();
-      }
-      throw Exception('Failed to get user profile');
+      throw Exception(dioResponseMessage(e) ?? 'Failed to get user profile');
     }
   }
 
