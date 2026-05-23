@@ -17,6 +17,7 @@ import 'services/push_notification_service.dart'
     if (dart.library.html) 'services/push_notification_service_web.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/landing/presentation/screens/landing_screen.dart';
+import 'services/in_app_update_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,6 +49,8 @@ void main() async {
     await PushNotificationService.instance.initialize();
   }
   await EnvConfig.init();
+
+  InAppUpdateService.instance.checkForUpdate();
 
   // Single instance for app lifecycle (stable, no recreate on rebuild)
   final apiService = ApiService();
