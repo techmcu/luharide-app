@@ -91,6 +91,9 @@ jobs:
           git reset --hard origin/main
           git remote set-url origin https://github.com/techmcu/luharide-app.git
 
+          # ── Copy .env from production (DB creds, JWT secret, etc.) ──
+          cp "$REPO_DIR/backend/.env" "$STAGING_DIR/backend/.env" 2>/dev/null || true
+
           # ── Install deps ──
           cd backend
           if [ -f package-lock.json ]; then
