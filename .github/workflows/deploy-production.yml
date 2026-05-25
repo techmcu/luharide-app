@@ -4,13 +4,47 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-production-web:
+    name: Build production web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: Build production web
+        run: |
+          flutter pub get
+          flutter build web --release --base-href=/app/
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-web
+          path: mobile/build/web/
+          retention-days: 1
+
   deploy-production:
     name: Deploy to production
+    needs: build-production-web
     runs-on: ubuntu-latest
     environment: vps
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download production web build
+        uses: actions/download-artifact@v4
+        with:
+          name: production-web
+          path: production-web-build/
 
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
@@ -20,7 +54,14 @@ jobs:
       - name: Add VPS to known hosts
         run: ssh-keyscan -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts
 
-      - name: Promote to production
+      - name: Upload production web build
+        env:
+          VPS_IP: ${{ secrets.VPS_IP }}
+        run: |
+          ssh root@$VPS_IP "mkdir -p /var/www/luharide-web-production"
+          scp -r production-web-build/* root@$VPS_IP:/var/www/luharide-web-production/
+
+      - name: Deploy backend + web to production
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
           VPS_IP: ${{ secrets.VPS_IP }}
@@ -53,8 +94,8 @@ jobs:
           cd "$REPO_DIR"
           mkdir -p /var/www/luharide-cloud /var/www/luharide-web
           rsync -a --delete infra/static-site-luharide-root/ /var/www/luharide-cloud/
-          rsync -a --delete /var/www/luharide-web-staging/ /var/www/luharide-web/
-          rm -rf /var/www/luharide-web-staging
+          rsync -a --delete /var/www/luharide-web-production/ /var/www/luharide-web/
+          rm -rf /var/www/luharide-web-production
 
           ln -sf /etc/nginx/sites-available/luharide-split /etc/nginx/sites-enabled/luharide-split || true
           rm -f /etc/nginx/sites-enabled/luharide-website || true
@@ -164,16 +205,4 @@ jobs:
           fi
           pm2 startOrReload pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs --update-env
           pm2 save
-          EOF
-
-      - name: Stop staging services & clean up
-        if: always()
-        env:
-          VPS_IP: ${{ secrets.VPS_IP }}
-        run: |
-          ssh root@$VPS_IP "bash -s" <<'EOF'
-          pm2 delete staging-auth-service staging-core-ride-service staging-union-admin-service staging-platform-admin-service staging-api-gateway 2>/dev/null || true
-          pm2 save --force 2>/dev/null || true
-          rm -rf /var/www/luharide-staging
-          echo "Staging processes stopped and cleaned up"
           EOF
