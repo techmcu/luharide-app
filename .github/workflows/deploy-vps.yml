@@ -94,6 +94,12 @@ jobs:
           # ── Copy .env from production (DB creds, JWT secret, etc.) ──
           cp "$REPO_DIR/backend/.env" "$STAGING_DIR/backend/.env" 2>/dev/null || true
 
+          # ── Symlink uploads so staging serves same files as production ──
+          if [ -d "$REPO_DIR/uploads" ]; then
+            rm -rf "$STAGING_DIR/uploads"
+            ln -sf "$REPO_DIR/uploads" "$STAGING_DIR/uploads"
+          fi
+
           # ── Install deps ──
           cd backend
           if [ -f package-lock.json ]; then
