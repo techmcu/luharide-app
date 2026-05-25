@@ -27,10 +27,10 @@ jobs:
         with:
           channel: "stable"
 
-      - name: Build web
+      - name: Build staging web
         run: |
           flutter pub get
-          flutter build web --release --base-href=/app/
+          flutter build web --release --base-href=/app/ --dart-define=API_BASE_URL=https://staging.luharide.cloud/api/v1 --dart-define=SOCKET_URL=https://staging.luharide.cloud
 
       - name: Upload web build
         uses: actions/upload-artifact@v4
