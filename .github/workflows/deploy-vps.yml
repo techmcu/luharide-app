@@ -112,14 +112,29 @@ jobs:
           cd "$STAGING_DIR/backend"
 
           # ── Start staging processes on ports 3100-3104 ──
+          # Stop old staging processes if any
+          pm2 delete staging-auth-service staging-core-ride-service staging-union-admin-service staging-platform-admin-service staging-api-gateway 2>/dev/null || true
+
+          # Start staging processes on ports 3100-3104
           pm2 start pm2-ecosystem-staging.config.cjs --update-env
           echo "Staging processes started, waiting for boot..."
-          sleep 10
+          sleep 20
 
-          # ── Health check staging gateway ──
+          # Health check with retries (3 attempts, 10s apart)
           echo "Checking staging gateway health..."
-          curl -fsS --max-time 10 http://127.0.0.1:3100/health >/dev/null
-          echo "✅ Staging gateway healthy"
+          for i in 1 2 3; do
+            if curl -fsS --max-time 10 http://127.0.0.1:3100/health >/dev/null 2>&1; then
+              echo "✅ Staging gateway healthy"
+              break
+            fi
+            if [ "$i" -eq 3 ]; then
+              echo "❌ Staging gateway failed after 3 attempts"
+              pm2 logs staging-api-gateway --lines 30 --nostream || true
+              exit 1
+            fi
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
 
           curl -fsS --max-time 10 http://127.0.0.1:3100/api/health >/dev/null
           echo "✅ Staging API healthy"
