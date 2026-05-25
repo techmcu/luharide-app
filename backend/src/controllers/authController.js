@@ -130,6 +130,11 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     logger.info(`New user registered: ${user.id} - ${value}${effectiveRole === 'union_admin' ? ' (admin)' : ''}`);
   } else {
     user = userResult.rows[0];
+
+    if (!user.is_active) {
+      throw ApiError.forbidden('Account is deactivated. Please contact support.');
+    }
+
     if (!byPhone && adminEmail && value === adminEmail && user.role !== 'union_admin') {
       await pool.query(
         "UPDATE users SET role = 'union_admin', is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1",
@@ -144,10 +149,6 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     }
     hasPassword = !!user.password_hash;
     logger.info(`User logged in: ${user.id} - ${value}`);
-  }
-
-  if (!user.is_active) {
-    throw ApiError.forbidden('Account is deactivated. Please contact support.');
   }
 
   const deviceInfo = {

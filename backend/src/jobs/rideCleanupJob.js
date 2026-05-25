@@ -50,6 +50,35 @@ async function runEveningMaintenance() {
       );
       logPurge(label, 'union_schedules (fifo)', u2.rowCount);
 
+      // ── Pending bookings: auto-expire stale + restore available_seats ──
+      const pendingExpiry = await client.query(
+        `WITH expired AS (
+           UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+             cancellation_reason = 'auto-expired'
+           WHERE status = 'pending'
+             AND created_at < NOW() - ($1::int * INTERVAL '1 hour')
+           RETURNING trip_id, seat_numbers
+         )
+         SELECT trip_id, SUM(array_length(seat_numbers, 1)) AS seat_count
+         FROM expired
+         GROUP BY trip_id`,
+        [rc.pendingBookingExpiryHours]
+      );
+      let expiredTotal = 0;
+      for (const row of pendingExpiry.rows) {
+        const seats = parseInt(row.seat_count, 10) || 0;
+        if (seats > 0) {
+          await client.query(
+            'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+            [seats, row.trip_id]
+          );
+        }
+        expiredTotal += seats;
+      }
+      if (pendingExpiry.rows.length > 0) {
+        logPurge(label, `pending bookings auto-expired (${expiredTotal} seats restored)`, pendingExpiry.rows.length);
+      }
+
       // ── Trips: auto-complete stale scheduled ──
       const tc = await client.query(
         `UPDATE trips SET status = 'completed', updated_at = NOW()

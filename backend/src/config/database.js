@@ -93,6 +93,17 @@ if (readHost && readHost !== dbHost) {
   attachStatementTimeout(poolRead);
 }
 
+const logger = require('./logger');
+
+pool.on('error', (err) => {
+  logger.error({ msg: 'Unexpected idle client error on primary pool', err: err.message });
+});
+if (poolRead !== pool) {
+  poolRead.on('error', (err) => {
+    logger.error({ msg: 'Unexpected idle client error on read pool', err: err.message });
+  });
+}
+
 let connectLogOnce = false;
 pool.on('connect', () => {
   if (!connectLogOnce) {

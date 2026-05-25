@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -521,9 +522,11 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   List<dynamic>     _unionRides = [];
   bool _loading  = false;
   bool _searched = false;
+  CancelToken? _searchCancelToken;
 
   @override
   void dispose() {
+    _searchCancelToken?.cancel('disposed');
     _fromCtrl.dispose();
     _toCtrl.dispose();
     super.dispose();
@@ -556,11 +559,21 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       );
       return;
     }
+
+    // Cancel any in-flight search before starting a new one
+    _searchCancelToken?.cancel('new search');
+    _searchCancelToken = CancelToken();
+
     setState(() { _loading = true; _searched = true; });
 
-    final result = await _tripService.searchTrips(from: from, to: to, date: _date);
+    final result = await _tripService.searchTrips(
+      from: from, to: to, date: _date,
+      cancelToken: _searchCancelToken,
+    );
 
     if (!mounted) return;
+    if (result['cancelled'] == true) return;
+
     setState(() {
       _loading    = false;
       _trips      = List<TripModel>.from(result['trips'] ?? []);

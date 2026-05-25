@@ -288,12 +288,14 @@ class ApiService {
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
+    CancelToken? cancelToken,
   }) async {
     try {
       final response = await _dio.get(
         buildApiUrl(path),
         queryParameters: queryParameters,
         options: options,
+        cancelToken: cancelToken,
       );
       return response;
     } catch (e) {

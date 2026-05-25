@@ -19,7 +19,7 @@ const {
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
 const { redisCache } = require('../middleware/redisCache');
-const { writeLimiter, stateChangeLimiter, destructiveLimiter } = require('../middleware/rateLimiter');
+const { searchLimiter, writeLimiter, stateChangeLimiter, destructiveLimiter } = require('../middleware/rateLimiter');
 
 // Validation schemas
 const createTripSchema = Joi.object({
@@ -34,7 +34,7 @@ const createTripSchema = Joi.object({
 });
 
 // Public routes
-router.get('/search', redisCache(30), searchTrips);
+router.get('/search', searchLimiter, redisCache(30), searchTrips);
 router.get('/locations', redisCache(300), getLocationSuggestions);
 // IMPORTANT: Specific routes MUST be before /:id (else "my-trips" matches as :id)
 router.get('/my-trips', authenticate, authorize('driver'), getMyTrips);

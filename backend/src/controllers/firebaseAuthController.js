@@ -163,6 +163,13 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('No email in Firebase token');
   }
 
+  // Verify audience — Firebase ID tokens have aud = Firebase project ID
+  const firebaseProjectId = (process.env.FIREBASE_PROJECT_ID || '').trim();
+  if (firebaseProjectId && payload.aud !== firebaseProjectId) {
+    logger.warn(`Firebase email sign-in: aud mismatch. Expected ${firebaseProjectId}, got ${payload.aud}`);
+    throw ApiError.unauthorized('Invalid Firebase token: audience mismatch');
+  }
+
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
   const isAppAdmin = adminEmail && email === adminEmail;
   const effectiveRole = isAppAdmin ? 'union_admin' : role;

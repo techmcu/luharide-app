@@ -92,6 +92,9 @@ const createTrip = asyncHandler(async (req, res) => {
   if (Number.isNaN(departureDate.getTime())) {
     throw ApiError.badRequest('Invalid departure_time. Use ISO 8601 format (e.g. with Z for UTC).');
   }
+  if (departureDate.getTime() < Date.now()) {
+    throw ApiError.badRequest('Departure time cannot be in the past');
+  }
   const arrivalDate = new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
   const departureStr = departureDate.toISOString().slice(0, 19).replace('T', ' ');
   const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
@@ -258,6 +261,14 @@ const createTrip = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
+// Explicit columns for search — avoids SELECT t.* bandwidth/memory waste at 1M+ rows
+const _TRIP_COLS = `t.id, t.from_location, t.to_location, t.departure_time, t.arrival_time,
+  t.fare_per_seat, t.available_seats, t.total_capacity, t.vehicle_number,
+  t.vehicle_model_id, t.stops, t.status, t.driver_id, t.luggage_allowance_per_passenger`;
+const _DRIVER_COLS = `u.name AS driver_name, u.email AS driver_email, u.phone AS driver_phone,
+  u.whatsapp_number AS driver_whatsapp, u.driver_verification_status AS driver_verified,
+  u.bio AS driver_bio`;
+
 /**
  * Search trips
  * GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23
@@ -294,9 +305,11 @@ const searchTrips = asyncHandler(async (req, res) => {
   const offset = Math.min(MAX_SEARCH_OFFSET, Math.max(0, Number.isFinite(rawOffset) ? rawOffset : 0));
 
   // Each trip/schedule row: still list only if (that row's departure + grace) is in the future.
+  // graceMin: show trips up to N minutes past departure (0 = only future trips)
+  // Keep departure_time bare (no AT TIME ZONE wrap) so B-tree index can be used
   const graceMin = retentionConfig.tripSearchGraceMinutesAfterDeparture;
-  const depStillVisible = `(t.departure_time AT TIME ZONE 'UTC') + (${graceMin} * INTERVAL '1 minute') > (NOW() AT TIME ZONE 'UTC')`;
-  const unionDepStillVisible = `(s.departure_time AT TIME ZONE 'UTC') + (${graceMin} * INTERVAL '1 minute') > (NOW() AT TIME ZONE 'UTC')`;
+  const depStillVisible = `t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
+  const unionDepStillVisible = `s.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
 
   // Normalize: lowercase; strip spaces, commas, dots, dashes, slashes so search matches more typos
   const normLoc = (s) => s.toLowerCase().replace(/[\s,.\-_:;/\\]+/g, '');
@@ -309,14 +322,12 @@ const searchTrips = asyncHandler(async (req, res) => {
   const runTripsQuery = async () => {
     if (routeId) {
       return queryRead(
-        `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
-                u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
-                u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
+        `SELECT ${_TRIP_COLS}, ${_DRIVER_COLS}
          FROM trips t
          LEFT JOIN users u ON t.driver_id = u.id
          WHERE t.route_id = $1
-           AND (t.departure_time AT TIME ZONE 'UTC') >= (($2::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
-           AND (t.departure_time AT TIME ZONE 'UTC') < (($2::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+           AND t.departure_time >= ($2::date)::timestamp
+           AND t.departure_time <  ($2::date)::timestamp + interval '1 day'
            AND t.status = 'scheduled'
            AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
            AND ${depStillVisible}
@@ -327,9 +338,7 @@ const searchTrips = asyncHandler(async (req, res) => {
     } else {
       try {
         return queryRead(
-          `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
-                  u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
-                  u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
+          `SELECT ${_TRIP_COLS}, ${_DRIVER_COLS}
            FROM trips t
            LEFT JOIN users u ON t.driver_id = u.id
            WHERE t.from_location_norm LIKE $1
@@ -346,17 +355,15 @@ const searchTrips = asyncHandler(async (req, res) => {
       } catch (colErr) {
         if (colErr.code === '42703') {
           return queryRead(
-            `SELECT t.*, u.name as driver_name, u.email as driver_email, u.phone as driver_phone,
-                    u.whatsapp_number as driver_whatsapp, u.driver_verification_status as driver_verified,
-                    u.bio as driver_bio, u.luggage_allowance_per_passenger as driver_luggage_allowance
+            `SELECT ${_TRIP_COLS}, ${_DRIVER_COLS}
              FROM trips t
              LEFT JOIN users u ON t.driver_id = u.id
              WHERE COALESCE(TRIM(t.from_location), '') <> ''
                AND COALESCE(TRIM(t.to_location), '') <> ''
                AND regexp_replace(LOWER(TRIM(t.from_location)), '\s+', '', 'g') LIKE $1
                AND regexp_replace(LOWER(TRIM(t.to_location)),   '\s+', '', 'g') LIKE $2
-               AND (t.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
-               AND (t.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+               AND t.departure_time >= ($3::date)::timestamp
+               AND t.departure_time <  ($3::date)::timestamp + interval '1 day'
              AND t.status = 'scheduled'
              AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
              AND ${depStillVisible}
@@ -401,8 +408,8 @@ const searchTrips = asyncHandler(async (req, res) => {
                AND COALESCE(TRIM(s.from_location), '') <> '' AND COALESCE(TRIM(s.to_location), '') <> ''
                AND regexp_replace(LOWER(TRIM(s.from_location)), '\s+', '', 'g') LIKE $1
                AND regexp_replace(LOWER(TRIM(s.to_location)),   '\s+', '', 'g') LIKE $2
-               AND (s.departure_time AT TIME ZONE 'UTC') >= (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC')
-               AND (s.departure_time AT TIME ZONE 'UTC') <  (($3::text || ' 00:00:00')::timestamp AT TIME ZONE 'UTC' + interval '1 day')
+               AND s.departure_time >= ($3::date)::timestamp
+               AND s.departure_time <  ($3::date)::timestamp + interval '1 day'
                AND ${unionDepStillVisible}
              ORDER BY s.departure_time ASC OFFSET $4 LIMIT $5`,
             [fromPat, toPat, dateStr, offset, limit]
@@ -415,7 +422,19 @@ const searchTrips = asyncHandler(async (req, res) => {
     }
   };
 
-  const [result, unionResult] = await Promise.all([runTripsQuery(), runUnionQuery()]);
+  // allSettled: one query failure returns partial results instead of killing both
+  const [_tripsSettled, _unionSettled] = await Promise.allSettled([runTripsQuery(), runUnionQuery()]);
+  if (_tripsSettled.status === 'rejected' && _unionSettled.status === 'rejected') {
+    throw _tripsSettled.reason;
+  }
+  if (_tripsSettled.status === 'rejected') {
+    logger.warn('Search: trips query failed, returning union only:', _tripsSettled.reason?.message);
+  }
+  if (_unionSettled.status === 'rejected') {
+    logger.warn('Search: union query failed, returning trips only:', _unionSettled.reason?.message);
+  }
+  const result = _tripsSettled.status === 'fulfilled' ? _tripsSettled.value : { rows: [] };
+  const unionResult = _unionSettled.status === 'fulfilled' ? _unionSettled.value : { rows: [] };
 
   const trips = result.rows.map(trip => ({
     id: trip.id,
@@ -734,9 +753,10 @@ const getMyTrips = asyncHandler(async (req, res) => {
   // Scheduled trips always shown regardless of date — driver needs to action them
   // Completed/cancelled trips respect the days filter
   if (days > 0) {
+    params.push(days);
     whereClauses += `
       AND (t.status = 'scheduled'
-           OR t.departure_time >= NOW() - INTERVAL '${days} days')`;
+           OR t.departure_time >= NOW() - make_interval(days => $${params.length}))`;
   }
 
   if (status) {

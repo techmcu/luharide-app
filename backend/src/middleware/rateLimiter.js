@@ -364,6 +364,24 @@ const bulkWriteLimiter = rateLimit(
 );
 
 /**
+ * GET /api/trips/search — prevent search abuse / scraping.
+ * 60 per minute per IP (generous for real users, blocks automated scraping).
+ * Env: SEARCH_MAX_PER_MINUTE
+ */
+const searchLimiter = rateLimit(
+  withStore('search', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('SEARCH_MAX_PER_MINUTE', 60, 10, 200),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many search requests. Please wait a moment.');
+    },
+  })
+);
+
+/**
  * POST /api/simple-auth/google — Google Sign-In (per IP).
  * 10 attempts per 5 minutes; only failed requests count.
  */
@@ -395,6 +413,7 @@ module.exports = {
   simpleAuthResetPasswordLimiter,
   simpleAuthChangePasswordLimiter,
   googleSignInLimiter,
+  searchLimiter,
   adminBulkNotifyLimiter,
   writeLimiter,
   stateChangeLimiter,

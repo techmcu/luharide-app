@@ -48,6 +48,9 @@ module.exports = {
   // --- Recent routes (passenger search history) ---
   recentRoutesMaxPerUser: intEnv('RECENT_ROUTES_MAX_PER_USER', 20, 5, 50),
 
+  // --- Pending bookings (auto-expire so seats aren't blocked forever) ---
+  pendingBookingExpiryHours: intEnv('PENDING_BOOKING_EXPIRY_HOURS', 24, 1, 72),
+
   // --- Pending rate notifications ---
   pendingRateNotificationRetentionHours: 48,
 

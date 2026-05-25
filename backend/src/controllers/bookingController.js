@@ -191,11 +191,13 @@ const createBooking = asyncHandler(async (req, res) => {
 
     const booking = result.rows[0];
 
+    // Reserve seats for ALL bookings (pending + confirmed) so available_seats is accurate
+    await client.query(
+      'UPDATE trips SET available_seats = available_seats - $1 WHERE id = $2',
+      [uniqueSeats.length, trip_id]
+    );
+
     if (bookingStatus === 'confirmed') {
-      await client.query(
-        'UPDATE trips SET available_seats = available_seats - $1 WHERE id = $2',
-        [uniqueSeats.length, trip_id]
-      );
       await client.query(
         'UPDATE bookings SET confirmed_at = NOW() WHERE id = $1',
         [booking.id]
@@ -335,6 +337,13 @@ const respondToBooking = asyncHandler(async (req, res) => {
         "UPDATE bookings SET status = 'cancelled' WHERE id = $1",
         [bookingId]
       );
+      // Restore seats reserved by the pending booking
+      if (seatCount > 0) {
+        await client.query(
+          'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+          [seatCount, booking.trip_id]
+        );
+      }
       await client.query('COMMIT');
       emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'booking_rejected' });
       return ApiResponse.success({ status: 'cancelled' }, 'Booking rejected').send(res);
@@ -377,10 +386,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
       "UPDATE bookings SET status = 'confirmed', confirmed_at = NOW() WHERE id = $1",
       [bookingId]
     );
-    await client.query(
-      'UPDATE trips SET available_seats = available_seats - $1 WHERE id = $2 AND available_seats >= $1',
-      [seatCount, booking.trip_id]
-    );
+    // No seat decrement here — already reserved at booking creation time
 
     // Cancel other pending bookings that overlap with these seats
     const otherPending = await client.query(
@@ -397,6 +403,13 @@ const respondToBooking = asyncHandler(async (req, res) => {
           "UPDATE bookings SET status = 'cancelled' WHERE id = $1",
           [row.id]
         );
+        // Restore seats reserved by this auto-cancelled pending booking
+        if (others.length > 0) {
+          await client.query(
+            'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+            [others.length, booking.trip_id]
+          );
+        }
       }
     }
 
@@ -605,7 +618,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
       [bookingId, reason || null]
     );
 
-    if (wasConfirmed && seatCount > 0) {
+    if (seatCount > 0) {
       await client.query(
         'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
         [seatCount, booking.trip_id]

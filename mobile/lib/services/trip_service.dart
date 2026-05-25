@@ -64,6 +64,7 @@ class TripService {
   }
 
   /// Search trips ([limit] default 40, [offset] for paging — server caps for small VPS)
+  /// Pass [cancelToken] to abort in-flight requests (e.g., new search or screen dispose).
   Future<Map<String, dynamic>> searchTrips({
     required String from,
     required String to,
@@ -71,6 +72,7 @@ class TripService {
     String? routeId,
     int limit = 40,
     int offset = 0,
+    CancelToken? cancelToken,
   }) async {
     try {
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -90,6 +92,7 @@ class TripService {
       final response = await _apiService.get(
         ApiConstants.searchTrips,
         queryParameters: query,
+        cancelToken: cancelToken,
       );
 
       final data = response.data['data'] ?? {};
@@ -113,6 +116,9 @@ class TripService {
         'count': response.data['data']?['count'] ?? trips.length,
       };
     } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) {
+        return {'success': false, 'cancelled': true, 'trips': <TripModel>[]};
+      }
       return {
         'success': false,
         'message': dioResponseMessage(e) ?? 'Failed to search trips',
