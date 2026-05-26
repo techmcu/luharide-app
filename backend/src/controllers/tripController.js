@@ -899,10 +899,15 @@ const getTripBookings = asyncHandler(async (req, res) => {
 /**
  * Start trip (Driver only) - scheduled → in_progress
  * PUT /api/trips/:id/start
+ *
+ * Auto-cancels any remaining pending bookings (driver didn't respond in time),
+ * restores their seats, and notifies affected passengers.
  */
 const startTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
   const driverId = req.user.id;
+
+  let cancelledBookings = [];
 
   const client = await pool.connect();
   try {
@@ -922,6 +927,26 @@ const startTrip = asyncHandler(async (req, res) => {
     if (trip.status !== 'scheduled') {
       await client.query('ROLLBACK');
       throw ApiError.badRequest(`Cannot start trip. Current status: ${trip.status}. Only scheduled trips can be started.`);
+    }
+
+    const pending = await client.query(
+      `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+         cancellation_reason = 'auto-expired-trip-started'
+       WHERE trip_id = $1 AND status = 'pending'
+       RETURNING id, passenger_id, seat_numbers`,
+      [tripId]
+    );
+    cancelledBookings = pending.rows;
+
+    let restoredSeats = 0;
+    for (const row of cancelledBookings) {
+      restoredSeats += Array.isArray(row.seat_numbers) ? row.seat_numbers.length : 0;
+    }
+    if (restoredSeats > 0) {
+      await client.query(
+        'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+        [restoredSeats, tripId]
+      );
     }
 
     try {
@@ -945,9 +970,30 @@ const startTrip = asyncHandler(async (req, res) => {
     client.release();
   }
 
+  for (const row of cancelledBookings) {
+    try {
+      const dataJson = JSON.stringify({ booking_id: row.id, trip_id: tripId });
+      const n = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1, 'booking_auto_cancelled',
+           'Booking not confirmed',
+           'Your booking was auto-cancelled because the driver started the ride without confirming your request.',
+           $2::jsonb)
+         RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+        [row.passenger_id, dataJson]
+      );
+      if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+    } catch (_) {}
+  }
+  if (cancelledBookings.length > 0) {
+    emitTripUpdated(tripId, { reason: 'trip_started_pending_cancelled' });
+  }
+
   ApiResponse.success(
-    { status: 'in_progress' },
-    'Ride started'
+    { status: 'in_progress', pendingBookingsCancelled: cancelledBookings.length },
+    cancelledBookings.length > 0
+      ? `Ride started. ${cancelledBookings.length} pending booking(s) were auto-cancelled.`
+      : 'Ride started'
   ).send(res);
 });
 
@@ -1064,13 +1110,18 @@ const cancelTrip = asyncHandler(async (req, res) => {
       );
     }
 
+    const allActiveBookings = await client.query(
+      `SELECT id, passenger_id, seat_numbers, status FROM bookings WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
+      [tripId]
+    );
+
     await client.query(
       `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = 'Driver cancelled the trip' WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
       [tripId]
     );
 
     let seatsToRelease = 0;
-    for (const row of confirmedBookings.rows) {
+    for (const row of allActiveBookings.rows) {
       const seats = Array.isArray(row.seat_numbers) ? row.seat_numbers : [];
       seatsToRelease += seats.length;
     }
@@ -1087,11 +1138,11 @@ const cancelTrip = asyncHandler(async (req, res) => {
       );
     }
 
-    if (confirmedBookings.rows.length > 0) {
-      const placeholders = confirmedBookings.rows
+    if (allActiveBookings.rows.length > 0) {
+      const placeholders = allActiveBookings.rows
         .map((_, i) => `($${i + 1}, 'trip_cancelled', 'Ride cancelled', 'The driver cancelled this ride. You are not charged.')`)
         .join(', ');
-      const flatParams = confirmedBookings.rows.map(r => r.passenger_id);
+      const flatParams = allActiveBookings.rows.map(r => r.passenger_id);
       try {
         const nIns = await client.query(
           `INSERT INTO notifications (user_id, type, title, body) VALUES ${placeholders}

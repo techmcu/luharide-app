@@ -1,11 +1,12 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-
-import '../core/utils/api_error_messages.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user_model.dart';
+
 import '../core/constants/api_constants.dart';
+import '../core/storage/secure_token_storage.dart';
+import '../core/utils/api_error_messages.dart';
+import '../models/user_model.dart';
 import 'api_service.dart';
 
 class AuthService {
@@ -14,11 +15,8 @@ class AuthService {
 
   AuthService(this._apiService);
 
-  // Storage keys - minimal, no extra keys
-  static const String _accessTokenKey = 'access_token';
-  static const String _refreshTokenKey = 'refresh_token';
   static const String _userDataKey = 'user_data';
-  static const String _userIdKey = 'user_id'; // cached for quick access
+  static const String _userIdKey = 'user_id';
 
   /// Send OTP to phone number
   Future<Map<String, dynamic>> sendOTP(String phone, {String purpose = 'login'}) async {
@@ -192,10 +190,10 @@ class AuthService {
   /// Refresh access token
   Future<void> refreshToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final refreshToken = prefs.getString(_refreshTokenKey);
+      final storage = SecureTokenStorage.instance;
+      final refreshToken = await storage.getRefreshToken();
 
-      if (refreshToken == null) {
+      if (refreshToken == null || refreshToken.isEmpty) {
         throw Exception('No refresh token found');
       }
 
@@ -214,7 +212,6 @@ class AuthService {
         throw Exception('Failed to refresh token');
       }
     } catch (e) {
-      // If refresh fails, logout user
       await logout();
       rethrow;
     }
@@ -223,10 +220,9 @@ class AuthService {
   /// Logout user
   Future<void> logout() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final refreshToken = prefs.getString(_refreshTokenKey);
+      final refreshToken = await SecureTokenStorage.instance.getRefreshToken();
 
-      if (refreshToken != null) {
+      if (refreshToken != null && refreshToken.isNotEmpty) {
         await _apiService.post(
           ApiConstants.logout,
           data: {'refreshToken': refreshToken},
@@ -383,13 +379,12 @@ class AuthService {
 
   /// Check if user is logged in
   Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.containsKey(_accessTokenKey);
+    return SecureTokenStorage.instance.hasAccessToken();
   }
 
   /// Restore token to ApiService (call on app start when cached session exists)
   Future<void> restoreTokenIfCached() async {
-    final token = await getAccessToken();
+    final token = await SecureTokenStorage.instance.getAccessToken();
     if (token != null && token.isNotEmpty) {
       _apiService.setAuthToken(token);
     }
@@ -420,13 +415,12 @@ class AuthService {
     await _saveUserData(user);
   }
 
-  /// Save tokens
+  /// Save tokens to encrypted storage
   Future<void> _saveTokens(AuthTokens tokens) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_accessTokenKey, tokens.accessToken);
-    await prefs.setString(_refreshTokenKey, tokens.refreshToken);
-    
-    // Set token in API service
+    await SecureTokenStorage.instance.saveTokens(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    );
     _apiService.setAuthToken(tokens.accessToken);
   }
 
@@ -439,18 +433,16 @@ class AuthService {
 
   /// Clear all auth data
   Future<void> _clearAuthData() async {
+    await SecureTokenStorage.instance.clearTokens();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_accessTokenKey);
-    await prefs.remove(_refreshTokenKey);
     await prefs.remove(_userDataKey);
     await prefs.remove(_userIdKey);
     _apiService.clearAuthToken();
   }
 
-  /// Get access token
+  /// Get access token from encrypted storage
   Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_accessTokenKey);
+    return SecureTokenStorage.instance.getAccessToken();
   }
 
   /// Simple Login - Email + Password

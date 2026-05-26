@@ -97,9 +97,8 @@ const login = asyncHandler(async (req, res) => {
 
   const user = result.rows[0];
 
-  // Check if active
   if (!user.is_active) {
-    throw ApiError.forbidden('Account is deactivated');
+    throw ApiError.unauthorized('Invalid email or password');
   }
 
   // Verify password
@@ -282,7 +281,7 @@ const resetPassword = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('OTP verification failed');
   }
   if (verification.purpose && verification.purpose !== 'password_reset') {
-    throw ApiError.badRequest('This OTP is not valid for password reset');
+    throw ApiError.badRequest('OTP verification failed');
   }
 
   // Ensure user exists

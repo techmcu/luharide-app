@@ -12,6 +12,7 @@ const router = express.Router();
 
 /** KYC uploads: JPEG/PNG only; server builds watermarked PDFs for admin when needed. */
 const ALLOWED_DOC_MIMES = new Set(['image/jpeg', 'image/png']);
+const ALLOWED_DOC_EXTS = new Set(['.jpg', '.jpeg', '.png']);
 
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) {
@@ -37,10 +38,11 @@ function createStorage(subdir) {
 
 function kycFileFilter(req, file, cb) {
   const m = String(file.mimetype || '').toLowerCase();
-  if (ALLOWED_DOC_MIMES.has(m)) {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if (ALLOWED_DOC_MIMES.has(m) && ALLOWED_DOC_EXTS.has(ext)) {
     return cb(null, true);
   }
-  cb(new Error('Use JPEG or PNG only.'));
+  cb(new Error('Use JPEG or PNG only (.jpg, .jpeg, .png).'));
 }
 
 const driverUpload = multer({

@@ -295,6 +295,7 @@ app.use(apiProxy(PLATFORM_URL, '/api/reviews', 'platform'));
 app.use(apiProxy(PLATFORM_URL, '/api/uploads', 'platform'));
 app.use(apiProxy(CORE_URL, '/api/kyc', 'core'));
 app.use(apiProxy(CORE_URL, '/api/bookings', 'core'));
+app.use(apiProxy(CORE_URL, '/api/routes', 'core'));
 app.use(apiProxy(CORE_URL, '/api/trips', 'core'));
 app.use(apiProxy(CORE_URL, '/api/drivers', 'core'));
 app.use(apiProxy(CORE_URL, '/api/driver-verification', 'core'));

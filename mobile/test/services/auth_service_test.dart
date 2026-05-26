@@ -2,22 +2,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:luharide/services/api_service.dart';
 import 'package:luharide/services/auth_service.dart';
+import '../helpers/test_helpers.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('AuthService', () {
     late AuthService authService;
 
     setUp(() {
       SharedPreferences.setMockInitialValues({});
+      setupMockSecureStorage();
       authService = AuthService(ApiService());
     });
 
     test('getCurrentUser throws on 401 without recursive refresh', () async {
-      // No token set — API call will fail with 401.
-      // Old code: getCurrentUser catches 401 → calls refreshToken() → calls getCurrentUser() again (recursive).
-      // New code: getCurrentUser lets the interceptor handle 401, throws a clean exception.
-      //
-      // We verify it throws a single exception, not a stack overflow from recursion.
       expect(
         () => authService.getCurrentUser(),
         throwsA(isA<Exception>()),
@@ -29,9 +28,11 @@ void main() {
       expect(result, isFalse);
     });
 
-    test('isLoggedIn returns true when token present', () async {
+    test('isLoggedIn returns true when token present (migrated from prefs)', () async {
       SharedPreferences.setMockInitialValues({'access_token': 'test-token'});
-      final result = await authService.isLoggedIn();
+      setupMockSecureStorage();
+      final fresh = AuthService(ApiService());
+      final result = await fresh.isLoggedIn();
       expect(result, isTrue);
     });
 
@@ -47,7 +48,6 @@ void main() {
     });
 
     test('refreshToken calls logout and rethrows when no refresh token', () async {
-      // No refresh token stored — should throw, not recurse
       try {
         await authService.refreshToken();
         fail('Should have thrown');

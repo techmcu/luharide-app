@@ -373,6 +373,12 @@ const respondToBooking = asyncHandler(async (req, res) => {
           "UPDATE bookings SET status = 'cancelled' WHERE id = $1",
           [bookingId]
         );
+        if (seatCount > 0) {
+          await client.query(
+            'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+            [seatCount, booking.trip_id]
+          );
+        }
         await client.query('COMMIT');
         throw ApiError.badRequest(`Seat ${seat} is no longer available. Another booking was already approved.`);
       }
@@ -574,7 +580,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
 
     const bookingResult = await client.query(
       `SELECT b.id, b.trip_id, b.passenger_id, b.status, b.seat_numbers,
-              t.driver_id, t.departure_time
+              t.driver_id, t.departure_time, t.status AS trip_status
        FROM bookings b
        JOIN trips t ON b.trip_id = t.id
        WHERE b.id = $1
@@ -593,6 +599,10 @@ const cancelBooking = asyncHandler(async (req, res) => {
 
     if (booking.status === 'cancelled') {
       throw ApiError.badRequest('Booking is already cancelled');
+    }
+
+    if (booking.trip_status === 'in_progress' || booking.trip_status === 'completed') {
+      throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
     }
 
     const departureTime = new Date(booking.departure_time).getTime();

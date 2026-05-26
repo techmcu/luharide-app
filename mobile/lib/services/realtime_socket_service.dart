@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:socket_io_client/socket_io_client.dart' as socket_io;
 
 import '../core/config/env_config.dart';
+import '../core/storage/secure_token_storage.dart';
 
 /// Socket.IO client — matches Node `socket.io` server (same host as [EnvConfig.socketUrl], no `/api`).
 /// Events: `trip-updated`, `notification:new`, `driver-location`.
@@ -34,8 +34,7 @@ class RealtimeSocketService {
 
   Future<void> connect() async {
     _reconnectBackoffTimer?.cancel();
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    final token = await SecureTokenStorage.instance.getAccessToken();
     if (token == null || token.isEmpty) {
       await disconnect();
       return;

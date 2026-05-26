@@ -31,9 +31,10 @@ flutter analyze --no-fatal-infos                     # Lint (matches CI)
 flutter build web                                    # Web build → build/web/
 ```
 
-### CI (GitHub Actions)
+### CI / CD (GitHub Actions)
 - **CI** (`ci.yml`): gitleaks secret scan, `npm test --ci` (backend), `flutter analyze` + `flutter test` (mobile). Runs on push to `main` and all PRs.
-- **Deploy** (`deploy-vps.yml`): triggers after CI passes on `main`. SSHs to VPS, pulls, `npm ci`, migrates, reloads PM2 ecosystem, syncs `webapp/` and `infra/static-site-luharide-root/` to nginx roots, runs health checks.
+- **Staging Deploy** (`deploy-vps.yml`): triggers after CI passes on `main`. Builds Flutter web with staging API URL, deploys to VPS staging directory, starts staging PM2 processes, runs health checks. Staging stays running permanently.
+- **Production Deploy** (`deploy-production.yml`): manual trigger (`workflow_dispatch`). Builds Flutter web with production API URL, deploys to VPS production directory, runs `npm run migrate`, reloads PM2 production stack, syncs nginx roots, runs full health checks. Has automatic rollback on failure.
 
 ## Architecture
 
@@ -83,9 +84,37 @@ mobile/lib/
 
 **Roles:** passenger, driver, union_admin, admin. `RoleExclusivity` enforces mutual exclusion between independent driver and union representative paths.
 
-### Infrastructure
-- VPS with nginx (split config: root site at `luharide.cloud`, Flutter web app at `luharide.cloud/app/`, API proxied at `/api/` and `/socket.io/`)
-- PM2 manages the 5-process microservice stack in production
+### Infrastructure — Staging & Production (same VPS)
+
+Both environments run on the same VPS. **They share the same PostgreSQL database, Redis, and uploads directory.** Any data change on staging affects production and vice versa.
+
+#### Production
+- **URL:** `https://luharide.cloud` (root site) / `https://luharide.cloud/app/` (Flutter web)
+- **API:** `https://luharide.cloud/api/v1` → nginx proxies to gateway on port **3000**
+- **PM2 config:** `pm2-ecosystem-luharide-api-gateway-and-microservices.config.cjs`
+- **Ports:** gateway :3000, auth :3001, core :3002, union :3003, platform :3004
+- **VPS paths:** code at `/var/www/luharide-backend`, web at `/var/www/luharide-web`, root site at `/var/www/luharide-cloud`
+- **Deploys:** `deploy-production.yml` (manual trigger) — runs migrations, reloads PM2, has rollback
+
+#### Staging
+- **URL:** `https://staging.luharide.cloud` (root) / `https://staging.luharide.cloud/app/` (Flutter web)
+- **API:** `https://staging.luharide.cloud/api/v1` → nginx proxies to staging gateway on port **3100**
+- **PM2 config:** `pm2-ecosystem-staging.config.cjs`
+- **Ports:** gateway :3100, auth :3101, core :3102, union :3103, platform :3104
+- **VPS paths:** code at `/var/www/luharide-staging`, web at `/var/www/luharide-web-staging`
+- **Deploys:** `deploy-vps.yml` (auto on main push) — copies production .env, does NOT run migrations
+- **Flutter web build:** `--dart-define=API_BASE_URL=https://staging.luharide.cloud/api/v1 --dart-define=SOCKET_URL=https://staging.luharide.cloud`
+
+#### Shared resources (CAUTION)
+- `.env` is copied from production to staging — same DB credentials, JWT secret, Redis
+- Uploads directory is symlinked from production
+- Test data created on staging will appear in production
+- Staging does not run its own migrations — relies on production having run them
+
+#### Key rules when making changes
+- Any new migration: will only apply when production deploys (staging doesn't run `npm run migrate`)
+- Backend code changes: must update both monolith (`server.js`) and microservice entry points (`microservices/*.js`) and gateway (`gateway/server.js`) where applicable
+- Flutter web changes: staging build uses `API_BASE_URL` dart-define; production build uses default `EnvConfig._productionApiBase`
 - `infra/` contains nginx example configs, docker-compose for local Redis, and deploy scripts
 
 ## Important Conventions

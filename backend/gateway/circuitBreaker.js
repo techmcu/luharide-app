@@ -12,6 +12,12 @@ class ServiceCircuitBreaker {
   }
 
   recordFailure() {
+    if (this.state === 'HALF_OPEN') {
+      this.state = 'OPEN';
+      this.openedAt = Date.now();
+      logger.warn(`Circuit re-OPEN for ${this.name} (probe failed in HALF_OPEN)`);
+      return;
+    }
     const now = Date.now();
     this.failures = this.failures.filter((t) => now - t < this.monitorWindowMs);
     this.failures.push(now);

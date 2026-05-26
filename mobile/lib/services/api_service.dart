@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants/api_constants.dart';
 import '../core/config/env_config.dart';
+import '../core/storage/secure_token_storage.dart';
 import '../core/utils/api_error_messages.dart';
 import 'dio_adapter_config.dart'
     if (dart.library.html) 'dio_adapter_config_web.dart';
@@ -33,6 +33,15 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   late final Dio _dio;
   Completer<bool>? _refreshCompleter;
+
+  final _tokenRefreshed = StreamController<void>.broadcast();
+  final _authSessionLost = StreamController<void>.broadcast();
+
+  /// Fires after a silent 401→refresh succeeds (new token saved).
+  Stream<void> get onTokenRefreshed => _tokenRefreshed.stream;
+
+  /// Fires when refresh fails — session is dead, user must re-login.
+  Stream<void> get onAuthSessionLost => _authSessionLost.stream;
 
   factory ApiService() {
     return _instance;
@@ -202,6 +211,8 @@ class ApiService {
 
       if (!refreshed) {
         clearAuthToken();
+        unawaited(SecureTokenStorage.instance.clearTokens());
+        _authSessionLost.add(null);
         return handler.next(error);
       }
 
@@ -232,8 +243,8 @@ class ApiService {
 
   Future<bool> _refreshAccessToken() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final refreshToken = prefs.getString('refresh_token');
+      final storage = SecureTokenStorage.instance;
+      final refreshToken = await storage.getRefreshToken();
       if (refreshToken == null || refreshToken.isEmpty) {
         return false;
       }
@@ -245,7 +256,6 @@ class ApiService {
           'platform': 'mobile',
         },
         options: Options(
-          // Avoid recursive interceptor on this call
           extra: {'__retriable__': false},
         ),
       );
@@ -257,12 +267,13 @@ class ApiService {
         final refresh = tokens['refreshToken']?.toString();
         if (access == null || access.isEmpty) return false;
 
-        await prefs.setString('access_token', access);
+        await storage.updateAccessToken(access);
         if (refresh != null && refresh.isNotEmpty) {
-          await prefs.setString('refresh_token', refresh);
+          await storage.updateRefreshToken(refresh);
         }
         setAuthToken(access);
         RealtimeSocketService.instance.connect();
+        _tokenRefreshed.add(null);
         if (kDebugMode) {
           // ignore: avoid_print
           print('🔄 Token refreshed via interceptor');

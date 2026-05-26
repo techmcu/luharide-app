@@ -34,10 +34,12 @@ async function withPgAdvisoryTryLock(pool, key1, key2, fn) {
 const JOB_NS = 884001;
 const JOB_RATE_NOTIFICATIONS = 1;
 const JOB_RIDE_CLEANUP = 2;
+const JOB_PENDING_BOOKING_EXPIRY = 3;
 
 module.exports = {
   withPgAdvisoryTryLock,
   JOB_NS,
   JOB_RATE_NOTIFICATIONS,
   JOB_RIDE_CLEANUP,
+  JOB_PENDING_BOOKING_EXPIRY,
 };

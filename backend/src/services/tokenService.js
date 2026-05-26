@@ -42,7 +42,8 @@ async function ensureSchema() {
 
 const generateAccessToken = (userId, role) => {
   return jwt.sign({ userId, role, type: 'access' }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN
+    algorithm: 'HS256',
+    expiresIn: JWT_EXPIRES_IN,
   });
 };
 
@@ -50,7 +51,7 @@ const generateRefreshToken = (userId, role) => {
   return jwt.sign(
     { userId, role, type: 'refresh', jti: crypto.randomBytes(16).toString('hex') },
     JWT_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
+    { algorithm: 'HS256', expiresIn: REFRESH_TOKEN_EXPIRES_IN }
   );
 };
 
@@ -102,7 +103,7 @@ const storeRefreshToken = async (userId, token, deviceInfo = {}, ipAddress = nul
 
 const verifyAccessToken = (token) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     if (decoded.type !== 'access') {
       throw ApiError.unauthorized('Invalid token type');
     }
@@ -120,7 +121,7 @@ const verifyAccessToken = (token) => {
 
 const verifyRefreshToken = async (token) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     if (decoded.type !== 'refresh') {
       throw ApiError.unauthorized('Invalid token type');
     }

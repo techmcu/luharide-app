@@ -23,6 +23,7 @@ const authRoutes = require('./src/routes/auth');
 const simpleAuthRoutes = require('./src/routes/simpleAuth');
 const bookingRoutes = require('./src/routes/bookings');
 const tripRoutes = require('./src/routes/trips');
+const routeRoutes = require('./src/routes/routes');
 const driverRoutes = require('./src/routes/drivers');
 const { authenticate } = require('./src/middleware/auth');
 const { submitVerification, getMyStatus } = require('./src/controllers/driverVerificationController');
@@ -52,6 +53,7 @@ const attachSocketHandlers = require('./src/socket/socketHandlers');
 const { setIo } = require('./src/socket/socketIoRegistry');
 const rateNotificationJob = require('./src/jobs/rateNotificationJob');
 const rideCleanupJob = require('./src/jobs/rideCleanupJob');
+const pendingBookingExpiryJob = require('./src/jobs/pendingBookingExpiryJob');
 
 const app = express();
 applyTrustProxy(app);
@@ -115,6 +117,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/simple-auth', simpleAuthRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/trips', tripRoutes);
+app.use('/api/routes', routeRoutes);
 app.use('/api/drivers', driverRoutes);
 // Driver verification - explicit routes (avoids router mount 404)
 app.get('/api/driver-verification', authenticate, getMyStatus);
@@ -207,6 +210,7 @@ server.listen(PORT, LISTEN_HOST, () => {
   }
   rateNotificationJob.start();
   rideCleanupJob.start();
+  pendingBookingExpiryJob.start();
 });
 
 // Graceful shutdown

@@ -7,6 +7,7 @@ import '../../helpers/test_helpers.dart';
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    setupMockSecureStorage();
   });
 
   group('SimpleLoginScreen', () {

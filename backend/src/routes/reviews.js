@@ -3,14 +3,23 @@ const router = express.Router();
 const { getMyReviews, getReviewsForUser, getUserRatingSummary, getUserReviewBundle } = require('../controllers/reviewController');
 const { authenticate } = require('../middleware/auth');
 const { redisCache } = require('../middleware/redisCache');
+const ApiError = require('../utils/ApiError');
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function validateUserIdParam(req, res, next) {
+  if (!UUID_RE.test(req.params.userId)) {
+    return next(ApiError.badRequest('Invalid user ID format'));
+  }
+  next();
+}
 
 // My reviews — requires auth
 router.get('/my-reviews', authenticate, getMyReviews);
 
 // Public: anyone can see a user's rating summary and reviews (no login needed)
-router.get('/user/:userId/summary', redisCache(60), getUserRatingSummary);
-router.get('/summary/:userId', redisCache(60), getUserRatingSummary);
-router.get('/user/:userId/bundle', redisCache(60), getUserReviewBundle);
-router.get('/user/:userId/reviews', redisCache(60), getReviewsForUser);
+router.get('/user/:userId/summary', validateUserIdParam, redisCache(60), getUserRatingSummary);
+router.get('/summary/:userId', validateUserIdParam, redisCache(60), getUserRatingSummary);
+router.get('/user/:userId/bundle', validateUserIdParam, redisCache(60), getUserReviewBundle);
+router.get('/user/:userId/reviews', validateUserIdParam, redisCache(60), getReviewsForUser);
 
 module.exports = router;

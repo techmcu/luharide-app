@@ -4,16 +4,28 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const { OAuth2Client } = require('google-auth-library');
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '698013485373-fkd9oupqd5srtgrnle155t4h4elkvc9o.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+let _firebaseAdmin = null;
+function getFirebaseAuth() {
+  if (_firebaseAdmin !== null) return _firebaseAdmin;
+  try {
+    const admin = require('firebase-admin');
+    if (admin.apps.length > 0) {
+      _firebaseAdmin = admin.auth();
+      return _firebaseAdmin;
+    }
+  } catch (_) { /* not available */ }
+  _firebaseAdmin = false;
+  return false;
+}
 
 /**
- * Google / Firebase Sign-In
+ * Google Sign-In
  * POST /api/simple-auth/google
- *
- * The mobile app sends the Google ID token (from Google Sign-In).
- * We verify it using Google's tokeninfo endpoint, extract email/name,
- * then find-or-create the user in our DB and issue our own JWT tokens.
  */
 const googleSignIn = asyncHandler(async (req, res) => {
   const { idToken, role = 'passenger' } = req.body;
@@ -22,15 +34,18 @@ const googleSignIn = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Google ID token is required');
   }
 
-  // Verify token with Google (Node 18+ built-in fetch)
-  const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
-  const googleRes = await fetch(verifyUrl);
-
-  if (!googleRes.ok) {
+  let payload;
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (err) {
+    logger.warn(`Google token verification failed: ${err.message}`);
     throw ApiError.unauthorized('Invalid Google token');
   }
 
-  const payload = await googleRes.json();
   const email = (payload.email || '').toLowerCase().trim();
   const name = payload.name || payload.given_name || 'User';
   const googleId = payload.sub;
@@ -39,13 +54,7 @@ const googleSignIn = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Google account has no email');
   }
 
-  // Verify aud (audience) matches our app's client ID
-  if (payload.aud !== GOOGLE_CLIENT_ID) {
-    logger.warn(`Google sign-in: aud mismatch. Expected ${GOOGLE_CLIENT_ID}, got ${payload.aud}`);
-    throw ApiError.unauthorized('Invalid Google token: audience mismatch');
-  }
-
-  if (payload.email_verified !== 'true' && payload.email_verified !== true) {
+  if (!payload.email_verified) {
     throw ApiError.badRequest('Google email not verified');
   }
 
@@ -53,7 +62,6 @@ const googleSignIn = asyncHandler(async (req, res) => {
   const isAppAdmin = adminEmail && email === adminEmail;
   const effectiveRole = isAppAdmin ? 'union_admin' : role;
 
-  // Check if user exists
   const existingUser = await pool.query(
     'SELECT * FROM users WHERE email = $1',
     [email]
@@ -66,16 +74,14 @@ const googleSignIn = asyncHandler(async (req, res) => {
     user = existingUser.rows[0];
 
     if (!user.is_active) {
-      throw ApiError.forbidden('Account is deactivated');
+      throw ApiError.unauthorized('Invalid credentials');
     }
 
-    // Update google_id if not set, and last_login
     await pool.query(
       `UPDATE users SET google_id = COALESCE(google_id, $1), last_login = CURRENT_TIMESTAMP WHERE id = $2`,
       [googleId, user.id]
     );
   } else {
-    // Create new user — phone left NULL, user can add from profile
     isNewUser = true;
 
     const result = await pool.query(
@@ -89,7 +95,6 @@ const googleSignIn = asyncHandler(async (req, res) => {
     logger.info(`New Google user created: ${user.id} - ${email}`);
   }
 
-  // Generate our JWT tokens
   const tokens = await generateTokenPair(
     user.id,
     user.role,
@@ -97,7 +102,6 @@ const googleSignIn = asyncHandler(async (req, res) => {
     req.ip
   );
 
-  // Log login
   await pool.query(
     `INSERT INTO login_history (user_id, login_type, device_info, ip_address, user_agent, status)
      VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -134,10 +138,6 @@ const googleSignIn = asyncHandler(async (req, res) => {
 /**
  * Firebase Email Link Sign-In
  * POST /api/simple-auth/firebase-email
- *
- * Mobile app verifies the email link via Firebase Auth SDK,
- * gets a Firebase ID token, and sends it here.
- * We verify with Google's tokeninfo, extract email, find-or-create user.
  */
 const firebaseEmailSignIn = asyncHandler(async (req, res) => {
   const { idToken, name, role = 'passenger' } = req.body;
@@ -146,35 +146,45 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Firebase ID token is required');
   }
 
-  // Verify Firebase ID token using Google's secure token verification
-  const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
-  const googleRes = await fetch(verifyUrl);
+  const fbAuth = getFirebaseAuth();
+  let email, displayName, firebaseUid;
 
-  if (!googleRes.ok) {
-    throw ApiError.unauthorized('Invalid Firebase token');
+  if (fbAuth) {
+    try {
+      const decoded = await fbAuth.verifyIdToken(idToken);
+      email = (decoded.email || '').toLowerCase().trim();
+      displayName = name || decoded.name || 'User';
+      firebaseUid = decoded.uid;
+    } catch (err) {
+      logger.warn(`Firebase token verification failed: ${err.message}`);
+      throw ApiError.unauthorized('Invalid Firebase token');
+    }
+  } else {
+    logger.warn('Firebase Admin not initialized — falling back to tokeninfo endpoint for email sign-in');
+    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
+    const googleRes = await fetch(verifyUrl);
+    if (!googleRes.ok) {
+      throw ApiError.unauthorized('Invalid Firebase token');
+    }
+    const payload = await googleRes.json();
+    email = (payload.email || '').toLowerCase().trim();
+    displayName = name || payload.name || 'User';
+    firebaseUid = payload.sub;
+
+    const firebaseProjectId = (process.env.FIREBASE_PROJECT_ID || '').trim();
+    if (firebaseProjectId && payload.aud !== firebaseProjectId) {
+      throw ApiError.unauthorized('Invalid Firebase token');
+    }
   }
-
-  const payload = await googleRes.json();
-  const email = (payload.email || '').toLowerCase().trim();
-  const displayName = name || payload.name || 'User';
-  const firebaseUid = payload.sub;
 
   if (!email) {
     throw ApiError.badRequest('No email in Firebase token');
-  }
-
-  // Verify audience — Firebase ID tokens have aud = Firebase project ID
-  const firebaseProjectId = (process.env.FIREBASE_PROJECT_ID || '').trim();
-  if (firebaseProjectId && payload.aud !== firebaseProjectId) {
-    logger.warn(`Firebase email sign-in: aud mismatch. Expected ${firebaseProjectId}, got ${payload.aud}`);
-    throw ApiError.unauthorized('Invalid Firebase token: audience mismatch');
   }
 
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
   const isAppAdmin = adminEmail && email === adminEmail;
   const effectiveRole = isAppAdmin ? 'union_admin' : role;
 
-  // Check if user exists
   const existingUser = await pool.query(
     'SELECT * FROM users WHERE email = $1',
     [email]
@@ -187,7 +197,7 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
     user = existingUser.rows[0];
 
     if (!user.is_active) {
-      throw ApiError.forbidden('Account is deactivated');
+      throw ApiError.unauthorized('Invalid credentials');
     }
 
     await pool.query(

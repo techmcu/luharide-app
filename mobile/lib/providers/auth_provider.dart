@@ -23,9 +23,12 @@ enum AuthStatus {
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
   late final FirebaseAuthService _firebaseAuthService;
+  StreamSubscription<void>? _tokenRefreshSub;
+  StreamSubscription<void>? _sessionLostSub;
 
   AuthProvider(this._authService) {
     _firebaseAuthService = FirebaseAuthService(_authService.apiService);
+    _listenToAuthEvents();
     _checkAuthStatus();
   }
 
@@ -41,6 +44,36 @@ class AuthProvider with ChangeNotifier {
   String? get error => _error;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+
+  void _listenToAuthEvents() {
+    final api = _authService.apiService;
+    _tokenRefreshSub = api.onTokenRefreshed.listen((_) {
+      _syncUserAfterTokenRefresh();
+    });
+    _sessionLostSub = api.onAuthSessionLost.listen((_) {
+      if (_status == AuthStatus.authenticated) {
+        _user = null;
+        _status = AuthStatus.unauthenticated;
+        _error = null;
+        unawaited(RealtimeSocketService.instance.disconnect());
+        unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+        notifyListeners();
+      }
+    });
+  }
+
+  Future<void> _syncUserAfterTokenRefresh() async {
+    if (_status != AuthStatus.authenticated) return;
+    try {
+      final fresh = await _authService.getCurrentUser()
+          .timeout(const Duration(seconds: 8));
+      if (_status == AuthStatus.authenticated) {
+        _user = fresh;
+        unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
 
   /// Check if user is already logged in (runs once on startup; guard prevents concurrent runs)
   Future<void> _checkAuthStatus() async {
@@ -512,6 +545,13 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  @override
+  void dispose() {
+    _tokenRefreshSub?.cancel();
+    _sessionLostSub?.cancel();
+    super.dispose();
   }
 
   /// Delete user account (requires password confirmation)

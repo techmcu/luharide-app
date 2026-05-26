@@ -16,15 +16,18 @@ const { streamMyKycDocumentFile } = require('../src/controllers/kycDocumentStrea
 
 const bookingRoutes = require('../src/routes/bookings');
 const tripRoutes = require('../src/routes/trips');
+const routeRoutes = require('../src/routes/routes');
 const driverRoutes = require('../src/routes/drivers');
 
 const rateNotificationJob = require('../src/jobs/rateNotificationJob');
 const rideCleanupJob = require('../src/jobs/rideCleanupJob');
+const pendingBookingExpiryJob = require('../src/jobs/pendingBookingExpiryJob');
 const logger = require('../src/config/logger');
 
 const app = createBaseApp('core');
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/trips', tripRoutes);
+app.use('/api/routes', routeRoutes);
 app.use('/api/drivers', driverRoutes);
 app.get('/api/driver-verification', authenticate, getMyStatus);
 app.post('/api/driver-verification', authenticate, submitVerification);
@@ -38,4 +41,5 @@ app.listen(PORT, LISTEN_HOST, () => {
   logger.info(`[core-service] listening on ${LISTEN_HOST}:${PORT}`);
   rateNotificationJob.start();
   rideCleanupJob.start();
+  pendingBookingExpiryJob.start();
 });

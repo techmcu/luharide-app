@@ -1,4 +1,4 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import '../storage/secure_token_storage.dart';
 
 /// Cached auth token for image requests (avoids async on every build).
 /// Call [refreshAuthHeadersCache] once after login/logout.
@@ -11,7 +11,6 @@ class AuthHeadersSync {
   }
 
   static Future<void> refreshAuthHeadersCache() async {
-    final p = await SharedPreferences.getInstance();
-    _cachedToken = p.getString('access_token');
+    _cachedToken = await SecureTokenStorage.instance.getAccessToken();
   }
 }

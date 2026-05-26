@@ -5,6 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/storage/secure_token_storage.dart';
 import '../core/utils/api_error_messages.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
@@ -13,8 +14,6 @@ class FirebaseAuthService {
   final ApiService _apiService;
   fb.FirebaseAuth get _firebaseAuth => fb.FirebaseAuth.instance;
 
-  static const String _accessTokenKey = 'access_token';
-  static const String _refreshTokenKey = 'refresh_token';
   static const String _userDataKey = 'user_data';
   static const String _userIdKey = 'user_id';
 
@@ -167,9 +166,11 @@ class FirebaseAuthService {
   }
 
   Future<void> _saveAuthData(AuthTokens tokens, UserModel user) async {
+    await SecureTokenStorage.instance.saveTokens(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    );
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_accessTokenKey, tokens.accessToken);
-    await prefs.setString(_refreshTokenKey, tokens.refreshToken);
     await prefs.setString(_userDataKey, jsonEncode(user.toJson()));
     await prefs.setString(_userIdKey, user.id);
     _apiService.setAuthToken(tokens.accessToken);
