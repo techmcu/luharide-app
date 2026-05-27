@@ -18,33 +18,24 @@ const signup = asyncHandler(async (req, res) => {
   const isAppAdmin = adminEmail && emailNorm === adminEmail;
   const effectiveRole = isAppAdmin ? 'union_admin' : role;
 
-  // Check if user exists
-  const existingUser = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
-    [emailNorm]
-  );
-
-  if (existingUser.rows.length > 0) {
-    throw ApiError.conflict('Email already registered');
-  }
-
-  // Hash password
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Create user — phone left NULL, user can add from profile
-  const result = await pool.query(
-    `INSERT INTO users (name, email, password_hash, role, is_verified, is_active)
-     VALUES ($1, $2, $3, $4, TRUE, TRUE)
-     RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, driver_code, created_at`,
-    [name, emailNorm, passwordHash, effectiveRole]
-  );
-
-  const user = result.rows[0];
-  if (user && !user.driver_verification_status) {
-    user.driver_verification_status = 'none';
+  let user;
+  try {
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password_hash, role, is_verified, is_active)
+       VALUES ($1, $2, $3, $4, TRUE, TRUE)
+       RETURNING id, name, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, driver_code, created_at`,
+      [name, emailNorm, passwordHash, effectiveRole]
+    );
+    user = result.rows[0];
+  } catch (err) {
+    if (err.code === '23505' && err.constraint?.includes('email')) {
+      throw ApiError.conflict('An account with this email already exists. Please login instead.');
+    }
+    throw err;
   }
 
-  // Generate tokens
   const tokens = await generateTokenPair(
     user.id,
     user.role,
@@ -85,11 +76,30 @@ const login = asyncHandler(async (req, res) => {
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
   const isAppAdmin = adminEmail && emailNorm === adminEmail;
 
-  // Find user
-  const result = await pool.query(
-    'SELECT * FROM users WHERE email = $1',
-    [emailNorm]
-  );
+  const MAX_FAILED_ATTEMPTS = 10;
+  const LOCKOUT_MINUTES = 30;
+
+  let result;
+  try {
+    result = await pool.query(
+      `SELECT id, name, email, role, is_verified, is_active, password_hash,
+              driver_verification_status, driver_kyc_reupload_allowed, driver_code,
+              failed_login_attempts, locked_until
+       FROM users WHERE email = $1`,
+      [emailNorm]
+    );
+  } catch (err) {
+    if (err.code === '42703') {
+      result = await pool.query(
+        `SELECT id, name, email, role, is_verified, is_active, password_hash,
+                driver_verification_status, driver_kyc_reupload_allowed, driver_code
+         FROM users WHERE email = $1`,
+        [emailNorm]
+      );
+    } else {
+      throw err;
+    }
+  }
 
   if (result.rows.length === 0) {
     throw ApiError.unauthorized('Invalid email or password');
@@ -101,25 +111,60 @@ const login = asyncHandler(async (req, res) => {
     throw ApiError.unauthorized('Invalid email or password');
   }
 
-  // Verify password
+  if (user.locked_until && new Date(user.locked_until) > new Date()) {
+    const minsLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
+    throw ApiError.tooManyRequests(`Account temporarily locked. Try again in ${minsLeft} minute(s).`);
+  }
+
   if (!user.password_hash) {
     throw ApiError.unauthorized('Invalid email or password');
   }
   const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
   if (!isValidPassword) {
+    const attempts = (user.failed_login_attempts || 0) + 1;
+    try {
+      if (attempts >= MAX_FAILED_ATTEMPTS) {
+        await pool.query(
+          `UPDATE users SET failed_login_attempts = $1, locked_until = NOW() + INTERVAL '${LOCKOUT_MINUTES} minutes' WHERE id = $2`,
+          [attempts, user.id]
+        );
+      } else {
+        await pool.query(
+          'UPDATE users SET failed_login_attempts = $1 WHERE id = $2',
+          [attempts, user.id]
+        );
+      }
+    } catch (_) { /* lockout columns may not exist yet */ }
+    if (attempts >= MAX_FAILED_ATTEMPTS) {
+      throw ApiError.tooManyRequests(`Too many failed attempts. Account locked for ${LOCKOUT_MINUTES} minutes.`);
+    }
     throw ApiError.unauthorized('Invalid email or password');
   }
 
-  // If this email is configured as admin, ensure role is union_admin
   if (adminEmail && emailNorm === adminEmail && user.role !== 'union_admin') {
-    await pool.query("UPDATE users SET role = 'union_admin', last_login = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
+    try {
+      await pool.query(
+        "UPDATE users SET role = 'union_admin', failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $1",
+        [user.id]
+      );
+    } catch (e) {
+      if (e.code === '42703') {
+        await pool.query("UPDATE users SET role = 'union_admin', last_login = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
+      } else { throw e; }
+    }
     user.role = 'union_admin';
   } else {
-    await pool.query(
-      'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
-      [user.id]
-    );
+    try {
+      await pool.query(
+        'UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $1',
+        [user.id]
+      );
+    } catch (e) {
+      if (e.code === '42703') {
+        await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+      } else { throw e; }
+    }
   }
 
   // Generate tokens

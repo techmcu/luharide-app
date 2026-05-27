@@ -82,7 +82,6 @@ describe('POST /api/simple-auth/signup', () => {
   it('creates user and returns tokens', async () => {
     const user = mockUser();
     pool.query
-      .mockResolvedValueOnce({ rows: [] })          // SELECT existing user
       .mockResolvedValueOnce({ rows: [user] });      // INSERT new user
 
     const res = await request(app)
@@ -96,14 +95,17 @@ describe('POST /api/simple-auth/signup', () => {
   });
 
   it('rejects duplicate email with 409', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [mockUser()] });
+    const err = new Error('duplicate key value violates unique constraint');
+    err.code = '23505';
+    err.constraint = 'idx_users_email_unique';
+    pool.query.mockRejectedValueOnce(err);
 
     const res = await request(app)
       .post('/api/simple-auth/signup')
       .send({ email: 'test@example.com', password: 'Test1234', name: 'Test User' });
 
     expect(res.status).toBe(409);
-    expect(res.body.message).toMatch(/already registered/i);
+    expect(res.body.message).toMatch(/already exists/i);
   });
 
   it('rejects missing fields with 400 (validation)', async () => {
@@ -153,7 +155,9 @@ describe('POST /api/simple-auth/login', () => {
   });
 
   it('returns 401 for wrong password (no user enumeration)', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [mockUser()] });
+    pool.query
+      .mockResolvedValueOnce({ rows: [mockUser()] })   // SELECT user
+      .mockResolvedValueOnce({ rowCount: 1 });          // UPDATE failed_login_attempts
 
     const res = await request(app)
       .post('/api/simple-auth/login')

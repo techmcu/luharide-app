@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { pool } = require('../config/database');
 const { createOTP, verifyOTP, sendOTP, createOTPByEmail, verifyOTPByEmail, sendOTPByEmail } = require('../services/otpService');
 const { generateTokenPair, verifyRefreshToken, revokeRefreshToken } = require('../services/tokenService');
@@ -6,6 +7,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const bcrypt = require('bcryptjs');
+const userCache = require('../utils/userCache');
 
 /**
  * Send OTP to phone OR email
@@ -98,8 +100,12 @@ const verifyOTPController = asyncHandler(async (req, res) => {
   }
 
   const byPhone = identifier === 'phone';
+  const userCols = `id, name, phone, email, role, is_verified, is_active, password_hash,
+                    driver_verification_status, driver_kyc_reupload_allowed, driver_code`;
   let userResult = await pool.query(
-    byPhone ? 'SELECT * FROM users WHERE phone = $1' : 'SELECT * FROM users WHERE email = $1',
+    byPhone
+      ? `SELECT ${userCols} FROM users WHERE phone = $1`
+      : `SELECT ${userCols} FROM users WHERE email = $1`,
     [value]
   );
 
@@ -119,15 +125,43 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     const emailVal = byPhone ? null : value;
     const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, 10) : null;
     hasPassword = !!passwordHash;
-    const insertResult = await pool.query(
-      `INSERT INTO users (name, phone, email, role, is_verified, is_active, password_hash)
-       VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
-       RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, created_at`,
-      [name.trim(), phoneVal, emailVal, effectiveRole, passwordHash]
-    );
-    user = insertResult.rows[0];
-    isNewUser = true;
-    logger.info(`New user registered: ${user.id} - ${value}${effectiveRole === 'union_admin' ? ' (admin)' : ''}`);
+
+    try {
+      const insertResult = await pool.query(
+        `INSERT INTO users (name, phone, email, role, is_verified, is_active, password_hash)
+         VALUES ($1, $2, $3, $4, TRUE, TRUE, $5)
+         RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status, driver_kyc_reupload_allowed, driver_code, created_at`,
+        [name.trim(), phoneVal, emailVal, effectiveRole, passwordHash]
+      );
+      user = insertResult.rows[0];
+      isNewUser = true;
+      logger.info(`New user registered: ${user.id} - ${value}${effectiveRole === 'union_admin' ? ' (admin)' : ''}`);
+    } catch (err) {
+      if (err.code === '23505') {
+        userResult = await pool.query(
+          byPhone
+            ? `SELECT ${userCols} FROM users WHERE phone = $1`
+            : `SELECT ${userCols} FROM users WHERE email = $1`,
+          [value]
+        );
+        if (userResult.rows.length > 0) {
+          user = userResult.rows[0];
+          if (!user.is_active) {
+            throw ApiError.forbidden('Account is deactivated. Please contact support.');
+          }
+          await pool.query(
+            'UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1',
+            [user.id]
+          );
+          hasPassword = !!user.password_hash;
+          logger.info(`Concurrent registration resolved to existing user: ${user.id} - ${value}`);
+        } else {
+          throw err;
+        }
+      } else {
+        throw err;
+      }
+    }
   } else {
     user = userResult.rows[0];
 
@@ -199,10 +233,8 @@ const refreshTokenController = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Refresh token is required');
   }
 
-  // Verify refresh token
   const decoded = await verifyRefreshToken(refreshToken);
 
-  // Get user
   const userResult = await pool.query(
     'SELECT id, name, phone, email, role, is_active FROM users WHERE id = $1',
     [decoded.userId]
@@ -218,29 +250,39 @@ const refreshTokenController = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('Account is deactivated');
   }
 
-  // Atomic: if another request already revoked this token, reject this one
-  const revoked = await revokeRefreshToken(refreshToken);
-  if (!revoked) {
-    throw ApiError.unauthorized('Token already used or expired');
-  }
-
-  // Generate new token pair
   const deviceInfo = {
     userAgent: req.headers['user-agent'],
     platform: req.body.platform || 'unknown'
   };
 
-  const tokens = await generateTokenPair(
-    user.id,
-    user.role,
-    deviceInfo,
-    req.ip
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  ApiResponse.success(
-    { tokens },
-    'Token refreshed successfully'
-  ).send(res);
+    const revokeResult = await client.query(
+      `UPDATE refresh_tokens SET is_revoked = TRUE, revoked_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1 AND is_revoked = FALSE
+         AND ((token_hash IS NOT NULL AND token_hash = $2) OR (token IS NOT NULL AND token = $3))
+       RETURNING id`,
+      [user.id, crypto.createHash('sha256').update(String(refreshToken), 'utf8').digest('hex'), refreshToken]
+    );
+
+    if (revokeResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      throw ApiError.unauthorized('Token already used or expired');
+    }
+
+    const tokens = await generateTokenPair(user.id, user.role, deviceInfo, req.ip);
+
+    await client.query('COMMIT');
+
+    ApiResponse.success({ tokens }, 'Token refreshed successfully').send(res);
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
 });
 
 /**
@@ -259,6 +301,7 @@ const logoutController = asyncHandler(async (req, res) => {
     }
   }
 
+  if (req.user) userCache.invalidate(req.user.id);
   logger.info(`User logged out${req.user ? `: ${req.user.id}` : ' (token revoked)'}`);
 
   ApiResponse.success(null, 'Logged out successfully').send(res);
@@ -344,8 +387,22 @@ const updateProfileController = asyncHandler(async (req, res) => {
   }
 
   if (email !== undefined) {
+    const currentEmail = req.user.email ? String(req.user.email).toLowerCase().trim() : null;
+    const newEmail = (email === '' || email === null) ? null : String(email).toLowerCase().trim();
+    if (currentEmail && newEmail && currentEmail !== newEmail) {
+      throw ApiError.badRequest('Email cannot be changed directly. Contact support or use account settings.');
+    }
+    if (newEmail && newEmail !== currentEmail) {
+      const dup = await pool.query(
+        'SELECT id FROM users WHERE lower(email) = $1 AND id <> $2 LIMIT 1',
+        [newEmail, userId]
+      );
+      if (dup.rows.length > 0) {
+        throw ApiError.conflict('This email is already used by another account');
+      }
+    }
     updates.push(`email = $${paramCount++}`);
-    values.push(email === '' || email === null ? null : email);
+    values.push(newEmail);
   }
 
   if (profile_image_url !== undefined) {
@@ -395,6 +452,7 @@ const updateProfileController = asyncHandler(async (req, res) => {
     values
   );
 
+  userCache.invalidate(userId);
   logger.info(`User profile updated: ${userId}`);
 
   ApiResponse.success(result.rows[0], 'Profile updated successfully').send(res);
@@ -424,11 +482,6 @@ const deleteAccountController = asyncHandler(async (req, res) => {
   const { password } = req.body;
   const userId = req.user.id;
 
-  if (!password || password.length < 3) {
-    throw ApiError.badRequest('Password is required to delete account');
-  }
-
-  // Get user with password hash
   const userResult = await pool.query(
     'SELECT id, email, password_hash, name, role FROM users WHERE id = $1',
     [userId]
@@ -440,14 +493,14 @@ const deleteAccountController = asyncHandler(async (req, res) => {
 
   const user = userResult.rows[0];
 
-  // Verify password
-  if (!user.password_hash) {
-    throw ApiError.badRequest('This account was created via OTP and has no password. Please contact support to delete your account.');
-  }
-
-  const isPasswordValid = await bcrypt.compare(password, user.password_hash);
-  if (!isPasswordValid) {
-    throw ApiError.badRequest('Incorrect password. Please try again.');
+  if (user.password_hash) {
+    if (!password || password.length < 3) {
+      throw ApiError.badRequest('Password is required to delete account');
+    }
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    if (!isPasswordValid) {
+      throw ApiError.badRequest('Incorrect password. Please try again.');
+    }
   }
 
   // Start transaction for atomic deletion
@@ -509,6 +562,7 @@ const deleteAccountController = asyncHandler(async (req, res) => {
 
     await client.query('COMMIT');
 
+    userCache.invalidate(userId);
     logger.info(`✅ Account deletion completed successfully for user: ${userId}`);
 
     ApiResponse.success(

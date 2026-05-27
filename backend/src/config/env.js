@@ -68,6 +68,18 @@ function validateConfig() {
       `JWT_SECRET must be at least ${JWT_PROD_MIN_LEN} characters in production (set JWT_SECRET_MIN_LENGTH to relax)`
     );
   }
+
+  const redisEnabled = process.env.REDIS_ENABLED === 'true' || process.env.REDIS_ENABLED === '1';
+  if (!redisEnabled) {
+    console.warn(
+      '⚠️  REDIS_ENABLED is not set in production. Rate limits are per-process (not shared across PM2 instances). ' +
+      'Set REDIS_ENABLED=true, REDIS_HOST, REDIS_PORT for production-grade rate limiting.'
+    );
+  }
+
+  if (!process.env.GOOGLE_CLIENT_ID) {
+    console.warn('⚠️  GOOGLE_CLIENT_ID not set — Google Sign-In will be unavailable.');
+  }
 }
 
 module.exports = {

@@ -23,7 +23,7 @@ const dbUser = process.env.DB_USER || 'postgres';
 const dbPassword = process.env.DB_PASSWORD || '';
 
 const SERVICE_POOL_DEFAULTS = {
-  'luha-ms-auth':     { min: 2, max: 8 },
+  'luha-ms-auth':     { min: 3, max: 20 },
   'luha-ms-core':     { min: 3, max: 25 },
   'luha-ms-union':    { min: 2, max: 10 },
   'luha-ms-platform': { min: 2, max: 15 },

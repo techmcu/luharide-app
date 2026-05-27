@@ -3,6 +3,7 @@ const { verifyAccessToken } = require('../services/tokenService');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const userCache = require('../utils/userCache');
 
 const _isProd = () => process.env.NODE_ENV === 'production';
 
@@ -17,29 +18,32 @@ const authenticate = asyncHandler(async (req, res, next) => {
     throw ApiError.unauthorized('No token provided');
   }
 
-  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  const token = authHeader.substring(7);
 
-  // Verify token
   const decoded = verifyAccessToken(token);
 
-  // Get user from database
-  const result = await pool.query(
-    'SELECT id, name, email, phone, role, is_active, is_verified, driver_verification_status FROM users WHERE id = $1',
-    [decoded.userId]
-  );
+  let user = userCache.get(decoded.userId);
+  if (!user) {
+    const result = await pool.query(
+      'SELECT id, name, email, phone, role, is_active, is_verified, driver_verification_status FROM users WHERE id = $1',
+      [decoded.userId]
+    );
 
-  if (result.rows.length === 0) {
-    throw ApiError.unauthorized('User not found');
+    if (result.rows.length === 0) {
+      throw ApiError.unauthorized('User not found');
+    }
+
+    user = result.rows[0];
+    if (user.is_active) {
+      userCache.set(decoded.userId, user);
+    }
   }
 
-  const user = result.rows[0];
-
-  // Check if user is active
   if (!user.is_active) {
+    userCache.invalidate(decoded.userId);
     throw ApiError.forbidden('Account is deactivated');
   }
 
-  // Attach user to request
   req.user = user;
   req.token = token;
 

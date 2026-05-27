@@ -4,9 +4,15 @@ const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 const { sendOTPEmail, isEmailConfigured } = require('./emailService');
 
+const OTP_HMAC_KEY = process.env.JWT_SECRET || 'dev-otp-key';
+
 const generateOTP = () => {
   return crypto.randomInt(100000, 1000000).toString();
 };
+
+function hmacOTP(otp) {
+  return crypto.createHmac('sha256', OTP_HMAC_KEY).update(String(otp)).digest('hex');
+}
 
 /**
  * Create and store OTP in database (phone)
@@ -14,7 +20,8 @@ const generateOTP = () => {
 const createOTP = async (phone, purpose = 'login') => {
   try {
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpHash = hmacOTP(otp);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await pool.query(
       'DELETE FROM otp_verifications WHERE phone = $1 AND is_verified = FALSE',
@@ -25,7 +32,7 @@ const createOTP = async (phone, purpose = 'login') => {
       `INSERT INTO otp_verifications (phone, otp, purpose, expires_at)
        VALUES ($1, $2, $3, $4)
        RETURNING id, phone, purpose, expires_at`,
-      [phone, otp, purpose, expiresAt]
+      [phone, otpHash, purpose, expiresAt]
     );
 
     logger.info(`OTP created for phone: ${phone}, purpose: ${purpose}`);
@@ -48,9 +55,9 @@ const createOTP = async (phone, purpose = 'login') => {
 const createOTPByEmail = async (email, purpose = 'login') => {
   try {
     const otp = generateOTP();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otpHash = hmacOTP(otp);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Delete any existing unverified OTPs for this email
     await pool.query(
       'DELETE FROM otp_verifications WHERE email = $1 AND is_verified = FALSE',
       [email]
@@ -60,7 +67,7 @@ const createOTPByEmail = async (email, purpose = 'login') => {
       `INSERT INTO otp_verifications (phone, email, otp, purpose, expires_at)
        VALUES (NULL, $1, $2, $3, $4)
        RETURNING id, email, purpose, expires_at`,
-      [email.toLowerCase().trim(), otp, purpose, expiresAt]
+      [email.toLowerCase().trim(), otpHash, purpose, expiresAt]
     );
 
     logger.info(`OTP created for email: ${email}, purpose: ${purpose}`);
@@ -81,7 +88,8 @@ const createOTPByEmail = async (email, purpose = 'login') => {
  * Verify OTP (phone)
  */
 const verifyOTP = async (phone, otp) => {
-  // Atomic: claim the OTP row in one UPDATE...RETURNING — prevents concurrent double-use
+  const otpHash = hmacOTP(otp);
+
   const result = await pool.query(
     `UPDATE otp_verifications
      SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP
@@ -93,7 +101,7 @@ const verifyOTP = async (phone, otp) => {
        FOR UPDATE SKIP LOCKED
      )
      RETURNING id, phone, purpose`,
-    [phone, otp]
+    [phone, otpHash]
   );
 
   if (result.rows.length > 0) {
@@ -101,12 +109,11 @@ const verifyOTP = async (phone, otp) => {
     return { verified: true, phone, purpose: result.rows[0].purpose };
   }
 
-  // Determine why it failed — increment attempts on the matching unverified row
   const check = await pool.query(
     `SELECT id, expires_at, attempts FROM otp_verifications
-     WHERE phone = $1 AND otp = $2 AND is_verified = FALSE
+     WHERE phone = $1 AND is_verified = FALSE
      ORDER BY created_at DESC LIMIT 1`,
-    [phone, otp]
+    [phone]
   );
 
   if (check.rows.length === 0) {
@@ -133,6 +140,7 @@ const verifyOTP = async (phone, otp) => {
  */
 const verifyOTPByEmail = async (email, otp) => {
   const emailNorm = email.toLowerCase().trim();
+  const otpHash = hmacOTP(otp);
 
   const result = await pool.query(
     `UPDATE otp_verifications
@@ -145,7 +153,7 @@ const verifyOTPByEmail = async (email, otp) => {
        FOR UPDATE SKIP LOCKED
      )
      RETURNING id, email, purpose`,
-    [emailNorm, otp]
+    [emailNorm, otpHash]
   );
 
   if (result.rows.length > 0) {
@@ -155,9 +163,9 @@ const verifyOTPByEmail = async (email, otp) => {
 
   const check = await pool.query(
     `SELECT id, expires_at, attempts FROM otp_verifications
-     WHERE email = $1 AND otp = $2 AND is_verified = FALSE
+     WHERE email = $1 AND is_verified = FALSE
      ORDER BY created_at DESC LIMIT 1`,
-    [emailNorm, otp]
+    [emailNorm]
   );
 
   if (check.rows.length === 0) {

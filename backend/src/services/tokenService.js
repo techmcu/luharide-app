@@ -6,6 +6,7 @@ const ApiError = require('../utils/ApiError');
 
 const { config } = require('../config/env');
 const JWT_SECRET = config.jwt.secret;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
 
@@ -50,7 +51,7 @@ const generateAccessToken = (userId, role) => {
 const generateRefreshToken = (userId, role) => {
   return jwt.sign(
     { userId, role, type: 'refresh', jti: crypto.randomBytes(16).toString('hex') },
-    JWT_SECRET,
+    JWT_REFRESH_SECRET,
     { algorithm: 'HS256', expiresIn: REFRESH_TOKEN_EXPIRES_IN }
   );
 };
@@ -121,7 +122,16 @@ const verifyAccessToken = (token) => {
 
 const verifyRefreshToken = async (token) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_REFRESH_SECRET, { algorithms: ['HS256'] });
+    } catch (e) {
+      if (JWT_REFRESH_SECRET !== JWT_SECRET) {
+        decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+      } else {
+        throw e;
+      }
+    }
     if (decoded.type !== 'refresh') {
       throw ApiError.unauthorized('Invalid token type');
     }

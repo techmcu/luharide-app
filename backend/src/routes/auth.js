@@ -65,10 +65,7 @@ const updateProfileSchema = Joi.object({
 });
 
 const deleteAccountSchema = Joi.object({
-  password: Joi.string().min(3).max(128).required().messages({
-    'string.empty': 'Password is required to delete your account',
-    'any.required': 'Password is required to delete your account'
-  })
+  password: Joi.string().min(3).max(128).optional().allow('', null)
 });
 
 // Routes
