@@ -85,8 +85,8 @@ app.use(requestContext);
 app.use(compression());
 applyLuhaCors(app);
 app.use(recordMiddleware());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 morgan.token('reqId', (req) => req.id || '-');
 app.use(morgan(':reqId :method :url :status :response-time ms'));
 // /api/v1/* → /api/* rewrite (backward compat: /api/ still works)
