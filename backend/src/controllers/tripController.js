@@ -866,7 +866,8 @@ const getTripBookings = asyncHandler(async (req, res) => {
       b.created_at,
       u.name as passenger_name,
       u.email as passenger_email,
-      u.phone as passenger_phone
+      u.phone as passenger_phone,
+      u.whatsapp_number as passenger_whatsapp
     FROM bookings b
     JOIN users u ON b.passenger_id = u.id
     WHERE b.trip_id = $1 AND b.status IN ('confirmed', 'pending')
@@ -886,7 +887,8 @@ const getTripBookings = asyncHandler(async (req, res) => {
       id: row.passenger_id,
       name: row.passenger_name,
       email: row.passenger_email,
-      phone: row.passenger_phone
+      phone: row.passenger_phone,
+      whatsapp_number: row.passenger_whatsapp
     }
   }));
 

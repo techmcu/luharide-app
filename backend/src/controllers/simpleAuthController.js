@@ -126,8 +126,8 @@ const login = asyncHandler(async (req, res) => {
     try {
       if (attempts >= MAX_FAILED_ATTEMPTS) {
         await pool.query(
-          `UPDATE users SET failed_login_attempts = $1, locked_until = NOW() + INTERVAL '${LOCKOUT_MINUTES} minutes' WHERE id = $2`,
-          [attempts, user.id]
+          `UPDATE users SET failed_login_attempts = $1, locked_until = NOW() + make_interval(mins => $3) WHERE id = $2`,
+          [attempts, user.id, LOCKOUT_MINUTES]
         );
       } else {
         await pool.query(

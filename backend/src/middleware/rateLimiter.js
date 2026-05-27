@@ -255,6 +255,21 @@ const simpleAuthChangePasswordLimiter = rateLimit(
  * Admin bulk notifications — prevent notification spam.
  * 15 per hour per user (env: ADMIN_BULK_NOTIFY_MAX_PER_HOUR).
  */
+const adminDashboardLimiter = rateLimit(
+  withStore('admin-dashboard', {
+    windowMs: 15 * 60 * 1000,
+    max: parseLimitEnv('ADMIN_DASHBOARD_MAX_PER_15MIN', 60, 10, 200),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `admin-dash:user:${req.user.id}` : `admin-dash:ip:${req.ip}`,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many admin requests. Try again shortly.');
+    },
+  })
+);
+
 const adminBulkNotifyLimiter = rateLimit(
   withStore('admin-bulk-notify', {
     windowMs: 60 * 60 * 1000,
@@ -414,6 +429,7 @@ module.exports = {
   simpleAuthChangePasswordLimiter,
   googleSignInLimiter,
   searchLimiter,
+  adminDashboardLimiter,
   adminBulkNotifyLimiter,
   writeLimiter,
   stateChangeLimiter,

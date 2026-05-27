@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../services/trip_service.dart';
@@ -91,7 +92,8 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
           passengerId: passenger['id']?.toString() ?? '',
           seatNumbers: seatNumbers,
           passengerName: passenger['name']?.toString() ?? 'Passenger',
-          phone: passenger['phone']?.toString() ?? passenger['email']?.toString() ?? '-',
+          phone: passenger['phone']?.toString() ?? '',
+          whatsappNumber: passenger['whatsapp_number']?.toString() ?? '',
           bookingStatus: b['status']?.toString() ?? 'confirmed',
         ));
       }
@@ -694,16 +696,41 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
             const SizedBox(height: 8),
             _PassengerRatingRow(passengerId: booking.passengerId, passengerName: booking.passengerName),
           ],
-          if (booking.phone.trim().isNotEmpty) ...[
+          if (booking.phone.trim().isNotEmpty && booking.phone != '-') ...[
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () => launchWhatsApp(booking.phone),
-              icon: const Icon(Icons.chat, size: 18),
-              label: const Text('Message on WhatsApp'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.green[700],
-                side: BorderSide(color: Colors.green[700]!),
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    final digits = booking.phone.replaceAll(RegExp(r'[^\d+]'), '');
+                    final uri = Uri(scheme: 'tel', path: digits);
+                    launchUrl(uri);
+                  },
+                  icon: const Icon(Icons.call, size: 18),
+                  label: const Text('Call'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue[700],
+                    side: BorderSide(color: Colors.blue[700]!),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => launchWhatsApp(booking.contactForWhatsApp),
+                  icon: const Icon(Icons.chat, size: 18),
+                  label: const Text('WhatsApp'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.green[700],
+                    side: BorderSide(color: Colors.green[700]!),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            const SizedBox(height: 8),
+            Text(
+              'Passenger has not added a phone number',
+              style: TextStyle(fontSize: 12, color: Colors.orange[700], fontStyle: FontStyle.italic),
             ),
           ],
           if (isPending) ...[
@@ -741,6 +768,7 @@ class BookingInfo {
   final List<int> seatNumbers;
   final String passengerName;
   final String phone;
+  final String whatsappNumber;
   final String bookingStatus;
 
   BookingInfo({
@@ -749,8 +777,12 @@ class BookingInfo {
     required this.seatNumbers,
     required this.passengerName,
     required this.phone,
+    this.whatsappNumber = '',
     required this.bookingStatus,
   });
+
+  String get contactForWhatsApp =>
+      whatsappNumber.trim().isNotEmpty ? whatsappNumber : phone;
 }
 
 class _PassengerRatingRow extends StatelessWidget {

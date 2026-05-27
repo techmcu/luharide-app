@@ -1819,6 +1819,26 @@ class AppLocalizations {
       'en': 'This account was created via OTP and has no password. Please contact support to delete your account.',
       'hi': 'यह खाता OTP से बनाया गया था और इसका कोई पासवर्ड नहीं है। अपना खाता हटाने के लिए कृपया सहायता से संपर्क करें।',
     },
+    'booking.phone_required.title': {
+      'en': 'Phone number required',
+      'hi': 'फ़ोन नंबर ज़रूरी है',
+    },
+    'booking.phone_required.body': {
+      'en': 'The driver needs your phone number to contact you about this ride. Please add your phone number in your profile first.',
+      'hi': 'इस राइड के लिए ड्राइवर को आपसे संपर्क करने के लिए आपका फ़ोन नंबर चाहिए। कृपया पहले अपनी प्रोफ़ाइल में फ़ोन नंबर जोड़ें।',
+    },
+    'booking.phone_required.go_to_profile': {
+      'en': 'Go to Profile',
+      'hi': 'प्रोफ़ाइल पर जाएँ',
+    },
+    'driver.passenger_card.call': {
+      'en': 'Call',
+      'hi': 'कॉल करें',
+    },
+    'driver.passenger_card.no_phone': {
+      'en': 'Passenger has not added a phone number',
+      'hi': 'पैसेंजर ने फ़ोन नंबर नहीं जोड़ा है',
+    },
   };
 
   String t(String key) {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate, authorizePlatformAdmin } = require('../middleware/auth');
-const { adminBulkNotifyLimiter } = require('../middleware/rateLimiter');
+const { adminDashboardLimiter, adminBulkNotifyLimiter } = require('../middleware/rateLimiter');
 const {
   getDashboard,
   getUsers,
@@ -29,14 +29,14 @@ router.post('/complaints/submit', authenticate, submitComplaint);
 router.get('/complaints/mine', authenticate, getMyComplaints);
 
 // Phase 1 — Dashboard, Users, Trips, Revenue
-router.get('/dashboard', ...guard, getDashboard);
-router.get('/users', ...guard, getUsers);
-router.get('/users/:id', ...guard, getUserDetail);
+router.get('/dashboard', ...guard, adminDashboardLimiter, getDashboard);
+router.get('/users', ...guard, adminDashboardLimiter, getUsers);
+router.get('/users/:id', ...guard, adminDashboardLimiter, getUserDetail);
 router.patch('/users/:id/active', ...guard, toggleUserActive);
-router.get('/trips', ...guard, getTrips);
-router.get('/trips/:id', ...guard, getTripDetail);
+router.get('/trips', ...guard, adminDashboardLimiter, getTrips);
+router.get('/trips/:id', ...guard, adminDashboardLimiter, getTripDetail);
 router.post('/trips/:id/cancel', ...guard, cancelTrip);
-router.get('/revenue', ...guard, getRevenueOverview);
+router.get('/revenue', ...guard, adminDashboardLimiter, getRevenueOverview);
 
 // Phase 2 — Notifications, Complaints, Config
 router.post('/notifications/bulk', ...guard, adminBulkNotifyLimiter, sendBulkNotification);

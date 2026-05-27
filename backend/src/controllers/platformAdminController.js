@@ -22,29 +22,40 @@ function ensurePlatformAdmin(user) {
 const getDashboard = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
 
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 90));
+
   const { rows } = await queryRead(`
     SELECT
+      -- Users (all-time)
       (SELECT COUNT(*)::int FROM users WHERE role = 'passenger')   AS passengers,
       (SELECT COUNT(*)::int FROM users WHERE role = 'driver')      AS drivers,
       (SELECT COUNT(*)::int FROM users WHERE role = 'union_admin') AS union_admins,
       (SELECT COUNT(*)::int FROM users)                            AS total_users,
-      (SELECT COUNT(*)::int FROM trips)                            AS total_trips,
-      (SELECT COUNT(*)::int FROM trips WHERE status = 'scheduled')   AS scheduled_trips,
-      (SELECT COUNT(*)::int FROM trips WHERE status = 'in_progress') AS active_trips,
-      (SELECT COUNT(*)::int FROM trips WHERE status = 'completed')   AS completed_trips,
-      (SELECT COUNT(*)::int FROM trips WHERE status = 'cancelled')   AS cancelled_trips,
-      (SELECT COUNT(*)::int FROM bookings WHERE status = 'confirmed') AS confirmed_bookings,
-      (SELECT COUNT(*)::int FROM bookings WHERE status = 'pending')   AS pending_bookings,
-      (SELECT COUNT(*)::int FROM bookings WHERE status = 'cancelled') AS cancelled_bookings,
+      -- Trips (within period)
+      (SELECT COUNT(*)::int FROM trips WHERE created_at >= NOW() - make_interval(days => $1))  AS total_trips,
+      (SELECT COUNT(*)::int FROM trips WHERE status = 'scheduled'   AND created_at >= NOW() - make_interval(days => $1)) AS scheduled_trips,
+      (SELECT COUNT(*)::int FROM trips WHERE status = 'in_progress')                            AS active_trips,
+      (SELECT COUNT(*)::int FROM trips WHERE status = 'completed'   AND created_at >= NOW() - make_interval(days => $1)) AS completed_trips,
+      (SELECT COUNT(*)::int FROM trips WHERE status = 'cancelled'   AND created_at >= NOW() - make_interval(days => $1)) AS cancelled_trips,
+      -- Upcoming: future scheduled rides
+      (SELECT COUNT(*)::int FROM trips WHERE status = 'scheduled' AND departure_time > NOW())   AS upcoming_trips,
+      -- Bookings (within period)
+      (SELECT COUNT(*)::int FROM bookings WHERE status = 'confirmed' AND created_at >= NOW() - make_interval(days => $1)) AS confirmed_bookings,
+      (SELECT COUNT(*)::int FROM bookings WHERE status = 'pending'   AND created_at >= NOW() - make_interval(days => $1)) AS pending_bookings,
+      (SELECT COUNT(*)::int FROM bookings WHERE status = 'cancelled' AND created_at >= NOW() - make_interval(days => $1)) AS cancelled_bookings,
+      -- Always-current stats
       (SELECT COUNT(*)::int FROM trips WHERE departure_time::date = CURRENT_DATE) AS today_trips,
       (SELECT COUNT(*)::int FROM users WHERE created_at >= NOW() - INTERVAL '7 days') AS new_users_week,
       (SELECT COUNT(DISTINCT driver_id)::int FROM trips WHERE created_at >= NOW() - INTERVAL '30 days') AS active_drivers,
       (SELECT COUNT(*)::int FROM driver_verification_requests WHERE status = 'pending') AS pending_driver_kyc,
       (SELECT COUNT(*)::int FROM unions WHERE status = 'pending') AS pending_union_requests,
       (SELECT COUNT(*)::int FROM unions WHERE status = 'approved') AS total_unions
-  `);
+  `, [days]);
 
-  ApiResponse.success(rows[0], 'Dashboard stats').send(res);
+  const data = rows[0];
+  data.days_filter = days;
+
+  ApiResponse.success(data, 'Dashboard stats').send(res);
 });
 
 // ---------------------------------------------------------------------------

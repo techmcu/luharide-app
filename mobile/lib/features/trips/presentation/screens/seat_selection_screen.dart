@@ -10,6 +10,7 @@ import '../../../../providers/auth_provider.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../utils/trip_self_book_guard.dart';
 import '../../../../models/seat_layout.dart';
+import '../../../profile/presentation/screens/edit_profile_screen.dart';
 import '../../../../services/realtime_socket_service.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../models/vehicle_catalog.dart';
@@ -278,10 +279,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         duration: const Duration(seconds: 3),
       );
     } else {
-      final raw = result['message']?.toString();
-      final msg =
-          (raw != null && raw.isNotEmpty) ? raw : loc.t('seat.select.booking_failed_fallback');
-      // Special message for already-booked case
+      final raw = result['message']?.toString() ?? '';
+      // Backend sends PHONE_REQUIRED: prefix when passenger phone is missing
+      if (raw.startsWith('PHONE_REQUIRED:')) {
+        _showPhoneRequiredDialog();
+        return;
+      }
+      final msg = raw.isNotEmpty ? raw : loc.t('seat.select.booking_failed_fallback');
       final isAlreadyBooked = msg.toLowerCase().contains('already') ||
           msg.toLowerCase().contains('conflict') ||
           msg.toLowerCase().contains('pending');
@@ -296,6 +300,35 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     }
   }
 
+  void _showPhoneRequiredDialog() {
+    final loc = AppLocalizations.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.t('booking.phone_required.title')),
+        content: Text(loc.t('booking.phone_required.body')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(loc.t('app.cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              ).then((_) {
+                if (mounted) setState(() {});
+              });
+            },
+            child: Text(loc.t('booking.phone_required.go_to_profile')),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _confirmBooking() {
     final loc = AppLocalizations.of(context);
     if (_selectedSeats.isEmpty) {
@@ -304,6 +337,14 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         loc.t('seat.select.pick_one'),
         kind: AppFeedbackKind.warning,
       );
+      return;
+    }
+
+    // Check if user has phone number — required for independent driver rides
+    final user = context.read<AuthProvider>().user;
+    final phone = user?.phone;
+    if (phone == null || phone.trim().isEmpty) {
+      _showPhoneRequiredDialog();
       return;
     }
 

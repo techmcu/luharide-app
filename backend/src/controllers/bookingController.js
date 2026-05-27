@@ -113,6 +113,18 @@ const createBooking = asyncHandler(async (req, res) => {
       );
     }
 
+    // Independent driver trips require passenger phone — driver needs to contact them
+    if (trip.created_source === 'independent_driver') {
+      const pRes = await client.query('SELECT phone FROM users WHERE id = $1', [passengerId]);
+      const passengerPhone = pRes.rows[0]?.phone;
+      if (!passengerPhone || passengerPhone.trim() === '') {
+        await client.query('ROLLBACK');
+        throw ApiError.badRequest(
+          'PHONE_REQUIRED:Please add your phone number in your profile before booking. The driver needs your contact number.'
+        );
+      }
+    }
+
     const validSeats = seat_numbers.filter(s => Number.isInteger(s) && s >= 1 && s <= totalSeats);
     const uniqueSeats = [...new Set(validSeats)];
 

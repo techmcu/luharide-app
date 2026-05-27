@@ -110,7 +110,7 @@ class _DashboardTabState extends State<_DashboardTab> {
                         _StatItem('Union Admins', _data?['union_admins'] ?? 0, Icons.business, Colors.purple),
                       ]),
                       const SizedBox(height: 20),
-                      _sectionTitle('Trips'),
+                      _sectionTitle('Trips (last ${_data?['days_filter'] ?? 90} days)'),
                       const SizedBox(height: 8),
                       _statsRow([
                         _StatItem('Total', _data?['total_trips'] ?? 0, Icons.route, Colors.blueGrey),
@@ -120,13 +120,17 @@ class _DashboardTabState extends State<_DashboardTab> {
                       ]),
                       const SizedBox(height: 12),
                       _statsRow([
+                        _StatItem('Upcoming', _data?['upcoming_trips'] ?? 0, Icons.upcoming, Colors.orange),
                         _StatItem('Cancelled', _data?['cancelled_trips'] ?? 0, Icons.cancel, Colors.red),
                         _StatItem('Today', _data?['today_trips'] ?? 0, Icons.today, Colors.indigo),
                         _StatItem('Active Drivers', _data?['active_drivers'] ?? 0, Icons.local_taxi, Colors.amber),
+                      ]),
+                      const SizedBox(height: 12),
+                      _statsRow([
                         _StatItem('New (7d)', _data?['new_users_week'] ?? 0, Icons.person_add, Colors.pink),
                       ]),
                       const SizedBox(height: 20),
-                      _sectionTitle('Bookings'),
+                      _sectionTitle('Bookings (last ${_data?['days_filter'] ?? 90} days)'),
                       const SizedBox(height: 8),
                       _statsRow([
                         _StatItem('Confirmed', _data?['confirmed_bookings'] ?? 0, Icons.bookmark_added, Colors.green),
