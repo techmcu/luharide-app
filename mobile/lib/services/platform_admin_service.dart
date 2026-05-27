@@ -230,4 +230,26 @@ class PlatformAdminService {
     }
   }
 
+  Future<Map<String, dynamic>> getDailyStats({int days = 180}) async {
+    try {
+      final res = await _api.get('${ApiConstants.platformDailyStats}?days=$days');
+      return {'success': true, ..._unwrap(res.data)};
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed to load stats'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  Future<String?> exportCsv({int days = 180}) async {
+    try {
+      final res = await _api.get('${ApiConstants.platformExportCsv}?days=$days');
+      if (res.data is String) return res.data as String;
+      return res.data?.toString();
+    } on DioException {
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }

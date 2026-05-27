@@ -1,4 +1,8 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/platform_admin_service.dart';
 import '../../../../services/admin_service.dart';
@@ -75,6 +79,31 @@ class _DashboardTabState extends State<_DashboardTab> {
     });
   }
 
+  Future<void> _downloadCsv() async {
+    AppFeedback.show(context, 'Generating report...', kind: AppFeedbackKind.info);
+    final csv = await _service.exportCsv(days: 180);
+    if (!mounted) return;
+    if (csv == null || csv.isEmpty) {
+      AppFeedback.show(context, 'No data to export', kind: AppFeedbackKind.warning);
+      return;
+    }
+    try {
+      final bytes = Uint8List.fromList(utf8.encode(csv));
+      await Share.shareXFiles(
+        [XFile.fromData(
+          bytes,
+          name: 'luharide-stats.csv',
+          mimeType: 'text/csv',
+        )],
+        subject: 'LuhaRide Stats Report',
+      );
+    } catch (e) {
+      if (mounted) {
+        AppFeedback.show(context, 'Export failed: $e', kind: AppFeedbackKind.error);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,6 +174,19 @@ class _DashboardTabState extends State<_DashboardTab> {
                         _StatItem('Union Req', _data?['pending_union_requests'] ?? 0, Icons.business_center, Colors.purple),
                         _StatItem('Total Unions', _data?['total_unions'] ?? 0, Icons.groups, Colors.indigo),
                       ]),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _downloadCsv,
+                          icon: const Icon(Icons.download),
+                          label: const Text('Download 6-month report (CSV)'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: Colors.blue),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),

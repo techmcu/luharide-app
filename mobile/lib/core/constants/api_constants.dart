@@ -56,6 +56,8 @@ class ApiConstants {
   static String platformTripDetail(String id) => '/platform-admin/trips/$id';
   static String platformTripCancel(String id) => '/platform-admin/trips/$id/cancel';
   static const String platformRevenue = '/platform-admin/revenue';
+  static const String platformDailyStats = '/platform-admin/daily-stats';
+  static const String platformExportCsv = '/platform-admin/export-csv';
 
   // Platform Admin — Phase 2
   static const String platformBulkNotification = '/platform-admin/notifications/bulk';

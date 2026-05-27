@@ -60,7 +60,7 @@ dependencies:
   url_launcher: ^6.2.3
   webview_flutter: ^4.10.0
   share_plus: ^7.2.1
-  
+
   # Authentication
   pinput: ^3.0.1
   pdfx: ^2.9.2

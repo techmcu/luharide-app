@@ -22,7 +22,7 @@ function ensurePlatformAdmin(user) {
 const getDashboard = asyncHandler(async (req, res) => {
   ensurePlatformAdmin(req.user);
 
-  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 90));
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 180));
 
   const { rows } = await queryRead(`
     SELECT
@@ -729,6 +729,75 @@ const getMyComplaints = asyncHandler(async (req, res) => {
   ApiResponse.success({ complaints: result.rows }, 'My complaints').send(res);
 });
 
+// ---------------------------------------------------------------------------
+// GET /api/platform-admin/daily-stats?days=180
+// Rolling queue — one row per day, always last 180 days
+// ---------------------------------------------------------------------------
+const getDailyStats = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 180));
+
+  let result;
+  try {
+    result = await queryRead(
+      `SELECT stat_date, new_users, new_trips, completed_trips, cancelled_trips,
+              new_bookings, confirmed_bookings, cancelled_bookings, upcoming_trips, active_drivers
+       FROM daily_stats
+       WHERE stat_date >= CURRENT_DATE - make_interval(days => $1)
+       ORDER BY stat_date DESC`,
+      [days]
+    );
+  } catch (err) {
+    if (err.code === '42P01') {
+      return ApiResponse.success({ stats: [], days_filter: days }, 'Migration 053 pending').send(res);
+    }
+    throw err;
+  }
+
+  ApiResponse.success({ stats: result.rows, days_filter: days }, 'Daily stats').send(res);
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/platform-admin/export-csv?days=180
+// Downloads CSV of daily stats
+// ---------------------------------------------------------------------------
+const exportStatsCsv = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+
+  const days = Math.min(365, Math.max(1, parseInt(req.query.days, 10) || 180));
+
+  let rows;
+  try {
+    const result = await queryRead(
+      `SELECT stat_date, new_users, new_trips, completed_trips, cancelled_trips,
+              new_bookings, confirmed_bookings, cancelled_bookings, upcoming_trips, active_drivers
+       FROM daily_stats
+       WHERE stat_date >= CURRENT_DATE - make_interval(days => $1)
+       ORDER BY stat_date ASC`,
+      [days]
+    );
+    rows = result.rows;
+  } catch (err) {
+    if (err.code === '42P01') {
+      rows = [];
+    } else {
+      throw err;
+    }
+  }
+
+  const header = 'Date,New Users,New Trips,Completed Trips,Cancelled Trips,New Bookings,Confirmed Bookings,Cancelled Bookings,Upcoming Trips,Active Drivers';
+  const csvRows = rows.map(r => {
+    const d = r.stat_date instanceof Date ? r.stat_date.toISOString().slice(0, 10) : String(r.stat_date).slice(0, 10);
+    return `${d},${r.new_users},${r.new_trips},${r.completed_trips},${r.cancelled_trips},${r.new_bookings},${r.confirmed_bookings},${r.cancelled_bookings},${r.upcoming_trips},${r.active_drivers}`;
+  });
+  const csv = [header, ...csvRows].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="luharide-stats-${days}d.csv"`);
+  res.send(csv);
+});
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -747,4 +816,6 @@ module.exports = {
   updateAppConfig,
   submitComplaint,
   getMyComplaints,
+  getDailyStats,
+  exportStatsCsv,
 };

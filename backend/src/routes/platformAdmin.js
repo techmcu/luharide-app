@@ -20,6 +20,8 @@ const {
   updateAppConfig,
   submitComplaint,
   getMyComplaints,
+  getDailyStats,
+  exportStatsCsv,
 } = require('../controllers/platformAdminController');
 
 const guard = [authenticate, authorizePlatformAdmin];
@@ -37,6 +39,8 @@ router.get('/trips', ...guard, adminDashboardLimiter, getTrips);
 router.get('/trips/:id', ...guard, adminDashboardLimiter, getTripDetail);
 router.post('/trips/:id/cancel', ...guard, cancelTrip);
 router.get('/revenue', ...guard, adminDashboardLimiter, getRevenueOverview);
+router.get('/daily-stats', ...guard, adminDashboardLimiter, getDailyStats);
+router.get('/export-csv', ...guard, adminDashboardLimiter, exportStatsCsv);
 
 // Phase 2 — Notifications, Complaints, Config
 router.post('/notifications/bulk', ...guard, adminBulkNotifyLimiter, sendBulkNotification);
