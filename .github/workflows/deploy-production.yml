@@ -4,12 +4,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-production-web:
-    name: Build production web
+  deploy-production:
+    name: Build & Deploy to production
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile
+    environment: vps
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,31 +18,10 @@ jobs:
           channel: "stable"
 
       - name: Build production web
+        working-directory: mobile
         run: |
           flutter pub get
           flutter build web --release --base-href=/app/
-
-      - name: Upload web build
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-web
-          path: mobile/build/web/
-          retention-days: 1
-
-  deploy-production:
-    name: Deploy to production
-    needs: build-production-web
-    runs-on: ubuntu-latest
-    environment: vps
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download production web build
-        uses: actions/download-artifact@v4
-        with:
-          name: production-web
-          path: production-web-build/
 
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
@@ -59,7 +36,7 @@ jobs:
           VPS_IP: ${{ secrets.VPS_IP }}
         run: |
           ssh root@$VPS_IP "mkdir -p /var/www/luharide-web-production"
-          scp -r production-web-build/* root@$VPS_IP:/var/www/luharide-web-production/
+          scp -r mobile/build/web/* root@$VPS_IP:/var/www/luharide-web-production/
 
       - name: Deploy backend + web to production
         env:

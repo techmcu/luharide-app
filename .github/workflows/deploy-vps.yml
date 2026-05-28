@@ -7,17 +7,14 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-web:
-    name: Build Flutter web
+  deploy-staging:
+    name: Build & Deploy to staging
     if: |
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mobile
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,31 +25,10 @@ jobs:
           channel: "stable"
 
       - name: Build staging web
+        working-directory: mobile
         run: |
           flutter pub get
           flutter build web --release --base-href=/app/ --dart-define=API_BASE_URL=https://staging.luharide.cloud/api/v1 --dart-define=SOCKET_URL=https://staging.luharide.cloud
-
-      - name: Upload web build
-        uses: actions/upload-artifact@v4
-        with:
-          name: flutter-web
-          path: mobile/build/web/
-          retention-days: 1
-
-  # ── Stage 1: Deploy to staging, real health check ──────────────
-  deploy-staging:
-    name: Deploy to staging
-    needs: build-web
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Download web build
-        uses: actions/download-artifact@v4
-        with:
-          name: flutter-web
-          path: webapp-build/
 
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
@@ -67,7 +43,7 @@ jobs:
           VPS_IP: ${{ secrets.VPS_IP }}
         run: |
           ssh root@$VPS_IP "mkdir -p /var/www/luharide-web-staging"
-          scp -r webapp-build/* root@$VPS_IP:/var/www/luharide-web-staging/
+          scp -r mobile/build/web/* root@$VPS_IP:/var/www/luharide-web-staging/
 
       - name: Deploy backend to staging directory
         env:
