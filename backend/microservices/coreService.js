@@ -22,6 +22,7 @@ const driverRoutes = require('../src/routes/drivers');
 const rateNotificationJob = require('../src/jobs/rateNotificationJob');
 const rideCleanupJob = require('../src/jobs/rideCleanupJob');
 const pendingBookingExpiryJob = require('../src/jobs/pendingBookingExpiryJob');
+const tripAutoCompleteJob = require('../src/jobs/tripAutoCompleteJob');
 const dailyStatsJob = require('../src/jobs/dailyStatsJob');
 const logger = require('../src/config/logger');
 
@@ -43,5 +44,6 @@ app.listen(PORT, LISTEN_HOST, () => {
   rateNotificationJob.start();
   rideCleanupJob.start();
   pendingBookingExpiryJob.start();
+  tripAutoCompleteJob.start();
   dailyStatsJob.start();
 });

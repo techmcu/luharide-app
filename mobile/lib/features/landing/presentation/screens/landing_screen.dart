@@ -15,7 +15,7 @@ import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../auth/presentation/screens/simple_signup_screen.dart';
 import '../../../trips/presentation/screens/trip_details_screen.dart';
 
-/// BlaBlaCar-style landing screen - search first, no login required to browse
+/// Landing screen - search first, no login required to browse
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
 

@@ -20,6 +20,15 @@ const INTERVAL_MS =
     : 15 * 60 * 1000;
 
 async function sendAndDelete(client, row) {
+  const booking = await client.query(
+    'SELECT status FROM bookings WHERE id = $1',
+    [row.booking_id]
+  );
+  if (booking.rows.length === 0 || booking.rows[0].status !== 'confirmed') {
+    await client.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]);
+    return;
+  }
+
   const dataJson = JSON.stringify({ booking_id: row.booking_id });
   const r = await client.query(
     `INSERT INTO notifications (user_id, type, title, body, data)

@@ -190,7 +190,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
         title: const Text('Cancel trip?'),
         content: const Text(
           'This will cancel the trip and all bookings. Passengers will be notified. '
-          'Not allowed within 2 hours of departure if passengers are confirmed (BlaBlaCar-style).',
+          'Not allowed within 2 hours of departure if passengers are confirmed.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
@@ -252,7 +252,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
                   _trip!.departureTime.isAfter(DateTime.now());
               return [
                 if (canCancelTrip)
-                  const PopupMenuItem(value: 'cancel_trip', child: Text('Cancel trip (BlaBlaCar-style)')),
+                  const PopupMenuItem(value: 'cancel_trip', child: Text('Cancel trip')),
                 const PopupMenuItem(value: 'delete', child: Text('Delete ride (no bookings only)')),
               ];
             },

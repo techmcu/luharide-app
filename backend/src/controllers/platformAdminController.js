@@ -390,6 +390,17 @@ const cancelTrip = asyncHandler(async (req, res) => {
     await client.query('COMMIT');
     logger.info(`Platform admin ${req.user.id} cancelled trip ${id}`);
 
+    if (affectedBookings.rows.length > 0) {
+      try {
+        await pool.query(
+          'DELETE FROM pending_rate_notifications WHERE booking_id = ANY($1::uuid[])',
+          [affectedBookings.rows.map(r => r.id)]
+        );
+      } catch (e) {
+        if (e.code !== '42P01') logger.warn('Rate notification cleanup failed:', e.message);
+      }
+    }
+
     ApiResponse.success(
       { tripId: id, cancelledBookings: affectedBookings.rowCount },
       'Trip cancelled'

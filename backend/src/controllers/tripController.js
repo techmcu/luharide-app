@@ -1063,11 +1063,11 @@ const completeTrip = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
-/** BlaBlaCar-style: driver cannot cancel trip when confirmed passengers exist and departure is within this many hours */
+/** Driver cannot cancel trip when confirmed passengers exist and departure is within this many hours */
 const DRIVER_CANCEL_CUTOFF_HOURS = 2;
 
 /**
- * Cancel trip (Driver only) - BlaBlaCar style
+ * Cancel trip (Driver only)
  * Driver can cancel only if: no confirmed bookings, OR departure is more than DRIVER_CANCEL_CUTOFF_HOURS away.
  * Within cutoff with confirmed passengers → reject (protects passengers).
  * PUT /api/trips/:id/cancel
@@ -1079,6 +1079,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
 
   const client = await pool.connect();
   let notifyPassengers = [];
+  let cancelledBookingIds = [];
   try {
     await client.query('BEGIN');
 
@@ -1119,7 +1120,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
       await client.query('ROLLBACK');
       throw ApiError.badRequest(
         `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
-        `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure (BlaBlaCar-style).`
+        `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure when passengers are confirmed.`
       );
     }
 
@@ -1127,6 +1128,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
       `SELECT id, passenger_id, seat_numbers, status FROM bookings WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
       [tripId]
     );
+    cancelledBookingIds = allActiveBookings.rows.filter(r => r.status === 'confirmed').map(r => r.id);
 
     await client.query(
       `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = 'Driver cancelled the trip' WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
@@ -1176,6 +1178,14 @@ const cancelTrip = asyncHandler(async (req, res) => {
     client.release();
   }
 
+  if (cancelledBookingIds.length > 0) {
+    try {
+      await pool.query('DELETE FROM pending_rate_notifications WHERE booking_id = ANY($1::uuid[])', [cancelledBookingIds]);
+    } catch (e) {
+      if (e.code !== '42P01') logger.warn('Rate notification cleanup failed:', e.message);
+    }
+  }
+
   for (const row of notifyPassengers) {
     emitNotificationToUser(row.user_id, row);
   }
@@ -1190,7 +1200,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
 });
 
 /**
- * Delete trip (Driver only) - BlaBlaCar style
+ * Delete trip (Driver only)
  * Only allowed when: NO confirmed or pending bookings
  * DELETE /api/trips/:id
  */

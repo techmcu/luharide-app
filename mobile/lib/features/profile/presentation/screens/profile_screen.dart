@@ -26,7 +26,7 @@ import '../../../../core/role_exclusivity.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/user_model.dart';
 
-/// User Profile - BlaBlaCar style, simple & easy
+/// User Profile
 class ProfileScreen extends StatefulWidget {
   final String? userRole;
 

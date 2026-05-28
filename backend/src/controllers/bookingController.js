@@ -671,6 +671,12 @@ const cancelBooking = asyncHandler(async (req, res) => {
       logger.warn('Driver cancel notification failed:', e.message);
     }
 
+    try {
+      await pool.query('DELETE FROM pending_rate_notifications WHERE booking_id = $1', [bookingId]);
+    } catch (e) {
+      if (e.code !== '42P01') logger.warn('Rate notification cleanup failed:', e.message);
+    }
+
     emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'passenger_cancelled' });
 
     ApiResponse.success({ status: 'cancelled' }, 'Booking cancelled').send(res);
