@@ -17,6 +17,7 @@ import '../../../../services/trip_service.dart';
 import '../../../../services/review_service.dart';
 import '../../../../utils/launch_whatsapp.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
+import '../../../profile/presentation/screens/edit_profile_screen.dart';
 import '../../../profile/presentation/screens/user_reviews_screen.dart';
 import 'seat_selection_screen.dart';
 
@@ -222,11 +223,55 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   }
 
   Widget _buildTripDetails(AppLocalizations loc) {
+    final user = context.read<AuthProvider>().user;
+    final phoneMissing = user?.phone == null || (user?.phone ?? '').trim().isEmpty;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Phone number warning banner
+          if (phoneMissing)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  ).then((_) {
+                    if (mounted) setState(() {});
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange[300]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.orange[800], size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          loc.t('booking.phone_required.banner'),
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.orange[900],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_forward_ios, size: 14, color: Colors.orange[700]),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           // Route Card
           Card(
             elevation: 2,

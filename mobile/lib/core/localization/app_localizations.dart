@@ -1831,6 +1831,10 @@ class AppLocalizations {
       'en': 'Go to Profile',
       'hi': 'प्रोफ़ाइल पर जाएँ',
     },
+    'booking.phone_required.banner': {
+      'en': 'Add your phone number in Profile to book this ride. Tap here to go to Profile.',
+      'hi': 'इस राइड को बुक करने के लिए प्रोफ़ाइल में अपना फ़ोन नंबर जोड़ें। प्रोफ़ाइल पर जाने के लिए यहाँ टैप करें।',
+    },
     'driver.passenger_card.call': {
       'en': 'Call',
       'hi': 'कॉल करें',

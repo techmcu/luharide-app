@@ -390,9 +390,16 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     );
   }
 
+  bool get _userPhoneMissing {
+    final user = context.read<AuthProvider>().user;
+    final phone = user?.phone;
+    return phone == null || phone.trim().isEmpty;
+  }
+
   @override
   Widget build(BuildContext context) {
     context.watch<AppLanguageProvider>();
+    context.watch<AuthProvider>();
     final loc = AppLocalizations.of(context);
     final totalSeats = _effectiveTotalSeats;
     // Use EXACT same layout as driver verification (set in initState)
@@ -404,6 +411,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       final s = seatPositions[i];
       indexByPos['${s.row}-${s.col}'] = i;
     }
+    final phoneMissing = _userPhoneMissing;
 
     return Scaffold(
       appBar: AppBar(
@@ -413,6 +421,41 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       ),
       body: Column(
         children: [
+          // Phone number warning banner
+          if (phoneMissing)
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                ).then((_) {
+                  if (mounted) setState(() {});
+                });
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                color: Colors.orange[50],
+                child: Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: Colors.orange[800], size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        loc.t('booking.phone_required.banner'),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.orange[900],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, size: 14, color: Colors.orange[700]),
+                  ],
+                ),
+              ),
+            ),
+
           // Trip Info Header
           Container(
             padding: const EdgeInsets.all(16),
