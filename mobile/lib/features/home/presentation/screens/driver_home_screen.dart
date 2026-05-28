@@ -20,6 +20,7 @@ class DriverHomeScreen extends StatefulWidget {
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
   final _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
+  bool _isNavigating = false;
 
   @override
   void initState() {
@@ -92,15 +93,20 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   ),
               ],
             ),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const NotificationsScreen(),
-                ),
-              );
-              if (!mounted) return;
-              _loadUnreadNotifications();
+            onPressed: _isNavigating ? null : () async {
+              setState(() => _isNavigating = true);
+              try {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
+                );
+                if (!mounted) return;
+                _loadUnreadNotifications();
+              } finally {
+                if (mounted) setState(() => _isNavigating = false);
+              }
             },
           ),
         ],
@@ -125,7 +131,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     radius: 20,
                     backgroundColor: Colors.white,
                     child: Text(
-                      (user?.name.substring(0, 1).toUpperCase() ?? 'D'),
+                      (user != null && user.name.isNotEmpty ? user.name.substring(0, 1).toUpperCase() : 'D'),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -207,14 +213,18 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton.icon(
-                      onPressed: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CreateTripScreen(),
-                          ),
-                        );
-                        if (result == true) {}
+                      onPressed: _isNavigating ? null : () async {
+                        setState(() => _isNavigating = true);
+                        try {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CreateTripScreen(),
+                            ),
+                          );
+                        } finally {
+                          if (mounted) setState(() => _isNavigating = false);
+                        }
                       },
                       icon: const Icon(Icons.add_road, size: 26),
                       label: Text(

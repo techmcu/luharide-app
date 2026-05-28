@@ -49,6 +49,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
 
   /// null = not booked, 'pending' = waiting, 'confirmed' = confirmed
   String? _userBookingStatus;
+  bool _isNavigatingToBooking = false;
 
   StreamSubscription<Map<String, dynamic>>? _tripSocketSub;
 
@@ -625,7 +626,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         child: SizedBox(
           height: 56,
           child: ElevatedButton.icon(
-            onPressed: () async {
+            onPressed: _isNavigatingToBooking ? null : () async {
               final authProvider = context.read<AuthProvider>();
               if (widget.requireLogin && !authProvider.isAuthenticated) {
                 showDialog(
@@ -653,23 +654,27 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                 );
                 return;
               }
-              // Independent driver: open seat selection (dynamic layout by trip totalSeats)
-              final t = _displayTrip!;
-              final booked = List<int>.from(_bookedSeats);
-              final pending = List<int>.from(_pendingSeats);
-              final result = await Navigator.push<bool>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SeatSelectionScreen(
-                    trip: t,
-                    initialBookedSeats: booked.isEmpty ? null : booked,
-                    initialPendingSeats: pending.isEmpty ? null : pending,
+              setState(() => _isNavigatingToBooking = true);
+              try {
+                final t = _displayTrip!;
+                final booked = List<int>.from(_bookedSeats);
+                final pending = List<int>.from(_pendingSeats);
+                final result = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SeatSelectionScreen(
+                      trip: t,
+                      initialBookedSeats: booked.isEmpty ? null : booked,
+                      initialPendingSeats: pending.isEmpty ? null : pending,
+                    ),
                   ),
-                ),
-              );
-              if (result == true) await _loadTripDetails();
-              if (mounted && result == true && Navigator.canPop(context)) {
-                Navigator.pop(context, true);
+                );
+                if (result == true) await _loadTripDetails();
+                if (mounted && result == true && Navigator.canPop(context)) {
+                  Navigator.pop(context, true);
+                }
+              } finally {
+                if (mounted) setState(() => _isNavigatingToBooking = false);
               }
             },
             style: ElevatedButton.styleFrom(

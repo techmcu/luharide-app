@@ -208,6 +208,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
             controller: c,
             decoration: InputDecoration(hintText: loc.t('admin.reject.reason_hint')),
             maxLines: 2,
+            maxLength: 300,
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
@@ -268,6 +269,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
             controller: c,
             decoration: InputDecoration(hintText: loc.t('admin.reject.reason_hint')),
             maxLines: 2,
+            maxLength: 300,
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: Text(loc.t('app.cancel'))),
@@ -359,6 +361,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                         border: const OutlineInputBorder(),
                       ),
                       maxLines: 2,
+                      maxLength: 300,
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -368,6 +371,7 @@ class _UnionAdminHomeScreenState extends State<UnionAdminHomeScreen> {
                         border: const OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.number,
+                      maxLength: 3,
                     ),
                   ],
                 ),

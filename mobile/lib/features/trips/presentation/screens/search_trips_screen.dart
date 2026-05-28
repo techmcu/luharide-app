@@ -835,6 +835,8 @@ class _LocationField extends StatelessWidget {
       enableSuggestions: false,
       autocorrect: false,
       autofillHints: const [],
+      maxLength: 100,
+      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
       scrollPadding: EdgeInsets.only(bottom: 24 + kb),
       decoration: InputDecoration(
         labelText: label,

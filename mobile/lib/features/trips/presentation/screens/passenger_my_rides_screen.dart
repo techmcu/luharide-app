@@ -438,6 +438,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 border: const OutlineInputBorder(),
               ),
               maxLines: 2,
+              maxLength: 300,
             ),
             const SizedBox(height: 16),
             Row(
@@ -523,6 +524,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 border: const OutlineInputBorder(),
               ),
               maxLines: 3,
+              maxLength: 500,
             ),
             const SizedBox(height: 16),
             ElevatedButton(

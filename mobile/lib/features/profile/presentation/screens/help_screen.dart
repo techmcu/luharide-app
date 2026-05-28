@@ -243,6 +243,7 @@ class HelpScreen extends StatelessWidget {
                   controller: passwordController,
                   obscureText: true,
                   enabled: !isDeleting,
+                  maxLength: 128,
                   decoration: InputDecoration(
                     labelText: loc.t('delete_account.password_label'),
                     hintText: loc.t('delete_account.password_hint'),

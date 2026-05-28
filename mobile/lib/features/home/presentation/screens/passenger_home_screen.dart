@@ -44,6 +44,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   bool _hasSearched = false;
   final _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
+  bool _isNavigating = false;
 
   // Location suggestions (debounced) for find-ride search bar
   List<String> _fromSuggestions = [];
@@ -325,14 +326,19 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   ),
               ],
             ),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const NotificationsScreen(),
-                ),
-              );
-              _loadNotificationsOnce();
+            onPressed: _isNavigating ? null : () async {
+              setState(() => _isNavigating = true);
+              try {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NotificationsScreen(),
+                  ),
+                );
+                _loadNotificationsOnce();
+              } finally {
+                if (mounted) setState(() => _isNavigating = false);
+              }
             },
           ),
           IconButton(

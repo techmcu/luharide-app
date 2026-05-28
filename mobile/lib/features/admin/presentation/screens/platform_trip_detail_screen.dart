@@ -60,6 +60,7 @@ class _PlatformTripDetailScreenState extends State<PlatformTripDetailScreen> {
               controller: reasonCtrl,
               decoration: const InputDecoration(hintText: 'Reason (optional)'),
               maxLines: 2,
+              maxLength: 300,
             ),
           ],
         ),

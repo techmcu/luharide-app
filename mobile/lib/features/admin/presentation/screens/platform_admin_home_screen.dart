@@ -870,12 +870,14 @@ class _NotificationsSectionState extends State<_NotificationsSection> with Autom
         TextField(
           controller: _titleCtrl,
           decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
+          maxLength: 100,
         ),
         const SizedBox(height: 12),
         TextField(
           controller: _bodyCtrl,
           decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
           maxLines: 3,
+          maxLength: 500,
         ),
         const SizedBox(height: 14),
         SizedBox(
@@ -1012,6 +1014,7 @@ class _ComplaintsSectionState extends State<_ComplaintsSection> with AutomaticKe
               controller: noteCtrl,
               decoration: const InputDecoration(labelText: 'Resolution note', border: OutlineInputBorder()),
               maxLines: 3,
+              maxLength: 500,
             ),
           ],
         ),
@@ -1218,6 +1221,7 @@ class _KycSectionState extends State<_KycSection> with AutomaticKeepAliveClientM
           controller: reasonCtrl,
           decoration: const InputDecoration(labelText: 'Reason', border: OutlineInputBorder()),
           maxLines: 2,
+          maxLength: 300,
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
