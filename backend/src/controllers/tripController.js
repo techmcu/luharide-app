@@ -6,6 +6,11 @@ const logger = require('../config/logger');
 const { emitNotificationToUser, emitTripUpdated } = require('../socket/realtimeEmitter');
 const retentionConfig = require('../config/retentionConfig');
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function requireUuid(id) {
+  if (!id || !UUID_RE.test(id)) throw ApiError.badRequest('Invalid trip ID');
+}
+
 /**
  * Create a new trip (Driver only)
  * POST /api/trips
@@ -500,6 +505,7 @@ const searchTrips = asyncHandler(async (req, res) => {
  */
 const getTripBookedSeats = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
+  requireUuid(tripId);
 
   const tripCheck = await pool.query(
     'SELECT id, total_capacity AS total_seats FROM trips WHERE id = $1 AND status = $2',
@@ -613,6 +619,7 @@ const saveRecentRoute = asyncHandler(async (req, res) => {
  */
 const getTripDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  requireUuid(id);
 
   let result;
   try {
@@ -843,6 +850,7 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
  */
 const getTripBookings = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
+  requireUuid(tripId);
   const driverId = req.user.id;
 
   // Verify trip belongs to driver
@@ -907,6 +915,7 @@ const getTripBookings = asyncHandler(async (req, res) => {
  */
 const startTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
+  requireUuid(tripId);
   const driverId = req.user.id;
 
   let cancelledBookings = [];
@@ -1005,6 +1014,7 @@ const startTrip = asyncHandler(async (req, res) => {
  */
 const completeTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
+  requireUuid(tripId);
   const driverId = req.user.id;
 
   const client = await pool.connect();
@@ -1064,6 +1074,7 @@ const DRIVER_CANCEL_CUTOFF_HOURS = 2;
  */
 const cancelTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
+  requireUuid(tripId);
   const driverId = req.user.id;
 
   const client = await pool.connect();
@@ -1185,6 +1196,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
  */
 const deleteTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
+  requireUuid(tripId);
   const driverId = req.user.id;
   const client = await pool.connect();
 

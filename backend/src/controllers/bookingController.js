@@ -5,6 +5,11 @@ const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitTripUpdated, emitNotificationToUser } = require('../socket/realtimeEmitter');
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function requireUuid(id, label = 'ID') {
+  if (!id || !UUID_RE.test(id)) throw ApiError.badRequest(`Invalid ${label}`);
+}
+
 function normalizeIdempotencyKey(key) {
   if (key == null || typeof key !== 'string') return '';
   return key.trim().slice(0, 128);
@@ -289,6 +294,7 @@ const createBooking = asyncHandler(async (req, res) => {
  */
 const respondToBooking = asyncHandler(async (req, res) => {
   const { id: bookingId } = req.params;
+  requireUuid(bookingId, 'booking ID');
   const { action } = req.body;
   const driverId = req.user.id;
 
@@ -582,6 +588,7 @@ const CANCEL_BEFORE_DEPARTURE_MINUTES = 30;
  */
 const cancelBooking = asyncHandler(async (req, res) => {
   const bookingId = req.params.id;
+  requireUuid(bookingId, 'booking ID');
   const passengerId = req.user.id;
   const reason = (req.body && req.body.reason != null) ? String(req.body.reason).trim() : null;
 

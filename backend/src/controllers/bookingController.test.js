@@ -24,6 +24,12 @@ function mockRes() {
 // asyncHandler doesn't return the promise, so we must flush microtasks
 const flush = () => new Promise(r => setImmediate(r));
 
+const TRIP_ID   = 'a0000000-0000-0000-0000-000000000001';
+const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001';
+const PASS_ID   = 'c0000000-0000-0000-0000-000000000001';
+const BOOK_ID   = 'd0000000-0000-0000-0000-000000000001';
+const BOOK2_ID  = 'd0000000-0000-0000-0000-000000000002';
+
 describe('createBooking — seat reservation', () => {
   let client;
 
@@ -112,7 +118,7 @@ describe('respondToBooking — reject restores seats', () => {
 
   it('restores available_seats when driver rejects a pending booking', async () => {
     const booking = {
-      id: 'b-1', trip_id: 'trip-1', passenger_id: 'p-1', driver_id: 'driver-1',
+      id: BOOK_ID, trip_id: TRIP_ID, passenger_id: PASS_ID, driver_id: DRIVER_ID,
       status: 'pending', seat_numbers: [2, 3], available_seats: 3,
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
@@ -130,7 +136,7 @@ describe('respondToBooking — reject restores seats', () => {
       .mockResolvedValueOnce({ rows: [] })           // COMMIT
       ;
 
-    const req = { params: { id: 'b-1' }, body: { action: 'reject' }, user: { id: 'driver-1' } };
+    const req = { params: { id: BOOK_ID }, body: { action: 'reject' }, user: { id: DRIVER_ID } };
     respondToBooking(req, mockRes(), jest.fn());
     await flush();
 
@@ -138,7 +144,7 @@ describe('respondToBooking — reject restores seats', () => {
       ([sql]) => typeof sql === 'string' && sql.includes('available_seats = available_seats +')
     );
     expect(restore).toBeTruthy();
-    expect(restore[1]).toEqual([2, 'trip-1']);
+    expect(restore[1]).toEqual([2, TRIP_ID]);
   });
 });
 
@@ -154,7 +160,7 @@ describe('cancelBooking — restores seats for any status', () => {
 
   it('restores seats when cancelling a PENDING booking', async () => {
     const booking = {
-      id: 'b-1', trip_id: 'trip-1', passenger_id: 'p-1', driver_id: 'driver-1',
+      id: BOOK_ID, trip_id: TRIP_ID, passenger_id: PASS_ID, driver_id: DRIVER_ID,
       status: 'pending', seat_numbers: [4, 5],
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
@@ -172,7 +178,7 @@ describe('cancelBooking — restores seats for any status', () => {
       .mockResolvedValueOnce({ rows: [] })           // COMMIT
       ;
 
-    const req = { params: { id: 'b-1' }, body: {}, user: { id: 'p-1' } };
+    const req = { params: { id: BOOK_ID }, body: {}, user: { id: PASS_ID } };
     cancelBooking(req, mockRes(), jest.fn());
     await flush();
 
@@ -180,12 +186,12 @@ describe('cancelBooking — restores seats for any status', () => {
       ([sql]) => typeof sql === 'string' && sql.includes('available_seats = available_seats +')
     );
     expect(restore).toBeTruthy();
-    expect(restore[1]).toEqual([2, 'trip-1']);
+    expect(restore[1]).toEqual([2, TRIP_ID]);
   });
 
   it('restores seats when cancelling a CONFIRMED booking', async () => {
     const booking = {
-      id: 'b-2', trip_id: 'trip-1', passenger_id: 'p-1', driver_id: 'driver-1',
+      id: BOOK2_ID, trip_id: TRIP_ID, passenger_id: PASS_ID, driver_id: DRIVER_ID,
       status: 'confirmed', seat_numbers: [2],
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
@@ -197,7 +203,7 @@ describe('cancelBooking — restores seats for any status', () => {
       .mockResolvedValueOnce({ rows: [] })
       ;
 
-    const req = { params: { id: 'b-2' }, body: {}, user: { id: 'p-1' } };
+    const req = { params: { id: BOOK2_ID }, body: {}, user: { id: PASS_ID } };
     cancelBooking(req, mockRes(), jest.fn());
     await flush();
 
@@ -205,6 +211,6 @@ describe('cancelBooking — restores seats for any status', () => {
       ([sql]) => typeof sql === 'string' && sql.includes('available_seats = available_seats +')
     );
     expect(restore).toBeTruthy();
-    expect(restore[1]).toEqual([1, 'trip-1']);
+    expect(restore[1]).toEqual([1, TRIP_ID]);
   });
 });

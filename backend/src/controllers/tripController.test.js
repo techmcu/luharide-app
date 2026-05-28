@@ -27,6 +27,14 @@ const flush = () => new Promise(r => setImmediate(r));
 
 const futureISO = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
+const TRIP_ID  = 'a0000000-0000-0000-0000-000000000001';
+const DRIVER_ID = 'b0000000-0000-0000-0000-000000000001';
+const PASS_ID  = 'c0000000-0000-0000-0000-000000000001';
+const PASS2_ID = 'c0000000-0000-0000-0000-000000000002';
+const BOOK_ID  = 'd0000000-0000-0000-0000-000000000001';
+const BOOK2_ID = 'd0000000-0000-0000-0000-000000000002';
+const WRONG_ID = 'e0000000-0000-0000-0000-000000000099';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CREATE TRIP
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,7 +51,7 @@ describe('createTrip', () => {
   it('creates trip with verified vehicle capacity as total_seats', async () => {
     const verif = { vehicle_capacity: 7, vehicle_registration: 'UK07-1234' };
     const trip = {
-      id: 'trip-1', driver_id: 'd-1', from_location: 'Dehradun', to_location: 'Purola',
+      id: TRIP_ID, driver_id: DRIVER_ID, from_location: 'Dehradun', to_location: 'Purola',
       total_capacity: 7, available_seats: 7, status: 'scheduled',
     };
 
@@ -57,7 +65,7 @@ describe('createTrip', () => {
         from_location: 'Dehradun', to_location: 'Purola',
         departure_time: futureISO, fare_per_seat: 500,
       },
-      user: { id: 'd-1' },
+      user: { id: DRIVER_ID },
       headers: {},
     };
     createTrip(req, mockRes(), jest.fn());
@@ -77,7 +85,7 @@ describe('createTrip', () => {
         from_location: 'Dehradun', to_location: 'Purola',
         departure_time: futureISO, fare_per_seat: 500,
       },
-      user: { id: 'd-1' },
+      user: { id: DRIVER_ID },
       headers: {},
     };
     const next = jest.fn();
@@ -101,7 +109,7 @@ describe('createTrip', () => {
         from_location: 'Dehradun', to_location: 'Purola',
         departure_time: pastISO, fare_per_seat: 500,
       },
-      user: { id: 'd-1' },
+      user: { id: DRIVER_ID },
       headers: {},
     };
     const next = jest.fn();
@@ -119,7 +127,7 @@ describe('createTrip', () => {
         from_location: '', to_location: 'Purola',
         departure_time: futureISO, fare_per_seat: 500,
       },
-      user: { id: 'd-1' },
+      user: { id: DRIVER_ID },
       headers: {},
     };
     const next = jest.fn();
@@ -140,7 +148,7 @@ describe('createTrip', () => {
         from_location: 'Dehradun', to_location: 'Purola',
         departure_time: futureISO, fare_per_seat: 0,
       },
-      user: { id: 'd-1' },
+      user: { id: DRIVER_ID },
       headers: {},
     };
     const next = jest.fn();
@@ -168,7 +176,7 @@ describe('cancelTrip', () => {
 
   it('cancels trip with no bookings', async () => {
     const trip = {
-      id: 'trip-1', status: 'scheduled', driver_id: 'd-1',
+      id: TRIP_ID, status: 'scheduled', driver_id: DRIVER_ID,
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
 
@@ -181,7 +189,7 @@ describe('cancelTrip', () => {
       .mockResolvedValueOnce({ rows: [] })           // UPDATE trip status
       .mockResolvedValueOnce({ rows: [] });          // COMMIT
 
-    const req = { params: { id: 'trip-1' }, user: { id: 'd-1' } };
+    const req = { params: { id: TRIP_ID }, user: { id: DRIVER_ID } };
     cancelTrip(req, mockRes(), jest.fn());
     await flush();
 
@@ -193,15 +201,15 @@ describe('cancelTrip', () => {
 
   it('cancels trip and restores seats from all active bookings', async () => {
     const trip = {
-      id: 'trip-1', status: 'scheduled', driver_id: 'd-1',
+      id: TRIP_ID, status: 'scheduled', driver_id: DRIVER_ID,
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
     const confirmedBookings = [
-      { id: 'b-1', passenger_id: 'p-1', seat_numbers: [1, 2] },
+      { id: BOOK_ID, passenger_id: PASS_ID, seat_numbers: [1, 2] },
     ];
     const allActiveBookings = [
-      { id: 'b-1', passenger_id: 'p-1', seat_numbers: [1, 2], status: 'confirmed' },
-      { id: 'b-2', passenger_id: 'p-2', seat_numbers: [3], status: 'pending' },
+      { id: BOOK_ID, passenger_id: PASS_ID, seat_numbers: [1, 2], status: 'confirmed' },
+      { id: BOOK2_ID, passenger_id: PASS2_ID, seat_numbers: [3], status: 'pending' },
     ];
 
     client.query
@@ -211,11 +219,11 @@ describe('cancelTrip', () => {
       .mockResolvedValueOnce({ rows: allActiveBookings })        // SELECT all active bookings
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })          // UPDATE bookings
       .mockResolvedValueOnce({ rows: [] })                       // UPDATE trip + seats
-      .mockResolvedValueOnce({ rows: [{ id: 'p-1' }, { id: 'p-2' }] }) // SELECT users for notification
+      .mockResolvedValueOnce({ rows: [{ id: PASS_ID }, { id: PASS2_ID }] }) // SELECT users for notification
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })          // INSERT notifications
       .mockResolvedValueOnce({ rows: [] });                      // COMMIT
 
-    const req = { params: { id: 'trip-1' }, user: { id: 'd-1' } };
+    const req = { params: { id: TRIP_ID }, user: { id: DRIVER_ID } };
     cancelTrip(req, mockRes(), jest.fn());
     await flush();
 
@@ -229,7 +237,7 @@ describe('cancelTrip', () => {
 
   it('rejects cancel for already-cancelled trip', async () => {
     const trip = {
-      id: 'trip-1', status: 'cancelled', driver_id: 'd-1',
+      id: TRIP_ID, status: 'cancelled', driver_id: DRIVER_ID,
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
 
@@ -237,7 +245,7 @@ describe('cancelTrip', () => {
       .mockResolvedValueOnce({ rows: [] })           // BEGIN
       .mockResolvedValueOnce({ rows: [trip] });      // SELECT trip
 
-    const req = { params: { id: 'trip-1' }, user: { id: 'd-1' } };
+    const req = { params: { id: TRIP_ID }, user: { id: DRIVER_ID } };
     const next = jest.fn();
     cancelTrip(req, mockRes(), next);
     await flush();
@@ -249,7 +257,7 @@ describe('cancelTrip', () => {
 
   it('rejects cancel for in_progress trip', async () => {
     const trip = {
-      id: 'trip-1', status: 'in_progress', driver_id: 'd-1',
+      id: TRIP_ID, status: 'in_progress', driver_id: DRIVER_ID,
       departure_time: new Date(Date.now() - 60000).toISOString(),
     };
 
@@ -257,7 +265,7 @@ describe('cancelTrip', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [trip] });
 
-    const req = { params: { id: 'trip-1' }, user: { id: 'd-1' } };
+    const req = { params: { id: TRIP_ID }, user: { id: DRIVER_ID } };
     const next = jest.fn();
     cancelTrip(req, mockRes(), next);
     await flush();
@@ -272,7 +280,7 @@ describe('cancelTrip', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] }); // no trip for this driver
 
-    const req = { params: { id: 'trip-1' }, user: { id: 'wrong-driver' } };
+    const req = { params: { id: TRIP_ID }, user: { id: WRONG_ID } };
     const next = jest.fn();
     cancelTrip(req, mockRes(), next);
     await flush();
@@ -297,13 +305,13 @@ describe('startTrip', () => {
   });
 
   it('rejects start for completed trip', async () => {
-    const trip = { id: 'trip-1', status: 'completed', driver_id: 'd-1' };
+    const trip = { id: TRIP_ID, status: 'completed', driver_id: DRIVER_ID };
 
     client.query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [trip] });
 
-    const req = { params: { id: 'trip-1' }, user: { id: 'd-1' } };
+    const req = { params: { id: TRIP_ID }, user: { id: DRIVER_ID } };
     const next = jest.fn();
     startTrip(req, mockRes(), next);
     await flush();
@@ -329,7 +337,7 @@ describe('deleteTrip', () => {
 
   it('rejects delete if trip has active bookings', async () => {
     const trip = {
-      id: 'trip-1', status: 'scheduled', driver_id: 'd-1',
+      id: TRIP_ID, status: 'scheduled', driver_id: DRIVER_ID,
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
 
@@ -338,7 +346,7 @@ describe('deleteTrip', () => {
       .mockResolvedValueOnce({ rows: [trip] })       // SELECT trip
       .mockResolvedValueOnce({ rows: [{ count: '2' }] }); // active bookings count
 
-    const req = { params: { id: 'trip-1' }, user: { id: 'd-1' } };
+    const req = { params: { id: TRIP_ID }, user: { id: DRIVER_ID } };
     const next = jest.fn();
     deleteTrip(req, mockRes(), next);
     await flush();
