@@ -172,8 +172,38 @@
 | 4 | Select 4 stars → optionally add comment → tap Submit | Success: "Review submitted" | |
 | 5 | Go back to same booking | "Rate & Review" button gone or shows "Already rated" | |
 | 6 | View driver's profile/ratings | Your review appears in the list | |
+| 7 | Try to submit rating with comment > 20 words | Error: "Comment cannot exceed 20 words" | |
+| 8 | Try to rate within 4 minutes of booking confirmation | Error: "You can rate 4 minutes after your ride is confirmed. Please wait." | |
+| 9 | Wait 4 minutes → try again | Rating dialog allows submission | |
 
-## TC-2.8: Self-Booking Prevention
+## TC-2.8: Rate-Ride Notification — Cancelled Booking Must NOT Trigger
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Book a seat on an independent driver trip (confirmed) | Booking confirmed | |
+| 2 | Cancel the booking within a few minutes | Booking cancelled successfully | |
+| 3 | Wait for rate notification job to run (up to 15 min) | **No** "How was your ride?" notification should arrive | |
+| 4 | Check Notifications screen | No rate-ride notification for the cancelled booking | |
+
+## TC-2.9: Rate-Ride Notification — Confirmed Booking Should Trigger
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Book a seat on an independent driver trip (confirmed) | Booking confirmed | |
+| 2 | Do NOT cancel — let the ride departure time pass | Booking stays confirmed | |
+| 3 | Wait for rate notification job (up to 15 min after send_after time) | "How was your ride?" notification arrives for both passenger and driver | |
+| 4 | Tap the notification | Rating dialog opens | |
+| 5 | Select stars + comment → tap Submit | Success: "Rating submitted" — no errors | |
+
+## TC-2.10: Rate-Ride Notification — Driver Cancels Trip Before Notification
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Book a seat on a trip (confirmed) | Booking confirmed | |
+| 2 | Driver cancels the entire trip | Passenger receives "Ride cancelled" notification, booking cancelled | |
+| 3 | Wait for rate notification job to run | **No** "How was your ride?" notification — pending notification cleaned up | |
+
+## TC-2.11: Self-Booking Prevention
 
 | # | Action | Expected Result | Status |
 |---|--------|-----------------|--------|
@@ -280,15 +310,44 @@
 | 4 | After ride is done → tap "Complete Trip" | Confirmation → trip status changes to "Completed" | |
 | 5 | Check My Trips | Trip shows under "Completed" filter | |
 
-## TC-3.8: Cancel/Delete Trip (Driver)
+## TC-3.7a: Independent Ride Auto-Complete (No Manual Button Needed)
 
 | # | Action | Expected Result | Status |
 |---|--------|-----------------|--------|
-| 1 | Create a new trip with NO bookings | Trip created | |
-| 2 | Open trip → tap "Delete Trip" | Confirmation → trip deleted, removed from My Trips | |
-| 3 | Create another trip → wait for a passenger to book and get confirmed | Trip has confirmed booking | |
-| 4 | Try to delete trip | Error: cannot delete trip with bookings | |
-| 5 | Tap "Cancel Trip" | Confirmation → trip status = "Cancelled", passengers notified | |
+| 1 | Create an independent driver trip with departure time 5 min in the future | Trip created with status "Scheduled" | |
+| 2 | Wait for departure time to pass | Trip still shows "Scheduled" immediately (job runs every 30 min) | |
+| 3 | Wait for auto-complete job to run (up to 30 min after departure) | Trip status automatically changes to "Completed" | |
+| 4 | Check My Trips — refresh the list | Trip now shows "Completed" tag — no manual action needed | |
+| 5 | Check: passenger side (My Bookings) | Booking also reflects completed trip | |
+| 6 | Create a trip with departure time 1 hour in the future → manually complete it before auto-complete runs | "Complete ride" button works as usual — no conflict | |
+| 7 | Check: union admin trip (not independent) with past departure | Auto-complete does **NOT** apply — union trips are not affected by this job | |
+
+## TC-3.8: Cancel Trip (Driver) — Rules
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Create a trip with departure tomorrow, NO bookings → open 3-dot menu | "Cancel trip" option visible (scheduled + future departure) | |
+| 2 | Tap "Cancel trip" → confirm | Success: trip status = "Cancelled", removed from active rides | |
+| 3 | Create trip with departure tomorrow → passenger books and gets confirmed | Trip has confirmed booking | |
+| 4 | Open 3-dot menu → tap "Cancel trip" (departure > 2 hours away) | Success: trip cancelled, **all bookings cancelled**, passenger receives notification | |
+| 5 | Create trip with departure 1 hour from now → passenger books and gets confirmed | Trip has confirmed booking, departure < 2 hours | |
+| 6 | Open 3-dot menu → tap "Cancel trip" | Error: "Cannot cancel trip. Driver cannot cancel within 2 hours of departure when passengers are confirmed." | |
+| 7 | Create trip with departure 1 hour from now, NO bookings → cancel | Success: cancellation allowed (no confirmed passengers, cutoff rule doesn't apply) | |
+| 8 | Open a trip whose departure time has already passed | "Cancel trip" option **NOT visible** in 3-dot menu (only "Delete ride" shows) | |
+| 9 | Open an "in_progress" trip | "Cancel trip" option **NOT visible** (only scheduled trips can be cancelled) | |
+| 10 | Cancel a trip that has pending + confirmed bookings | **Both** pending and confirmed bookings cancelled, all passengers notified | |
+
+## TC-3.8a: Delete Ride (Driver) — Rules
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Create a trip with NO bookings → open 3-dot menu | "Delete ride (no bookings only)" option visible | |
+| 2 | Tap "Delete ride" → confirm | Success: trip permanently deleted from system, gone from My Trips | |
+| 3 | Create trip → passenger books (pending) → try delete | Error: "Cannot delete ride. X booking request(s) are pending. Please accept or reject them first." | |
+| 4 | Create trip → passenger books (confirmed) → try delete | Error: "Cannot delete ride. X seat(s) are already booked. Passengers would be affected." | |
+| 5 | Create trip → passenger books (confirmed) → passenger cancels → try delete now | Success: all bookings are cancelled, so delete works (0 active bookings) | |
+| 6 | Delete a completed trip with no active bookings | Success: trip deleted | |
+| 7 | Verify after delete: trip not in search results, not in driver My Trips | Trip completely gone — no trace | |
 
 ## TC-3.9: Role Exclusivity — Driver Cannot Register Union
 
@@ -459,8 +518,22 @@
 | # | Action | Expected Result | Status |
 |---|--------|-----------------|--------|
 | 1 | Driver starts a trip | **Passengers with confirmed bookings** receive notification | |
-| 2 | Driver completes a trip | Passengers receive notification | |
+| 2 | Driver starts a trip with PENDING bookings | Pending bookings auto-cancelled — passengers get "Booking not confirmed" notification | |
 | 3 | Driver cancels a trip | All passengers with bookings receive cancellation notification | |
+| 4 | Platform admin cancels a trip | Both driver AND passengers receive cancellation notification | |
+
+## TC-6.2a: Rate-Ride Notifications (Timing & Cleanup)
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Booking confirmed on independent trip (departure tomorrow) | Rate notification scheduled for departure_time + 5 hours | |
+| 2 | Booking confirmed on union/legacy trip | Rate notification scheduled for NOW + 5 hours | |
+| 3 | Wait for scheduled time → notification fires | Both passenger and driver get "How was your ride?" / "Rate your passenger" notification | |
+| 4 | Tap rate notification → select stars → submit | Rating saved successfully, no errors | |
+| 5 | Passenger cancels booking BEFORE notification fires | Pending rate notification deleted — no notification sent later | |
+| 6 | Driver cancels entire trip BEFORE notification fires | All pending rate notifications for trip's bookings deleted | |
+| 7 | Admin cancels trip BEFORE notification fires | Same cleanup — no stale notifications | |
+| 8 | Booking was cancelled but notification already sent (edge case) | Backend rejects rating with "Booking not found" or "Can only rate after booking is confirmed" — app shows clean error, no crash | |
 
 ## TC-6.3: KYC Notifications
 
@@ -585,6 +658,73 @@
 | 1 | Send 10+ OTP requests rapidly | After a few, error: "Too many requests, please try again later" | |
 | 2 | Wait a minute → try again | OTP sends normally | |
 
+## TC-9.7: Pending Booking Auto-Expiry Near Departure
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Driver creates trip with `require_approval = true`, departure 5 min from now | Trip created | |
+| 2 | Passenger books a seat → status = "Pending" | Booking created as pending | |
+| 3 | Driver does NOT accept/reject | Booking stays pending | |
+| 4 | Wait until departure time arrives (within 1 min) | Pending booking auto-cancelled by system, seats restored, passenger notified: "Booking not confirmed" | |
+| 5 | Check trip's available seats after auto-cancel | Seats restored to original count | |
+
+## TC-9.8: Booking Cooldown After Cancel
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Book a seat → cancel it immediately | Cancel succeeds | |
+| 2 | Try to book same trip again within 10 minutes | Error: "You cancelled this ride recently. Please wait X minutes before booking again." | |
+| 3 | Wait for cooldown to expire → book again | Booking succeeds | |
+
+## TC-9.9: Driver Cancel Trip Within 2-Hour Cutoff (No Passengers)
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Create trip with departure 30 min from now, NO bookings | Trip created | |
+| 2 | Cancel the trip | Success — allowed because no confirmed passengers (2hr cutoff only applies with confirmed passengers) | |
+
+## TC-9.10: Double-Rating Prevention
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Rate a completed booking (passenger rates driver) | Rating submitted successfully | |
+| 2 | Try to rate the same booking again | Error: "You have already rated for this ride" | |
+| 3 | Check: driver also rates the passenger for same booking | Success — each party rates once, independently | |
+| 4 | Driver tries to rate same passenger again | Error: "You have already rated for this ride" | |
+
+## TC-9.11: Rating Before Booking is Confirmed (Timing Guard)
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Book a trip with `require_approval = true` → booking = "Pending" | Booking pending | |
+| 2 | Try to rate via notification deep link (if somehow received) | Error: "Can only rate after booking is confirmed" | |
+
+## TC-9.12: No BlaBlaCar or Third-Party Branding
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Open driver trip details → 3-dot menu | Menu says "Cancel trip" (not "Cancel trip (BlaBlaCar-style)") | |
+| 2 | Open cancel trip confirmation dialog | Text does NOT mention "BlaBlaCar" anywhere | |
+| 3 | Check all error messages from cancel/delete operations | No "BlaBlaCar" text in any error message | |
+| 4 | Search entire app UI for "BlaBlaCar" | Zero results — no third-party branding visible anywhere | |
+
+## TC-9.13: Invalid UUID in Trip/Booking URLs
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Try to access trip details with invalid ID (e.g. `abc123`) | Error: "Invalid trip ID" — no server crash | |
+| 2 | Try to access booking with invalid ID | Error: "Invalid booking ID" — no server crash | |
+| 3 | Try to rate a booking with random UUID that doesn't exist | Error: "Booking not found" — clean error, no crash | |
+
+## TC-9.14: Seat Conflict Between Accept and Auto-Cancel
+
+| # | Action | Expected Result | Status |
+|---|--------|-----------------|--------|
+| 1 | Two passengers each book the same seat (pending) on a `require_approval` trip | Both bookings created as pending | |
+| 2 | Driver accepts Passenger 1's booking | Passenger 1 confirmed. Passenger 2's booking auto-cancelled (conflicting seat) | |
+| 3 | Check Passenger 2's notification | "Booking cancelled — seat no longer available" or similar | |
+| 4 | Check available seats | Correctly reflects only Passenger 1's booking | |
+
 ---
 
 # SECTION 10: DATA VALIDATION SUMMARY
@@ -639,9 +779,10 @@
 | 9 | (Passenger books a seat) | Notification: "New booking request" | |
 | 10 | Open trip → see pending booking → tap "Accept" | Booking confirmed — passenger notified | |
 | 11 | Check passenger contact | Passenger's phone visible in booking details | |
-| 12 | Tap "Start Trip" | Status → "In Progress" | |
-| 13 | Tap "Complete Trip" | Status → "Completed" | |
-| 14 | Rate passenger (optional) | Review submitted | |
+| 12 | Wait for departure time to pass | Trip auto-completes to "Completed" (within 30 min of departure) | |
+| 13 | Check My Trips | Trip shows "Completed" — no manual button needed | |
+| 14 | "How was your ride?" notification arrives | Both driver and passenger get rate notification | |
+| 15 | Tap notification → rate passenger | Rating submitted successfully | |
 
 ## TC-11.3: Full Union Admin Journey (End-to-End)
 
@@ -693,7 +834,7 @@
 
 ---
 
-> **Total Test Cases: 150+**
+> **Total Test Cases: 200+**
 > **Critical Priority:** Sections 1-4, 9, 11
 > **Medium Priority:** Sections 5-8, 10
 > **Run After Every Build:** Section 12
