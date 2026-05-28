@@ -43,7 +43,7 @@ jobs:
           VPS_IP: ${{ secrets.VPS_IP }}
         run: |
           ssh root@$VPS_IP "mkdir -p /var/www/luharide-web-staging"
-          scp -r mobile/build/web/* root@$VPS_IP:/var/www/luharide-web-staging/
+          tar czf - -C mobile/build/web . | ssh root@$VPS_IP "tar xzf - -C /var/www/luharide-web-staging/"
 
       - name: Deploy backend to staging directory
         env:
