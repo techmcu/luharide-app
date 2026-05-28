@@ -244,14 +244,15 @@ const submitVerification = asyncHandler(async (req, res) => {
     }
   }
 
-  // Update user status
+  // Update user status + sync phone to profile so trip queries can find it
   await pool.query(
     `UPDATE users
      SET driver_verification_status = 'pending',
          driver_kyc_reupload_allowed = FALSE,
-         driver_kyc_reupload_deadline = NULL
+         driver_kyc_reupload_deadline = NULL,
+         phone = CASE WHEN COALESCE(TRIM(phone), '') = '' THEN $2 ELSE phone END
      WHERE id = $1`,
-    [userId]
+    [userId, contactPhoneVal]
   );
 
   const request = result.rows[0];
@@ -337,15 +338,17 @@ const approveRequest = asyncHandler(async (req, res) => {
       [adminId, id]
     );
 
+    const kycPhone = (request.contact_phone || '').trim();
     await client.query(
       `UPDATE users
        SET driver_verification_status = 'approved',
            role = 'driver',
            driver_code = COALESCE(driver_code, SUBSTRING(id::text, 1, 8)),
            driver_kyc_reupload_allowed = FALSE,
-           driver_kyc_reupload_deadline = NULL
+           driver_kyc_reupload_deadline = NULL,
+           phone = CASE WHEN COALESCE(TRIM(phone), '') = '' AND $2 <> '' THEN $2 ELSE phone END
        WHERE id = $1`,
-      [request.user_id]
+      [request.user_id, kycPhone]
     );
 
     await client.query('COMMIT');

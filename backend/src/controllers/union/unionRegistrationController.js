@@ -94,6 +94,11 @@ const registerUnion = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Union name must be at least 3 characters');
   }
 
+  const phoneVal = (contact_phone || '').replace(/\s+/g, '').trim();
+  if (phoneVal.length < 10) {
+    throw ApiError.badRequest('Contact phone is required (at least 10 digits).');
+  }
+
   const existingActive = await pool.query(
     `SELECT u.id, u.status
      FROM unions u
@@ -291,6 +296,13 @@ const registerUnion = asyncHandler(async (req, res) => {
      VALUES ($1, $2)
      ON CONFLICT (union_id, user_id) DO NOTHING`,
     [union.id, userId]
+  );
+
+  // Sync phone to user profile if empty
+  await pool.query(
+    `UPDATE users SET phone = $2
+     WHERE id = $1 AND COALESCE(TRIM(phone), '') = ''`,
+    [userId, phoneVal]
   );
 
   logger.info(`Union registration requested ${union.id} by user ${userId}`);
