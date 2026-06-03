@@ -33,6 +33,9 @@ class _DriverVerificationFormScreenState
   final _contactEmailController = TextEditingController();
   bool _isLoading = false;
   VehicleDropdownOption? _selectedVehicle;
+  bool _isOtherVehicle = false;
+  OtherVehicleBodyType? _otherBodyType;
+  final _otherSeatCountController = TextEditingController(text: '5');
   XFile? _aadhaarFrontFile;
   XFile? _aadhaarBackFile;
   XFile? _licenseFrontFile;
@@ -120,6 +123,7 @@ class _DriverVerificationFormScreenState
     _vehicleRegController.dispose();
     _contactPhoneController.dispose();
     _contactEmailController.dispose();
+    _otherSeatCountController.dispose();
     super.dispose();
   }
 
@@ -132,7 +136,16 @@ class _DriverVerificationFormScreenState
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final loc = AppLocalizations.of(context);
-    if (_selectedVehicle == null) {
+    if (_isOtherVehicle) {
+      if (_otherBodyType == null) {
+        AppFeedback.show(
+          context,
+          'Please select vehicle body type',
+          kind: AppFeedbackKind.warning,
+        );
+        return;
+      }
+    } else if (_selectedVehicle == null) {
       AppFeedback.show(
         context,
         loc.t('kyc.driver.snack.select_vehicle'),
@@ -181,19 +194,36 @@ class _DriverVerificationFormScreenState
       return;
     }
 
-    final v = _selectedVehicle!;
-    final vehicleType = v.displayName.contains(' ')
-        ? v.displayName.split(' ').first
-        : v.displayName;
-    final vehicleModel = v.displayName;
+    final String vehicleType;
+    final String vehicleModel;
+    final String vehicleModelId;
+    final int vehicleCapacity;
+
+    if (_isOtherVehicle) {
+      final bt = _otherBodyType!;
+      final seatCount = int.tryParse(_otherSeatCountController.text.trim()) ?? 5;
+      final clamped = seatCount.clamp(2, 32);
+      vehicleType = bt.label;
+      vehicleModel = 'Other ${bt.label} ($clamped seater)';
+      vehicleModelId = VehicleCatalog.otherVehicleId(bt, clamped);
+      vehicleCapacity = clamped;
+    } else {
+      final v = _selectedVehicle!;
+      vehicleType = v.displayName.contains(' ')
+          ? v.displayName.split(' ').first
+          : v.displayName;
+      vehicleModel = v.displayName;
+      vehicleModelId = v.id;
+      vehicleCapacity = v.capacity;
+    }
 
     final result = await _service.submitVerification(
       drivingLicenseUrl: licenseFrontUrl,
       vehicleRegistration: _vehicleRegController.text.trim(),
       vehicleType: vehicleType,
       vehicleModel: vehicleModel,
-      vehicleModelId: v.id,
-      vehicleCapacity: v.capacity,
+      vehicleModelId: vehicleModelId,
+      vehicleCapacity: vehicleCapacity,
       contactPhone: _contactPhoneController.text.replaceAll(' ', '').trim(),
       contactEmail: _contactEmailController.text.trim(),
       permitDocumentUrl: null,
@@ -536,7 +566,7 @@ class _DriverVerificationFormScreenState
                 ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<VehicleDropdownOption>(
-                  value: _selectedVehicle,
+                  value: _isOtherVehicle ? VehicleCatalog.otherVehicleSentinel : _selectedVehicle,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.event_seat),
                     border: OutlineInputBorder(
@@ -547,14 +577,16 @@ class _DriverVerificationFormScreenState
                   hint: const Text('Select vehicle (seats as per RTO)'),
                   isExpanded: true,
                   itemHeight: 72,
-                  // Web / some themes give selected row only ~24px height — single line avoids overflow.
                   selectedItemBuilder: (context) {
-                    return VehicleCatalog.allVehicleOptionsForDropdown
+                    return VehicleCatalog.allVehicleOptionsWithOther
                         .map((opt) {
+                      final label = opt.id == VehicleCatalog.otherVehicleSentinelId
+                          ? 'Other Vehicle (not in list)'
+                          : '${opt.displayName} · ${opt.capacitySubtitle}';
                       return Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          '${opt.displayName} · ${opt.capacitySubtitle}',
+                          label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 13),
@@ -562,7 +594,8 @@ class _DriverVerificationFormScreenState
                       );
                     }).toList();
                   },
-                  items: VehicleCatalog.allVehicleOptionsForDropdown.map((opt) {
+                  items: VehicleCatalog.allVehicleOptionsWithOther.map((opt) {
+                    final isOther = opt.id == VehicleCatalog.otherVehicleSentinelId;
                     return DropdownMenuItem<VehicleDropdownOption>(
                       value: opt,
                       child: Column(
@@ -570,14 +603,18 @@ class _DriverVerificationFormScreenState
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            opt.displayName,
+                            isOther ? 'Other Vehicle (not in list)' : opt.displayName,
                             maxLines: 2,
                             overflow: TextOverflow.visible,
-                            style: const TextStyle(fontSize: 14),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontStyle: isOther ? FontStyle.italic : FontStyle.normal,
+                              color: isOther ? Colors.grey[700] : null,
+                            ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            opt.capacitySubtitle,
+                            isOther ? 'Select body type & seats manually' : opt.capacitySubtitle,
                             style: TextStyle(
                                 fontSize: 11, color: Colors.grey[600]),
                           ),
@@ -585,11 +622,67 @@ class _DriverVerificationFormScreenState
                       ),
                     );
                   }).toList(),
-                  onChanged: (opt) => setState(() => _selectedVehicle = opt),
-                  validator: (v) =>
-                      v == null ? loc.t('kyc.driver.vehicle_type.required') : null,
+                  onChanged: (opt) {
+                    if (opt == null) return;
+                    setState(() {
+                      if (opt.id == VehicleCatalog.otherVehicleSentinelId) {
+                        _isOtherVehicle = true;
+                        _selectedVehicle = null;
+                      } else {
+                        _isOtherVehicle = false;
+                        _selectedVehicle = opt;
+                        _otherBodyType = null;
+                      }
+                    });
+                  },
+                  validator: (v) {
+                    if (_isOtherVehicle) return null;
+                    return v == null ? loc.t('kyc.driver.vehicle_type.required') : null;
+                  },
                 ),
-                if (_selectedVehicle != null) ...[
+                if (_isOtherVehicle) ...[
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<OtherVehicleBodyType>(
+                    value: _otherBodyType,
+                    decoration: InputDecoration(
+                      labelText: 'Vehicle body type',
+                      prefixIcon: const Icon(Icons.directions_car_outlined),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    isExpanded: true,
+                    items: OtherVehicleBodyType.values.map((bt) {
+                      return DropdownMenuItem<OtherVehicleBodyType>(
+                        value: bt,
+                        child: Text(bt.label),
+                      );
+                    }).toList(),
+                    onChanged: (bt) => setState(() => _otherBodyType = bt),
+                    validator: (v) => v == null ? 'Select body type' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _otherSeatCountController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'Total seats (including driver)',
+                      hintText: '2 - 32',
+                      prefixIcon: const Icon(Icons.airline_seat_recline_normal),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    validator: (v) {
+                      final n = int.tryParse(v?.trim() ?? '');
+                      if (n == null || n < 2 || n > 32) {
+                        return 'Enter seat count between 2 and 32';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+                if (!_isOtherVehicle && _selectedVehicle != null) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [

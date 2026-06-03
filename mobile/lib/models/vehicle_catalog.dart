@@ -56,6 +56,18 @@ class VehicleDropdownOption {
   String get capacitySubtitle => '$capacity seats (RTO style)';
 }
 
+/// Body types for the "Other Vehicle" fallback option.
+enum OtherVehicleBodyType {
+  hatchback('Hatchback'),
+  sedan('Sedan'),
+  suv('SUV'),
+  mpv('MPV / Van'),
+  jeep('Jeep / Hill Taxi');
+
+  final String label;
+  const OtherVehicleBodyType(this.label);
+}
+
 /// All layouts: RHD (driver right in top-view). rowCols = real car proportions (front 2, middle 3, rear 2 etc).
 class VehicleCatalog {
   static final List<VehicleBrandConfig> brands = [
@@ -64,6 +76,10 @@ class VehicleCatalog {
     _marutiSuzuki(),
     _toyota(),
     _kia(),
+    _hyundai(),
+    _honda(),
+    _force(),
+    _renault(),
   ];
 
   // —— 4-seater: [2,2] ——
@@ -255,6 +271,49 @@ class VehicleCatalog {
     }
   }
 
+  /// Layout for "Other Vehicle" based on body type + seat count.
+  static SeatLayoutConfig layoutForOtherVehicle(OtherVehicleBodyType bodyType, int capacity) {
+    final clamped = capacity.clamp(2, 32);
+    switch (bodyType) {
+      case OtherVehicleBodyType.hatchback:
+      case OtherVehicleBodyType.sedan:
+        if (clamped <= 4) return _layout4;
+        return _layout5;
+      case OtherVehicleBodyType.suv:
+        if (clamped <= 5) return _layout5;
+        if (clamped <= 7) return _layout7;
+        if (clamped <= 8) return _layout8;
+        return _layout9Sumo;
+      case OtherVehicleBodyType.mpv:
+        if (clamped <= 5) return _layout5;
+        if (clamped <= 7) return _layout7;
+        if (clamped <= 8) return _layout8;
+        if (clamped <= 9) return _layout9Sumo;
+        return _tempoLayout(clamped);
+      case OtherVehicleBodyType.jeep:
+        if (clamped <= 5) return _layout5;
+        if (clamped <= 7) return _layout7;
+        if (clamped <= 10) return _layoutJeep10;
+        return _tempoLayout(clamped);
+    }
+  }
+
+  /// Build an "Other Vehicle" ID string: "other_suv_7"
+  static String otherVehicleId(OtherVehicleBodyType bodyType, int capacity) {
+    return 'other_${bodyType.name}_$capacity';
+  }
+
+  /// Parse an "Other Vehicle" ID back to body type + capacity. Returns null if not an "other_" ID.
+  static ({OtherVehicleBodyType bodyType, int capacity})? parseOtherVehicleId(String id) {
+    if (!id.startsWith('other_')) return null;
+    final parts = id.substring(6).split('_');
+    if (parts.length != 2) return null;
+    final bodyType = OtherVehicleBodyType.values.where((e) => e.name == parts[0]).firstOrNull;
+    final capacity = int.tryParse(parts[1]);
+    if (bodyType == null || capacity == null) return null;
+    return (bodyType: bodyType, capacity: capacity);
+  }
+
   static VehicleBrandConfig _tata() {
     return VehicleBrandConfig(
       id: 'tata',
@@ -262,10 +321,13 @@ class VehicleCatalog {
       models: [
         const VehicleModelConfig(id: 'tata_punch', name: 'Punch', bodyType: 'SUV', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'tata_tiago', name: 'Tiago', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'tata_altroz', name: 'Altroz', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'tata_tigor', name: 'Tigor', bodyType: 'Sedan', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'tata_nexon', name: 'Nexon', bodyType: 'SUV', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'tata_harrier', name: 'Harrier', bodyType: 'SUV', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'tata_safari', name: 'Safari', bodyType: 'SUV', capacity: 7, layout: _layout7),
         const VehicleModelConfig(id: 'tata_sumo', name: 'Sumo', bodyType: 'SUV', capacity: 9, layout: _layout9Sumo),
+        const VehicleModelConfig(id: 'tata_indica', name: 'Indica', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
       ],
     );
   }
@@ -303,11 +365,16 @@ class VehicleCatalog {
         const VehicleModelConfig(id: 'maruti_alto_k10', name: 'Alto K10', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'maruti_wagon_r', name: 'Wagon R', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'maruti_swift', name: 'Swift', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'maruti_baleno', name: 'Baleno', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'maruti_celerio', name: 'Celerio', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'maruti_s_presso', name: 'S-Presso', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'maruti_dzire', name: 'Dzire', bodyType: 'Sedan', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'maruti_swift_dzire', name: 'Swift Dzire', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'maruti_ciaz', name: 'Ciaz', bodyType: 'Sedan', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'maruti_brezza', name: 'Brezza', bodyType: 'SUV', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'maruti_ertiga', name: 'Ertiga', bodyType: 'MPV', capacity: 7, layout: _layout7),
         const VehicleModelConfig(id: 'maruti_ertiga_tour', name: 'Ertiga Tour', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        const VehicleModelConfig(id: 'maruti_xl6', name: 'XL6', bodyType: 'MPV', capacity: 7, layout: _layout7),
         const VehicleModelConfig(id: 'maruti_eeco', name: 'Eeco', bodyType: 'Van', capacity: 7, layout: _layout7),
         const VehicleModelConfig(id: 'maruti_eeco_8', name: 'Eeco (8-seater)', bodyType: 'Van', capacity: 8, layout: _layout8),
         const VehicleModelConfig(id: 'maruti_omni', name: 'Omni', bodyType: 'Van', capacity: 8, layout: _layout8),
@@ -321,6 +388,7 @@ class VehicleCatalog {
       name: 'Toyota',
       models: [
         const VehicleModelConfig(id: 'toyota_glanza', name: 'Glanza', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'toyota_etios', name: 'Etios', bodyType: 'Sedan', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'toyota_urban_cruiser', name: 'Urban Cruiser', bodyType: 'SUV', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'toyota_innova_crysta', name: 'Innova Crysta', bodyType: 'MPV', capacity: 7, layout: _layout7),
         const VehicleModelConfig(id: 'toyota_innova_hycross', name: 'Innova Hycross', bodyType: 'MPV', capacity: 7, layout: _layout7),
@@ -339,6 +407,97 @@ class VehicleCatalog {
         const VehicleModelConfig(id: 'kia_sonet', name: 'Sonet', bodyType: 'SUV', capacity: 5, layout: _layout5),
         const VehicleModelConfig(id: 'kia_carens', name: 'Carens', bodyType: 'MPV', capacity: 7, layout: _layout7),
         const VehicleModelConfig(id: 'kia_carnival', name: 'Carnival', bodyType: 'MPV', capacity: 7, layout: _layout7),
+      ],
+    );
+  }
+
+  static VehicleBrandConfig _hyundai() {
+    return VehicleBrandConfig(
+      id: 'hyundai',
+      name: 'Hyundai',
+      models: [
+        const VehicleModelConfig(id: 'hyundai_i10', name: 'Grand i10', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'hyundai_i20', name: 'i20', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'hyundai_exter', name: 'Exter', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'hyundai_venue', name: 'Venue', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'hyundai_creta', name: 'Creta', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'hyundai_aura', name: 'Aura', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'hyundai_verna', name: 'Verna', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'hyundai_alcazar', name: 'Alcazar', bodyType: 'SUV', capacity: 7, layout: _layout7),
+      ],
+    );
+  }
+
+  static VehicleBrandConfig _honda() {
+    return VehicleBrandConfig(
+      id: 'honda',
+      name: 'Honda',
+      models: [
+        const VehicleModelConfig(id: 'honda_amaze', name: 'Amaze', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'honda_city', name: 'City', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+      ],
+    );
+  }
+
+  static VehicleBrandConfig _force() {
+    return VehicleBrandConfig(
+      id: 'force',
+      name: 'Force',
+      models: [
+        const VehicleModelConfig(id: 'force_gurkha', name: 'Gurkha', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        const VehicleModelConfig(
+          id: 'force_gurkha_9',
+          name: 'Gurkha 9-Seater',
+          bodyType: 'SUV',
+          capacity: 9,
+          layout: _layout9Sumo,
+        ),
+        const VehicleModelConfig(
+          id: 'force_trax',
+          name: 'Trax',
+          bodyType: 'MUV',
+          capacity: 10,
+          layout: _layoutJeep10,
+        ),
+        VehicleModelConfig(
+          id: 'force_traveller_12',
+          name: 'Traveller 12-Seater',
+          bodyType: 'Tempo',
+          capacity: 12,
+          layout: _layoutTempo12,
+        ),
+        VehicleModelConfig(
+          id: 'force_traveller_16',
+          name: 'Traveller 16-Seater',
+          bodyType: 'Tempo',
+          capacity: 16,
+          layout: _layoutTempo16,
+        ),
+        VehicleModelConfig(
+          id: 'force_traveller_20',
+          name: 'Traveller 20-Seater',
+          bodyType: 'Tempo',
+          capacity: 20,
+          layout: _layoutTempo20,
+        ),
+        VehicleModelConfig(
+          id: 'force_traveller_26',
+          name: 'Traveller 26-Seater',
+          bodyType: 'Tempo',
+          capacity: 26,
+          layout: _layoutTempo26,
+        ),
+      ],
+    );
+  }
+
+  static VehicleBrandConfig _renault() {
+    return VehicleBrandConfig(
+      id: 'renault',
+      name: 'Renault',
+      models: [
+        const VehicleModelConfig(id: 'renault_kwid', name: 'Kwid', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        const VehicleModelConfig(id: 'renault_kiger', name: 'Kiger', bodyType: 'SUV', capacity: 5, layout: _layout5),
       ],
     );
   }
@@ -364,7 +523,6 @@ class VehicleCatalog {
     final list = <VehicleDropdownOption>[];
     for (final brand in brands) {
       for (final model in brand.models) {
-        // One clean line: brand + model (capacity is subtitle in UI — avoids huge strings)
         list.add(VehicleDropdownOption(
           id: model.id,
           displayName: '${brand.name} · ${model.name}',
@@ -382,6 +540,22 @@ class VehicleCatalog {
     return list;
   }
 
+  /// Sentinel option shown at end of dropdown to let driver pick "Other Vehicle".
+  static const otherVehicleSentinelId = '__other__';
+  static const otherVehicleSentinel = VehicleDropdownOption(
+    id: otherVehicleSentinelId,
+    displayName: 'Other Vehicle',
+    capacity: 5,
+    layout: _layout5,
+  );
+
+  /// Full dropdown list including the "Other Vehicle" option at the end.
+  static List<VehicleDropdownOption> get allVehicleOptionsWithOther {
+    final list = allVehicleOptionsForDropdown;
+    list.add(otherVehicleSentinel);
+    return list;
+  }
+
   static VehicleBrandConfig? findBrandById(String id) {
     try {
       return brands.firstWhere((b) => b.id == id);
@@ -391,6 +565,19 @@ class VehicleCatalog {
   }
 
   static VehicleModelConfig? findModelById(String id) {
+    // "Other Vehicle" IDs: other_suv_7, other_sedan_5, etc.
+    final otherParsed = parseOtherVehicleId(id);
+    if (otherParsed != null) {
+      final layout = layoutForOtherVehicle(otherParsed.bodyType, otherParsed.capacity);
+      return VehicleModelConfig(
+        id: id,
+        name: 'Other ${otherParsed.bodyType.label}',
+        bodyType: otherParsed.bodyType.label,
+        capacity: layout.seats.length,
+        layout: layout,
+      );
+    }
+
     for (final brand in brands) {
       try {
         return brand.models.firstWhere((m) => m.id == id);
