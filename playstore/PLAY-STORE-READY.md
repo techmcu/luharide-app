@@ -9,7 +9,7 @@
 | Field | Value |
 |-------|-------|
 | **Package Name** | `cloud.luharide.app` |
-| **App Name** | LuhaRide — Uttarakhand Taxi Booking |
+| **App Name** | LuhaRide |
 | **Default Language** | English (India) – en-IN |
 | **App or Game** | App |
 | **Free or Paid** | Free |
@@ -46,12 +46,17 @@
 
 ### App Name (30 chars max)
 ```
-LuhaRide — Uttarakhand Taxi Booking
+LuhaRide
 ```
 
 ### Short Description (80 chars max)
 ```
 Book shared taxis & seats in Uttarakhand. Connect with union drivers instantly.
+```
+
+### Tags (Play Console → Store listing → Tags)
+```
+Uttarakhand, taxi booking, shared taxi, cab booking, hill taxi, seat booking, ride sharing, union driver
 ```
 
 ### Full Description (4000 chars max)

@@ -1,7 +1,7 @@
 # Play Store Listing — LuhaRide
 
 ## App Name
-**LuhaRide — Uttarakhand Taxi Booking**
+**LuhaRide**
 
 ## Short Description (80 chars max)
 Book shared taxis & seats in Uttarakhand. Connect with union drivers instantly.
