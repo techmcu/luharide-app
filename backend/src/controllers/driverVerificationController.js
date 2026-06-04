@@ -97,6 +97,35 @@ const submitVerification = asyncHandler(async (req, res) => {
     );
   }
 
+  // Check duplicate phone: another driver (pending/approved) already using this phone
+  const phoneDup = await pool.query(
+    `SELECT user_id FROM driver_verification_requests
+     WHERE contact_phone = $1 AND user_id != $2 AND status IN ('pending', 'approved')
+     LIMIT 1`,
+    [contactPhoneVal, userId]
+  );
+  if (phoneDup.rows.length > 0) {
+    const err = ApiError.conflict('This phone number is already used by another driver application.');
+    err.errorCode = 'DUPLICATE_PHONE';
+    throw err;
+  }
+
+  // Check duplicate vehicle registration: another driver (pending/approved) already using it
+  const vehReg = (vehicle_registration || '').trim().toUpperCase();
+  if (vehReg) {
+    const vehicleDup = await pool.query(
+      `SELECT user_id FROM driver_verification_requests
+       WHERE UPPER(TRIM(vehicle_registration)) = $1 AND user_id != $2 AND status IN ('pending', 'approved')
+       LIMIT 1`,
+      [vehReg, userId]
+    );
+    if (vehicleDup.rows.length > 0) {
+      const err = ApiError.conflict('This vehicle registration number is already used by another driver.');
+      err.errorCode = 'DUPLICATE_VEHICLE';
+      throw err;
+    }
+  }
+
   // Independent driver: max 32 seats (cap for seat layout and booking)
   const MAX_SEATS = 32;
   let capNum = vehicle_capacity != null ? parseInt(vehicle_capacity, 10) : null;

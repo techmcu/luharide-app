@@ -135,8 +135,9 @@ const errorHandler = (err, req, res, next) => {
   const response = {
     success: false,
     message: finalMessage,
+    ...(err.errorCode && { code: err.errorCode }),
     ...(errors && { errors }),
-    ...(process.env.NODE_ENV === 'development' && { 
+    ...(process.env.NODE_ENV === 'development' && {
       stack: err.stack
     })
   };

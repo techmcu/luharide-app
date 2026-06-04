@@ -246,10 +246,19 @@ class _DriverVerificationFormScreenState
       );
       Navigator.pop(context, true);
     } else {
+      final code = result['code']?.toString();
+      String errorMsg;
+      if (code == 'DUPLICATE_PHONE') {
+        errorMsg = loc.t('kyc.driver.err.duplicate_phone');
+      } else if (code == 'DUPLICATE_VEHICLE') {
+        errorMsg = loc.t('kyc.driver.err.duplicate_vehicle');
+      } else {
+        errorMsg = result['message'] ?? 'Failed';
+      }
       AppFeedback.show(
         context,
-        result['message'] ?? 'Failed',
-        kind: AppFeedbackKind.error,
+        errorMsg,
+        kind: AppFeedbackKind.warning,
       );
     }
   }

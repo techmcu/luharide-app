@@ -44,7 +44,7 @@ const createOTP = async (phone, purpose = 'login') => {
       expiresAt: result.rows[0].expires_at
     };
   } catch (error) {
-    logger.error('Error creating OTP:', error);
+    logger.error('Error creating OTP:', { message: error.message, code: error.code, detail: error.detail });
     throw ApiError.internal('Failed to generate OTP');
   }
 };
@@ -79,7 +79,7 @@ const createOTPByEmail = async (email, purpose = 'login') => {
       expiresAt: result.rows[0].expires_at
     };
   } catch (error) {
-    logger.error('Error creating OTP by email:', error);
+    logger.error('Error creating OTP by email:', { message: error.message, code: error.code, detail: error.detail });
     throw ApiError.internal('Failed to generate OTP');
   }
 };

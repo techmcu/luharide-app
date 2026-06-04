@@ -80,9 +80,11 @@ class DriverVerificationService {
         'message': response.data['message'] ?? 'Verification submitted',
       };
     } on DioException catch (e) {
+      final data = e.response?.data;
       return {
         'success': false,
         'message': dioResponseMessage(e) ?? 'Failed to submit verification',
+        if (data is Map && data['code'] != null) 'code': data['code'].toString(),
       };
     } catch (e) {
       return {'success': false, 'message': 'An error occurred'};

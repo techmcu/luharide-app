@@ -1125,6 +1125,14 @@ class AppLocalizations {
       'en': 'Submitted. The team will review your request.',
       'hi': 'जमा हो गया। टीम आपका आवेदन देखेगी।',
     },
+    'kyc.driver.err.duplicate_phone': {
+      'en': 'This phone number is already used by another driver application. Please use a different number.',
+      'hi': 'यह फ़ोन नंबर पहले से किसी अन्य ड्राइवर आवेदन में उपयोग हो रहा है। कृपया दूसरा नंबर डालें।',
+    },
+    'kyc.driver.err.duplicate_vehicle': {
+      'en': 'This vehicle registration number is already registered with another driver. Please check and enter the correct number.',
+      'hi': 'यह वाहन पंजीकरण संख्या पहले से किसी अन्य ड्राइवर के नाम पर है। कृपया सही नंबर जाँचकर डालें।',
+    },
     'kyc.trip.vehicle_locked_hint': {
       'en': 'This number is from your driver verification and will be used on rides.',
       'hi': 'यह नंबर आपके ड्राइवर सत्यापन से है और राइड में यही उपयोग होगा।',
