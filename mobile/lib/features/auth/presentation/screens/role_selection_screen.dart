@@ -37,10 +37,13 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
 
     final authProvider = context.read<AuthProvider>();
     
-    // Note: OTP already verified, we just need to update profile
     final success = await authProvider.updateProfile(
       name: _nameController.text.trim(),
     );
+
+    if (success && _selectedRole != 'passenger') {
+      await authProvider.refreshUser();
+    }
 
     setState(() => _isLoading = false);
 

@@ -84,30 +84,54 @@ const verifyOTPController = asyncHandler(async (req, res) => {
 
   let identifier; // 'phone' or 'email'
   let value;      // phone number or email
+  let verifiedPurpose;
 
   if (email && otp) {
     identifier = 'email';
     value = email.toLowerCase().trim();
     const verification = await verifyOTPByEmail(value, otp);
     if (!verification.verified) throw ApiError.badRequest('OTP verification failed');
+    verifiedPurpose = verification.purpose;
   } else if (phone && otp) {
     identifier = 'phone';
     value = phone;
     const verification = await verifyOTP(phone, otp);
     if (!verification.verified) throw ApiError.badRequest('OTP verification failed');
+    verifiedPurpose = verification.purpose;
   } else {
     throw ApiError.badRequest('Provide (phone + otp) or (email + otp)');
   }
 
+  if (verifiedPurpose === 'password_reset') {
+    throw ApiError.badRequest('This OTP was issued for password reset. Please use the reset password screen.');
+  }
+
   const byPhone = identifier === 'phone';
   const userCols = `id, name, phone, email, role, is_verified, is_active, password_hash,
-                    driver_verification_status, driver_kyc_reupload_allowed, driver_code`;
-  let userResult = await pool.query(
-    byPhone
-      ? `SELECT ${userCols} FROM users WHERE phone = $1`
-      : `SELECT ${userCols} FROM users WHERE email = $1`,
-    [value]
-  );
+                    driver_verification_status, driver_kyc_reupload_allowed, driver_code,
+                    failed_login_attempts, locked_until`;
+  let userResult;
+  try {
+    userResult = await pool.query(
+      byPhone
+        ? `SELECT ${userCols} FROM users WHERE phone = $1`
+        : `SELECT ${userCols} FROM users WHERE email = $1`,
+      [value]
+    );
+  } catch (err) {
+    if (err.code === '42703') {
+      const fallbackCols = `id, name, phone, email, role, is_verified, is_active, password_hash,
+                            driver_verification_status, driver_kyc_reupload_allowed, driver_code`;
+      userResult = await pool.query(
+        byPhone
+          ? `SELECT ${fallbackCols} FROM users WHERE phone = $1`
+          : `SELECT ${fallbackCols} FROM users WHERE email = $1`,
+        [value]
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const adminEmail = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase().trim() : null;
   const isAppAdmin = !byPhone && adminEmail && value === adminEmail;
@@ -169,17 +193,34 @@ const verifyOTPController = asyncHandler(async (req, res) => {
       throw ApiError.forbidden('Account is deactivated. Please contact support.');
     }
 
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const minsLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
+      throw ApiError.tooManyRequests(`Account temporarily locked. Try again in ${minsLeft} minute(s).`);
+    }
+
     if (!byPhone && adminEmail && value === adminEmail && user.role !== 'union_admin') {
-      await pool.query(
-        "UPDATE users SET role = 'union_admin', is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1",
-        [user.id]
-      );
+      try {
+        await pool.query(
+          "UPDATE users SET role = 'union_admin', is_verified = TRUE, failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $1",
+          [user.id]
+        );
+      } catch (e) {
+        if (e.code === '42703') {
+          await pool.query("UPDATE users SET role = 'union_admin', is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1", [user.id]);
+        } else { throw e; }
+      }
       user.role = 'union_admin';
     } else {
-      await pool.query(
-        'UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1',
-        [user.id]
-      );
+      try {
+        await pool.query(
+          'UPDATE users SET is_verified = TRUE, failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $1',
+          [user.id]
+        );
+      } catch (e) {
+        if (e.code === '42703') {
+          await pool.query('UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP WHERE id = $1', [user.id]);
+        } else { throw e; }
+      }
     }
     hasPassword = !!user.password_hash;
     logger.info(`User logged in: ${user.id} - ${value}`);

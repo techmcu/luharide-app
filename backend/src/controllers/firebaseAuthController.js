@@ -90,12 +90,25 @@ const googleSignIn = asyncHandler(async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const existingUser = await client.query(
-      `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
-              driver_kyc_reupload_allowed, driver_code, password_hash, google_id
-       FROM users WHERE email = $1 FOR UPDATE`,
-      [email]
-    );
+    let existingUser;
+    try {
+      existingUser = await client.query(
+        `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
+                driver_kyc_reupload_allowed, driver_code, password_hash, google_id,
+                failed_login_attempts, locked_until
+         FROM users WHERE email = $1 FOR UPDATE`,
+        [email]
+      );
+    } catch (err) {
+      if (err.code === '42703') {
+        existingUser = await client.query(
+          `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
+                  driver_kyc_reupload_allowed, driver_code, password_hash, google_id
+           FROM users WHERE email = $1 FOR UPDATE`,
+          [email]
+        );
+      } else { throw err; }
+    }
 
     let user;
     let isNewUser = false;
@@ -109,16 +122,34 @@ const googleSignIn = asyncHandler(async (req, res) => {
         throw ApiError.unauthorized('Invalid credentials');
       }
 
+      if (user.locked_until && new Date(user.locked_until) > new Date()) {
+        const minsLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
+        await client.query('COMMIT');
+        throw ApiError.tooManyRequests(`Account temporarily locked. Try again in ${minsLeft} minute(s).`);
+      }
+
       if (!user.google_id) {
-        await client.query(
-          `UPDATE users SET google_id = $1, last_login = CURRENT_TIMESTAMP WHERE id = $2`,
-          [googleId, user.id]
-        );
+        try {
+          await client.query(
+            `UPDATE users SET google_id = $1, failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $2`,
+            [googleId, user.id]
+          );
+        } catch (e) {
+          if (e.code === '42703') {
+            await client.query(`UPDATE users SET google_id = $1, last_login = CURRENT_TIMESTAMP WHERE id = $2`, [googleId, user.id]);
+          } else { throw e; }
+        }
       } else {
-        await client.query(
-          `UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`,
-          [user.id]
-        );
+        try {
+          await client.query(
+            `UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $1`,
+            [user.id]
+          );
+        } catch (e) {
+          if (e.code === '42703') {
+            await client.query(`UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`, [user.id]);
+          } else { throw e; }
+        }
       }
     } else {
       isNewUser = true;
@@ -236,12 +267,25 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const existingUser = await client.query(
-      `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
-              driver_kyc_reupload_allowed, driver_code, password_hash, firebase_uid
-       FROM users WHERE email = $1 FOR UPDATE`,
-      [email]
-    );
+    let existingUser;
+    try {
+      existingUser = await client.query(
+        `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
+                driver_kyc_reupload_allowed, driver_code, password_hash, firebase_uid,
+                failed_login_attempts, locked_until
+         FROM users WHERE email = $1 FOR UPDATE`,
+        [email]
+      );
+    } catch (err) {
+      if (err.code === '42703') {
+        existingUser = await client.query(
+          `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
+                  driver_kyc_reupload_allowed, driver_code, password_hash, firebase_uid
+           FROM users WHERE email = $1 FOR UPDATE`,
+          [email]
+        );
+      } else { throw err; }
+    }
 
     let user;
     let isNewUser = false;
@@ -255,16 +299,34 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
         throw ApiError.unauthorized('Invalid credentials');
       }
 
+      if (user.locked_until && new Date(user.locked_until) > new Date()) {
+        const minsLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
+        await client.query('COMMIT');
+        throw ApiError.tooManyRequests(`Account temporarily locked. Try again in ${minsLeft} minute(s).`);
+      }
+
       if (!user.firebase_uid) {
-        await client.query(
-          `UPDATE users SET firebase_uid = $1, last_login = CURRENT_TIMESTAMP WHERE id = $2`,
-          [firebaseUid, user.id]
-        );
+        try {
+          await client.query(
+            `UPDATE users SET firebase_uid = $1, failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $2`,
+            [firebaseUid, user.id]
+          );
+        } catch (e) {
+          if (e.code === '42703') {
+            await client.query(`UPDATE users SET firebase_uid = $1, last_login = CURRENT_TIMESTAMP WHERE id = $2`, [firebaseUid, user.id]);
+          } else { throw e; }
+        }
       } else {
-        await client.query(
-          `UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`,
-          [user.id]
-        );
+        try {
+          await client.query(
+            `UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = $1`,
+            [user.id]
+          );
+        } catch (e) {
+          if (e.code === '42703') {
+            await client.query(`UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`, [user.id]);
+          } else { throw e; }
+        }
       }
     } else {
       isNewUser = true;
