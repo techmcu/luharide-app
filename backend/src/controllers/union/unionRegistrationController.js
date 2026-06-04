@@ -112,6 +112,17 @@ const registerUnion = asyncHandler(async (req, res) => {
     );
   }
 
+  const userDv = await pool.query(
+    'SELECT driver_verification_status FROM users WHERE id = $1',
+    [userId]
+  );
+  const dvs = userDv.rows[0]?.driver_verification_status;
+  if (dvs === 'pending' || dvs === 'approved') {
+    throw ApiError.badRequest(
+      'Independent driver verification is already pending or approved. You cannot register a taxi union on this account.'
+    );
+  }
+
   const phoneDup = await pool.query(
     `SELECT u.id FROM unions u
      WHERE u.contact_phone = $1 AND u.status IN ('pending', 'approved')
@@ -122,17 +133,6 @@ const registerUnion = asyncHandler(async (req, res) => {
     const err = ApiError.conflict('This phone number is already used by another union registration.');
     err.errorCode = 'DUPLICATE_PHONE';
     throw err;
-  }
-
-  const userDv = await pool.query(
-    'SELECT driver_verification_status FROM users WHERE id = $1',
-    [userId]
-  );
-  const dvs = userDv.rows[0]?.driver_verification_status;
-  if (dvs === 'pending' || dvs === 'approved') {
-    throw ApiError.badRequest(
-      'Independent driver verification is already pending or approved. You cannot register a taxi union on this account.'
-    );
   }
 
   const notesRaw = union_share_notes != null ? String(union_share_notes).trim() : '';
