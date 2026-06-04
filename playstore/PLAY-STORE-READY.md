@@ -170,6 +170,9 @@ LuhaRide का पहला रिलीज़!
 | `03-signup-email-otp.jpeg` | Phone screenshot | Signup — email OTP |
 | `04-home-search.jpeg` | Phone screenshot | Home dashboard |
 | `05-profile-features.jpeg` | Phone screenshot | Profile & features |
+| `06-driver-dashboard.jpeg` | Phone screenshot | Independent driver dashboard |
+| `07-ride-search-results.jpeg` | Phone screenshot | Ride search results with Call/WhatsApp |
+| `08-union-hub-dashboard.jpeg` | Phone screenshot | Union Hub — drivers, routes, schedules |
 
 ---
 
