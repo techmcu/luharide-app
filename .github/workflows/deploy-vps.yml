@@ -37,9 +37,8 @@ jobs:
 
       - name: Add VPS to known hosts
         run: |
-          ssh-keyscan -t ed25519 -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh-keyscan -t rsa -H ${{ secrets.VPS_IP }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          test -s ~/.ssh/known_hosts || { echo "ERROR: No host keys retrieved"; exit 1; }
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
 
       - name: Upload web build to staging
         env:
