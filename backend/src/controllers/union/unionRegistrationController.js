@@ -112,6 +112,18 @@ const registerUnion = asyncHandler(async (req, res) => {
     );
   }
 
+  const phoneDup = await pool.query(
+    `SELECT u.id FROM unions u
+     WHERE u.contact_phone = $1 AND u.status IN ('pending', 'approved')
+     LIMIT 1`,
+    [phoneVal]
+  );
+  if (phoneDup.rows.length > 0) {
+    const err = ApiError.conflict('This phone number is already used by another union registration.');
+    err.errorCode = 'DUPLICATE_PHONE';
+    throw err;
+  }
+
   const userDv = await pool.query(
     'SELECT driver_verification_status FROM users WHERE id = $1',
     [userId]

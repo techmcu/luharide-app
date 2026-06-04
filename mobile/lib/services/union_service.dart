@@ -72,9 +72,11 @@ class UnionService {
         'message': response.data['message'] ?? 'Union registered',
       };
     } on DioException catch (e) {
+      final data = e.response?.data;
       return {
         'success': false,
         'message': dioResponseMessage(e) ?? 'Failed to register union',
+        if (data is Map && data['code'] != null) 'code': data['code'].toString(),
       };
     } catch (_) {
       return {

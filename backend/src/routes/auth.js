@@ -24,6 +24,7 @@ const {
   refreshTokenLimiter,
   writeLimiter,
   destructiveLimiter,
+  profileUpdateLimiter,
 } = require('../middleware/rateLimiter');
 
 // Validation schemas (flat body: phone, email, otp, etc.)
@@ -122,7 +123,7 @@ router.get('/me', authenticate, getCurrentUserController);
  * @desc    Update user profile
  * @access  Private
  */
-router.put('/profile', authenticate, writeLimiter, validate(updateProfileSchema), updateProfileController);
+router.put('/profile', authenticate, writeLimiter, profileUpdateLimiter, validate(updateProfileSchema), updateProfileController);
 
 /**
  * @route   DELETE /api/auth/account

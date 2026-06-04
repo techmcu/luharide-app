@@ -413,6 +413,26 @@ const googleSignInLimiter = rateLimit(
   })
 );
 
+/**
+ * Profile update — 10 per hour per user.
+ */
+const profileUpdateLimiter = rateLimit(
+  withStore('profile-update', {
+    windowMs: 60 * 60 * 1000,
+    max: parseLimitEnv('PROFILE_UPDATE_MAX_PER_HOUR', 10, 2, 30),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) =>
+      req.user && req.user.id ? `profile:user:${req.user.id}` : `profile:ip:${req.ip}`,
+    handler: () => {
+      const err = ApiError.tooManyRequests('Profile update limit reached. Try again later.');
+      err.errorCode = 'PROFILE_RATE_LIMIT';
+      throw err;
+    },
+  })
+);
+
 module.exports = {
   apiLimiter,
   authLimiter,
@@ -436,4 +456,5 @@ module.exports = {
   destructiveLimiter,
   refreshTokenLimiter,
   bulkWriteLimiter,
+  profileUpdateLimiter,
 };

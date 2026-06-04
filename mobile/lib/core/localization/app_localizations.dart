@@ -1133,6 +1133,14 @@ class AppLocalizations {
       'en': 'This vehicle registration number is already registered with another driver. Please check and enter the correct number.',
       'hi': 'यह वाहन पंजीकरण संख्या पहले से किसी अन्य ड्राइवर के नाम पर है। कृपया सही नंबर जाँचकर डालें।',
     },
+    'kyc.union.err.duplicate_phone': {
+      'en': 'This phone number is already used by another union registration. Please use a different number.',
+      'hi': 'यह फ़ोन नंबर पहले से किसी अन्य यूनियन पंजीकरण में उपयोग हो रहा है। कृपया दूसरा नंबर डालें।',
+    },
+    'profile.err.rate_limit': {
+      'en': 'You have reached the profile update limit. Please try again after some time.',
+      'hi': 'आपने प्रोफ़ाइल अपडेट की सीमा पूरी कर ली है। कृपया कुछ समय बाद पुनः प्रयास करें।',
+    },
     'kyc.trip.vehicle_locked_hint': {
       'en': 'This number is from your driver verification and will be used on rides.',
       'hi': 'यह नंबर आपके ड्राइवर सत्यापन से है और राइड में यही उपयोग होगा।',

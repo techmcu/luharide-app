@@ -181,10 +181,18 @@ class _UnionRegistrationScreenState extends State<UnionRegistrationScreen> {
       );
       Navigator.pop(context);
     } else {
+      final code = result['code']?.toString();
+      final loc = AppLocalizations.of(context);
+      String errorMsg;
+      if (code == 'DUPLICATE_PHONE') {
+        errorMsg = loc.t('kyc.union.err.duplicate_phone');
+      } else {
+        errorMsg = result['message']?.toString() ?? 'Failed to register union';
+      }
       AppFeedback.show(
         context,
-        result['message']?.toString() ?? 'Failed to register union',
-        kind: AppFeedbackKind.error,
+        errorMsg,
+        kind: AppFeedbackKind.warning,
       );
     }
   }
