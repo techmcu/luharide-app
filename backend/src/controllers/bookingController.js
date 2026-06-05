@@ -420,6 +420,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
     );
 
     const approvedSet = new Set(seatNums);
+    const autoCancelledPassengers = [];
     for (const row of otherPending.rows) {
       const others = row.seat_numbers || [];
       if (others.some(s => approvedSet.has(s))) {
@@ -434,10 +435,25 @@ const respondToBooking = asyncHandler(async (req, res) => {
             [others.length, booking.trip_id]
           );
         }
+        autoCancelledPassengers.push({ bookingId: row.id, passengerId: row.passenger_id });
       }
     }
 
     await client.query('COMMIT');
+
+    for (const ac of autoCancelledPassengers) {
+      try {
+        const acn = await pool.query(
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'booking_auto_cancelled', 'Booking cancelled', 'Your booking was cancelled because the selected seats were given to another passenger. Please book again with different seats.', $2::jsonb)
+           RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+          [ac.passengerId, JSON.stringify({ booking_id: ac.bookingId, trip_id: booking.trip_id })]
+        );
+        if (acn.rows[0]) emitNotificationToUser(acn.rows[0].user_id, acn.rows[0]);
+      } catch (e) {
+        logger.warn('Auto-cancel seat conflict notification failed:', e.message);
+      }
+    }
 
     // Post-transaction: notifications (non-critical, use pool not client)
     try {

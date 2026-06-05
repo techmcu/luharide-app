@@ -16,7 +16,7 @@ const {
   cancelTrip,
   deleteTrip
 } = require('../controllers/tripController');
-const { authenticate, authorize } = require('../middleware/auth');
+const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
 const { redisCache } = require('../middleware/redisCache');
 const { searchLimiter, writeLimiter, stateChangeLimiter, destructiveLimiter } = require('../middleware/rateLimiter');
@@ -42,7 +42,7 @@ router.get('/recent-routes', authenticate, getRecentRoutes);
 router.post('/recent-routes', authenticate, writeLimiter, saveRecentRoute);
 router.get('/:id/bookings', authenticate, authorize('driver'), getTripBookings);
 router.get('/:id/booked-seats', getTripBookedSeats);
-router.get('/:id', getTripDetails);
+router.get('/:id', optionalAuth, getTripDetails);
 
 router.put('/:id/start', authenticate, authorize('driver'), stateChangeLimiter, startTrip);
 router.put('/:id/complete', authenticate, authorize('driver'), stateChangeLimiter, completeTrip);

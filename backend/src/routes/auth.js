@@ -41,7 +41,7 @@ const verifyOTPSchema = Joi.object({
   email: Joi.string().email().optional().allow('', null),
   otp: schemas.otp,
   name: Joi.string().min(2).max(100).optional(),
-  role: Joi.string().valid('passenger', 'driver', 'union_admin').optional(),
+  role: Joi.string().valid('passenger', 'driver').optional(),
   password: Joi.string().min(6).max(128).optional(), // for email signup: set password on new user
   platform: Joi.string().optional()
 }).or('phone', 'email').messages({

@@ -76,7 +76,7 @@ const schemas = {
 
   // Role validation
   role: Joi.string()
-    .valid('passenger', 'driver', 'union_admin')
+    .valid('passenger', 'driver')
     .required()
     .messages({
       'any.only': 'Role must be passenger, driver, or union_admin',

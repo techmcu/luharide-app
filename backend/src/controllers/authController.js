@@ -333,8 +333,12 @@ const refreshTokenController = asyncHandler(async (req, res) => {
 const logoutController = asyncHandler(async (req, res) => {
   const { refreshToken } = req.body;
 
+  let logoutUserId = req.user?.id ?? null;
+
   if (refreshToken) {
     try {
+      const decoded = await verifyRefreshToken(refreshToken);
+      if (!logoutUserId && decoded.userId) logoutUserId = decoded.userId;
       await revokeRefreshToken(refreshToken);
     } catch (err) {
       // Token already revoked/expired - still return success
@@ -342,8 +346,8 @@ const logoutController = asyncHandler(async (req, res) => {
     }
   }
 
-  if (req.user) userCache.invalidate(req.user.id);
-  logger.info(`User logged out${req.user ? `: ${req.user.id}` : ' (token revoked)'}`);
+  if (logoutUserId) userCache.invalidate(logoutUserId);
+  logger.info(`User logged out${logoutUserId ? `: ${logoutUserId}` : ' (token revoked)'}`);
 
   ApiResponse.success(null, 'Logged out successfully').send(res);
 });
@@ -413,6 +417,14 @@ const updateProfileController = asyncHandler(async (req, res) => {
       : String(phone).replace(/\D/g, '');
     if (normalized !== null && !/^[6-9]\d{9}$/.test(normalized)) {
       throw ApiError.badRequest('Phone must be a valid 10-digit Indian mobile number');
+    }
+    if (normalized === null) {
+      const currentUser = await pool.query('SELECT email FROM users WHERE id = $1', [userId]);
+      const hasEmail = currentUser.rows[0]?.email && currentUser.rows[0].email.trim() !== '';
+      const newEmailProvided = email !== undefined && email !== null && email !== '';
+      if (!hasEmail && !newEmailProvided) {
+        throw ApiError.badRequest('Cannot remove phone number — you have no email to log in with. Add an email first.');
+      }
     }
     if (normalized !== null) {
       const dup = await pool.query(
