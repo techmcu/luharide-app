@@ -221,10 +221,12 @@ const revokeAllUserTokens = async (userId) => {
 const cleanupExpiredTokens = async () => {
   try {
     const result = await pool.query(
-      'DELETE FROM refresh_tokens WHERE expires_at < CURRENT_TIMESTAMP'
+      `DELETE FROM refresh_tokens
+       WHERE expires_at < CURRENT_TIMESTAMP
+          OR (is_revoked = TRUE AND revoked_at < CURRENT_TIMESTAMP - INTERVAL '7 days')`
     );
     if (result.rowCount > 0) {
-      logger.info(`Cleaned up ${result.rowCount} expired refresh_token row(s)`);
+      logger.info(`Cleaned up ${result.rowCount} expired/revoked refresh_token row(s)`);
     }
     return result.rowCount;
   } catch (error) {

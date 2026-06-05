@@ -93,26 +93,32 @@ const authorize = (...roles) => {
 const optionalAuth = asyncHandler(async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
       const decoded = verifyAccessToken(token);
 
-      const result = await pool.query(
-        'SELECT id, name, email, phone, role, is_active, driver_verification_status FROM users WHERE id = $1',
-        [decoded.userId]
-      );
+      let user = userCache.get(decoded.userId);
+      if (!user) {
+        const result = await pool.query(
+          'SELECT id, name, email, phone, role, is_active, is_verified, driver_verification_status FROM users WHERE id = $1',
+          [decoded.userId]
+        );
+        if (result.rows.length > 0) {
+          user = result.rows[0];
+          if (user.is_active) userCache.set(decoded.userId, user);
+        }
+      }
 
-      if (result.rows.length > 0 && result.rows[0].is_active) {
-        req.user = result.rows[0];
+      if (user && user.is_active) {
+        req.user = user;
         req.token = token;
       }
     }
   } catch (error) {
-    // Silently fail for optional auth
     logger.debug('Optional auth failed:', error.message);
   }
-  
+
   next();
 });
 

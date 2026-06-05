@@ -51,7 +51,7 @@ const apiLimiter = rateLimit(
 const authLimiter = rateLimit(
   withStore('auth-legacy', {
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Limit each IP to 5 requests per windowMs
+    max: parseLimitEnv('AUTH_LEGACY_IP_MAX', 30, 5, 100), // Per-IP generous for CGNAT
     skipSuccessfulRequests: true,
     message: 'Too many authentication attempts, please try again later',
     standardHeaders: true,
@@ -68,7 +68,7 @@ const authLimiter = rateLimit(
 const otpLimiter = rateLimit(
   withStore('otp', {
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 3, // Limit each IP to 3 OTP requests per hour
+    max: parseLimitEnv('OTP_IP_MAX', 30, 3, 100), // Per-IP generous for CGNAT; per-identifier limiter handles abuse
     skipSuccessfulRequests: false,
     message: 'Too many OTP requests, please try again later',
     standardHeaders: true,
@@ -168,12 +168,12 @@ const cancelScheduleLimiter = rateLimit(
 
 /**
  * POST /api/simple-auth/login — credential stuffing / brute force (per IP).
- * Env: SIMPLE_AUTH_LOGIN_MAX (default 15 per 15 min). Only failed attempts count.
+ * Env: SIMPLE_AUTH_LOGIN_MAX (default 30 per 15 min). Only failed attempts count.
  */
 const simpleAuthLoginLimiter = rateLimit(
   withStore('simple-login', {
     windowMs: 15 * 60 * 1000,
-    max: parseLimitEnv('SIMPLE_AUTH_LOGIN_MAX', 15, 5, 60),
+    max: parseLimitEnv('SIMPLE_AUTH_LOGIN_MAX', 30, 5, 100),
     skipSuccessfulRequests: true,
     standardHeaders: true,
     legacyHeaders: false,
@@ -185,12 +185,12 @@ const simpleAuthLoginLimiter = rateLimit(
 
 /**
  * POST /api/simple-auth/signup — spam account creation (per IP).
- * Env: SIMPLE_AUTH_SIGNUP_MAX (default 10 per hour)
+ * Env: SIMPLE_AUTH_SIGNUP_MAX (default 50 per hour)
  */
 const simpleAuthSignupLimiter = rateLimit(
   withStore('simple-signup', {
     windowMs: 60 * 60 * 1000,
-    max: parseLimitEnv('SIMPLE_AUTH_SIGNUP_MAX', 10, 3, 100),
+    max: parseLimitEnv('SIMPLE_AUTH_SIGNUP_MAX', 50, 3, 200),
     skipSuccessfulRequests: false,
     standardHeaders: true,
     legacyHeaders: false,
