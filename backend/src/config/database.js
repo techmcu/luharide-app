@@ -63,7 +63,7 @@ const readMin = parseIntEnv('PG_POOL_READ_MIN', Math.min(2, poolMin), 1, 80);
 const readMax = parseIntEnv('PG_POOL_READ_MAX', Math.min(poolMax, 40), readMin, 100);
 
 function attachStatementTimeout(poolInstance) {
-  const ms = parseIntEnv('PG_STATEMENT_TIMEOUT_MS', 0, 0, 600000);
+  const ms = parseIntEnv('PG_STATEMENT_TIMEOUT_MS', 30000, 0, 600000);
   if (ms <= 0) return;
   poolInstance.on('connect', (client) => {
     client.query(`SET statement_timeout TO ${ms}`).catch(() => {});
@@ -124,7 +124,6 @@ pool.on('connect', () => {
   }
 });
 
-// Helper function for transactions (always primary)
 const transaction = async (callback) => {
   const client = await pool.connect();
   try {
@@ -133,7 +132,11 @@ const transaction = async (callback) => {
     await client.query('COMMIT');
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackErr) {
+      logger.error('ROLLBACK failed:', rollbackErr.message);
+    }
     throw error;
   } finally {
     client.release();
@@ -142,8 +145,16 @@ const transaction = async (callback) => {
 
 const query = (text, params) => pool.query(text, params);
 
-/** Use for SELECT-heavy paths when replica lag (usually <1s) is acceptable. */
-const queryRead = (text, params) => poolRead.query(text, params);
+/** Use for SELECT-heavy paths when replica lag (usually <1s) is acceptable. Falls back to primary on failure. */
+const queryRead = async (text, params) => {
+  if (poolRead === pool) return pool.query(text, params);
+  try {
+    return await poolRead.query(text, params);
+  } catch (err) {
+    logger.warn('Read replica query failed, falling back to primary:', err.message);
+    return pool.query(text, params);
+  }
+};
 
 module.exports = {
   pool,

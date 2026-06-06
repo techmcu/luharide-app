@@ -16,7 +16,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 
 // Import configurations
-const { pool } = require('./src/config/database');
+const { pool, poolRead } = require('./src/config/database');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
@@ -210,21 +210,30 @@ server.listen(PORT, LISTEN_HOST, () => {
       '⚠️  TRUST_PROXY not set — behind nginx all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in .env'
     );
   }
-  rateNotificationJob.start();
-  rideCleanupJob.start();
-  pendingBookingExpiryJob.start();
-  tripAutoCompleteJob.start();
-  dailyStatsJob.start();
+  // Stagger job startup to avoid pool connection spike
+  setTimeout(() => rideCleanupJob.start(), 1000);
+  setTimeout(() => pendingBookingExpiryJob.start(), 2000);
+  setTimeout(() => tripAutoCompleteJob.start(), 3000);
+  setTimeout(() => rateNotificationJob.start(), 4000);
+  setTimeout(() => dailyStatsJob.start(), 5000);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
   server.close(async () => {
-    await pool.end();
+    try {
+      await Promise.all([
+        pool.end(),
+        poolRead !== pool ? poolRead.end() : Promise.resolve(),
+      ]);
+    } catch (e) {
+      console.error('Pool shutdown error:', e.message);
+    }
     console.log('HTTP server closed');
     process.exit(0);
   });
+  setTimeout(() => { console.error('Forced shutdown after timeout'); process.exit(1); }, 15000);
 });
 
 module.exports = { app, server, io };

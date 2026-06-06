@@ -155,6 +155,11 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
     Title: `Ride Poster — ${posterTitle}`,
     Author: 'LuhaRide',
   }});
+  doc.on('error', (err) => {
+    logger.error('PDF generation error:', err.message);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'PDF generation failed' });
+  });
+  res.on('close', () => { doc.end(); });
   doc.pipe(res);
 
   const W  = doc.page.width;
@@ -418,6 +423,11 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   res.setHeader('Content-Disposition', `inline; filename="${fname}"`);
 
   const doc = new PDFDocument({ size: 'A4', margin: 0, info: { Title: `${posterTitle} - Daily Schedule`, Author: 'LuhaRide' } });
+  doc.on('error', (err) => {
+    logger.error('Combined PDF generation error:', err.message);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'PDF generation failed' });
+  });
+  res.on('close', () => { doc.end(); });
   doc.pipe(res);
 
   const W   = doc.page.width;

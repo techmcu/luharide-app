@@ -293,11 +293,14 @@ async function runStartupTokenCleanupOnly() {
 }
 
 function start() {
-  runStartupTokenCleanupOnly();
+  runStartupTokenCleanupOnly().catch((e) => logger.warn('[Cleanup] startup token cleanup failed:', e.message));
 
   cron.schedule('30 18 * * *', () => {
     logger.info('[Cleanup] Evening IST maintenance starting');
-    runEveningMaintenance();
+    runEveningMaintenance().catch((e) => {
+      logger.error('[Cleanup] evening maintenance failed:', e.message);
+      sendTelegramAlert(formatJobAlert('Evening Cleanup', e.message, e.stack));
+    });
   });
 
   logger.info(

@@ -16,10 +16,12 @@ class RealtimeSocketService {
   final Set<String> _pendingTripJoins = {};
   Timer? _reconnectBackoffTimer;
   bool _isReconnectingManually = false;
+  int _manualReconnectAttempts = 0;
+  static const _maxManualReconnectAttempts = 10;
 
-  final _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
-  final _notifications = StreamController<Map<String, dynamic>>.broadcast();
-  final _driverLocation = StreamController<Map<String, dynamic>>.broadcast();
+  StreamController<Map<String, dynamic>> _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
+  StreamController<Map<String, dynamic>> _notifications = StreamController<Map<String, dynamic>>.broadcast();
+  StreamController<Map<String, dynamic>> _driverLocation = StreamController<Map<String, dynamic>>.broadcast();
 
   /// Booking / seat changes for a trip (payload includes `tripId`).
   Stream<Map<String, dynamic>> get tripUpdatedStream => _tripUpdated.stream;
@@ -57,6 +59,7 @@ class RealtimeSocketService {
 
     _socket!.on('connect', (_) {
       _isReconnectingManually = false;
+      _manualReconnectAttempts = 0;
       if (kDebugMode) {
         // ignore: avoid_print
         print('🔌 Socket.IO connected');
@@ -112,9 +115,12 @@ class RealtimeSocketService {
 
   void _scheduleManualReconnect() {
     if (_isReconnectingManually) return;
+    if (_manualReconnectAttempts >= _maxManualReconnectAttempts) return;
     _isReconnectingManually = true;
+    _manualReconnectAttempts++;
     _reconnectBackoffTimer?.cancel();
-    _reconnectBackoffTimer = Timer(const Duration(seconds: 4), () async {
+    final delay = Duration(seconds: 4 * _manualReconnectAttempts.clamp(1, 8));
+    _reconnectBackoffTimer = Timer(delay, () async {
       try {
         await connect();
       } catch (_) {
@@ -166,10 +172,18 @@ class RealtimeSocketService {
     _reconnectBackoffTimer?.cancel();
     _reconnectBackoffTimer = null;
     _isReconnectingManually = false;
+    _manualReconnectAttempts = 0;
     try {
       _socket?.disconnect();
       _socket?.dispose();
     } catch (_) {}
     _socket = null;
+
+    _tripUpdated.close();
+    _notifications.close();
+    _driverLocation.close();
+    _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
+    _notifications = StreamController<Map<String, dynamic>>.broadcast();
+    _driverLocation = StreamController<Map<String, dynamic>>.broadcast();
   }
 }

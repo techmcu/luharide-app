@@ -50,6 +50,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   /// null = not booked, 'pending' = waiting, 'confirmed' = confirmed
   String? _userBookingStatus;
   bool _isNavigatingToBooking = false;
+  bool _isLoadingDetails = false;
 
   StreamSubscription<Map<String, dynamic>>? _tripSocketSub;
 
@@ -81,7 +82,10 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   }
 
   Future<void> _loadTripDetails() async {
-    if (widget.initialTrip == null) {
+    if (_isLoadingDetails) return;
+    _isLoadingDetails = true;
+
+    if (widget.initialTrip == null && mounted) {
       setState(() => _isLoading = true);
     }
 
@@ -97,7 +101,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           _pendingSeats = List<int>.from(result['pending_seats'] ?? []);
           _userBookingStatus = result['user_booking_status'] as String?;
         }
-        // Never clear _trip when we have initialTrip - API fail = keep showing search result
         if (_trip == null && widget.initialTrip != null) {
           _trip = widget.initialTrip;
         }
@@ -110,6 +113,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           _trip = widget.initialTrip;
         }
       });
+    } finally {
+      _isLoadingDetails = false;
     }
   }
 
@@ -445,7 +450,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                           CircleAvatar(
                             backgroundColor: Colors.green,
                             child: Text(
-                              _displayTrip!.driver!.name[0].toUpperCase(),
+                              _displayTrip!.driver!.name.isNotEmpty
+                                  ? _displayTrip!.driver!.name[0].toUpperCase()
+                                  : 'D',
                               style: const TextStyle(color: Colors.white),
                             ),
                           ),

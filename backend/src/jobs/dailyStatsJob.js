@@ -68,10 +68,12 @@ async function aggregateYesterday() {
 }
 
 function start() {
-  // Run at 00:05 IST (18:35 UTC) — just after midnight IST
   cron.schedule('35 18 * * *', () => {
     logger.info('[DailyStats] daily aggregation starting');
-    aggregateYesterday();
+    aggregateYesterday().catch((e) => {
+      logger.error('[DailyStats] aggregation failed:', e.message);
+      sendTelegramAlert(formatJobAlert('Daily Stats', e.message, e.stack));
+    });
   });
 
   logger.info(`[DailyStats] scheduled 18:35 UTC (00:05 IST). Retention: ${RETENTION_DAYS} days.`);
