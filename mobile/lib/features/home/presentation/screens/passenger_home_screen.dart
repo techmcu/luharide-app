@@ -9,6 +9,7 @@ import '../../../../widgets/brand_app_bar_title.dart';
 import '../../../../core/brand_config.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../models/trip_model.dart';
+import '../../../../utils/phone_call_helper.dart';
 import '../../../../utils/trip_self_book_guard.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/union_service.dart';
@@ -49,6 +50,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   // Location suggestions (debounced) for find-ride search bar
   List<String> _fromSuggestions = [];
   List<String> _toSuggestions = [];
+  Timer? _debounceSearch;
   Timer? _debounceFrom;
   Timer? _debounceTo;
   Timer? _fromAutoDismiss;
@@ -125,6 +127,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   @override
   void dispose() {
+    _debounceSearch?.cancel();
     _debounceFrom?.cancel();
     _debounceTo?.cancel();
     _fromAutoDismiss?.cancel();
@@ -188,6 +191,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final n = name?.trim();
     if (n == null || n.isEmpty) return 'User';
     return n.split(' ').first;
+  }
+
+  void _debouncedSearch() {
+    _debounceSearch?.cancel();
+    _debounceSearch = Timer(const Duration(milliseconds: 300), _searchTrips);
   }
 
   Future<void> _searchTrips() async {
@@ -544,7 +552,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         width: double.infinity,
                         height: 48,
                         child: ElevatedButton(
-                          onPressed: _isSearching ? null : _searchTrips,
+                          onPressed: _isSearching ? null : _debouncedSearch,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2563EB),
                             disabledBackgroundColor: const Color(0xFF93C5FD),
@@ -1170,8 +1178,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     if (driverId != null && unionId != null) {
       UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'call');
     }
-    final uri = Uri(scheme: 'tel', path: phone.trim());
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    await launchPhoneCall(context, phone);
   }
 
   Future<void> _launchWhatsApp(String raw, {String? driverId, String? unionId}) async {

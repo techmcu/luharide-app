@@ -799,6 +799,43 @@ const getMyTrips = asyncHandler(async (req, res) => {
  * Get location suggestions
  * GET /api/trips/locations?q=Deh
  */
+const UTTARAKHAND_LOCATIONS = [
+  // District HQs
+  'Dehradun', 'Haridwar', 'Rishikesh', 'Mussoorie', 'Nainital', 'Almora',
+  'Haldwani', 'Roorkee', 'Rudrapur', 'Kashipur', 'Pithoragarh', 'Chamoli',
+  'Uttarkashi', 'Tehri Garhwal', 'Tehri', 'Pauri Garhwal', 'Pauri',
+  'Bageshwar', 'Champawat', 'Udham Singh Nagar',
+  // Major towns & CDBlocks
+  'Purola', 'Mori', 'Barkot', 'Naugaon', 'Dunda', 'Chinyalisaur',
+  'Rajgarhi', 'Jaunpur', 'Tyuni',
+  'Chakrata', 'Kalsi', 'Vikasnagar', 'Sahaspur', 'Raipur', 'Doiwala',
+  'Herbertpur', 'Laksar', 'Bhagwanpur', 'Narsan', 'Bahadrabad',
+  'Roorkee', 'Jhabrera', 'Landhaura',
+  'Kotdwar', 'Lansdowne', 'Dugadda', 'Yamkeshwar', 'Pokhra', 'Bironkhal',
+  'Ekeshwar', 'Rikhnikhal', 'Satpuli',
+  'Devprayag', 'Narendranagar', 'Pratapnagar', 'Jakhnidhar', 'Ghansali',
+  'Chamba', 'Dhanaulti', 'New Tehri',
+  'Joshimath', 'Gopeshwar', 'Karnaprayag', 'Tharali', 'Gairsain',
+  'Dewal', 'Narayanbagar', 'Pokhari',
+  'Rudraprayag', 'Ukhimath', 'Augustmuni', 'Jakholi',
+  'Srinagar Garhwal', 'Srinagar',
+  'Kedarnath', 'Badrinath', 'Gangotri', 'Yamunotri',
+  'Auli', 'Chopta', 'Tungnath', 'Hemkund Sahib',
+  'Ranikhet', 'Dwarahat', 'Bhikiyasain', 'Chaukhutia', 'Someshwar',
+  'Hawalbagh', 'Takula', 'Lamgara', 'Sult', 'Dhari',
+  'Bhowali', 'Bhimtal', 'Ramgarh', 'Mukteshwar', 'Betalghat', 'Okhalkanda',
+  'Haldwani', 'Lalkuan', 'Ramnagar', 'Dhari',
+  'Khatima', 'Sitarganj', 'Bazpur', 'Gadarpur', 'Jaspur',
+  'Tanakpur', 'Banbasa', 'Lohaghat', 'Pati', 'Barakot',
+  'Berinag', 'Gangolihat', 'Dharchula', 'Munsiyari', 'Kapkot',
+  'Kanda', 'Garur',
+  'Haridwar', 'Manglaur', 'Piran Kaliyar',
+  'Kathgodam', 'Pantnagar', 'Kichha', 'Kelakhera',
+  'Rishikesh', 'Muni Ki Reti', 'Tapovan',
+  'Dehradun Clock Tower', 'Rajpur Road', 'ISBT Dehradun',
+  'Jolly Grant Airport', 'Pantnagar Airport',
+];
+
 const getLocationSuggestions = asyncHandler(async (req, res) => {
   const { q } = req.query;
 
@@ -811,32 +848,26 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
        SELECT from_location AS location FROM trips WHERE LOWER(from_location) LIKE LOWER($1)
        UNION
        SELECT to_location AS location FROM trips WHERE LOWER(to_location) LIKE LOWER($1)
+       UNION
+       SELECT from_location AS location FROM union_schedules WHERE LOWER(from_location) LIKE LOWER($1)
+       UNION
+       SELECT to_location AS location FROM union_schedules WHERE LOWER(to_location) LIKE LOWER($1)
      ) AS locations
      ORDER BY location
-     LIMIT 10`,
+     LIMIT 15`,
     [`%${q}%`]
   );
 
-  // Add some default Uttarakhand locations if no results
-  const defaultLocations = [
-    'Dehradun',
-    'Haridwar',
-    'Rishikesh',
-    'Mussoorie',
-    'Nainital',
-    'Almora',
-    'Haldwani',
-    'Roorkee',
-    'Rudrapur',
-    'Kashipur'
-  ].filter(loc => loc.toLowerCase().includes(q.toLowerCase()));
+  const dbLocations = result.rows.map(row => row.location);
+  const matchingDefaults = UTTARAKHAND_LOCATIONS
+    .filter(loc => loc.toLowerCase().includes(q.toLowerCase()))
+    .filter(loc => !dbLocations.some(db => db.toLowerCase() === loc.toLowerCase()));
 
-  const suggestions = result.rows.length > 0 
-    ? result.rows.map(row => row.location)
-    : defaultLocations;
+  const merged = [...dbLocations, ...matchingDefaults];
+  const unique = [...new Map(merged.map(l => [l.toLowerCase(), l])).values()];
 
   ApiResponse.success(
-    { suggestions },
+    { suggestions: unique.slice(0, 15) },
     'Location suggestions'
   ).send(res);
 });

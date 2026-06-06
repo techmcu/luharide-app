@@ -119,8 +119,11 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
-  if (statusCode >= 500) {
-    sendTelegramAlert(formatErrorAlert(statusCode, message, req.originalUrl, req.method, err.stack));
+  if (statusCode >= 500 || statusCode === 503) {
+    sendTelegramAlert(formatErrorAlert(statusCode, message, req.originalUrl, req.method, err.stack, {
+      userId: req.user?.id,
+      ip: req.ip,
+    }));
   }
   
   const isProd = process.env.NODE_ENV === 'production';

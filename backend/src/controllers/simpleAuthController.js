@@ -18,7 +18,7 @@ const signup = asyncHandler(async (req, res) => {
   const isAppAdmin = adminEmail && emailNorm === adminEmail;
   const effectiveRole = isAppAdmin ? 'union_admin' : role;
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, 12);
 
   let user;
   try {
@@ -252,7 +252,7 @@ const changePassword = asyncHandler(async (req, res) => {
     }
   }
 
-  const newHash = await bcrypt.hash(newPassword, 10);
+  const newHash = await bcrypt.hash(newPassword, 12);
   await pool.query(
     'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
     [newHash, userId]
@@ -345,7 +345,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   }
 
   const userId = result.rows[0].id;
-  const newHash = await bcrypt.hash(newPassword, 10);
+  const newHash = await bcrypt.hash(newPassword, 12);
 
   await pool.query(
     'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',

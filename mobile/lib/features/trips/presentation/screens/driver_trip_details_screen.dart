@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/review_service.dart';
 import '../../../../utils/launch_whatsapp.dart';
+import '../../../../utils/phone_call_helper.dart';
 import '../../../profile/presentation/screens/user_reviews_screen.dart';
 
 class DriverTripDetailsScreen extends StatefulWidget {
@@ -704,9 +704,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
               children: [
                 OutlinedButton.icon(
                   onPressed: () {
-                    final digits = booking.phone.replaceAll(RegExp(r'[^\d+]'), '');
-                    final uri = Uri(scheme: 'tel', path: digits);
-                    launchUrl(uri);
+                    launchPhoneCall(context, booking.phone);
                   },
                   icon: const Icon(Icons.call, size: 18),
                   label: const Text('Call'),

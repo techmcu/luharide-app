@@ -18,6 +18,7 @@ const {
 } = require('./pgAdvisoryTryLock');
 const { cleanupExpiredTokens } = require('../services/tokenService');
 const { cleanupExpiredOTPs } = require('../services/otpService');
+const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
 
 function logPurge(label, name, count) {
   if (count > 0) logger.info(`${label} purged ${count} ${name}`);
@@ -247,6 +248,7 @@ async function runEveningMaintenance() {
   } catch (err) {
     if (err.code !== '42P01') {
       logger.warn(`${label} Error: ${err.message}`);
+      sendTelegramAlert(formatJobAlert('Evening Cleanup', err.message, err.stack));
     }
   }
 

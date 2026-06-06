@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -10,7 +12,9 @@ import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/union_service.dart';
+import '../../../../utils/phone_call_helper.dart';
 import '../../../../utils/trip_self_book_guard.dart';
+import '../../../../widgets/shimmer_trip_card.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../auth/presentation/screens/simple_signup_screen.dart';
 import '../../../trips/presentation/screens/trip_details_screen.dart';
@@ -34,9 +38,11 @@ class _LandingScreenState extends State<LandingScreen> {
   List<dynamic> _unionRides = [];
   bool _isSearching = false;
   bool _hasSearched = false;
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _fromController.dispose();
     _toController.dispose();
     _scrollController.dispose();
@@ -57,6 +63,11 @@ class _LandingScreenState extends State<LandingScreen> {
       duration: Duration(milliseconds: durationMs),
       curve: Curves.easeInOutCubic,
     );
+  }
+
+  void _debouncedSearch() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), _searchTrips);
   }
 
   Future<void> _searchTrips() async {
@@ -301,6 +312,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               icon: Icons.trip_origin_rounded,
                               iconColor: Colors.green[400]!,
                               tripService: _tripService,
+                              textInputAction: TextInputAction.next,
                             ),
                             const SizedBox(height: 14),
                             _LocationField(
@@ -309,6 +321,8 @@ class _LandingScreenState extends State<LandingScreen> {
                               icon: Icons.location_on_rounded,
                               iconColor: Colors.red[300]!,
                               tripService: _tripService,
+                              textInputAction: TextInputAction.search,
+                              onSubmitted: (_) => _debouncedSearch(),
                             ),
                             Divider(height: 1, color: Colors.grey[100], thickness: 1),
                             InkWell(
@@ -357,7 +371,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 ],
                               ),
                               child: ElevatedButton(
-                                onPressed: _isSearching ? null : _searchTrips,
+                                onPressed: _isSearching ? null : _debouncedSearch,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
@@ -412,7 +426,9 @@ class _LandingScreenState extends State<LandingScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      if (_searchResults.isEmpty && _unionRides.isEmpty)
+                      if (_isSearching)
+                        const ShimmerTripCards(count: 3)
+                      else if (_searchResults.isEmpty && _unionRides.isEmpty)
                         Center(
                           child: Padding(
                             padding: const EdgeInsets.all(32),
@@ -761,8 +777,7 @@ class _LandingScreenState extends State<LandingScreen> {
     if (driverId != null && unionId != null) {
       UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'call');
     }
-    final uri = Uri(scheme: 'tel', path: phone.trim());
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    await launchPhoneCall(context, phone);
   }
 
   Future<void> _launchWhatsApp(String raw, {String? driverId, String? unionId}) async {
@@ -798,14 +813,14 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 }
 
-/// Plain location input — no suggestions, no autocomplete, no TypeAhead.
 class _LocationField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final Color iconColor;
-  // tripService kept in signature for backward compatibility but not used for suggestions
   final TripService? tripService;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
 
   const _LocationField({
     required this.controller,
@@ -813,13 +828,47 @@ class _LocationField extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     this.tripService,
+    this.textInputAction,
+    this.onSubmitted,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    if (tripService == null) {
+      return _buildTextField(controller, null);
+    }
+    return TypeAheadField<String>(
       controller: controller,
+      debounceDuration: const Duration(milliseconds: 300),
+      hideOnEmpty: true,
+      hideOnLoading: true,
+      hideOnError: true,
+      constraints: const BoxConstraints(maxHeight: 200),
+      decorationBuilder: (context, child) => Material(
+        type: MaterialType.card,
+        elevation: 4,
+        borderRadius: BorderRadius.circular(12),
+        child: ClipRRect(borderRadius: BorderRadius.circular(12), child: child),
+      ),
+      builder: (context, controller, focusNode) => _buildTextField(controller, focusNode),
+      suggestionsCallback: (search) => tripService!.getLocationSuggestions(search),
+      itemBuilder: (context, suggestion) => ListTile(
+        leading: Icon(Icons.location_on_outlined, color: Colors.grey[400], size: 20),
+        title: Text(suggestion, style: const TextStyle(fontSize: 14)),
+        dense: true,
+        visualDensity: VisualDensity.compact,
+      ),
+      onSelected: (suggestion) => controller.text = suggestion,
+    );
+  }
+
+  Widget _buildTextField(TextEditingController ctrl, FocusNode? focusNode) {
+    return TextField(
+      controller: ctrl,
+      focusNode: focusNode,
       textCapitalization: TextCapitalization.words,
+      textInputAction: textInputAction,
+      onSubmitted: onSubmitted,
       enableSuggestions: false,
       autocorrect: false,
       autofillHints: const [],

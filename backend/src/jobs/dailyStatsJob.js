@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
+const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
 const { withPgAdvisoryTryLock, JOB_NS } = require('./pgAdvisoryTryLock');
 
 const JOB_DAILY_STATS = 4;
@@ -62,6 +63,7 @@ async function aggregateYesterday() {
       return;
     }
     logger.error('[DailyStats] failed:', err.message);
+    sendTelegramAlert(formatJobAlert('Daily Stats', err.message, err.stack));
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/constants/input_limits.dart';
 import '../../../../services/union_service.dart';
+import '../../../../utils/phone_call_helper.dart';
 import 'union_create_rides_screen.dart';
 import 'union_manage_drivers_screen.dart';
 import 'union_routes_screen.dart';
@@ -168,8 +169,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         contactType: 'call',
       );
     }
-    final uri = Uri.parse('tel:$phone');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+    await launchPhoneCall(context, phone);
   }
 
   Future<void> _whatsappDriver(Map<String, dynamic> driver) async {

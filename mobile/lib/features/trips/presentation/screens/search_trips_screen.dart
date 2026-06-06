@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,7 +11,9 @@ import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/union_service.dart';
+import '../../../../utils/phone_call_helper.dart';
 import '../../../../utils/trip_self_book_guard.dart';
+import '../../../../widgets/shimmer_trip_card.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../../widgets/brand_app_bar_title.dart';
 import 'trip_details_screen.dart';
@@ -23,12 +27,11 @@ const _kBg     = Color(0xFFF8FAFC);
 const _kCard   = Colors.white;
 
 // ── Utility helpers (pure functions – no state) ─────────────────────────────
-Future<void> _launchPhone(String phone, {String? driverId, String? unionId}) async {
+Future<void> _launchPhone(BuildContext context, String phone, {String? driverId, String? unionId}) async {
   if (driverId != null && unionId != null) {
     UnionService().logContact(driverId: driverId, unionId: unionId, contactType: 'call');
   }
-  final uri = Uri(scheme: 'tel', path: phone.trim());
-  if (await canLaunchUrl(uri)) await launchUrl(uri);
+  await launchPhoneCall(context, phone);
 }
 
 Future<void> _launchWhatsApp(String raw, {String? driverId, String? unionId}) async {
@@ -435,7 +438,7 @@ class _ContactButtonsWithLog extends StatelessWidget {
               color: _kGreen,
               onTap: () => _guardedContact(
                 context,
-                () => _launchPhone(phone, driverId: unionDriverId, unionId: unionId),
+                () => _launchPhone(context, phone, driverId: unionDriverId, unionId: unionId),
               ),
             ),
           ),
@@ -523,9 +526,11 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   bool _loading  = false;
   bool _searched = false;
   CancelToken? _searchCancelToken;
+  Timer? _debounce;
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchCancelToken?.cancel('disposed');
     _fromCtrl.dispose();
     _toCtrl.dispose();
@@ -545,6 +550,12 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       ),
     );
     if (picked != null) setState(() => _date = picked);
+  }
+
+  // ── Debounced search (300ms) to prevent rapid-fire API calls ──────────
+  void _debouncedSearch() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 300), _search);
   }
 
   // ── Search ───────────────────────────────────────────────────────────────
@@ -638,6 +649,8 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
               hint: t.t('ride.from.placeholder'),
               icon: Icons.trip_origin,
               iconColor: _kGreen,
+              tripService: _tripService,
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 10),
             // To
@@ -647,6 +660,9 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
               hint: t.t('ride.to.placeholder'),
               icon: Icons.location_on,
               iconColor: _kRed,
+              tripService: _tripService,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _debouncedSearch(),
             ),
             const SizedBox(height: 10),
             // Date row
@@ -658,7 +674,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
                 SizedBox(
                   height: 52,
                   child: ElevatedButton.icon(
-                    onPressed: _loading ? null : _search,
+                    onPressed: _loading ? null : _debouncedSearch,
                     icon: _loading
                         ? const SizedBox(
                             width: 16, height: 16,
@@ -730,10 +746,10 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     if (_loading) {
       return CustomScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        slivers: const [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: Center(child: CircularProgressIndicator(color: _kBlue)),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            sliver: SliverToBoxAdapter(child: ShimmerTripCards(count: 3)),
           ),
         ],
       );
@@ -809,9 +825,6 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   }
 }
 
-// ── Location input field (extracted widget) ───────────────────────────────────
-// enableSuggestions: false  → disables keyboard predictive text
-// autofillHints: []         → disables browser/OS autofill dropdown
 class _LocationField extends StatelessWidget {
   const _LocationField({
     required this.controller,
@@ -819,38 +832,69 @@ class _LocationField extends StatelessWidget {
     required this.hint,
     required this.icon,
     required this.iconColor,
+    required this.tripService,
+    this.textInputAction,
+    this.onSubmitted,
   });
   final TextEditingController controller;
-  final String   label;
-  final String   hint;
+  final String label;
+  final String hint;
   final IconData icon;
-  final Color    iconColor;
+  final Color iconColor;
+  final TripService tripService;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
     final kb = MediaQuery.viewInsetsOf(context).bottom;
-    return TextField(
+    return TypeAheadField<String>(
       controller: controller,
-      textCapitalization: TextCapitalization.words,
-      enableSuggestions: false,
-      autocorrect: false,
-      autofillHints: const [],
-      maxLength: 100,
-      buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
-      scrollPadding: EdgeInsets.only(bottom: 24 + kb),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        prefixIcon: Icon(icon, color: iconColor, size: 20),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBlue, width: 1.5)),
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        labelStyle: TextStyle(color: Colors.grey[600]),
-        isDense: true,
+      debounceDuration: const Duration(milliseconds: 300),
+      hideOnEmpty: true,
+      hideOnLoading: true,
+      hideOnError: true,
+      constraints: const BoxConstraints(maxHeight: 200),
+      decorationBuilder: (context, child) => Material(
+        type: MaterialType.card,
+        elevation: 4,
+        borderRadius: BorderRadius.circular(12),
+        child: ClipRRect(borderRadius: BorderRadius.circular(12), child: child),
       ),
+      builder: (context, controller, focusNode) => TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: textInputAction,
+        onSubmitted: onSubmitted,
+        enableSuggestions: false,
+        autocorrect: false,
+        autofillHints: const [],
+        maxLength: 100,
+        buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+        scrollPadding: EdgeInsets.only(bottom: 24 + kb),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          prefixIcon: Icon(icon, color: iconColor, size: 20),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey[300]!)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _kBlue, width: 1.5)),
+          filled: true,
+          fillColor: const Color(0xFFF8FAFC),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          labelStyle: TextStyle(color: Colors.grey[600]),
+          isDense: true,
+        ),
+      ),
+      suggestionsCallback: (search) => tripService.getLocationSuggestions(search),
+      itemBuilder: (context, suggestion) => ListTile(
+        leading: Icon(Icons.location_on_outlined, color: Colors.grey[400], size: 20),
+        title: Text(suggestion, style: const TextStyle(fontSize: 14)),
+        dense: true,
+        visualDensity: VisualDensity.compact,
+      ),
+      onSelected: (suggestion) => controller.text = suggestion,
     );
   }
 }

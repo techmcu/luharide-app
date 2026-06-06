@@ -147,7 +147,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     }
     const phoneVal = byPhone ? value : null;
     const emailVal = byPhone ? null : value;
-    const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, 10) : null;
+    const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, 12) : null;
     hasPassword = !!passwordHash;
 
     try {

@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
+const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
 const { emitTripUpdated } = require('../socket/realtimeEmitter');
 const {
   withPgAdvisoryTryLock,
@@ -33,6 +34,7 @@ async function run() {
   } catch (err) {
     if (err.code === '42P01') return;
     logger.warn('Trip auto-complete job error:', err.message);
+    sendTelegramAlert(formatJobAlert('Trip Auto-Complete', err.message, err.stack));
   }
 }
 

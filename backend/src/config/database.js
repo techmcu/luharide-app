@@ -94,13 +94,16 @@ if (readHost && readHost !== dbHost) {
 }
 
 const logger = require('./logger');
+const { sendTelegramAlert, formatInfraAlert } = require('../utils/telegramAlert');
 
 pool.on('error', (err) => {
   logger.error({ msg: 'Unexpected idle client error on primary pool', err: err.message });
+  sendTelegramAlert(formatInfraAlert('PostgreSQL (primary)', err.message, err.stack));
 });
 if (poolRead !== pool) {
   poolRead.on('error', (err) => {
     logger.error({ msg: 'Unexpected idle client error on read pool', err: err.message });
+    sendTelegramAlert(formatInfraAlert('PostgreSQL (read replica)', err.message, err.stack));
   });
 }
 

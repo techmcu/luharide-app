@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
+const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 const {
   withPgAdvisoryTryLock,
@@ -63,6 +64,7 @@ async function run() {
       return;
     }
     logger.warn('Rate notification job error:', err.message);
+    sendTelegramAlert(formatJobAlert('Rate Notifications', err.message, err.stack));
   }
 }
 

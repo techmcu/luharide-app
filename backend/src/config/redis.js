@@ -3,6 +3,7 @@
  * Enable: REDIS_ENABLED=true, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD (optional)
  */
 const logger = require('./logger');
+const { sendTelegramAlert, formatInfraAlert } = require('../utils/telegramAlert');
 
 function isRedisEnabled() {
   const v = process.env.REDIS_ENABLED;
@@ -40,6 +41,7 @@ function getRedisClient() {
     mainClient = new Redis(buildRedisOptions());
     mainClient.on('error', (err) => {
       logger.warn({ msg: 'Redis client error', error: err.message });
+      sendTelegramAlert(formatInfraAlert('Redis', err.message));
     });
     mainClient.on('connect', () => {
       logger.info('Redis connected (main client)');

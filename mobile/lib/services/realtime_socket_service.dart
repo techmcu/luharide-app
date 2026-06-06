@@ -46,7 +46,7 @@ class RealtimeSocketService {
     _socket = socket_io.io(
       base,
       socket_io.OptionBuilder()
-          .setTransports(['websocket'])
+          .setTransports(['websocket', 'polling'])
           .setAuth(<String, dynamic>{'token': token})
           .enableReconnection()
           .setReconnectionAttempts(12)

@@ -1,5 +1,6 @@
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
+const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
 const { emitNotificationToUser, emitTripUpdated } = require('../socket/realtimeEmitter');
 const {
   withPgAdvisoryTryLock,
@@ -79,6 +80,7 @@ async function run() {
   } catch (err) {
     if (err.code === '42P01') return;
     logger.warn('Pending booking expiry job error:', err.message);
+    sendTelegramAlert(formatJobAlert('Pending Booking Expiry', err.message, err.stack));
   }
 }
 

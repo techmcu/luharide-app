@@ -7,7 +7,7 @@ const ApiError = require('../utils/ApiError');
 const { config } = require('../config/env');
 const JWT_SECRET = config.jwt.secret;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || JWT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
 
 function hashRefreshToken(raw) {

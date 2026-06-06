@@ -29,7 +29,7 @@ const config = {
   },
   jwt: {
     secret: getEnv('JWT_SECRET', ''),
-    expiresIn: getEnv('JWT_EXPIRES_IN', '7d'),
+    expiresIn: getEnv('JWT_EXPIRES_IN', '1h'),
   },
   pagination: {
     defaultPageSize: 20,
@@ -74,6 +74,13 @@ function validateConfig() {
     console.warn(
       '⚠️  REDIS_ENABLED is not set in production. Rate limits are per-process (not shared across PM2 instances). ' +
       'Set REDIS_ENABLED=true, REDIS_HOST, REDIS_PORT for production-grade rate limiting.'
+    );
+  }
+
+  if (!process.env.OTP_HMAC_KEY) {
+    console.warn(
+      '⚠️  OTP_HMAC_KEY not set — falling back to JWT_SECRET for OTP hashing. ' +
+      'Set a separate OTP_HMAC_KEY for better key isolation.'
     );
   }
 

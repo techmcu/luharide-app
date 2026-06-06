@@ -41,7 +41,7 @@ function sendTelegramAlert(text) {
   req.end();
 }
 
-function formatErrorAlert(statusCode, message, url, method, stack) {
+function formatErrorAlert(statusCode, message, url, method, stack, extra = {}) {
   const svc = process.env.LUHA_SERVICE_NAME || 'luharide-api';
   const env = process.env.NODE_ENV || 'development';
   const lines = [
@@ -51,10 +51,38 @@ function formatErrorAlert(statusCode, message, url, method, stack) {
     `<b>Route:</b> ${method} ${url}`,
     `<b>Message:</b> ${message}`,
   ];
+  if (extra.userId) lines.push(`<b>User:</b> ${extra.userId}`);
+  if (extra.ip) lines.push(`<b>IP:</b> ${extra.ip}`);
   if (stack) {
     const short = stack.split('\n').slice(0, 4).join('\n');
     lines.push(`<pre>${short}</pre>`);
   }
+  return lines.join('\n');
+}
+
+function formatInfraAlert(component, message, details) {
+  const svc = process.env.LUHA_SERVICE_NAME || 'luharide-api';
+  const env = process.env.NODE_ENV || 'development';
+  const lines = [
+    `<b>🔴 ${svc} Infra</b>`,
+    `<b>Env:</b> ${env}`,
+    `<b>Component:</b> ${component}`,
+    `<b>Message:</b> ${message}`,
+  ];
+  if (details) lines.push(`<pre>${String(details).slice(0, 500)}</pre>`);
+  return lines.join('\n');
+}
+
+function formatJobAlert(jobName, message, details) {
+  const svc = process.env.LUHA_SERVICE_NAME || 'luharide-api';
+  const env = process.env.NODE_ENV || 'development';
+  const lines = [
+    `<b>⚙️ ${svc} Job Failed</b>`,
+    `<b>Env:</b> ${env}`,
+    `<b>Job:</b> ${jobName}`,
+    `<b>Error:</b> ${message}`,
+  ];
+  if (details) lines.push(`<pre>${String(details).slice(0, 500)}</pre>`);
   return lines.join('\n');
 }
 
@@ -76,4 +104,4 @@ function formatCrashAlert(type, error) {
   return lines.join('\n');
 }
 
-module.exports = { sendTelegramAlert, formatErrorAlert, formatCrashAlert };
+module.exports = { sendTelegramAlert, formatErrorAlert, formatCrashAlert, formatInfraAlert, formatJobAlert };

@@ -6,6 +6,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../providers/app_language_provider.dart';
 import '../../../../services/trip_service.dart';
+import '../../../../utils/phone_call_helper.dart';
 
 class PassengerMyRidesScreen extends StatefulWidget {
   const PassengerMyRidesScreen({super.key});
@@ -379,11 +380,8 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     try {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        final telUri = Uri.parse('tel:$numberToUse');
-        if (await canLaunchUrl(telUri)) {
-          await launchUrl(telUri, mode: LaunchMode.externalApplication);
-        }
+      } else if (mounted) {
+        await launchPhoneCall(context, numberToUse);
       }
     } catch (_) {
       if (!mounted) return;
