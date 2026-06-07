@@ -290,12 +290,12 @@ class _TripCard extends StatelessWidget {
                     color: _kGreen,
                     onTap: () => _guardedContact(context, () => _launchPhone(context, trip.driver!.phone!)),
                   ),
-                if (trip.driver != null && (trip.driver!.contactNumber ?? '').isNotEmpty) ...[
+                if (trip.driver != null && (trip.driver!.whatsappNumber ?? '').trim().isNotEmpty) ...[
                   const SizedBox(width: 8),
                   _TripContactBtn(
                     icon: Icons.chat_rounded,
                     color: const Color(0xFF25D366),
-                    onTap: () => _guardedContact(context, () => _launchWhatsApp(trip.driver!.contactNumber!)),
+                    onTap: () => _guardedContact(context, () => _launchWhatsApp(trip.driver!.whatsappNumber!)),
                   ),
                 ],
                 if (trip.driver != null && (trip.driver!.phone ?? '').isNotEmpty)
@@ -466,28 +466,25 @@ class _ContactButtonsWithLog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasPhone = phone.trim().isNotEmpty;
-    final effectiveWa = whatsapp.trim().isNotEmpty ? whatsapp : phone;
-    final hasWa = effectiveWa.trim().isNotEmpty;
+    final hasWa = whatsapp.trim().isNotEmpty;
 
-    if (!hasPhone && !hasWa) return const SizedBox.shrink();
+    if (!hasPhone) return const SizedBox.shrink();
 
     return Row(
       children: [
-        if (hasPhone) ...[
-          Expanded(
-            child: _IconBtn(
-              icon: Icons.call_rounded,
-              label: 'Call',
-              color: _kGreen,
-              onTap: () => _guardedContact(
-                context,
-                () => _launchPhone(context, phone, driverId: unionDriverId, unionId: unionId),
-              ),
+        Expanded(
+          child: _IconBtn(
+            icon: Icons.call_rounded,
+            label: 'Call',
+            color: _kGreen,
+            onTap: () => _guardedContact(
+              context,
+              () => _launchPhone(context, phone, driverId: unionDriverId, unionId: unionId),
             ),
           ),
+        ),
+        if (hasWa) ...[
           const SizedBox(width: 8),
-        ],
-        if (hasWa)
           Expanded(
             child: _IconBtn(
               icon: Icons.chat_rounded,
@@ -495,10 +492,11 @@ class _ContactButtonsWithLog extends StatelessWidget {
               color: _kWa,
               onTap: () => _guardedContact(
                 context,
-                () => _launchWhatsApp(effectiveWa, driverId: unionDriverId, unionId: unionId),
+                () => _launchWhatsApp(whatsapp, driverId: unionDriverId, unionId: unionId),
               ),
             ),
           ),
+        ],
       ],
     );
   }

@@ -670,7 +670,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final vehicleNo   = (ride['vehicle_number'] ?? '').toString();
     final phone       = (ride['phone']          ?? '').toString();
     final whatsapp    = (ride['whatsapp_number']?? '').toString();
-    final effectiveWa = whatsapp.isNotEmpty ? whatsapp : phone;
     final unionDriverId = ride['union_driver_id']?.toString();
     final unionId       = ride['union_id']?.toString();
 
@@ -737,15 +736,14 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   if (driverName.isNotEmpty) _metaChip(Icons.person_rounded, driverName),
                   if (vehicleNo.isNotEmpty)  _metaChip(Icons.directions_car_rounded, vehicleNo),
                 ]),
-                if (phone.isNotEmpty || effectiveWa.isNotEmpty) ...[
+                if (phone.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Row(children: [
-                    if (phone.isNotEmpty) ...[
-                      Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(phone, driverId: unionDriverId, unionId: unionId))),
+                    Expanded(child: _contactBtn(Icons.call_rounded, 'Call', const Color(0xFF16A34A), () => _launchPhone(phone, driverId: unionDriverId, unionId: unionId))),
+                    if (whatsapp.isNotEmpty) ...[
                       const SizedBox(width: 8),
+                      Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(whatsapp, driverId: unionDriverId, unionId: unionId))),
                     ],
-                    if (effectiveWa.isNotEmpty)
-                      Expanded(child: _contactBtn(Icons.chat_rounded, 'WhatsApp', const Color(0xFF25D366), () => _launchWhatsApp(effectiveWa, driverId: unionDriverId, unionId: unionId))),
                   ]),
                 ],
               ],
@@ -988,12 +986,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                     const Color(0xFF16A34A),
                     () => _launchPhone(trip.driver!.phone!),
                   ),
-                if (trip.driver != null && (trip.driver!.contactNumber ?? '').isNotEmpty) ...[
+                if (trip.driver != null && (trip.driver!.whatsappNumber ?? '').trim().isNotEmpty) ...[
                   const SizedBox(width: 8),
                   _buildSmallContactBtn(
                     Icons.chat_rounded,
                     const Color(0xFF25D366),
-                    () => _launchWhatsApp(trip.driver!.contactNumber!),
+                    () => _launchWhatsApp(trip.driver!.whatsappNumber!),
                   ),
                 ],
                 if (trip.driver != null && (trip.driver!.phone ?? '').isNotEmpty)
