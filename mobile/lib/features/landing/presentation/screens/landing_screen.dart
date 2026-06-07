@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -14,6 +13,7 @@ import '../../../../services/trip_service.dart';
 import '../../../../services/union_service.dart';
 import '../../../../utils/phone_call_helper.dart';
 import '../../../../utils/trip_self_book_guard.dart';
+import '../../../../widgets/location_picker_screen.dart';
 import '../../../../widgets/shimmer_trip_card.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../auth/presentation/screens/simple_signup_screen.dart';
@@ -312,7 +312,6 @@ class _LandingScreenState extends State<LandingScreen> {
                               icon: Icons.trip_origin_rounded,
                               iconColor: Colors.green[400]!,
                               tripService: _tripService,
-                              textInputAction: TextInputAction.next,
                             ),
                             const SizedBox(height: 14),
                             _LocationField(
@@ -321,8 +320,6 @@ class _LandingScreenState extends State<LandingScreen> {
                               icon: Icons.location_on_rounded,
                               iconColor: Colors.red[300]!,
                               tripService: _tripService,
-                              textInputAction: TextInputAction.search,
-                              onSubmitted: (_) => _debouncedSearch(),
                             ),
                             Divider(height: 1, color: Colors.grey[100], thickness: 1),
                             InkWell(
@@ -819,8 +816,6 @@ class _LocationField extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final TripService? tripService;
-  final TextInputAction? textInputAction;
-  final ValueChanged<String>? onSubmitted;
 
   const _LocationField({
     required this.controller,
@@ -828,58 +823,43 @@ class _LocationField extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     this.tripService,
-    this.textInputAction,
-    this.onSubmitted,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (tripService == null) {
-      return _buildTextField(controller, null);
-    }
-    return TypeAheadField<String>(
-      controller: controller,
-      debounceDuration: const Duration(milliseconds: 300),
-      hideOnEmpty: true,
-      hideOnLoading: true,
-      hideOnError: true,
-      constraints: const BoxConstraints(maxHeight: 200),
-      decorationBuilder: (context, child) => Material(
-        type: MaterialType.card,
-        elevation: 4,
-        borderRadius: BorderRadius.circular(12),
-        child: ClipRRect(borderRadius: BorderRadius.circular(12), child: child),
+    return GestureDetector(
+      onTap: tripService != null
+          ? () async {
+              final result = await Navigator.push<String>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => LocationPickerScreen(
+                    title: label,
+                    initialValue: controller.text,
+                    tripService: tripService!,
+                  ),
+                ),
+              );
+              if (result != null) {
+                controller.text = result;
+              }
+            }
+          : null,
+      child: AbsorbPointer(
+        child: TextField(
+          controller: controller,
+          readOnly: true,
+          decoration: InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon, color: iconColor, size: 22),
+            suffixIcon: Icon(Icons.arrow_drop_down_rounded, color: Colors.grey[400], size: 22),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Colors.grey[600]),
+          ),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[800]),
+        ),
       ),
-      builder: (context, controller, focusNode) => _buildTextField(controller, focusNode),
-      suggestionsCallback: (search) => tripService!.getLocationSuggestions(search),
-      itemBuilder: (context, suggestion) => ListTile(
-        leading: Icon(Icons.location_on_outlined, color: Colors.grey[400], size: 20),
-        title: Text(suggestion, style: const TextStyle(fontSize: 14)),
-        dense: true,
-        visualDensity: VisualDensity.compact,
-      ),
-      onSelected: (suggestion) => controller.text = suggestion,
-    );
-  }
-
-  Widget _buildTextField(TextEditingController ctrl, FocusNode? focusNode) {
-    return TextField(
-      controller: ctrl,
-      focusNode: focusNode,
-      textCapitalization: TextCapitalization.words,
-      textInputAction: textInputAction,
-      onSubmitted: onSubmitted,
-      enableSuggestions: false,
-      autocorrect: false,
-      autofillHints: const [],
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: iconColor, size: 22),
-        border: InputBorder.none,
-        contentPadding: const EdgeInsets.symmetric(vertical: 14),
-        labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w400, color: Colors.grey[600]),
-      ),
-      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: Colors.grey[800]),
     );
   }
 }

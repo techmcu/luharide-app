@@ -843,6 +843,8 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
     return ApiResponse.success({ suggestions: [] }, 'No suggestions').send(res);
   }
 
+  const qLower = q.toLowerCase().trim();
+
   const result = await pool.query(
     `SELECT DISTINCT location FROM (
        SELECT from_location AS location FROM trips WHERE LOWER(from_location) LIKE LOWER($1)
@@ -853,18 +855,33 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
        UNION
        SELECT to_location AS location FROM union_schedules WHERE LOWER(to_location) LIKE LOWER($1)
      ) AS locations
-     ORDER BY location
-     LIMIT 15`,
+     LIMIT 30`,
     [`%${q}%`]
   );
 
   const dbLocations = result.rows.map(row => row.location);
   const matchingDefaults = UTTARAKHAND_LOCATIONS
-    .filter(loc => loc.toLowerCase().includes(q.toLowerCase()))
+    .filter(loc => loc.toLowerCase().includes(qLower))
     .filter(loc => !dbLocations.some(db => db.toLowerCase() === loc.toLowerCase()));
 
   const merged = [...dbLocations, ...matchingDefaults];
   const unique = [...new Map(merged.map(l => [l.toLowerCase(), l])).values()];
+
+  // Smart ranking: exact → starts-with → word-boundary → contains
+  unique.sort((a, b) => {
+    const al = a.toLowerCase();
+    const bl = b.toLowerCase();
+    const aExact = al === qLower;
+    const bExact = bl === qLower;
+    if (aExact !== bExact) return aExact ? -1 : 1;
+    const aStarts = al.startsWith(qLower);
+    const bStarts = bl.startsWith(qLower);
+    if (aStarts !== bStarts) return aStarts ? -1 : 1;
+    const aWord = al.split(/\s+/).some(w => w.startsWith(qLower));
+    const bWord = bl.split(/\s+/).some(w => w.startsWith(qLower));
+    if (aWord !== bWord) return aWord ? -1 : 1;
+    return al.localeCompare(bl);
+  });
 
   ApiResponse.success(
     { suggestions: unique.slice(0, 15) },

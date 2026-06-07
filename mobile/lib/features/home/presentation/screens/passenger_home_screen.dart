@@ -22,6 +22,7 @@ import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../profile/presentation/screens/driver_verification_form_screen.dart';
 import '../../../notifications/presentation/screens/notifications_screen.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../widgets/location_picker_screen.dart';
 
 class PassengerHomeScreen extends StatefulWidget {
   const PassengerHomeScreen({super.key});
@@ -35,8 +36,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
   final _scrollController = ScrollController();
-  final _fromFocusNode = FocusNode();
-  final _toFocusNode = FocusNode();
   DateTime _selectedDate = DateTime.now();
 
   List<TripModel> _searchResults = [];
@@ -46,58 +45,12 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   final _notificationService = NotificationService();
   int _unreadNotificationCount = 0;
   bool _isNavigating = false;
-
-  // Location suggestions (debounced) for find-ride search bar
-  List<String> _fromSuggestions = [];
-  List<String> _toSuggestions = [];
   Timer? _debounceSearch;
-  Timer? _debounceFrom;
-  Timer? _debounceTo;
-  Timer? _fromAutoDismiss;
-  Timer? _toAutoDismiss;
-  static const _suggestionDebounce = Duration(milliseconds: 300);
-  static const _suggestionAutoDismiss = Duration(seconds: 2);
+
   @override
   void initState() {
     super.initState();
-    _toFocusNode.addListener(_onToFocusChange);
-    _fromFocusNode.addListener(_onFromFocusChange);
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadNotificationsOnce());
-  }
-
-  void _onToFocusChange() {
-    if (_toFocusNode.hasFocus) {
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (!mounted || !_toFocusNode.hasFocus) return;
-        if (!_scrollController.hasClients) return;
-        final keyboardHeight = MediaQuery.viewInsetsOf(context).bottom;
-        if (keyboardHeight > 0) {
-          final target = (_scrollController.offset + 60).clamp(
-            0.0,
-            _scrollController.position.maxScrollExtent,
-          );
-          _scrollController.animateTo(
-            target,
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-          );
-        }
-      });
-    } else {
-      _toAutoDismiss?.cancel();
-      if (_toSuggestions.isNotEmpty) {
-        setState(() => _toSuggestions = []);
-      }
-    }
-  }
-
-  void _onFromFocusChange() {
-    if (!_fromFocusNode.hasFocus) {
-      _fromAutoDismiss?.cancel();
-      if (_fromSuggestions.isNotEmpty) {
-        setState(() => _fromSuggestions = []);
-      }
-    }
   }
 
   /// Single API call for both verification snackbar and unread badge — no duplicate requests.
@@ -128,58 +81,10 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   @override
   void dispose() {
     _debounceSearch?.cancel();
-    _debounceFrom?.cancel();
-    _debounceTo?.cancel();
-    _fromAutoDismiss?.cancel();
-    _toAutoDismiss?.cancel();
-    _fromFocusNode.removeListener(_onFromFocusChange);
-    _toFocusNode.removeListener(_onToFocusChange);
-    _fromFocusNode.dispose();
-    _toFocusNode.dispose();
     _fromController.dispose();
     _toController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _onFromChanged(String value) {
-    _debounceFrom?.cancel();
-    _fromAutoDismiss?.cancel();
-    if (value.trim().length < 2) {
-      setState(() => _fromSuggestions = []);
-      return;
-    }
-    _debounceFrom = Timer(_suggestionDebounce, () async {
-      final suggestions = await _tripService.getLocationSuggestions(value.trim());
-      if (!mounted) return;
-      setState(() => _fromSuggestions = suggestions);
-      if (suggestions.isNotEmpty) {
-        _fromAutoDismiss = Timer(_suggestionAutoDismiss, () {
-          if (!mounted) return;
-          setState(() => _fromSuggestions = []);
-        });
-      }
-    });
-  }
-
-  void _onToChanged(String value) {
-    _debounceTo?.cancel();
-    _toAutoDismiss?.cancel();
-    if (value.trim().length < 2) {
-      setState(() => _toSuggestions = []);
-      return;
-    }
-    _debounceTo = Timer(_suggestionDebounce, () async {
-      final suggestions = await _tripService.getLocationSuggestions(value.trim());
-      if (!mounted) return;
-      setState(() => _toSuggestions = suggestions);
-      if (suggestions.isNotEmpty) {
-        _toAutoDismiss = Timer(_suggestionAutoDismiss, () {
-          if (!mounted) return;
-          setState(() => _toSuggestions = []);
-        });
-      }
-    });
   }
 
   static String _avatarInitial(String? name) {
@@ -272,7 +177,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         if (_toController.text.isNotEmpty) {
           _toController.clear();
           setState(() {
-            _toSuggestions = [];
             _hasSearched = false;
             _searchResults = [];
             _unionSearchResults = const [];
@@ -281,7 +185,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         }
         if (_fromController.text.isNotEmpty) {
           _fromController.clear();
-          setState(() => _fromSuggestions = []);
+          setState(() {});
           return;
         }
       },
@@ -437,64 +341,23 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 child: Column(
                   children: [
                     const SizedBox(height: 8),
-                    // From field
-                    _buildSearchField(
+                    // From field — tappable, opens LocationPickerScreen
+                    _buildLocationPickerField(
                       controller: _fromController,
-                      focusNode: _fromFocusNode,
                       icon: Icons.radio_button_checked_rounded,
                       iconColor: const Color(0xFF22C55E),
                       iconSize: 16,
                       hint: t.t('ride.from.placeholder'),
                       label: t.t('ride.from.label'),
-                      onChanged: _onFromChanged,
-                      onSubmitted: (_) => _toFocusNode.requestFocus(),
-                      textInputAction: TextInputAction.next,
-                      isTop: true,
                     ),
-                    // From suggestions
-                    _buildSuggestionsList(
-                      suggestions: _fromSuggestions,
-                      hasFocus: _fromFocusNode.hasFocus,
-                      onTap: (s) {
-                        _fromController.text = s;
-                        _fromController.selection = TextSelection.fromPosition(
-                          TextPosition(offset: s.length),
-                        );
-                        _fromAutoDismiss?.cancel();
-                        setState(() => _fromSuggestions = []);
-                        _toFocusNode.requestFocus();
-                      },
-                    ),
-                    // To field
-                    _buildSearchField(
+                    // To field — tappable, opens LocationPickerScreen
+                    _buildLocationPickerField(
                       controller: _toController,
-                      focusNode: _toFocusNode,
                       icon: Icons.location_on_rounded,
                       iconColor: const Color(0xFFEF4444),
                       iconSize: 18,
                       hint: t.t('ride.to.placeholder'),
                       label: t.t('ride.to.label'),
-                      onChanged: _onToChanged,
-                      onSubmitted: (_) {
-                        _toFocusNode.unfocus();
-                        _searchTrips();
-                      },
-                      textInputAction: TextInputAction.search,
-                      isTop: false,
-                    ),
-                    // To suggestions
-                    _buildSuggestionsList(
-                      suggestions: _toSuggestions,
-                      hasFocus: _toFocusNode.hasFocus,
-                      onTap: (s) {
-                        _toController.text = s;
-                        _toController.selection = TextSelection.fromPosition(
-                          TextPosition(offset: s.length),
-                        );
-                        _toAutoDismiss?.cancel();
-                        setState(() => _toSuggestions = []);
-                        _toFocusNode.unfocus();
-                      },
                     ),
                     // Date Selector
                     Container(
@@ -707,116 +570,63 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     );
   }
 
-  Widget _buildSearchField({
+  Widget _buildLocationPickerField({
     required TextEditingController controller,
-    required FocusNode focusNode,
     required IconData icon,
     required Color iconColor,
     required double iconSize,
     required String hint,
     required String label,
-    required ValueChanged<String> onChanged,
-    required ValueChanged<String> onSubmitted,
-    required TextInputAction textInputAction,
-    required bool isTop,
   }) {
-    final hasFocus = focusNode.hasFocus;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: hasFocus ? Colors.blue[50] : Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: hasFocus ? Colors.blue.withValues(alpha: 0.3) : Colors.transparent,
-          width: 1.2,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        focusNode: focusNode,
-        textCapitalization: TextCapitalization.words,
-        textInputAction: textInputAction,
-        onChanged: onChanged,
-        onSubmitted: onSubmitted,
-        onTap: () => setState(() {}),
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14.5, fontWeight: FontWeight.w400),
-          prefixIcon: Padding(
-            padding: const EdgeInsets.only(left: 14, right: 10),
-            child: Icon(icon, color: iconColor, size: iconSize),
+    return GestureDetector(
+      onTap: () async {
+        final result = await Navigator.push<String>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => LocationPickerScreen(
+              title: label,
+              initialValue: controller.text,
+              tripService: _tripService,
+            ),
           ),
-          prefixIconConstraints: const BoxConstraints(minWidth: 42),
-          suffixIcon: controller.text.isNotEmpty
-              ? GestureDetector(
-                  onTap: () {
-                    controller.clear();
-                    onChanged('');
-                    setState(() {});
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: Icon(Icons.close_rounded, size: 16, color: Colors.grey[400]),
-                  ),
-                )
-              : null,
-          suffixIconConstraints: const BoxConstraints(minWidth: 36),
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        );
+        if (result != null) {
+          controller.text = result;
+          setState(() {});
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.grey[50],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: AbsorbPointer(
+          child: TextField(
+            controller: controller,
+            readOnly: true,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14.5, fontWeight: FontWeight.w400),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(left: 14, right: 10),
+                child: Icon(icon, color: iconColor, size: iconSize),
+              ),
+              prefixIconConstraints: const BoxConstraints(minWidth: 42),
+              suffixIcon: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Icon(Icons.arrow_drop_down_rounded, size: 22, color: Colors.grey[400]),
+              ),
+              suffixIconConstraints: const BoxConstraints(minWidth: 36),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSuggestionsList({
-    required List<String> suggestions,
-    required bool hasFocus,
-    required ValueChanged<String> onTap,
-  }) {
-    final show = suggestions.isNotEmpty && hasFocus;
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeInOut,
-      alignment: Alignment.topCenter,
-      child: show
-          ? Container(
-              color: Colors.grey[50],
-              constraints: const BoxConstraints(maxHeight: 150),
-              child: ListView.separated(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                itemCount: suggestions.length,
-                separatorBuilder: (_, __) => Divider(height: 1, color: Colors.grey[200], indent: 44),
-                itemBuilder: (context, i) {
-                  final s = suggestions[i];
-                  return InkWell(
-                    onTap: () => onTap(s),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          Icon(Icons.history_rounded, size: 18, color: Colors.grey[400]),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              s,
-                              style: TextStyle(fontSize: 15, color: Colors.grey[800]),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Icon(Icons.north_west_rounded, size: 14, color: Colors.grey[350]),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            )
-          : const SizedBox.shrink(),
     );
   }
 
