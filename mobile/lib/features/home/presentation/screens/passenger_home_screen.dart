@@ -307,13 +307,14 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
             // Search Box heading
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 2),
               child: Text(
                 'Where are you going?',
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700],
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[800],
+                  letterSpacing: -0.3,
                 ),
               ),
             ),
@@ -323,41 +324,86 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.15), width: 1.4),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.1), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.withValues(alpha: 0.08),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.06),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
                     ),
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
-                    const SizedBox(height: 8),
-                    // From field — tappable, opens LocationPickerScreen
-                    _buildLocationPickerField(
-                      controller: _fromController,
-                      icon: Icons.radio_button_checked_rounded,
-                      iconColor: const Color(0xFF22C55E),
-                      iconSize: 16,
-                      hint: t.t('ride.from.placeholder'),
-                      label: t.t('ride.from.label'),
-                    ),
-                    // To field — tappable, opens LocationPickerScreen
-                    _buildLocationPickerField(
-                      controller: _toController,
-                      icon: Icons.location_on_rounded,
-                      iconColor: const Color(0xFFEF4444),
-                      iconSize: 18,
-                      hint: t.t('ride.to.placeholder'),
-                      label: t.t('ride.to.label'),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(6, 8, 0, 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2, left: 8),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(height: 14),
+                                Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF22C55E),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF22C55E).withValues(alpha: 0.3),
+                                        blurRadius: 6,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                ...List.generate(3, (_) => Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 2),
+                                  child: Container(
+                                    width: 3,
+                                    height: 3,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                )),
+                                const SizedBox(height: 4),
+                                Icon(Icons.location_on_rounded, size: 18, color: const Color(0xFFEF4444)),
+                                const SizedBox(height: 14),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              children: [
+                                _buildLocationPickerField(
+                                  controller: _fromController,
+                                  hint: t.t('ride.from.placeholder'),
+                                  label: t.t('ride.from.label'),
+                                ),
+                                Divider(height: 1, indent: 4, endIndent: 12, color: Colors.grey[200]),
+                                _buildLocationPickerField(
+                                  controller: _toController,
+                                  hint: t.t('ride.to.placeholder'),
+                                  label: t.t('ride.to.label'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     // Date Selector
                     Container(
@@ -410,17 +456,17 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                     const SizedBox(height: 4),
                     // Search Button
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                      padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
                       child: SizedBox(
                         width: double.infinity,
-                        height: 48,
+                        height: 50,
                         child: ElevatedButton(
                           onPressed: _isSearching ? null : _debouncedSearch,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2563EB),
                             disabledBackgroundColor: const Color(0xFF93C5FD),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                             elevation: 0,
                           ),
@@ -572,9 +618,6 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   Widget _buildLocationPickerField({
     required TextEditingController controller,
-    required IconData icon,
-    required Color iconColor,
-    required double iconSize,
     required String hint,
     required String label,
   }) {
@@ -595,35 +638,23 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           setState(() {});
         }
       },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: AbsorbPointer(
-          child: TextField(
-            controller: controller,
-            readOnly: true,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14.5, fontWeight: FontWeight.w400),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.only(left: 14, right: 10),
-                child: Icon(icon, color: iconColor, size: iconSize),
-              ),
-              prefixIconConstraints: const BoxConstraints(minWidth: 42),
-              suffixIcon: Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Icon(Icons.arrow_drop_down_rounded, size: 22, color: Colors.grey[400]),
-              ),
-              suffixIconConstraints: const BoxConstraints(minWidth: 36),
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+      child: AbsorbPointer(
+        child: TextField(
+          controller: controller,
+          readOnly: true,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14.5, fontWeight: FontWeight.w400),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey[400]),
             ),
+            suffixIconConstraints: const BoxConstraints(minWidth: 32),
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           ),
         ),
       ),
