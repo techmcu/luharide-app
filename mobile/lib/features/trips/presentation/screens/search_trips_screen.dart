@@ -279,25 +279,68 @@ class _TripCard extends StatelessWidget {
               ],
             ),
           ),
+          // Contact + Book row
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onBook,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: const Text('View Details & Book', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _kBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
+            child: Row(
+              children: [
+                if (trip.driver != null && (trip.driver!.phone ?? '').isNotEmpty)
+                  _TripContactBtn(
+                    icon: Icons.call_rounded,
+                    color: _kGreen,
+                    onTap: () => _guardedContact(context, () => _launchPhone(context, trip.driver!.phone!)),
+                  ),
+                if (trip.driver != null && (trip.driver!.contactNumber ?? '').isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  _TripContactBtn(
+                    icon: Icons.chat_rounded,
+                    color: const Color(0xFF25D366),
+                    onTap: () => _guardedContact(context, () => _launchWhatsApp(trip.driver!.contactNumber!)),
+                  ),
+                ],
+                if (trip.driver != null && (trip.driver!.phone ?? '').isNotEmpty)
+                  const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: onBook,
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    label: const Text('View Details & Book', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _kBlue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TripContactBtn extends StatelessWidget {
+  const _TripContactBtn({required this.icon, required this.color, required this.onTap});
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 20, color: color),
       ),
     );
   }

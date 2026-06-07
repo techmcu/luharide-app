@@ -979,35 +979,54 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
             
             const SizedBox(height: 14),
 
-            // Independent driver: only Book (seat selection on trip details)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final uid = context.read<AuthProvider>().user?.id;
-                  if (trip.isCreatedByUserId(uid)) {
-                    await showCannotBookOwnTripDialog(context);
-                    return;
-                  }
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TripDetailsScreen(tripId: trip.id, initialTrip: trip),
+            // Contact + Book
+            Row(
+              children: [
+                if (trip.driver != null && (trip.driver!.phone ?? '').isNotEmpty)
+                  _buildSmallContactBtn(
+                    Icons.call_rounded,
+                    const Color(0xFF16A34A),
+                    () => _launchPhone(trip.driver!.phone!),
+                  ),
+                if (trip.driver != null && (trip.driver!.contactNumber ?? '').isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  _buildSmallContactBtn(
+                    Icons.chat_rounded,
+                    const Color(0xFF25D366),
+                    () => _launchWhatsApp(trip.driver!.contactNumber!),
+                  ),
+                ],
+                if (trip.driver != null && (trip.driver!.phone ?? '').isNotEmpty)
+                  const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final uid = context.read<AuthProvider>().user?.id;
+                      if (trip.isCreatedByUserId(uid)) {
+                        await showCannotBookOwnTripDialog(context);
+                        return;
+                      }
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TripDetailsScreen(tripId: trip.id, initialTrip: trip),
+                        ),
+                      );
+                      if (result == true && mounted) _searchTrips();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                  );
-                  if (result == true && mounted) _searchTrips();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    child: const Text(
+                      'Book',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                  ),
                 ),
-                child: const Text(
-                  'Book',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                ),
-              ),
+              ],
             ),
           ],
         ),
@@ -1030,6 +1049,21 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     final number = raw.replaceAll(RegExp(r'\s+'), '');
     final uri = Uri.parse('https://wa.me/$number');
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Widget _buildSmallContactBtn(IconData icon, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, size: 20, color: color),
+      ),
+    );
   }
 
   Widget _contactBtn(IconData icon, String label, Color color, VoidCallback onTap) {

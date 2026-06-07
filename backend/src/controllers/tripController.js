@@ -458,6 +458,8 @@ const searchTrips = asyncHandler(async (req, res) => {
     driver: {
       id: trip.driver_id,
       name: trip.driver_name,
+      phone: trip.driver_phone ?? null,
+      whatsapp_number: trip.driver_whatsapp ?? null,
       isVerified: trip.driver_verified === 'approved',
       bio: trip.driver_bio ?? null,
       luggage_allowance_per_passenger: trip.luggage_allowance_per_passenger ?? null
