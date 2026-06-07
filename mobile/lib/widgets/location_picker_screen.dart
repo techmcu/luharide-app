@@ -30,7 +30,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   static const _kBlue = Color(0xFF2563EB);
   static const _recentKey = 'luha_recent_locations';
-  static const _maxRecent = 8;
+  static const _maxRecent = 5;
 
   static const _popularLocations = [
     'Dehradun', 'Haridwar', 'Rishikesh', 'Mussoorie', 'Nainital',
