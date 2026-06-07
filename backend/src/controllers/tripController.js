@@ -5,6 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const { emitNotificationToUser, emitTripUpdated } = require('../socket/realtimeEmitter');
 const retentionConfig = require('../config/retentionConfig');
+const toTitleCase = require('../utils/titleCase');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function requireUuid(id) {
@@ -37,8 +38,8 @@ const createTrip = asyncHandler(async (req, res) => {
       : null;
 
   // Sanitize: trim, limit length, ensure non-empty so DB never gets invalid data
-  const from_location = (rawFrom != null ? String(rawFrom).trim() : '').slice(0, 200);
-  const to_location = (rawTo != null ? String(rawTo).trim() : '').slice(0, 200);
+  const from_location = toTitleCase((rawFrom != null ? String(rawFrom).trim() : '').slice(0, 200));
+  const to_location = toTitleCase((rawTo != null ? String(rawTo).trim() : '').slice(0, 200));
   if (!from_location || from_location.length < 2) {
     throw ApiError.badRequest('From location is required (at least 2 characters).');
   }
@@ -584,8 +585,8 @@ const getRecentRoutes = asyncHandler(async (req, res) => {
  */
 const saveRecentRoute = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const from_location = (req.body && req.body.from_location) ? String(req.body.from_location).trim().slice(0, 200) : null;
-  const to_location = (req.body && req.body.to_location) ? String(req.body.to_location).trim().slice(0, 200) : null;
+  const from_location = (req.body && req.body.from_location) ? toTitleCase(String(req.body.from_location).trim().slice(0, 200)) : null;
+  const to_location = (req.body && req.body.to_location) ? toTitleCase(String(req.body.to_location).trim().slice(0, 200)) : null;
   if (!from_location || !to_location) {
     throw ApiError.badRequest('from_location and to_location are required');
   }

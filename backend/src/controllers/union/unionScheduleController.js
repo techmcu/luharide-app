@@ -3,6 +3,7 @@ const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
+const toTitleCase = require('../../utils/titleCase');
 
 const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   const { from_location, to_location, departure_time, union_driver_ids } = req.body;
@@ -41,8 +42,8 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const fromTrimmed = from_location.trim();
-    const toTrimmed   = to_location.trim();
+    const fromTrimmed = toTitleCase(from_location);
+    const toTrimmed   = toTitleCase(to_location);
 
     const flatParams = [];
     const placeholders = union_driver_ids.map((driverId, i) => {

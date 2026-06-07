@@ -3,6 +3,7 @@ const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
+const toTitleCase = require('../utils/titleCase');
 
 /**
  * Create trip for a driver in union (Union Admin only)
@@ -11,8 +12,8 @@ const logger = require('../config/logger');
 const createTripForDriver = asyncHandler(async (req, res) => {
   const {
     driver_id,
-    from_location,
-    to_location,
+    from_location: rawFrom,
+    to_location: rawTo,
     departure_time,
     fare_per_seat,
     total_seats = 7,
@@ -20,6 +21,8 @@ const createTripForDriver = asyncHandler(async (req, res) => {
     stops = []
   } = req.body;
 
+  const from_location = toTitleCase(String(rawFrom || '').slice(0, 200));
+  const to_location = toTitleCase(String(rawTo || '').slice(0, 200));
   const unionAdminId = req.user.id;
 
   // Resolve this admin's union

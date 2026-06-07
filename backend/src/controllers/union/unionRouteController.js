@@ -3,6 +3,7 @@ const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
+const toTitleCase = require('../../utils/titleCase');
 
 const getUnionRoutes = asyncHandler(async (req, res) => {
   const resUnion = await pool.query(
@@ -52,7 +53,7 @@ const addUnionRoute = asyncHandler(async (req, res) => {
     `INSERT INTO union_routes (union_id, from_location, to_location, is_active)
      VALUES ($1, $2, $3, TRUE)
      RETURNING *`,
-    [unionId, from_location.trim(), to_location.trim()]
+    [unionId, toTitleCase(from_location), toTitleCase(to_location)]
   );
 
   const route = insertRes.rows[0];
