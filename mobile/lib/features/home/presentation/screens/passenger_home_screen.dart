@@ -272,228 +272,159 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome Header - light, professional
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            // Greeting + heading
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
               child: Row(
                 children: [
-                    CircleAvatar(
-                    radius: 24,
-                    backgroundColor: Colors.blue[50],
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.08),
                     child: Text(
                       _avatarInitial(user?.name),
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.blue[700],
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2563EB),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      _displayName(user?.name),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[800],
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hi, ${_displayName(user?.name).split(' ').first}',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey[500]),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          'Where are you going?',
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.grey[900],
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-
-            // Search Box heading
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 2),
-              child: Text(
-                'Where are you going?',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[800],
-                  letterSpacing: -0.3,
-                ),
-              ),
-            ),
             // Search Box
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.1), width: 1.2),
+                  borderRadius: BorderRadius.circular(22),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.06),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
+                    const SizedBox(height: 14),
+                    // From field
+                    _buildLocationPickerField(
+                      controller: _fromController,
+                      icon: Icons.circle,
+                      iconColor: const Color(0xFF22C55E),
+                      iconSize: 10,
+                      hint: 'Starting location',
+                      label: t.t('ride.from.label'),
+                    ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(6, 8, 0, 2),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2, left: 8),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const SizedBox(height: 14),
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF22C55E),
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF22C55E).withValues(alpha: 0.3),
-                                        blurRadius: 6,
-                                        spreadRadius: 1,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                ...List.generate(3, (_) => Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 2),
-                                  child: Container(
-                                    width: 3,
-                                    height: 3,
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[300],
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                )),
-                                const SizedBox(height: 4),
-                                Icon(Icons.location_on_rounded, size: 18, color: const Color(0xFFEF4444)),
-                                const SizedBox(height: 14),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            child: Column(
-                              children: [
-                                _buildLocationPickerField(
-                                  controller: _fromController,
-                                  hint: t.t('ride.from.placeholder'),
-                                  label: t.t('ride.from.label'),
-                                ),
-                                Divider(height: 1, indent: 4, endIndent: 12, color: Colors.grey[200]),
-                                _buildLocationPickerField(
-                                  controller: _toController,
-                                  hint: t.t('ride.to.placeholder'),
-                                  label: t.t('ride.to.label'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Divider(height: 1, color: Colors.grey[200]),
+                    ),
+                    // To field
+                    _buildLocationPickerField(
+                      controller: _toController,
+                      icon: Icons.location_on_rounded,
+                      iconColor: const Color(0xFFEF4444),
+                      iconSize: 18,
+                      hint: 'Enter destination',
+                      label: t.t('ride.to.label'),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Divider(height: 1, color: Colors.grey[200]),
                     ),
                     // Date Selector
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[50],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () async {
-                          final date = await showDatePicker(
-                            context: context,
-                            initialDate: _selectedDate,
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime.now().add(const Duration(days: 30)),
-                          );
-                          if (date != null) {
-                            setState(() => _selectedDate = date);
-                          }
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue[50],
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Icon(Icons.calendar_today_rounded, color: Colors.blue[600], size: 16),
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () async {
+                        final date = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 30)),
+                        );
+                        if (date != null) {
+                          setState(() => _selectedDate = date);
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                        child: Row(
+                          children: [
+                            Icon(Icons.calendar_today_rounded, color: const Color(0xFF2563EB), size: 18),
+                            const SizedBox(width: 14),
+                            Text(
+                              DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
+                              style: TextStyle(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey[800],
                               ),
-                              const SizedBox(width: 12),
-                              Text(
-                                DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                              const Spacer(),
-                              Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400], size: 22),
-                            ],
-                          ),
+                            ),
+                            const Spacer(),
+                            Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[400], size: 20),
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
                     // Search Button
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 2, 14, 14),
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 16),
                       child: SizedBox(
                         width: double.infinity,
-                        height: 50,
+                        height: 48,
                         child: ElevatedButton(
                           onPressed: _isSearching ? null : _debouncedSearch,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF2563EB),
                             disabledBackgroundColor: const Color(0xFF93C5FD),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(12),
                             ),
                             elevation: 0,
                           ),
                           child: _isSearching
                               ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
+                                  width: 20,
+                                  height: 20,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
                                     strokeWidth: 2.5,
                                   ),
                                 )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.search_rounded, size: 20, color: Colors.white),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Search',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                        letterSpacing: 0.3,
-                                      ),
-                                    ),
-                                  ],
+                              : const Text(
+                                  'Search Rides',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: 0.2,
+                                  ),
                                 ),
                         ),
                       ),
@@ -618,6 +549,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
 
   Widget _buildLocationPickerField({
     required TextEditingController controller,
+    required IconData icon,
+    required Color iconColor,
+    required double iconSize,
     required String hint,
     required String label,
   }) {
@@ -639,22 +573,25 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
         }
       },
       child: AbsorbPointer(
-        child: TextField(
-          controller: controller,
-          readOnly: true,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14.5, fontWeight: FontWeight.w400),
-            suffixIcon: Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Icon(Icons.chevron_right_rounded, size: 20, color: Colors.grey[400]),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 2),
+          child: TextField(
+            controller: controller,
+            readOnly: true,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.black87),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14.5, fontWeight: FontWeight.w400),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: Icon(icon, color: iconColor, size: iconSize),
+              ),
+              prefixIconConstraints: const BoxConstraints(minWidth: 30),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            suffixIconConstraints: const BoxConstraints(minWidth: 32),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           ),
         ),
       ),
