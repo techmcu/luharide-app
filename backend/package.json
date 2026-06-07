@@ -40,7 +40,6 @@
     "@resvg/resvg-js": "^2.6.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "axios": "^1.6.5",
-    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "bull": "^4.16.5",
     "compression": "^1.8.1",
