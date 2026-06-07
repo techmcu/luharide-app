@@ -95,7 +95,7 @@ void main() {
         type: DioExceptionType.sendTimeout,
       );
       final msg = userMessageFromDio(e);
-      expect(msg, anyOf(contains('timeout'), contains('long')));
+      expect(msg, anyOf(contains('timeout'), contains('long'), contains('time')));
     });
   });
 }

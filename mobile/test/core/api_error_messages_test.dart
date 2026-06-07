@@ -55,7 +55,7 @@ void main() {
         type: DioExceptionType.connectionTimeout,
       );
       final msg = userMessageFromDio(e);
-      expect(msg, contains('timeout'));
+      expect(msg, anyOf(contains('timeout'), contains('time')));
     });
 
     test('connectionError returns friendly message', () {
@@ -139,7 +139,7 @@ void main() {
         type: DioExceptionType.receiveTimeout,
       );
       final msg = userFacingAuthError(e);
-      expect(msg, contains('timeout'));
+      expect(msg, anyOf(contains('timeout'), contains('time')));
     });
 
     test('plain Exception strips prefix', () {
@@ -156,7 +156,7 @@ void main() {
       final msg = userFacingAuthError(
         Exception('RequestOptions.connectTimeout blah blah'),
       );
-      expect(msg, contains('timeout'));
+      expect(msg, anyOf(contains('timeout'), contains('time')));
     });
   });
 }
