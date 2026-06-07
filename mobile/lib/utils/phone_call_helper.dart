@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Launch a phone call that works on both native and web (iOS Safari).
+/// Launch a phone call — works on native Android/iOS and web.
 ///
-/// On native: uses canLaunchUrl check then launches tel: URL.
-/// On web (iOS Safari / mobile browser): tel: URL triggers the phone dialer.
-/// If tel: fails on web (desktop browser), shows a snackbar with copyable number.
+/// On Android 11+, canLaunchUrl for tel: can falsely return false even when
+/// dialer exists (package visibility). We skip canLaunchUrl and launch directly.
+/// If launch fails, shows a snackbar with the number + copy option.
 Future<void> launchPhoneCall(BuildContext context, String phone) async {
   final digits = phone.replaceAll(RegExp(r'[^\d+]'), '');
   if (digits.isEmpty) return;
@@ -33,7 +33,31 @@ Future<void> launchPhoneCall(BuildContext context, String phone) async {
     return;
   }
 
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri);
+  // Native: launch directly without canLaunchUrl check (Android 11+ unreliable)
+  try {
+    final launched = await launchUrl(uri);
+    if (!launched) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open dialer: $digits'),
+          action: SnackBarAction(
+            label: 'Copy',
+            onPressed: () => Clipboard.setData(ClipboardData(text: digits)),
+          ),
+        ),
+      );
+    }
+  } catch (_) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Phone: $digits'),
+        action: SnackBarAction(
+          label: 'Copy',
+          onPressed: () => Clipboard.setData(ClipboardData(text: digits)),
+        ),
+      ),
+    );
   }
 }
