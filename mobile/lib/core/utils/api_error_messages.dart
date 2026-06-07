@@ -1,5 +1,15 @@
 import 'package:dio/dio.dart';
 
+/// Current app language code — set by [AppLanguageProvider] on change.
+/// Defaults to 'en'. Error messages respect this without needing BuildContext.
+String _appLang = 'en';
+
+void setErrorMessageLocale(String lang) {
+  _appLang = lang;
+}
+
+String _pick(String en, String hi) => _appLang == 'hi' ? hi : en;
+
 /// Safe message for [AuthProvider] / SnackBars: never show raw Dio "RequestOptions…" text.
 String userFacingAuthError(Object error) {
   if (error is DioException) {
@@ -9,40 +19,53 @@ String userFacingAuthError(Object error) {
   if (_looksLikeRawDioAdvice(raw) ||
       raw.contains('connection took longer than') ||
       (raw.contains('0:00:') && raw.contains('aborted'))) {
-    return 'Server se time par jawab nahi mila (timeout). Internet check karke thodi der baad dubara try karein. '
-        '(Request timed out.)';
+    return _pick(
+      'Server did not respond in time. Please check your internet and try again.',
+      'सर्वर ने समय पर जवाब नहीं दिया। कृपया इंटरनेट जाँचें और पुनः प्रयास करें।',
+    );
   }
   if (raw.contains('SocketException') ||
       raw.contains('Failed host lookup') ||
       raw.contains('Network is unreachable')) {
-    return 'Server tak pahunch nahi paye. Wi‑Fi / mobile data check karein. (Cannot reach server.)';
+    return _pick(
+      'Cannot reach the server. Please check your Wi-Fi or mobile data.',
+      'सर्वर तक पहुँच नहीं हो पा रही। कृपया Wi-Fi या मोबाइल डेटा जाँचें।',
+    );
   }
   return raw;
 }
 
-/// User-facing text for SnackBars (Hindi + English short).
+/// User-facing text for SnackBars — localized per app language setting.
 String userMessageFromDio(DioException e) {
-  // No HTTP body: timeouts, DNS, offline, TLS — always show simple text (never raw Dio internals).
   switch (e.type) {
     case DioExceptionType.connectionTimeout:
     case DioExceptionType.sendTimeout:
     case DioExceptionType.receiveTimeout:
-      return 'Server se time par jawab nahi mila (timeout). Internet check karke thodi der baad dubara try karein. '
-          '(The connection or server took too long.)';
+      return _pick(
+        'Server did not respond in time. Please check your internet and try again.',
+        'सर्वर ने समय पर जवाब नहीं दिया। कृपया इंटरनेट जाँचें और पुनः प्रयास करें।',
+      );
     case DioExceptionType.connectionError:
       final inner = e.error?.toString() ?? '';
       if (inner.contains('HandshakeException') ||
           inner.contains('CERTIFICATE_VERIFY_FAILED') ||
           inner.contains('TlsException')) {
-        return 'Secure connection fail (SSL). Phone date/time sahi hai? VPN off karke try karein. '
-            '(SSL / certificate error.)';
+        return _pick(
+          'Secure connection failed (SSL). Please check your phone date/time and try disabling VPN.',
+          'सुरक्षित कनेक्शन विफल (SSL)। कृपया फ़ोन की दिनांक/समय जाँचें और VPN बंद करके प्रयास करें।',
+        );
       }
-      return 'Server tak pahunch nahi paye. Wi‑Fi / mobile data ya flight mode check karein. '
-          '(Cannot reach server.)';
+      return _pick(
+        'Cannot reach the server. Please check your Wi-Fi, mobile data, or flight mode.',
+        'सर्वर तक पहुँच नहीं हो पा रही। कृपया Wi-Fi, मोबाइल डेटा या फ्लाइट मोड जाँचें।',
+      );
     case DioExceptionType.cancel:
-      return 'Request radd ho gayi.';
+      return _pick('Request cancelled.', 'अनुरोध रद्द कर दिया गया।');
     case DioExceptionType.badCertificate:
-      return 'Secure connection fail (SSL). VPN / network check karein.';
+      return _pick(
+        'Secure connection failed (SSL). Please check your network or VPN.',
+        'सुरक्षित कनेक्शन विफल (SSL)। कृपया नेटवर्क या VPN जाँचें।',
+      );
     case DioExceptionType.badResponse:
     case DioExceptionType.unknown:
       break;
@@ -57,21 +80,32 @@ String userMessageFromDio(DioException e) {
 
   if (code == 404) {
     return serverMsg ??
-        'Yeh service abhi uplabdh nahi (404). Thodi der baad try karein. (Service not found.)';
+        _pick(
+          'This service is currently unavailable. Please try again later.',
+          'यह सेवा अभी उपलब्ध नहीं है। कृपया बाद में पुनः प्रयास करें।',
+        );
   }
   if (code == 502 || code == 503 || code == 504) {
-    return 'Server abhi available nahi hai. Thodi der baad dubara try karein. '
-        '(Server temporarily unavailable.)';
+    return _pick(
+      'Server is temporarily unavailable. Please try again later.',
+      'सर्वर अस्थायी रूप से अनुपलब्ध है। कृपया बाद में पुनः प्रयास करें।',
+    );
   }
   if (code == 429) {
-    return 'Bahut saare requests — 1–2 minute baad dubara try karein.';
+    return _pick(
+      'Too many requests. Please wait 1–2 minutes and try again.',
+      'बहुत अधिक अनुरोध। कृपया 1–2 मिनट प्रतीक्षा करें और पुनः प्रयास करें।',
+    );
   }
   if (serverMsg != null && serverMsg.isNotEmpty) {
     return serverMsg;
   }
   return e.message != null && !_looksLikeRawDioAdvice(e.message!)
       ? e.message!
-      : 'Network error. Connection check karein.';
+      : _pick(
+          'Network error. Please check your connection.',
+          'नेटवर्क त्रुटि। कृपया अपना कनेक्शन जाँचें।',
+        );
 }
 
 bool _looksLikeRawDioAdvice(String m) {
@@ -81,7 +115,6 @@ bool _looksLikeRawDioAdvice(String m) {
 }
 
 /// Safely extract 'message' from a Dio error response body.
-/// Returns null if data is not a Map or 'message' key is missing.
 String? dioResponseMessage(DioException e) {
   final data = e.response?.data;
   if (data is Map) {

@@ -90,7 +90,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
       final loc = AppLocalizations.of(context);
       final err = authProvider.error ?? loc.t('auth.login.failed_fallback');
       final isInvalidCreds = err.toLowerCase().contains('invalid') || err.toLowerCase().contains('password');
-      final is404 = err.contains('404') || err.contains('nahi mila');
+      final is404 = err.contains('404') || err.contains('unavailable');
       AppFeedback.show(
         context,
         isInvalidCreds

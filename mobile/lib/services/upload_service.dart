@@ -2,6 +2,7 @@ import 'package:cross_file/cross_file.dart';
 import 'package:dio/dio.dart';
 
 import '../core/constants/api_constants.dart';
+import '../core/utils/api_error_messages.dart';
 import 'api_service.dart';
 
 /// Uses [XFile] + bytes so uploads work on **Web** (no dart:io / fromFile).
@@ -108,8 +109,7 @@ class UploadService {
       return 'Session expired. Please log in again and retry.';
     }
     if (sc == 502 || sc == 503 || sc == 504) {
-      return 'Upload server temporarily unavailable. Thodi der baad dubara try karein. '
-          '(Upload server temporarily unavailable.)';
+      return userMessageFromDio(e);
     }
     if (sc != null && sc >= 500) {
       return _dioMessage(e) ?? 'Upload failed (server error). Please try again.';
@@ -117,12 +117,10 @@ class UploadService {
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.sendTimeout ||
         e.type == DioExceptionType.receiveTimeout) {
-      return 'Upload me time zyada lag rha — internet check karke dubara try karein. '
-          '(Upload timed out.)';
+      return userMessageFromDio(e);
     }
     if (e.type == DioExceptionType.connectionError) {
-      return 'Server tak pahunch nahi paye. Wi‑Fi / mobile data check karein. '
-          '(Cannot reach server.)';
+      return userMessageFromDio(e);
     }
     return _dioMessage(e) ?? 'Upload failed. Please try again.';
   }

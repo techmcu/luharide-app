@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/utils/api_error_messages.dart';
 
 /// Supported app languages.
 enum AppLanguageCode { en, hi }
@@ -27,12 +28,14 @@ class AppLanguageProvider with ChangeNotifier {
       _language = AppLanguageCode.en;
     }
     _initialized = true;
+    setErrorMessageLocale(_language == AppLanguageCode.hi ? 'hi' : 'en');
     notifyListeners();
   }
 
   Future<void> setLanguage(AppLanguageCode code) async {
     if (_language == code) return;
     _language = code;
+    setErrorMessageLocale(code == AppLanguageCode.hi ? 'hi' : 'en');
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, code == AppLanguageCode.hi ? 'hi' : 'en');

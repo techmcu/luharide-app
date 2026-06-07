@@ -163,9 +163,7 @@ class ApiService {
               requestOptions: error.requestOptions,
               response: error.response,
               type: DioExceptionType.badResponse,
-              message:
-                  'Bahut saare requests — server limit. 1–2 minute baad dubara try karein. '
-                  '(Too many requests; please wait and try again.)',
+              message: userMessageFromDio(error),
             );
             return handler.next(friendly);
           }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/localization/app_localizations.dart';
 
 class ExitGuard extends StatefulWidget {
   const ExitGuard({super.key, required this.child, this.onBackIntercept});
@@ -35,12 +36,13 @@ class _ExitGuardState extends State<ExitGuard> {
           return;
         }
         _lastBackPress = now;
+        final loc = AppLocalizations.of(context);
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
           ..showSnackBar(
-            const SnackBar(
-              content: Text('Press back again to exit'),
-              duration: Duration(seconds: 2),
+            SnackBar(
+              content: Text(loc.t('app.exit_confirm')),
+              duration: const Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
             ),
           );

@@ -463,7 +463,7 @@ class AuthService {
         final raw = response.data;
         if (raw is! Map) {
           throw Exception(
-            'Server se sahi jawab nahi mila (format). App update karke try karein.',
+            'Invalid server response. Please update the app and try again.',
           );
         }
         final body = Map<String, dynamic>.from(raw);

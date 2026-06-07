@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import '../core/feedback/app_feedback.dart';
 import '../core/constants/input_limits.dart';
+import '../core/localization/app_localizations.dart';
 import '../services/review_service.dart';
 
 const int _maxCommentWords = 20;
 
 class RateRideDialog extends StatefulWidget {
   final String bookingId;
-  final String title; // e.g. "Rate your driver" or "Rate your passenger"
+  final String title;
 
   const RateRideDialog({
     super.key,
@@ -21,10 +22,10 @@ class RateRideDialog extends StatefulWidget {
 
 class _RateRideDialogState extends State<RateRideDialog> {
   final ReviewService _reviewService = ReviewService();
-  int _rating = 0;
   final TextEditingController _commentController = TextEditingController();
-  int _wordCount = 0;
+  int _rating = 0;
   bool _submitting = false;
+  int _wordCount = 0;
 
   @override
   void initState() {
@@ -33,8 +34,10 @@ class _RateRideDialogState extends State<RateRideDialog> {
   }
 
   void _updateWordCount() {
-    final words = _commentController.text.trim().split(RegExp(r'\s+')).where((s) => s.isNotEmpty).length;
-    if (words != _wordCount) setState(() => _wordCount = words);
+    final text = _commentController.text.trim();
+    setState(() {
+      _wordCount = text.isEmpty ? 0 : text.split(RegExp(r'\s+')).length;
+    });
   }
 
   @override
@@ -45,10 +48,11 @@ class _RateRideDialogState extends State<RateRideDialog> {
   }
 
   Future<void> _submit() async {
+    final loc = AppLocalizations.of(context);
     if (_rating < 1 || _rating > 5) {
       AppFeedback.show(
         context,
-        'Please select a rating (1-5 stars)',
+        loc.t('rating.select_stars'),
         kind: AppFeedbackKind.warning,
       );
       return;
@@ -56,7 +60,7 @@ class _RateRideDialogState extends State<RateRideDialog> {
     if (_wordCount > _maxCommentWords) {
       AppFeedback.show(
         context,
-        'Comment cannot exceed $_maxCommentWords words',
+        loc.t('rating.comment_limit'),
         kind: AppFeedbackKind.error,
       );
       return;
@@ -94,6 +98,7 @@ class _RateRideDialogState extends State<RateRideDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return AlertDialog(
       title: Text(widget.title),
       content: SingleChildScrollView(
@@ -102,11 +107,11 @@ class _RateRideDialogState extends State<RateRideDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'You can rate 4 minutes after your ride is confirmed (one-time rating).',
+              loc.t('rating.info'),
               style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
             ),
             const SizedBox(height: 12),
-            const Text('Your rating', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(loc.t('rating.your_rating'), style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -123,14 +128,14 @@ class _RateRideDialogState extends State<RateRideDialog> {
               }),
             ),
             const SizedBox(height: 16),
-            const Text('Comment (optional, max 20 words)', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(loc.t('rating.comment_label'), style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             TextField(
               controller: _commentController,
               maxLines: 3,
               maxLength: InputLimits.comment,
               decoration: InputDecoration(
-                hintText: 'How was your experience?',
+                hintText: loc.t('rating.comment_hint'),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                 counterText: '$_wordCount / $_maxCommentWords words',
               ),
@@ -147,13 +152,13 @@ class _RateRideDialogState extends State<RateRideDialog> {
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
+          child: Text(loc.t('app.cancel')),
         ),
         ElevatedButton(
           onPressed: _submitting ? null : _submit,
           child: _submitting
               ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Submit'),
+              : Text(loc.t('rating.submit')),
         ),
       ],
     );

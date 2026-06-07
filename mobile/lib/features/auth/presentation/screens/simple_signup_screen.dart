@@ -89,10 +89,11 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
 
   Future<void> _sendOtp() async {
     if (_isLoading) return;
+    final loc = AppLocalizations.of(context);
     if (!_acceptedTermsAndPrivacy) {
       AppFeedback.show(
         context,
-        'Please accept Terms & Privacy policy to continue.',
+        loc.t('signup.accept_terms'),
         kind: AppFeedbackKind.warning,
       );
       return;
@@ -101,7 +102,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
     if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
       AppFeedback.show(
         context,
-        'Enter a valid email',
+        loc.t('signup.email_invalid'),
         kind: AppFeedbackKind.warning,
       );
       return;
@@ -117,7 +118,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
       setState(() => _step = 2);
       AppFeedback.show(
         context,
-        'OTP sent to your email. Check inbox or spam.',
+        loc.t('signup.otp_sent'),
         kind: AppFeedbackKind.success,
       );
     } else {
@@ -129,7 +130,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
         kind: AppFeedbackKind.error,
         action: isAlreadyRegistered
             ? SnackBarAction(
-                label: 'Login',
+                label: loc.t('signup.login_label'),
                 textColor: Colors.white,
                 onPressed: () {
                   Navigator.of(context).pushReplacement(
@@ -144,10 +145,11 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
 
   Future<void> _verifyAndSignup() async {
     if (_isLoading) return;
+    final loc = AppLocalizations.of(context);
     if (!_acceptedTermsAndPrivacy) {
       AppFeedback.show(
         context,
-        'Please accept Terms & Privacy policy to continue.',
+        loc.t('signup.accept_terms'),
         kind: AppFeedbackKind.warning,
       );
       return;
@@ -162,7 +164,7 @@ class _SimpleSignupScreenState extends State<SimpleSignupScreen> {
     if (otp.length != 6) {
       AppFeedback.show(
         context,
-        'Enter 6-digit OTP',
+        loc.t('signup.otp_invalid'),
         kind: AppFeedbackKind.warning,
       );
       return;

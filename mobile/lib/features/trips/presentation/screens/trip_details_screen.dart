@@ -16,6 +16,7 @@ import '../../../../services/realtime_socket_service.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/review_service.dart';
 import '../../../../utils/launch_whatsapp.dart';
+import '../../../../utils/phone_call_helper.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../profile/presentation/screens/edit_profile_screen.dart';
 import '../../../profile/presentation/screens/user_reviews_screen.dart';
@@ -497,20 +498,44 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                     ),
                     // Contact only visible after confirmed booking
                     if (_userBookingStatus == 'confirmed' &&
-                        _displayTrip!.driver!.contactNumber != null &&
-                        _displayTrip!.driver!.contactNumber!
+                        _displayTrip!.driver!.phone != null &&
+                        _displayTrip!.driver!.phone!
                             .trim()
                             .isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        onPressed: () =>
-                            launchWhatsApp(_displayTrip!.driver!.contactNumber),
-                        icon: const Icon(Icons.chat, size: 18),
-                        label: Text(loc.t('trip.details.whatsapp')),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.green[700],
-                          side: BorderSide(color: Colors.green[700]!),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => launchPhoneCall(
+                                  context, _displayTrip!.driver!.phone!),
+                              icon: const Icon(Icons.call, size: 18),
+                              label: Text(loc.t('trip.details.call')),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.green[700],
+                                side: BorderSide(color: Colors.green[700]!),
+                              ),
+                            ),
+                          ),
+                          if (_displayTrip!.driver!.whatsappNumber != null &&
+                              _displayTrip!.driver!.whatsappNumber!
+                                  .trim()
+                                  .isNotEmpty) ...[
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => launchWhatsApp(
+                                    _displayTrip!.driver!.whatsappNumber),
+                                icon: const Icon(Icons.chat, size: 18),
+                                label: Text(loc.t('trip.details.whatsapp')),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.green[700],
+                                  side: BorderSide(color: Colors.green[700]!),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ] else if (_userBookingStatus == 'pending') ...[
                       const SizedBox(height: 10),
@@ -529,7 +554,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Booking pending — driver contact will be shared once confirmed.',
+                                loc.t('trip.details.pending_contact'),
                                 style: TextStyle(
                                     fontSize: 12, color: Colors.orange[800]),
                               ),

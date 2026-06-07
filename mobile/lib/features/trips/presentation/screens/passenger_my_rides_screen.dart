@@ -247,49 +247,95 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
             ),
             if (isApproved && b['driver'] != null) ...[
               const SizedBox(height: 12),
-              InkWell(
-                onTap: () => _openChatWithDriver(loc, b['driver']),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue[200]!),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.blue,
-                        child: Text(
-                          (b['driver']['name'] ?? 'D')[0].toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 18,
+                          backgroundColor: Colors.blue,
+                          child: Text(
+                            (b['driver']['name'] ?? 'D')[0].toUpperCase(),
+                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              b['driver']['name']?.toString() ?? loc.t('my_rides.driver_default'),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              loc.t('my_rides.whatsapp_hint'),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.blue[700],
-                                fontWeight: FontWeight.w500,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                b['driver']['name']?.toString() ?? loc.t('my_rides.driver_default'),
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                              ),
+                              if ((b['vehicle_number'] ?? '').toString().isNotEmpty)
+                                Text(
+                                  b['vehicle_number'].toString(),
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        if ((b['driver']['phone'] ?? '').toString().trim().isNotEmpty)
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => launchPhoneCall(context, b['driver']['phone'].toString()),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.call_rounded, size: 18, color: Color(0xFF16A34A)),
+                                    SizedBox(width: 6),
+                                    Text('Call', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF16A34A))),
+                                  ],
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chat_bubble_outline, color: Colors.blue[700], size: 24),
-                    ],
-                  ),
+                          ),
+                        if ((b['driver']['whatsapp_number'] ?? '').toString().trim().isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => _openChatWithDriver(loc, b['driver']),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF25D366).withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),
+                                    SizedBox(width: 6),
+                                    Text('WhatsApp', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF25D366))),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ] else if (status == 'pending')

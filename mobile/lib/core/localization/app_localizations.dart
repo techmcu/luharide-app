@@ -324,6 +324,26 @@ class AppLocalizations {
       'en': 'Privacy policy page — coming soon. A link will be added when it is live.',
       'hi': 'गोपनीयता नीति पृष्ठ — जल्द आ रहा है। लाइव होने पर लिंक जोड़ा जाएगा।',
     },
+    'signup.accept_terms': {
+      'en': 'Please accept Terms & Privacy policy to continue.',
+      'hi': 'जारी रखने के लिए कृपया नियम और गोपनीयता नीति स्वीकार करें।',
+    },
+    'signup.email_invalid': {
+      'en': 'Enter a valid email',
+      'hi': 'एक वैध ईमेल दर्ज करें',
+    },
+    'signup.otp_sent': {
+      'en': 'OTP sent to your email. Check inbox or spam.',
+      'hi': 'OTP आपके ईमेल पर भेजा गया। इनबॉक्स या स्पैम देखें।',
+    },
+    'signup.otp_invalid': {
+      'en': 'Enter 6-digit OTP',
+      'hi': '6 अंकों का OTP दर्ज करें',
+    },
+    'signup.login_label': {
+      'en': 'Login',
+      'hi': 'लॉगिन',
+    },
     'profile.logout': {
       'en': 'Sign out',
       'hi': 'साइन आउट',
@@ -351,6 +371,26 @@ class AppLocalizations {
     'app.refresh': {
       'en': 'Refresh',
       'hi': 'रीफ़्रेश',
+    },
+    'app.exit_confirm': {
+      'en': 'Press back again to exit',
+      'hi': 'बाहर जाने के लिए फिर से दबाएँ',
+    },
+    'app.phone_label': {
+      'en': 'Phone',
+      'hi': 'फ़ोन',
+    },
+    'app.copy': {
+      'en': 'Copy',
+      'hi': 'कॉपी',
+    },
+    'app.copy_number': {
+      'en': 'Copy Number',
+      'hi': 'नंबर कॉपी करें',
+    },
+    'app.dialer_failed': {
+      'en': 'Could not open dialer',
+      'hi': 'डायलर नहीं खुल सका',
     },
     'profile.complete_profile_btn': {
       'en': 'Complete profile',
@@ -686,9 +726,13 @@ class AppLocalizations {
       'en': 'Tap to see ratings & reviews',
       'hi': 'रेटिंग व समीक्षा देखने के लिए टैप करें',
     },
+    'trip.details.call': {
+      'en': 'Call',
+      'hi': 'कॉल करें',
+    },
     'trip.details.whatsapp': {
-      'en': 'Message on WhatsApp',
-      'hi': 'WhatsApp पर संदेश',
+      'en': 'WhatsApp',
+      'hi': 'WhatsApp',
     },
     'trip.details.pending_contact': {
       'en':
@@ -737,6 +781,35 @@ class AppLocalizations {
     'trip.details.see_reviews': {
       'en': 'See reviews',
       'hi': 'समीक्षाएँ देखें',
+    },
+    // Rating dialog
+    'rating.select_stars': {
+      'en': 'Please select a rating (1–5 stars)',
+      'hi': 'कृपया रेटिंग चुनें (1–5 स्टार)',
+    },
+    'rating.comment_limit': {
+      'en': 'Comment cannot exceed 20 words',
+      'hi': 'टिप्पणी 20 शब्दों से अधिक ��हीं हो सकती',
+    },
+    'rating.your_rating': {
+      'en': 'Your rating',
+      'hi': 'आपकी रेटिंग',
+    },
+    'rating.comment_hint': {
+      'en': 'How was your experience?',
+      'hi': 'आपका अनुभव कैसा रहा?',
+    },
+    'rating.comment_label': {
+      'en': 'Comment (optional, max 20 words)',
+      'hi': 'टिप्पणी (वैकल्पिक, अधिकतम 20 शब्द)',
+    },
+    'rating.info': {
+      'en': 'You can rate after your ride is confirmed (one-time rating).',
+      'hi': 'राइड कन्फर्म होने के बाद आप रेटिंग दे सकते हैं (एक बार)।',
+    },
+    'rating.submit': {
+      'en': 'Submit',
+      'hi': 'जमा करें',
     },
     // Seat selection
     'seat.select.title': {
