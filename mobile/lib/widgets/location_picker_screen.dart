@@ -79,6 +79,20 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     await prefs.setStringList(_recentKey, recent);
   }
 
+  Future<void> _removeRecentLocation(String location) async {
+    final prefs = await SharedPreferences.getInstance();
+    final recent = prefs.getStringList(_recentKey) ?? [];
+    recent.removeWhere((l) => l.toLowerCase() == location.toLowerCase());
+    await prefs.setStringList(_recentKey, recent);
+    if (mounted) setState(() => _recentLocations = recent);
+  }
+
+  Future<void> _clearAllRecent() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_recentKey);
+    if (mounted) setState(() => _recentLocations = []);
+  }
+
   void _onTextChanged(String value) {
     setState(() {});
     _debounce?.cancel();
@@ -204,6 +218,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             icon: Icons.history_rounded,
             iconColor: Colors.grey[500]!,
             label: 'Recent Searches',
+            trailing: GestureDetector(
+              onTap: _clearAllRecent,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                child: Text(
+                  'Clear',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.red[400]),
+                ),
+              ),
+            ),
           ),
           ..._recentLocations.map((loc) => _LocationTile(
                 location: loc,
@@ -211,6 +235,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 iconBgColor: Colors.grey.withValues(alpha: 0.08),
                 iconColor: Colors.grey[500]!,
                 onTap: () => _selectLocation(loc),
+                onRemove: () => _removeRecentLocation(loc),
               )),
           Divider(height: 24, indent: 16, endIndent: 16, color: Colors.grey[100]),
         ],
@@ -304,10 +329,12 @@ class _SectionHeader extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.label,
+    this.trailing,
   });
   final IconData icon;
   final Color iconColor;
   final String label;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -325,6 +352,8 @@ class _SectionHeader extends StatelessWidget {
               color: Colors.grey[600],
             ),
           ),
+          const Spacer(),
+          if (trailing != null) trailing!,
         ],
       ),
     );
@@ -339,6 +368,7 @@ class _LocationTile extends StatelessWidget {
     required this.iconColor,
     required this.onTap,
     this.highlightQuery,
+    this.onRemove,
   });
   final String location;
   final IconData icon;
@@ -346,6 +376,7 @@ class _LocationTile extends StatelessWidget {
   final Color iconColor;
   final VoidCallback onTap;
   final String? highlightQuery;
+  final VoidCallback? onRemove;
 
   static const _kBlue = Color(0xFF2563EB);
 
@@ -361,7 +392,12 @@ class _LocationTile extends StatelessWidget {
           ? _buildHighlightedText(location, highlightQuery!)
           : Text(location, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
       subtitle: Text('Uttarakhand', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
-      trailing: Icon(Icons.north_west_rounded, size: 16, color: Colors.grey[300]),
+      trailing: onRemove != null
+          ? GestureDetector(
+              onTap: onRemove,
+              child: Icon(Icons.close_rounded, size: 18, color: Colors.grey[400]),
+            )
+          : Icon(Icons.north_west_rounded, size: 16, color: Colors.grey[300]),
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
