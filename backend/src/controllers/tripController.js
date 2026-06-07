@@ -884,12 +884,8 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
     return al.localeCompare(bl);
   });
 
-  const toTitleCase = s => s.split(/\s+/)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
-
   ApiResponse.success(
-    { suggestions: unique.slice(0, 15).map(toTitleCase) },
+    { suggestions: unique.slice(0, 15) },
     'Location suggestions'
   ).send(res);
 });
