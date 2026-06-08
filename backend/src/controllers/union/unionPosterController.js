@@ -4,6 +4,29 @@ const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const PDFDocument = require('pdfkit');
+
+const DAILY_POSTER_LIMIT = 3;
+
+async function _checkPosterDailyLimit(unionId) {
+  const countRes = await pool.query(
+    `SELECT COUNT(*)::int AS cnt FROM union_daily_actions
+     WHERE union_id = $1 AND action_type = 'poster'
+       AND created_at >= CURRENT_DATE`,
+    [unionId]
+  );
+  if (countRes.rows[0].cnt >= DAILY_POSTER_LIMIT) {
+    throw ApiError.badRequest(
+      `आज की लिमिट पूरी हो गई। एक दिन में ${DAILY_POSTER_LIMIT} बार ही पोस्टर बना सकते हैं।`
+    );
+  }
+}
+
+async function _trackPosterAction(unionId) {
+  await pool.query(
+    `INSERT INTO union_daily_actions (union_id, action_type) VALUES ($1, 'poster')`,
+    [unionId]
+  );
+}
 const {
   cleanPosterHeader,
   cleanPosterCustomText,
@@ -99,6 +122,8 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
   }
   const unionId = resUnion.rows[0].union_id;
 
+  await _checkPosterDailyLimit(unionId);
+
   const schedRes = await pool.query(
     `SELECT
        s.*,
@@ -147,6 +172,8 @@ const getUnionSchedulePoster = asyncHandler(async (req, res) => {
 
   const safe  = (s) => s.replace(/[^\w]+/g, '-').slice(0, 40);
   const fname = `union-poster-${safe(from)}-${safe(to)}-${dateStr.replace(/ /g,'-')}.pdf`;
+
+  await _trackPosterAction(unionId);
 
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${fname}"`);
@@ -363,6 +390,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
   if (resUnion.rows.length === 0) throw ApiError.forbidden('No approved union');
   const unionId = resUnion.rows[0].union_id;
 
+  await _checkPosterDailyLimit(unionId);
+
   const placeholders = ids.map((_, i) => `$${i + 2}`).join(',');
   const schedRes = await pool.query(
     `SELECT
@@ -416,6 +445,8 @@ const getUnionCombinedPoster = asyncHandler(async (req, res) => {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(r);
   }
+
+  await _trackPosterAction(unionId);
 
   const safe = s => s.replace(/[^\w]+/g,'-').slice(0,40);
   const fname = `union-schedule-${dateLabel.replace(/[, ]+/g,'-')}.pdf`;

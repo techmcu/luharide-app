@@ -4,6 +4,9 @@ const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const toTitleCase = require('../../utils/titleCase');
+const { sendPushToMultipleUsers } = require('../../utils/pushNotification');
+
+const DAILY_SCHEDULE_LIMIT = 3;
 
 const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   const { from_location, to_location, departure_time, union_driver_ids } = req.body;
@@ -16,7 +19,7 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   }
 
   const resUnion = await pool.query(
-    `SELECT ua.union_id
+    `SELECT ua.union_id, u.name AS union_name, u.fcm_enabled
      FROM union_admins ua
      JOIN unions u ON u.id = ua.union_id
      WHERE ua.user_id = $1 AND u.status = 'approved'
@@ -27,6 +30,22 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('No approved union found for this admin');
   }
   const unionId = resUnion.rows[0].union_id;
+  const unionName = resUnion.rows[0].union_name;
+  const fcmEnabled = resUnion.rows[0].fcm_enabled;
+
+  // Daily limit check
+  const countRes = await pool.query(
+    `SELECT COUNT(*)::int AS cnt FROM union_daily_actions
+     WHERE union_id = $1 AND action_type = 'bulk_schedule'
+       AND created_at >= CURRENT_DATE`,
+    [unionId]
+  );
+  const todayCount = countRes.rows[0].cnt;
+  if (todayCount >= DAILY_SCHEDULE_LIMIT) {
+    throw ApiError.badRequest(
+      `आज की लिमिट पूरी हो गई। एक दिन में ${DAILY_SCHEDULE_LIMIT} बार ही राइड बना सकते हैं।`
+    );
+  }
 
   const driversCheck = await pool.query(
     `SELECT id FROM union_drivers
@@ -60,6 +79,12 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
     );
     created = insertRes.rows;
 
+    // Track daily action
+    await client.query(
+      `INSERT INTO union_daily_actions (union_id, action_type) VALUES ($1, 'bulk_schedule')`,
+      [unionId]
+    );
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -72,11 +97,45 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
     `Union schedules created for union ${unionId} by admin ${req.user.id} count=${created.length}`
   );
 
+  // FCM: only on first creation of the day
+  if (todayCount === 0) {
+    _sendUnionRideFcm(unionId, unionName, fcmEnabled, toTitleCase(from_location), toTitleCase(to_location));
+  }
+
   ApiResponse.created(
     { schedules: created, count: created.length },
     'Rides created for selected drivers'
   ).send(res);
 });
+
+async function _sendUnionRideFcm(unionId, unionName, unionFcmEnabled, from, to) {
+  try {
+    if (!unionFcmEnabled) return;
+
+    const globalRes = await pool.query(
+      `SELECT value FROM settings WHERE key = 'fcm_global_union_rides'`
+    );
+    const globalEnabled = (globalRes.rows[0]?.value ?? 'true') === 'true';
+    if (!globalEnabled) return;
+
+    const passRes = await pool.query(
+      `SELECT id FROM users WHERE role = 'passenger' AND is_active = true`
+    );
+    const passengerIds = passRes.rows.map(r => r.id);
+    if (passengerIds.length === 0) return;
+
+    const title = `${from} → ${to} नई राइड!`;
+    const body = `${unionName} ने ${from} → ${to} की राइड अपलोड की! जल्दी करें, सीट सीमित हैं।`;
+
+    await sendPushToMultipleUsers(passengerIds, title, body, {
+      type: 'union_ride_created',
+      union_id: unionId,
+    });
+    logger.info({ msg: 'FCM union ride broadcast sent', unionId, passengers: passengerIds.length });
+  } catch (err) {
+    logger.warn({ msg: 'FCM union ride broadcast failed', unionId, error: err.message });
+  }
+}
 
 const getUnionSchedules = asyncHandler(async (req, res) => {
   const scope = (req.query.scope || 'current').toString();

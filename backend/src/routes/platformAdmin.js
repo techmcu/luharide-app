@@ -22,6 +22,9 @@ const {
   getMyComplaints,
   getDailyStats,
   exportStatsCsv,
+  getUnionFcmSettings,
+  toggleGlobalUnionFcm,
+  toggleUnionFcm,
 } = require('../controllers/platformAdminController');
 
 const guard = [authenticate, authorizePlatformAdmin];
@@ -50,5 +53,10 @@ router.get('/complaints/:id', ...guard, getComplaintDetail);
 router.post('/complaints/:id/resolve', ...guard, resolveComplaint);
 router.get('/config', ...guard, getAppConfig);
 router.patch('/config', ...guard, updateAppConfig);
+
+// Phase 3 — Union FCM Management
+router.get('/union-fcm', ...guard, getUnionFcmSettings);
+router.patch('/union-fcm/global', ...guard, toggleGlobalUnionFcm);
+router.patch('/union-fcm/:unionId', ...guard, toggleUnionFcm);
 
 module.exports = router;

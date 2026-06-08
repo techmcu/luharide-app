@@ -66,6 +66,9 @@ class ApiConstants {
   static String platformComplaintDetail(String id) => '/platform-admin/complaints/$id';
   static String platformComplaintResolve(String id) => '/platform-admin/complaints/$id/resolve';
   static const String platformConfig = '/platform-admin/config';
+  static const String platformUnionFcm = '/platform-admin/union-fcm';
+  static const String platformUnionFcmGlobal = '/platform-admin/union-fcm/global';
+  static String platformUnionFcmToggle(String unionId) => '/platform-admin/union-fcm/$unionId';
   static const String platformComplaintSubmit = '/platform-admin/complaints/submit';
   static const String platformComplaintsMine = '/platform-admin/complaints/mine';
 

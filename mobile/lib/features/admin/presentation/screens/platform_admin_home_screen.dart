@@ -751,7 +751,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -772,6 +772,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
           tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
+            Tab(icon: Icon(Icons.notifications_active, size: 20), text: 'Ride FCM'),
             Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
             Tab(icon: Icon(Icons.verified_user, size: 20), text: 'KYC'),
           ],
@@ -781,6 +782,7 @@ class _MoreTabState extends State<_MoreTab> with TickerProviderStateMixin {
         controller: _tabCtrl,
         children: const [
           _NotificationsSection(),
+          _UnionFcmSection(),
           _ComplaintsSection(),
           _KycSection(),
         ],
@@ -956,6 +958,188 @@ class _NotificationsSectionState extends State<_NotificationsSection> with Autom
     _titleCtrl.dispose();
     _bodyCtrl.dispose();
     super.dispose();
+  }
+}
+
+// --------------- Union FCM Section ---------------
+class _UnionFcmSection extends StatefulWidget {
+  const _UnionFcmSection();
+  @override
+  State<_UnionFcmSection> createState() => _UnionFcmSectionState();
+}
+
+class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAliveClientMixin {
+  final _service = PlatformAdminService();
+  bool _loading = true;
+  bool _globalEnabled = true;
+  List<dynamic> _unions = [];
+  final Set<String> _toggling = {};
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final res = await _service.getUnionFcmSettings();
+    if (!mounted) return;
+    setState(() {
+      _globalEnabled = res['globalEnabled'] == true;
+      _unions = res['unions'] ?? [];
+      _loading = false;
+    });
+  }
+
+  Future<void> _toggleGlobal(bool value) async {
+    setState(() => _toggling.add('global'));
+    final res = await _service.toggleGlobalUnionFcm(value);
+    if (!mounted) return;
+    setState(() => _toggling.remove('global'));
+    if (res['success'] == true) {
+      setState(() => _globalEnabled = value);
+      AppFeedback.show(context, value ? 'Global FCM ON' : 'Global FCM OFF', kind: AppFeedbackKind.success);
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  Future<void> _toggleUnion(String unionId, bool value) async {
+    setState(() => _toggling.add(unionId));
+    final res = await _service.toggleUnionFcm(unionId, value);
+    if (!mounted) return;
+    setState(() => _toggling.remove(unionId));
+    if (res['success'] == true) {
+      setState(() {
+        final idx = _unions.indexWhere((u) => u['id'] == unionId);
+        if (idx >= 0) _unions[idx]['fcm_enabled'] = value;
+      });
+      AppFeedback.show(context, value ? 'FCM ON' : 'FCM OFF', kind: AppFeedbackKind.success);
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            elevation: 0,
+            color: _globalEnabled ? Colors.green.shade50 : Colors.red.shade50,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    _globalEnabled ? Icons.notifications_active : Icons.notifications_off,
+                    color: _globalEnabled ? Colors.green.shade700 : Colors.red.shade700,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Global Ride FCM', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        const SizedBox(height: 2),
+                        Text(
+                          _globalEnabled
+                              ? 'Union ride notifications are ON for all'
+                              : 'All union ride notifications are OFF',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _toggling.contains('global')
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      : Switch(
+                          value: _globalEnabled,
+                          onChanged: _toggleGlobal,
+                          activeTrackColor: Colors.green.shade200,
+                        ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Per-Union FCM Control', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              ),
+              IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _load),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'First ride of each day per union sends FCM to all passengers.',
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 12),
+          if (_unions.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('No approved unions yet', style: TextStyle(color: Colors.black45)),
+            )
+          else
+            ..._unions.map(_buildUnionRow),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUnionRow(dynamic union) {
+    final id = union['id']?.toString() ?? '';
+    final name = union['name']?.toString() ?? 'Unknown';
+    final enabled = union['fcm_enabled'] == true;
+    final isToggling = _toggling.contains(id);
+
+    return Card(
+      elevation: 0,
+      color: Colors.grey.shade50,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: enabled ? Colors.green.shade100 : Colors.grey.shade200,
+              child: Icon(
+                Icons.business,
+                size: 18,
+                color: enabled ? Colors.green.shade700 : Colors.grey,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(name, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+            ),
+            isToggling
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : Switch(
+                    value: enabled,
+                    onChanged: !_globalEnabled ? null : (v) => _toggleUnion(id, v),
+                    activeTrackColor: Colors.green.shade200,
+                  ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

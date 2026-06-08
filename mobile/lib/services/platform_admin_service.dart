@@ -241,6 +241,47 @@ class PlatformAdminService {
     }
   }
 
+  // ---- Phase 3: Union FCM Management ----
+
+  Future<Map<String, dynamic>> getUnionFcmSettings() async {
+    try {
+      final res = await _api.get(ApiConstants.platformUnionFcm);
+      return {'success': true, ..._unwrap(res.data)};
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed to load FCM settings'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  Future<Map<String, dynamic>> toggleGlobalUnionFcm(bool enabled) async {
+    try {
+      final res = await _api.patch(
+        ApiConstants.platformUnionFcmGlobal,
+        data: {'enabled': enabled},
+      );
+      return {'success': true, ..._unwrap(res.data)};
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  Future<Map<String, dynamic>> toggleUnionFcm(String unionId, bool enabled) async {
+    try {
+      final res = await _api.patch(
+        ApiConstants.platformUnionFcmToggle(unionId),
+        data: {'enabled': enabled},
+      );
+      return {'success': true, ..._unwrap(res.data)};
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
   Future<String?> exportCsv({int days = 180}) async {
     try {
       final res = await _api.get('${ApiConstants.platformExportCsv}?days=$days');

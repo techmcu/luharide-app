@@ -809,6 +809,78 @@ const exportStatsCsv = asyncHandler(async (req, res) => {
   res.send(csv);
 });
 
+// ===========================================================================
+// PHASE 3 — Union FCM Management
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// GET /api/platform-admin/union-fcm
+// ---------------------------------------------------------------------------
+const getUnionFcmSettings = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+
+  const globalRes = await queryRead(
+    `SELECT value FROM settings WHERE key = 'fcm_global_union_rides'`
+  );
+  const globalEnabled = (globalRes.rows[0]?.value ?? 'true') === 'true';
+
+  const unionsRes = await queryRead(
+    `SELECT id, name, fcm_enabled, status
+     FROM unions
+     WHERE status = 'approved'
+     ORDER BY name ASC`
+  );
+
+  ApiResponse.success({
+    globalEnabled,
+    unions: unionsRes.rows,
+  }, 'Union FCM settings').send(res);
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/platform-admin/union-fcm/global  { enabled: true/false }
+// ---------------------------------------------------------------------------
+const toggleGlobalUnionFcm = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+  const { enabled } = req.body || {};
+  if (typeof enabled !== 'boolean') {
+    throw ApiError.badRequest('enabled must be true or false');
+  }
+
+  await pool.query(
+    `INSERT INTO settings (key, value, description, updated_at)
+     VALUES ('fcm_global_union_rides', $1, 'Global on/off for FCM push when unions create rides', NOW())
+     ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+    [String(enabled)]
+  );
+
+  logger.info(`Platform admin ${req.user.id} set global union FCM to ${enabled}`);
+  ApiResponse.success({ globalEnabled: enabled }, 'Global FCM setting updated').send(res);
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/platform-admin/union-fcm/:unionId  { enabled: true/false }
+// ---------------------------------------------------------------------------
+const toggleUnionFcm = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+  const { unionId } = req.params;
+  const { enabled } = req.body || {};
+  if (typeof enabled !== 'boolean') {
+    throw ApiError.badRequest('enabled must be true or false');
+  }
+
+  const result = await pool.query(
+    `UPDATE unions SET fcm_enabled = $1 WHERE id = $2 AND status = 'approved' RETURNING id, name, fcm_enabled`,
+    [enabled, unionId]
+  );
+  if (result.rowCount === 0) {
+    throw ApiError.notFound('Union not found or not approved');
+  }
+
+  logger.info(`Platform admin ${req.user.id} set FCM for union ${unionId} to ${enabled}`);
+  ApiResponse.success(result.rows[0], 'Union FCM setting updated').send(res);
+});
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -829,4 +901,7 @@ module.exports = {
   getMyComplaints,
   getDailyStats,
   exportStatsCsv,
+  getUnionFcmSettings,
+  toggleGlobalUnionFcm,
+  toggleUnionFcm,
 };
