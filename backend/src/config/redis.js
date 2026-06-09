@@ -42,7 +42,6 @@ function buildRedisOptions() {
     port,
     ...(password ? { password } : {}),
     maxRetriesPerRequest: 3,
-    enableOfflineQueue: false,
     retryStrategy(times) {
       return Math.min(times * 500, 30000);
     },
