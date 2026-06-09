@@ -130,7 +130,7 @@ async function _sendUnionRideFcm(unionId, unionName, unionFcmEnabled) {
       { title: `🚖 ${unionName} — अपणी सवारी तैयार भई!`, body: `पहाड़ों का सफ़र, अपणी गाड़ी! जल्दी बुक करो 🏔️` },
       { title: `🚖 ${unionName} — राइडें लाइव!`, body: `आधा हफ्ता निकल गया, सफ़र अभी बाकी है! बुक करो 🎯` },
       { title: `🚖 ${unionName} — गाड़ियाँ तैयार!`, body: `भाई सीट पक्की कर लो, बाद में मत बोलना बताया नहीं! 😎` },
-      { title: `🚖 ${unionName} — जुम्मे की सवारी!`, body: `वीकेंड शुरू, सफ़र का मूड बनाओ! अभी देखो 🚀` },
+      { title: `🚖 ${unionName} — वीकेंड की सवारी!`, body: `छुट्टी का मूड बनाओ, सफ़र पक्का करो! अभी देखो 🚀` },
       { title: `🚖 ${unionName} — छुट्टी स्पेशल राइडें!`, body: `शनिवार है, निकल पड़ो! सीटें कम हैं, जल्दी करो 💺` },
     ];
     const dayIndex = new Date().getDay();
