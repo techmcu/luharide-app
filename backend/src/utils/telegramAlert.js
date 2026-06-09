@@ -60,11 +60,12 @@ function formatErrorAlert(statusCode, message, url, method, stack, extra = {}) {
   return lines.join('\n');
 }
 
-function formatInfraAlert(component, message, details) {
+function formatInfraAlert(component, message, details, { severity = 'error' } = {}) {
   const svc = process.env.LUHA_SERVICE_NAME || 'luharide-api';
   const env = process.env.NODE_ENV || 'development';
+  const icon = severity === 'ok' ? '🟢' : severity === 'warn' ? '🟡' : '🔴';
   const lines = [
-    `<b>🔴 ${svc} Infra</b>`,
+    `<b>${icon} ${svc} Infra</b>`,
     `<b>Env:</b> ${env}`,
     `<b>Component:</b> ${component}`,
     `<b>Message:</b> ${message}`,

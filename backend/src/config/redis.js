@@ -26,7 +26,7 @@ function _alertTransition(up, detail) {
   _redisUp = up;
   if (up) {
     logger.info({ msg: 'Redis RECOVERED', detail });
-    sendTelegramAlert(formatInfraAlert('Redis', `RECOVERED — ${detail}`));
+    sendTelegramAlert(formatInfraAlert('Redis', `RECOVERED — ${detail}`, null, { severity: 'ok' }));
   } else {
     logger.error({ msg: 'Redis DOWN', detail });
     sendTelegramAlert(formatInfraAlert('Redis', `DOWN — ${detail}. Rate-limits falling back to in-memory.`));
