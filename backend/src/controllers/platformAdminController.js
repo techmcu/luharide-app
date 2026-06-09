@@ -854,8 +854,17 @@ const toggleGlobalUnionFcm = asyncHandler(async (req, res) => {
     [String(enabled)]
   );
 
-  logger.info(`Platform admin ${req.user.id} set global union FCM to ${enabled}`);
-  ApiResponse.success({ globalEnabled: enabled }, 'Global FCM setting updated').send(res);
+  await pool.query(
+    `UPDATE unions SET fcm_enabled = $1 WHERE status = 'approved'`,
+    [enabled]
+  );
+
+  const unionsRes = await pool.query(
+    `SELECT id, name, fcm_enabled, status FROM unions WHERE status = 'approved' ORDER BY name ASC`
+  );
+
+  logger.info(`Platform admin ${req.user.id} set global union FCM to ${enabled} (all ${unionsRes.rowCount} unions updated)`);
+  ApiResponse.success({ globalEnabled: enabled, unions: unionsRes.rows }, 'Global FCM setting updated').send(res);
 });
 
 // ---------------------------------------------------------------------------

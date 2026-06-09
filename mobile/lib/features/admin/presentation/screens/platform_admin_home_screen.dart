@@ -1006,8 +1006,23 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
     if (!mounted) return;
     setState(() => _toggling.remove('global'));
     if (res['success'] == true) {
-      setState(() => _globalEnabled = value);
-      AppFeedback.show(context, value ? 'Global FCM ON' : 'Global FCM OFF', kind: AppFeedbackKind.success);
+      setState(() {
+        _globalEnabled = value;
+        final updated = res['unions'] as List?;
+        if (updated != null) {
+          _unions = updated;
+        } else {
+          for (final u in _unions) {
+            u['fcm_enabled'] = value;
+          }
+        }
+      });
+      final count = _unions.length;
+      AppFeedback.show(
+        context,
+        value ? 'Global FCM ON — सभी $count unions ON' : 'Global FCM OFF — सभी $count unions OFF',
+        kind: AppFeedbackKind.success,
+      );
     } else {
       AppFeedback.show(context, res['message'] ?? 'Failed', kind: AppFeedbackKind.error);
     }
@@ -1128,7 +1143,7 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
           if (!_globalEnabled) ...[
             const SizedBox(height: 8),
             Text(
-              'Global FCM is OFF — per-union toggles are disabled.',
+              'Global FCM OFF — कोई notification नहीं जाएगा। Individual toggle से सिर्फ preset सेट होगा।',
               style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
             ),
           ],
@@ -1177,7 +1192,7 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
                 ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                 : Switch(
                     value: enabled,
-                    onChanged: !_globalEnabled ? null : (v) => _toggleUnion(id, v),
+                    onChanged: (v) => _toggleUnion(id, v),
                     activeTrackColor: Colors.green.shade200,
                   ),
           ],
