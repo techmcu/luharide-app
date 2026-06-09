@@ -173,9 +173,12 @@ class AuthService {
 
   /// Get current user profile.
   /// 401 handling is done by ApiService interceptor (auto-refresh + retry).
-  Future<UserModel> getCurrentUser() async {
+  Future<UserModel> getCurrentUser({bool retriable = true}) async {
     try {
-      final response = await _apiService.get(ApiConstants.currentUser);
+      final response = await _apiService.get(
+        ApiConstants.currentUser,
+        options: retriable ? null : Options(extra: {'__retriable__': false}),
+      );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         return UserModel.fromJson(response.data['data']);

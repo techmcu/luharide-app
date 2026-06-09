@@ -65,7 +65,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> _syncUserAfterTokenRefresh() async {
     if (_status != AuthStatus.authenticated) return;
     try {
-      final fresh = await _authService.getCurrentUser()
+      final fresh = await _authService.getCurrentUser(retriable: false)
           .timeout(const Duration(seconds: 8));
       if (_status == AuthStatus.authenticated) {
         _user = fresh;
