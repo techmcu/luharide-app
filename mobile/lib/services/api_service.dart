@@ -235,6 +235,8 @@ class ApiService {
       return handler.resolve(cloneResponse);
     } catch (_) {
       clearAuthToken();
+      unawaited(SecureTokenStorage.instance.clearTokens());
+      _authSessionLost.add(null);
       return handler.next(error);
     }
   }
