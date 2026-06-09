@@ -99,7 +99,7 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
 
   // FCM: only on first creation of the day
   if (todayCount === 0) {
-    _sendUnionRideFcm(unionId, unionName, fcmEnabled, toTitleCase(from_location), toTitleCase(to_location));
+    _sendUnionRideFcm(unionId, unionName, fcmEnabled);
   }
 
   ApiResponse.created(
@@ -108,7 +108,7 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
-async function _sendUnionRideFcm(unionId, unionName, unionFcmEnabled, from, to) {
+async function _sendUnionRideFcm(unionId, unionName, unionFcmEnabled) {
   try {
     if (!unionFcmEnabled) return;
 
@@ -124,8 +124,17 @@ async function _sendUnionRideFcm(unionId, unionName, unionFcmEnabled, from, to) 
     const passengerIds = passRes.rows.map(r => r.id);
     if (passengerIds.length === 0) return;
 
-    const title = `${from} → ${to} नई राइड!`;
-    const body = `${unionName} ने ${from} → ${to} की राइड अपलोड की! जल्दी करें, सीट सीमित हैं।`;
+    const msgs = [
+      { title: `🚖 ${unionName} — नई राइडें आ गईं!`, body: `इतवार को भी सफ़र रुकता नहीं! सीट पक्की करो, देर मत करो 😄` },
+      { title: `🚖 ${unionName} — हफ्ते की पहली सवारी!`, body: `नया हफ्ता, नई राइड! अभी बुक करो, सीटें उड़ जाएँगी 💪` },
+      { title: `🚖 ${unionName} — अपणी सवारी तैयार भई!`, body: `पहाड़ों का सफ़र, अपणी गाड़ी! जल्दी बुक करो 🏔️` },
+      { title: `🚖 ${unionName} — राइडें लाइव!`, body: `आधा हफ्ता निकल गया, सफ़र अभी बाकी है! बुक करो 🎯` },
+      { title: `🚖 ${unionName} — गाड़ियाँ तैयार!`, body: `भाई सीट पक्की कर लो, बाद में मत बोलना बताया नहीं! 😎` },
+      { title: `🚖 ${unionName} — जुम्मे की सवारी!`, body: `वीकेंड शुरू, सफ़र का मूड बनाओ! अभी देखो 🚀` },
+      { title: `🚖 ${unionName} — छुट्टी स्पेशल राइडें!`, body: `शनिवार है, निकल पड़ो! सीटें कम हैं, जल्दी करो 💺` },
+    ];
+    const dayIndex = new Date().getDay();
+    const { title, body } = msgs[dayIndex];
 
     await sendPushToMultipleUsers(passengerIds, title, body, {
       type: 'union_ride_created',
