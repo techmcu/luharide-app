@@ -1,6 +1,10 @@
 /**
- * Optional Redis — Phase next: shared rate limits + Socket.IO multi-instance.
- * Enable: REDIS_ENABLED=true, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD (optional)
+ * Redis client with circuit-breaker alerting and infinite reconnect.
+ *
+ * - Alerts only on state transitions (up→down, down→up) — no spam.
+ * - Never gives up reconnecting (30s max backoff).
+ * - enableOfflineQueue=false: commands fail immediately when disconnected.
+ * - getRedisHealth() for health endpoints.
  */
 const logger = require('./logger');
 const { sendTelegramAlert, formatInfraAlert } = require('../utils/telegramAlert');
@@ -14,6 +18,21 @@ let mainClient = null;
 let socketPub = null;
 let socketSub = null;
 
+// State-aware alerting: only fire on transitions
+let _redisUp = null; // null = unknown, true = connected, false = disconnected
+
+function _alertTransition(up, detail) {
+  if (_redisUp === up) return;
+  _redisUp = up;
+  if (up) {
+    logger.info({ msg: 'Redis RECOVERED', detail });
+    sendTelegramAlert(formatInfraAlert('Redis', `RECOVERED — ${detail}`));
+  } else {
+    logger.error({ msg: 'Redis DOWN', detail });
+    sendTelegramAlert(formatInfraAlert('Redis', `DOWN — ${detail}. Rate-limits falling back to in-memory.`));
+  }
+}
+
 function buildRedisOptions() {
   const host = process.env.REDIS_HOST || '127.0.0.1';
   const port = parseInt(process.env.REDIS_PORT || '6379', 10);
@@ -22,30 +41,29 @@ function buildRedisOptions() {
     host,
     port,
     ...(password ? { password } : {}),
-    maxRetriesPerRequest: 20,
+    maxRetriesPerRequest: 3,
+    enableOfflineQueue: false,
     retryStrategy(times) {
-      if (times > 15) return null;
-      return Math.min(times * 200, 3000);
+      return Math.min(times * 500, 30000);
     },
   };
 }
 
-/**
- * Single shared connection for rate-limit scripts (and base for socket duplicates).
- */
 function getRedisClient() {
   if (!isRedisEnabled()) return null;
   if (mainClient) return mainClient;
   try {
     const Redis = require('ioredis');
     mainClient = new Redis(buildRedisOptions());
+
     mainClient.on('error', (err) => {
-      logger.warn({ msg: 'Redis client error', error: err.message });
-      sendTelegramAlert(formatInfraAlert('Redis', err.message));
+      _alertTransition(false, err.message);
     });
-    mainClient.on('connect', () => {
-      logger.info('Redis connected (main client)');
+
+    mainClient.on('ready', () => {
+      _alertTransition(true, 'connection restored');
     });
+
     return mainClient;
   } catch (e) {
     logger.warn({ msg: 'Redis init failed', error: e.message });
@@ -83,7 +101,7 @@ function getSocketIoRedisClients() {
     socketPub = base.duplicate();
     socketSub = base.duplicate();
     [socketPub, socketSub].forEach((c) => {
-      c.on('error', (err) => logger.warn({ msg: 'Redis socket client error', error: err.message }));
+      c.on('error', () => {}); // errors already tracked via mainClient
     });
     return { pub: socketPub, sub: socketSub };
   } catch (e) {
@@ -92,9 +110,20 @@ function getSocketIoRedisClients() {
   }
 }
 
+function getRedisHealth() {
+  if (!isRedisEnabled()) return { enabled: false };
+  if (!mainClient) return { enabled: true, status: 'not_initialized' };
+  return {
+    enabled: true,
+    status: mainClient.status,
+    up: mainClient.status === 'ready',
+  };
+}
+
 module.exports = {
   isRedisEnabled,
   getRedisClient,
   createRateLimitRedisStore,
   getSocketIoRedisClients,
+  getRedisHealth,
 };

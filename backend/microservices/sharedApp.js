@@ -30,11 +30,14 @@ function createBaseApp(serviceName) {
   app.get('/health', async (req, res) => {
     try {
       const { pool } = require('../src/config/database');
+      const { getRedisHealth } = require('../src/config/redis');
       await pool.query('SELECT 1');
+      const redis = getRedisHealth();
       res.json({
         ok: true,
         service: serviceName,
         database: 'connected',
+        redis,
         timestamp: new Date().toISOString(),
       });
     } catch (e) {

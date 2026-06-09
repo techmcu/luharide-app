@@ -95,12 +95,15 @@ mountUploadsStatic(app, path.join(__dirname, '../uploads'));
 
 app.get('/health', async (req, res) => {
   try {
+    const { getRedisHealth } = require('../src/config/redis');
     await pool.query('SELECT 1');
+    const redis = getRedisHealth();
     res.json({
       status: 'ok',
       role: 'gateway',
       timestamp: new Date().toISOString(),
       database: 'connected',
+      redis,
     });
   } catch (error) {
     res.status(503).json({ status: 'error', message: error.message });
