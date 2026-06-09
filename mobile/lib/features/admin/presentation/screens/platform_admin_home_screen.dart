@@ -973,6 +973,7 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
   bool _loading = true;
   bool _globalEnabled = true;
   List<dynamic> _unions = [];
+  String? _error;
   final Set<String> _toggling = {};
 
   @override
@@ -985,9 +986,13 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() { _loading = true; _error = null; });
     final res = await _service.getUnionFcmSettings();
     if (!mounted) return;
+    if (res['success'] != true) {
+      setState(() { _error = res['message']?.toString() ?? 'Failed to load'; _loading = false; });
+      return;
+    }
     setState(() {
       _globalEnabled = res['globalEnabled'] == true;
       _unions = res['unions'] ?? [];
@@ -1028,6 +1033,30 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
   Widget build(BuildContext context) {
     super.build(context);
     if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700)),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final enabledCount = _unions.where((u) => u['fcm_enabled'] == true).length;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -1077,9 +1106,17 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
           const SizedBox(height: 20),
           Row(
             children: [
-              const Expanded(
-                child: Text('Per-Union FCM Control', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: Text(
+                  'Per-Union FCM Control (${_unions.length})',
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
               ),
+              if (_unions.isNotEmpty)
+                Text(
+                  '$enabledCount/${_unions.length} ON',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
               IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _load),
             ],
           ),
@@ -1088,6 +1125,13 @@ class _UnionFcmSectionState extends State<_UnionFcmSection> with AutomaticKeepAl
             'First ride of each day per union sends FCM to all passengers.',
             style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
           ),
+          if (!_globalEnabled) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Global FCM is OFF — per-union toggles are disabled.',
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade700, fontWeight: FontWeight.w500),
+            ),
+          ],
           const SizedBox(height: 12),
           if (_unions.isEmpty)
             const Padding(
