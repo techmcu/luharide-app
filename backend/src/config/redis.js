@@ -23,10 +23,13 @@ let _redisUp = null; // null = unknown, true = connected, false = disconnected
 
 function _alertTransition(up, detail) {
   if (_redisUp === up) return;
+  const wasDown = _redisUp === false;
   _redisUp = up;
   if (up) {
-    logger.info({ msg: 'Redis RECOVERED', detail });
-    sendTelegramAlert(formatInfraAlert('Redis', `RECOVERED — ${detail}`, null, { severity: 'ok' }));
+    logger.info({ msg: 'Redis connected', detail });
+    if (wasDown) {
+      sendTelegramAlert(formatInfraAlert('Redis', `RECOVERED — ${detail}`, null, { severity: 'ok' }));
+    }
   } else {
     logger.error({ msg: 'Redis DOWN', detail });
     sendTelegramAlert(formatInfraAlert('Redis', `DOWN — ${detail}. Rate-limits falling back to in-memory.`));
