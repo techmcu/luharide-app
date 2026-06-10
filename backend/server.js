@@ -54,7 +54,7 @@ const { setIo } = require('./src/socket/socketIoRegistry');
 const rateNotificationJob = require('./src/jobs/rateNotificationJob');
 const rideCleanupJob = require('./src/jobs/rideCleanupJob');
 const pendingBookingExpiryJob = require('./src/jobs/pendingBookingExpiryJob');
-const tripAutoCompleteJob = require('./src/jobs/tripAutoCompleteJob');
+const tripLifecycleJob = require('./src/jobs/tripLifecycleJob');
 const dailyStatsJob = require('./src/jobs/dailyStatsJob');
 
 const app = express();
@@ -213,7 +213,7 @@ server.listen(PORT, LISTEN_HOST, () => {
   // Stagger job startup to avoid pool connection spike
   setTimeout(() => rideCleanupJob.start(), 1000);
   setTimeout(() => pendingBookingExpiryJob.start(), 2000);
-  setTimeout(() => tripAutoCompleteJob.start(), 3000);
+  setTimeout(() => tripLifecycleJob.start(), 3000);
   setTimeout(() => rateNotificationJob.start(), 4000);
   setTimeout(() => dailyStatsJob.start(), 5000);
 });

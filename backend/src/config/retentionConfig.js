@@ -23,8 +23,8 @@ module.exports = {
   unionScheduleMaxPerUnion: intEnv('UNION_SCHEDULE_MAX_PER_UNION', 100, 10, 500),
 
   // --- Notifications (user) ---
-  notificationReadRetentionHours: 12,
-  notificationUnreadRetentionHours: 24,
+  notificationReadRetentionHours: intEnv('NOTIFICATION_READ_RETENTION_HOURS', 48, 6, 720),
+  notificationUnreadRetentionHours: intEnv('NOTIFICATION_UNREAD_RETENTION_HOURS', 168, 24, 720),
 
   // --- FCM tokens ---
   fcmTokenRetentionDays: 30,
@@ -74,4 +74,7 @@ module.exports = {
 
   // --- Emergency contacts ---
   emergencyContactsMaxPerUser: intEnv('EMERGENCY_CONTACTS_MAX_PER_USER', 10, 3, 20),
+
+  // --- Union daily actions (rate-limit tracking) ---
+  unionDailyActionsRetentionDays: intEnv('UNION_DAILY_ACTIONS_RETENTION_DAYS', 7, 1, 30),
 };

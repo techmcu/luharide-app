@@ -21,6 +21,7 @@ class TripModel {
   final String? vehicleModelId;
   final List<String> stops;
   final String status;
+  final String? createdSource;
   final DriverInfo? driver;
   final int pendingRequestsCount; // For driver: how many need approval
 
@@ -37,9 +38,12 @@ class TripModel {
     this.vehicleModelId,
     this.stops = const [],
     required this.status,
+    this.createdSource,
     this.driver,
     this.pendingRequestsCount = 0,
   });
+
+  bool get isIndependentDriver => createdSource == 'independent_driver';
 
   factory TripModel.fromJson(Map<String, dynamic> json) {
     return TripModel(
@@ -63,6 +67,7 @@ class TripModel {
               : [])
           : [],
       status: json['status']?.toString() ?? 'scheduled',
+      createdSource: json['created_source']?.toString(),
       driver: json['driver'] is Map<String, dynamic>
           ? DriverInfo.fromJson(json['driver'] as Map<String, dynamic>)
           : null,

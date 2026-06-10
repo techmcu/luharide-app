@@ -25,6 +25,7 @@ const {
   getUnionFcmSettings,
   toggleGlobalUnionFcm,
   toggleUnionFcm,
+  getDbHealth,
 } = require('../controllers/platformAdminController');
 
 const guard = [authenticate, authorizePlatformAdmin];
@@ -58,5 +59,8 @@ router.patch('/config', ...guard, updateAppConfig);
 router.get('/union-fcm', ...guard, getUnionFcmSettings);
 router.patch('/union-fcm/global', ...guard, toggleGlobalUnionFcm);
 router.patch('/union-fcm/:unionId', ...guard, toggleUnionFcm);
+
+// Phase 4 — DB Health
+router.get('/db-health', ...guard, getDbHealth);
 
 module.exports = router;

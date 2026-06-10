@@ -342,8 +342,10 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
             ),
           ),
 
-          // Complete ride (Driver) — only after departure time has passed.
-          if ((_trip!.status == 'scheduled' || _trip!.status == 'in_progress') &&
+          // Complete ride (Driver) — only for union trips, after departure time has passed.
+          // Independent driver trips auto-start and auto-complete via backend lifecycle job.
+          if (!_trip!.isIndependentDriver &&
+              (_trip!.status == 'scheduled' || _trip!.status == 'in_progress') &&
               !_trip!.departureTime.isAfter(DateTime.now()))
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -46,6 +46,9 @@ const createTrip = asyncHandler(async (req, res) => {
   if (!to_location || to_location.length < 2) {
     throw ApiError.badRequest('To location is required (at least 2 characters).');
   }
+  if (from_location.toLowerCase().replace(/\s+/g, '') === to_location.toLowerCase().replace(/\s+/g, '')) {
+    throw ApiError.badRequest('From and To location cannot be the same.');
+  }
   const fare_per_seat = Number(rawFare);
   if (Number.isNaN(fare_per_seat) || fare_per_seat <= 0) {
     throw ApiError.badRequest('Fare per seat must be a positive number.');
@@ -101,7 +104,38 @@ const createTrip = asyncHandler(async (req, res) => {
   if (departureDate.getTime() < Date.now()) {
     throw ApiError.badRequest('Departure time cannot be in the past');
   }
+  const MIN_ADVANCE_HOURS = 2;
+  const minAdvanceMs = MIN_ADVANCE_HOURS * 60 * 60 * 1000;
+  if (departureDate.getTime() - Date.now() < minAdvanceMs) {
+    throw ApiError.badRequest(
+      `Ride departure must be at least ${MIN_ADVANCE_HOURS} hours from now.`
+    );
+  }
   const arrivalDate = new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
+
+  const overlap = await pool.query(
+    `SELECT id FROM trips
+     WHERE driver_id = $1 AND status IN ('scheduled', 'in_progress')
+       AND departure_time < $2::timestamp
+       AND COALESCE(arrival_time, departure_time + INTERVAL '2 hours') > $3::timestamp
+     LIMIT 1`,
+    [driverId, arrivalDate.toISOString(), departureDate.toISOString()]
+  );
+  if (overlap.rows.length > 0) {
+    throw ApiError.badRequest(
+      'Aapki ek aur ride iss time pe already scheduled hai. Pehle woh complete ya cancel karein.'
+    );
+  }
+
+  const MAX_FARE_PER_SEAT = 10000;
+  const MIN_FARE_PER_SEAT = 10;
+  if (fare_per_seat < MIN_FARE_PER_SEAT) {
+    throw ApiError.badRequest(`Fare per seat must be at least ₹${MIN_FARE_PER_SEAT}.`);
+  }
+  if (fare_per_seat > MAX_FARE_PER_SEAT) {
+    throw ApiError.badRequest(`Fare per seat cannot exceed ₹${MAX_FARE_PER_SEAT}.`);
+  }
+
   const departureStr = departureDate.toISOString().slice(0, 19).replace('T', ' ');
   const arrivalStr = arrivalDate.toISOString().slice(0, 19).replace('T', ' ');
 
@@ -847,20 +881,39 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
   }
 
   const qLower = q.toLowerCase().trim();
+  const qNorm = qLower.replace(/[\s,.\-_:;/\\]+/g, '');
+  const normPat = `%${qNorm}%`;
 
-  const result = await pool.query(
-    `SELECT DISTINCT location FROM (
-       SELECT from_location AS location FROM trips WHERE LOWER(from_location) LIKE LOWER($1)
-       UNION
-       SELECT to_location AS location FROM trips WHERE LOWER(to_location) LIKE LOWER($1)
-       UNION
-       SELECT from_location AS location FROM union_schedules WHERE LOWER(from_location) LIKE LOWER($1)
-       UNION
-       SELECT to_location AS location FROM union_schedules WHERE LOWER(to_location) LIKE LOWER($1)
-     ) AS locations
-     LIMIT 30`,
-    [`%${q}%`]
-  );
+  let result;
+  try {
+    result = await queryRead(
+      `SELECT DISTINCT location FROM (
+         SELECT from_location AS location FROM trips WHERE from_location_norm LIKE $1
+         UNION
+         SELECT to_location AS location FROM trips WHERE to_location_norm LIKE $1
+         UNION
+         SELECT from_location AS location FROM union_schedules WHERE from_location_norm LIKE $1
+         UNION
+         SELECT to_location AS location FROM union_schedules WHERE to_location_norm LIKE $1
+       ) AS locations
+       LIMIT 30`,
+      [normPat]
+    );
+  } catch (err) {
+    if (err.code === '42703' || err.code === '42P01') {
+      result = await queryRead(
+        `SELECT DISTINCT location FROM (
+           SELECT from_location AS location FROM trips WHERE LOWER(from_location) LIKE LOWER($1)
+           UNION
+           SELECT to_location AS location FROM trips WHERE LOWER(to_location) LIKE LOWER($1)
+         ) AS locations
+         LIMIT 30`,
+        [`%${q}%`]
+      );
+    } else {
+      throw err;
+    }
+  }
 
   const dbLocations = result.rows.map(row => row.location);
   const matchingDefaults = UTTARAKHAND_LOCATIONS
@@ -973,7 +1026,7 @@ const startTrip = asyncHandler(async (req, res) => {
     await client.query('BEGIN');
 
     const tripResult = await client.query(
-      'SELECT id, status FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      'SELECT id, status, departure_time, created_source FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
       [tripId, driverId]
     );
 
@@ -986,6 +1039,11 @@ const startTrip = asyncHandler(async (req, res) => {
     if (trip.status !== 'scheduled') {
       await client.query('ROLLBACK');
       throw ApiError.badRequest(`Cannot start trip. Current status: ${trip.status}. Only scheduled trips can be started.`);
+    }
+
+    if (trip.created_source === 'independent_driver' && trip.departure_time && new Date(trip.departure_time).getTime() > Date.now()) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest('Independent ride auto-start hoti hai departure time pe. Manually start nahi kar sakte.');
     }
 
     const pending = await client.query(
@@ -1111,28 +1169,42 @@ const completeTrip = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
-/** Driver cannot cancel trip when confirmed passengers exist and departure is within this many hours */
-const DRIVER_CANCEL_CUTOFF_HOURS = 2;
+const DRIVER_CANCEL_CUTOFF_HOURS = 5;
+const DRIVER_CANCEL_GRACE_MINUTES = 5;
+const DRIVER_CANCEL_WINDOW_DAYS = 30;
+const DRIVER_CANCEL_MAX = 5;
+const DRIVER_CANCEL_BLOCK_HOURS = 48;
 
-/**
- * Cancel trip (Driver only)
- * Driver can cancel only if: no confirmed bookings, OR departure is more than DRIVER_CANCEL_CUTOFF_HOURS away.
- * Within cutoff with confirmed passengers → reject (protects passengers).
- * PUT /api/trips/:id/cancel
- */
 const cancelTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
   requireUuid(tripId);
   const driverId = req.user.id;
 
+  try {
+    const blockCheck = await pool.query(
+      `SELECT cancel_blocked_until FROM users WHERE id = $1`,
+      [driverId]
+    );
+    if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
+      const until = new Date(blockCheck.rows[0].cancel_blocked_until);
+      throw ApiError.badRequest(
+        `Aapka cancel limit cross ho gaya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak naye cancel nahi kar sakte.`
+      );
+    }
+  } catch (e) {
+    if (e.statusCode) throw e;
+    if (e.code !== '42703') logger.warn('Cancel block check failed:', e.message);
+  }
+
   const client = await pool.connect();
   let notifyPassengers = [];
   let cancelledBookingIds = [];
+  let confirmedPassengerIds = [];
   try {
     await client.query('BEGIN');
 
     const tripResult = await client.query(
-      'SELECT id, status, departure_time, driver_id FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      'SELECT id, status, departure_time, driver_id, created_at FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
       [tripId, driverId]
     );
 
@@ -1165,18 +1237,24 @@ const cancelTrip = asyncHandler(async (req, res) => {
 
     const cutoffMs = DRIVER_CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
     if (confirmedBookings.rows.length > 0 && (departureTimeMs - now) < cutoffMs) {
-      await client.query('ROLLBACK');
-      throw ApiError.badRequest(
-        `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
-        `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure when passengers are confirmed.`
-      );
+      const createdAtMs = new Date(trip.created_at).getTime();
+      const graceMs = DRIVER_CANCEL_GRACE_MINUTES * 60 * 1000;
+      if ((now - createdAtMs) > graceMs) {
+        await client.query('ROLLBACK');
+        throw ApiError.badRequest(
+          `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
+          `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure when passengers are confirmed.`
+        );
+      }
     }
 
     const allActiveBookings = await client.query(
       `SELECT id, passenger_id, seat_numbers, status FROM bookings WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
       [tripId]
     );
-    cancelledBookingIds = allActiveBookings.rows.filter(r => r.status === 'confirmed').map(r => r.id);
+    const confirmedRows = allActiveBookings.rows.filter(r => r.status === 'confirmed');
+    cancelledBookingIds = confirmedRows.map(r => r.id);
+    confirmedPassengerIds = confirmedRows.map(r => ({ passenger_id: r.passenger_id, booking_id: r.id }));
 
     await client.query(
       `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(), cancellation_reason = 'Driver cancelled the trip' WHERE trip_id = $1 AND status IN ('pending', 'confirmed')`,
@@ -1237,9 +1315,44 @@ const cancelTrip = asyncHandler(async (req, res) => {
   for (const row of notifyPassengers) {
     emitNotificationToUser(row.user_id, row);
   }
+
+  for (const { passenger_id, booking_id } of confirmedPassengerIds) {
+    try {
+      const rn = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1, 'rate_ride', 'Rate your driver', 'Driver ne ride cancel ki. Apna experience rate karein.', $2::jsonb)
+         RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+        [passenger_id, JSON.stringify({ booking_id, trip_id: tripId, rate_only: 'driver' })]
+      );
+      if (rn.rows[0]) emitNotificationToUser(rn.rows[0].user_id, rn.rows[0]);
+    } catch (e) {
+      logger.warn('Cancel rate notification (passenger) failed:', e.message);
+    }
+  }
+
   emitTripUpdated(tripId, { reason: 'driver_cancelled_trip' });
 
   logger.info(`Trip cancelled: ${tripId} by driver ${driverId}`);
+
+  try {
+    const countRes = await pool.query(
+      `SELECT COUNT(*)::int AS cnt FROM trips
+       WHERE driver_id = $1 AND status = 'cancelled'
+         AND updated_at > NOW() - ($2::int * INTERVAL '1 day')`,
+      [driverId, DRIVER_CANCEL_WINDOW_DAYS]
+    );
+    const recentCancels = countRes.rows[0]?.cnt || 0;
+    if (recentCancels >= DRIVER_CANCEL_MAX) {
+      await pool.query(
+        `UPDATE users SET cancel_blocked_until = NOW() + ($2::int * INTERVAL '1 hour'), cancel_count = $3
+         WHERE id = $1`,
+        [driverId, DRIVER_CANCEL_BLOCK_HOURS, recentCancels]
+      );
+      logger.info(`Driver ${driverId} cancel-blocked for ${DRIVER_CANCEL_BLOCK_HOURS}h (${recentCancels} cancels in ${DRIVER_CANCEL_WINDOW_DAYS}d)`);
+    }
+  } catch (e) {
+    if (e.code !== '42703') logger.warn('Cancel tracking failed:', e.message);
+  }
 
   ApiResponse.success(
     { status: 'cancelled' },
@@ -1249,9 +1362,12 @@ const cancelTrip = asyncHandler(async (req, res) => {
 
 /**
  * Delete trip (Driver only)
- * Only allowed when: NO confirmed or pending bookings
+ * Allowed ONLY within 1 hour of creation AND no confirmed/pending bookings.
+ * After 1 hour the ride is permanent — use cancel instead.
  * DELETE /api/trips/:id
  */
+const DELETE_WINDOW_HOURS = 1;
+
 const deleteTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
   requireUuid(tripId);
@@ -1262,12 +1378,20 @@ const deleteTrip = asyncHandler(async (req, res) => {
     await client.query('BEGIN');
 
     const tripResult = await client.query(
-      'SELECT id FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
+      'SELECT id, created_at FROM trips WHERE id = $1 AND driver_id = $2 FOR UPDATE',
       [tripId, driverId]
     );
 
     if (tripResult.rows.length === 0) {
       throw ApiError.notFound('Trip not found');
+    }
+
+    const createdAt = new Date(tripResult.rows[0].created_at);
+    const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceCreation > DELETE_WINDOW_HOURS) {
+      throw ApiError.badRequest(
+        `Ride sirf banane ke ${DELETE_WINDOW_HOURS} ghante ke andar delete ho sakti hai. Uske baad cancel karein.`
+      );
     }
 
     const bookingsCheck = await client.query(

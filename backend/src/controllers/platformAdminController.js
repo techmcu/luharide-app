@@ -492,6 +492,16 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
     throw ApiError.badRequest(`segment must be one of: all, passenger, driver, union_admin`);
   }
 
+  const dupCheck = await pool.query(
+    `SELECT id FROM broadcasts
+     WHERE title = $1 AND body = $2 AND created_at > NOW() - INTERVAL '1 hour'
+     LIMIT 1`,
+    [title, body]
+  );
+  if (dupCheck.rows.length > 0) {
+    throw ApiError.badRequest('Yahi notification 1 ghante mein pehle bhi bheja ja chuka hai. Duplicate bhejne se users pareshaan hote hain.');
+  }
+
   const roleFilter = segment === 'all' ? null
     : (segment === 'driver' || segment === 'drivers') ? 'driver'
     : (segment === 'union_admin' || segment === 'union_admins') ? 'union_admin'
@@ -890,6 +900,44 @@ const toggleUnionFcm = asyncHandler(async (req, res) => {
   ApiResponse.success(result.rows[0], 'Union FCM setting updated').send(res);
 });
 
+// ---------------------------------------------------------------------------
+// GET /api/platform-admin/db-health
+// ---------------------------------------------------------------------------
+const getDbHealth = asyncHandler(async (req, res) => {
+  ensurePlatformAdmin(req.user);
+
+  const [tableStats, indexUsage, poolStats, dbSize] = await Promise.all([
+    queryRead(`
+      SELECT relname AS table_name,
+        n_live_tup::int AS live_rows,
+        n_dead_tup::int AS dead_rows,
+        pg_size_pretty(pg_total_relation_size(relid)) AS total_size
+      FROM pg_stat_user_tables
+      ORDER BY n_live_tup DESC
+      LIMIT 30
+    `),
+    queryRead(`
+      SELECT indexrelname AS index_name,
+        relname AS table_name,
+        idx_scan::int AS scans,
+        pg_size_pretty(pg_relation_size(indexrelid)) AS size
+      FROM pg_stat_user_indexes
+      ORDER BY idx_scan DESC
+      LIMIT 20
+    `),
+    queryRead(`SELECT * FROM pg_stat_activity WHERE datname = current_database() AND state IS NOT NULL`),
+    queryRead(`SELECT pg_size_pretty(pg_database_size(current_database())) AS db_size`),
+  ]);
+
+  ApiResponse.success({
+    dbSize: dbSize.rows[0]?.db_size,
+    tables: tableStats.rows,
+    topIndexes: indexUsage.rows,
+    activeConnections: poolStats.rowCount,
+    pool: { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount },
+  }, 'Database health').send(res);
+});
+
 module.exports = {
   getDashboard,
   getUsers,
@@ -913,4 +961,5 @@ module.exports = {
   getUnionFcmSettings,
   toggleGlobalUnionFcm,
   toggleUnionFcm,
+  getDbHealth,
 };

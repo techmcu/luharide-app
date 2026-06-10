@@ -48,6 +48,22 @@ const createBooking = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('trip_id and seat_numbers (array) are required');
   }
 
+  try {
+    const blockCheck = await pool.query(
+      `SELECT cancel_blocked_until FROM users WHERE id = $1`,
+      [passengerId]
+    );
+    if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
+      const until = new Date(blockCheck.rows[0].cancel_blocked_until);
+      throw ApiError.badRequest(
+        `Aapne bahut baar cancel kiya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak naye booking nahi kar sakte.`
+      );
+    }
+  } catch (e) {
+    if (e.statusCode) throw e;
+    if (e.code !== '42703') logger.warn('Booking block check failed:', e.message);
+  }
+
   const client = await pool.connect();
 
   try {
@@ -111,11 +127,28 @@ const createBooking = asyncHandler(async (req, res) => {
     const availableSeats = trip.available_seats ?? trip.total_capacity ?? 0;
     const requireApproval = trip.require_approval === false ? false : true;
 
+    const depMs = new Date(trip.departure_time).getTime();
+    if (depMs <= Date.now()) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest('This ride has already departed. You cannot book now.');
+    }
+    const AUTO_CONFIRM_WITHIN_MINUTES = 2;
+    const forceAutoConfirm = (depMs - Date.now()) < AUTO_CONFIRM_WITHIN_MINUTES * 60 * 1000;
+
     if (trip.driver_id != null && String(trip.driver_id) === String(passengerId)) {
       await client.query('ROLLBACK');
       throw ApiError.badRequest(
         'You cannot book seats on a ride you created. Use another account to book as a passenger.'
       );
+    }
+
+    const dupCheck = await client.query(
+      `SELECT id FROM bookings WHERE trip_id = $1 AND passenger_id = $2 AND status IN ('pending', 'confirmed') LIMIT 1`,
+      [trip_id, passengerId]
+    );
+    if (dupCheck.rows.length > 0) {
+      await client.query('ROLLBACK');
+      throw ApiError.badRequest('You already have an active booking on this ride.');
     }
 
     // Independent driver trips require passenger phone — driver needs to contact them
@@ -167,7 +200,7 @@ const createBooking = asyncHandler(async (req, res) => {
     }
 
     const totalAmount = uniqueSeats.length * farePerSeat;
-    const bookingStatus = requireApproval ? 'pending' : 'confirmed';
+    const bookingStatus = (requireApproval && !forceAutoConfirm) ? 'pending' : 'confirmed';
 
     let result;
     try {
@@ -345,6 +378,10 @@ const respondToBooking = asyncHandler(async (req, res) => {
       throw ApiError.badRequest('Booking is not pending');
     }
 
+    if (new Date(booking.departure_time).getTime() <= Date.now()) {
+      throw ApiError.badRequest('Ride departure time has passed. Cannot respond to this booking now.');
+    }
+
     const seatNums = Array.isArray(booking.seat_numbers)
       ? booking.seat_numbers
       : (booking.seat_numbers ? [].concat(booking.seat_numbers) : []);
@@ -364,6 +401,19 @@ const respondToBooking = asyncHandler(async (req, res) => {
       }
       await client.query('COMMIT');
       emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'booking_rejected' });
+
+      try {
+        const rn = await pool.query(
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'booking_rejected', 'Booking not approved', 'Driver ne aapki booking approve nahi ki. Kripya doosri ride try karein.', $2::jsonb)
+           RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+          [booking.passenger_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id })]
+        );
+        if (rn.rows[0]) emitNotificationToUser(rn.rows[0].user_id, rn.rows[0]);
+      } catch (e) {
+        logger.warn('Booking rejected notification failed:', e.message);
+      }
+
       return ApiResponse.success({ status: 'cancelled' }, 'Booking rejected').send(res);
     }
 
@@ -593,8 +643,11 @@ const getMyBookings = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
-/** Passenger cannot cancel a confirmed booking within this many minutes of departure. */
-const CANCEL_BEFORE_DEPARTURE_MINUTES = 30;
+const CANCEL_BEFORE_DEPARTURE_MINUTES = 60;
+const PASSENGER_CANCEL_GRACE_MINUTES = 5;
+const PASSENGER_CANCEL_WINDOW_DAYS = 30;
+const PASSENGER_CANCEL_MAX = 8;
+const PASSENGER_CANCEL_BLOCK_HOURS = 24;
 
 /**
  * Cancel booking (Passenger only)
@@ -608,13 +661,29 @@ const cancelBooking = asyncHandler(async (req, res) => {
   const passengerId = req.user.id;
   const reason = (req.body && req.body.reason != null) ? String(req.body.reason).trim() : null;
 
+  try {
+    const blockCheck = await pool.query(
+      `SELECT cancel_blocked_until FROM users WHERE id = $1`,
+      [passengerId]
+    );
+    if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
+      const until = new Date(blockCheck.rows[0].cancel_blocked_until);
+      throw ApiError.badRequest(
+        `Aapne bahut baar cancel kiya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak cancel nahi kar sakte.`
+      );
+    }
+  } catch (e) {
+    if (e.statusCode) throw e;
+    if (e.code !== '42703') logger.warn('Cancel block check failed:', e.message);
+  }
+
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
     const bookingResult = await client.query(
-      `SELECT b.id, b.trip_id, b.passenger_id, b.status, b.seat_numbers,
+      `SELECT b.id, b.trip_id, b.passenger_id, b.status, b.seat_numbers, b.created_at AS booking_created_at,
               t.driver_id, t.departure_time, t.status AS trip_status
        FROM bookings b
        JOIN trips t ON b.trip_id = t.id
@@ -649,9 +718,13 @@ const cancelBooking = asyncHandler(async (req, res) => {
 
     const cutoffMs = CANCEL_BEFORE_DEPARTURE_MINUTES * 60 * 1000;
     if (booking.status === 'confirmed' && (departureTime - now) < cutoffMs) {
-      throw ApiError.badRequest(
-        `Cancellation not allowed. Cancel at least ${CANCEL_BEFORE_DEPARTURE_MINUTES} minutes before departure.`
-      );
+      const bookingCreatedMs = new Date(booking.booking_created_at).getTime();
+      const graceMs = PASSENGER_CANCEL_GRACE_MINUTES * 60 * 1000;
+      if ((now - bookingCreatedMs) > graceMs) {
+        throw ApiError.badRequest(
+          `Cancellation not allowed. Cancel at least ${CANCEL_BEFORE_DEPARTURE_MINUTES} minutes before departure.`
+        );
+      }
     }
 
     const seatCount = Array.isArray(booking.seat_numbers) ? booking.seat_numbers.length : 0;
@@ -694,6 +767,43 @@ const cancelBooking = asyncHandler(async (req, res) => {
     }
 
     emitTripUpdated(booking.trip_id, { bookingId, status: 'cancelled', reason: 'passenger_cancelled' });
+
+    if (wasConfirmed) {
+      try {
+        const countRes = await pool.query(
+          `SELECT COUNT(*)::int AS cnt FROM bookings
+           WHERE passenger_id = $1 AND status = 'cancelled'
+             AND cancellation_reason NOT LIKE 'auto-%'
+             AND cancelled_at > NOW() - ($2::int * INTERVAL '1 day')`,
+          [passengerId, PASSENGER_CANCEL_WINDOW_DAYS]
+        );
+        const recentCancels = countRes.rows[0]?.cnt || 0;
+        if (recentCancels >= PASSENGER_CANCEL_MAX) {
+          await pool.query(
+            `UPDATE users SET cancel_blocked_until = NOW() + ($2::int * INTERVAL '1 hour'), cancel_count = $3
+             WHERE id = $1`,
+            [passengerId, PASSENGER_CANCEL_BLOCK_HOURS, recentCancels]
+          );
+          logger.info(`Passenger ${passengerId} cancel-blocked for ${PASSENGER_CANCEL_BLOCK_HOURS}h (${recentCancels} cancels in ${PASSENGER_CANCEL_WINDOW_DAYS}d)`);
+        }
+      } catch (e) {
+        if (e.code !== '42703') logger.warn('Cancel tracking failed:', e.message);
+      }
+    }
+
+    if (wasConfirmed) {
+      try {
+        const rn = await pool.query(
+          `INSERT INTO notifications (user_id, type, title, body, data)
+           VALUES ($1, 'rate_ride', 'Rate your passenger', 'Passenger ne ride cancel ki. Apna experience rate karein.', $2::jsonb)
+           RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+          [booking.driver_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id, rate_only: 'passenger' })]
+        );
+        if (rn.rows[0]) emitNotificationToUser(rn.rows[0].user_id, rn.rows[0]);
+      } catch (e) {
+        logger.warn('Cancel rate notification (driver) failed:', e.message);
+      }
+    }
 
     ApiResponse.success({ status: 'cancelled' }, 'Booking cancelled').send(res);
   } catch (err) {

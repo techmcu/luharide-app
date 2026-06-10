@@ -51,43 +51,83 @@ async function runEveningMaintenance() {
       );
       logPurge(label, 'union_schedules (fifo)', u2.rowCount);
 
-      // ── Pending bookings: auto-expire stale + restore available_seats ──
+      // ── Pending bookings: auto-expire stale + restore available_seats + notify passenger ──
       const pendingExpiry = await client.query(
         `WITH expired AS (
            UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
              cancellation_reason = 'auto-expired'
            WHERE status = 'pending'
              AND created_at < NOW() - ($1::int * INTERVAL '1 hour')
-           RETURNING trip_id, seat_numbers
+           RETURNING id, trip_id, passenger_id, seat_numbers
          )
-         SELECT trip_id, SUM(array_length(seat_numbers, 1)) AS seat_count
-         FROM expired
-         GROUP BY trip_id`,
+         SELECT id, trip_id, passenger_id, seat_numbers FROM expired`,
         [rc.pendingBookingExpiryHours]
       );
-      let expiredTotal = 0;
+      const seatsByTrip = {};
       for (const row of pendingExpiry.rows) {
-        const seats = parseInt(row.seat_count, 10) || 0;
+        const seats = Array.isArray(row.seat_numbers) ? row.seat_numbers.length : 0;
+        seatsByTrip[row.trip_id] = (seatsByTrip[row.trip_id] || 0) + seats;
+      }
+      for (const [tripId, seats] of Object.entries(seatsByTrip)) {
         if (seats > 0) {
           await client.query(
             'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
-            [seats, row.trip_id]
+            [seats, tripId]
           );
         }
-        expiredTotal += seats;
+      }
+      for (const row of pendingExpiry.rows) {
+        try {
+          await client.query(
+            `INSERT INTO notifications (user_id, type, title, body, data)
+             VALUES ($1, 'booking_auto_cancelled',
+               'Booking expired',
+               'Driver ne time pe respond nahi kiya, aapki booking auto-cancel ho gayi. Kripya doosri ride dekhein.',
+               $2::jsonb)`,
+            [row.passenger_id, JSON.stringify({ booking_id: row.id, trip_id: row.trip_id })]
+          );
+        } catch (e) {
+          logger.warn(`${label} expired booking notification failed: ${e.message}`);
+        }
       }
       if (pendingExpiry.rows.length > 0) {
-        logPurge(label, `pending bookings auto-expired (${expiredTotal} seats restored)`, pendingExpiry.rows.length);
+        logPurge(label, `pending bookings auto-expired (${Object.values(seatsByTrip).reduce((a, b) => a + b, 0)} seats restored)`, pendingExpiry.rows.length);
       }
 
-      // ── Trips: auto-complete stale scheduled ──
+      // ── Union trips: auto-complete stale scheduled (independent handled by tripLifecycleJob) ──
       const tc = await client.query(
         `UPDATE trips SET status = 'completed', updated_at = NOW()
-         WHERE status = 'scheduled'
-           AND departure_time < NOW() - ($1::int * INTERVAL '1 hour')`,
-        [rc.tripAutoCompleteAfterDepartureHours]
+         WHERE status IN ('scheduled', 'in_progress')
+           AND COALESCE(created_source, '') != 'independent_driver'
+           AND COALESCE(arrival_time, departure_time + INTERVAL '2 hours') <= NOW()`
       );
-      logPurge(label, 'trips auto-completed', tc.rowCount);
+      logPurge(label, 'union trips auto-completed', tc.rowCount);
+
+      // ── Dependent data: purge BEFORE trips (FK references without CASCADE) ──
+
+      // ── Location history (GPS): age ──
+      const loc = await client.query(
+        `DELETE FROM location_history
+         WHERE recorded_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.locationHistoryRetentionDays]
+      );
+      logPurge(label, 'location_history', loc.rowCount);
+
+      // ── SOS logs: age ──
+      const sos = await client.query(
+        `DELETE FROM sos_logs
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.sosLogRetentionDays]
+      );
+      logPurge(label, 'sos_logs', sos.rowCount);
+
+      // ── Login history: age ──
+      const lh = await client.query(
+        `DELETE FROM login_history
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.loginHistoryRetentionDays]
+      );
+      logPurge(label, 'login_history', lh.rowCount);
 
       // ── Trips: age-based purge (completed/cancelled only) ──
       const tp = await client.query(
@@ -118,30 +158,6 @@ async function runEveningMaintenance() {
         [rc.tripHistoryMaxPerDriver]
       );
       logPurge(label, 'trips (fifo)', tf.rowCount);
-
-      // ── Login history: age ──
-      const lh = await client.query(
-        `DELETE FROM login_history
-         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
-        [rc.loginHistoryRetentionDays]
-      );
-      logPurge(label, 'login_history', lh.rowCount);
-
-      // ── Location history (GPS): age ──
-      const loc = await client.query(
-        `DELETE FROM location_history
-         WHERE recorded_at < NOW() - ($1::int * INTERVAL '1 day')`,
-        [rc.locationHistoryRetentionDays]
-      );
-      logPurge(label, 'location_history', loc.rowCount);
-
-      // ── SOS logs: age ──
-      const sos = await client.query(
-        `DELETE FROM sos_logs
-         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
-        [rc.sosLogRetentionDays]
-      );
-      logPurge(label, 'sos_logs', sos.rowCount);
 
       // ── Recent routes: FIFO per user ──
       const rr = await client.query(
@@ -232,12 +248,21 @@ async function runEveningMaintenance() {
            SELECT r.id FROM ride_ratings r
            INNER JOIN (
              SELECT rated_user_id,
-               (array_agg(id ORDER BY created_at DESC))[${rc.reviewsMaxPerUser + 1}:] AS old_ids
-             FROM ride_ratings GROUP BY rated_user_id HAVING count(*) > ${rc.reviewsMaxPerUser}
+               (array_agg(id ORDER BY created_at DESC))[$1:] AS old_ids
+             FROM ride_ratings GROUP BY rated_user_id HAVING count(*) > $2
            ) excess ON r.id = ANY(excess.old_ids)
-         )`
+         )`,
+        [rc.reviewsMaxPerUser + 1, rc.reviewsMaxPerUser]
       );
       logPurge(label, 'ride_ratings (fifo)', rat.rowCount);
+
+      // ── Union daily actions: age ──
+      const uda = await client.query(
+        `DELETE FROM union_daily_actions
+         WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')`,
+        [rc.unionDailyActionsRetentionDays]
+      );
+      logPurge(label, 'union_daily_actions', uda.rowCount);
     });
 
     if (ran === false) {
@@ -250,6 +275,24 @@ async function runEveningMaintenance() {
       logger.warn(`${label} Error: ${err.message}`);
       sendTelegramAlert(formatJobAlert('Evening Cleanup', err.message, err.stack));
     }
+  }
+
+  // ── VACUUM ANALYZE high-churn tables (non-blocking, reclaims dead tuples) ──
+  try {
+    const vacuumTables = [
+      'trips', 'bookings', 'notifications', 'location_history',
+      'login_history', 'pending_rate_notifications', 'union_daily_actions',
+    ];
+    for (const tbl of vacuumTables) {
+      try {
+        await pool.query(`VACUUM ANALYZE ${tbl}`);
+      } catch (e) {
+        if (e.code !== '42P01') logger.warn(`${label} VACUUM ${tbl} failed: ${e.message}`);
+      }
+    }
+    logger.info(`${label} VACUUM ANALYZE complete`);
+  } catch (e) {
+    logger.warn(`${label} VACUUM failed: ${e.message}`);
   }
 
   // ── Refresh tokens (outside advisory lock — lightweight) ──
@@ -270,13 +313,15 @@ async function runEveningMaintenance() {
   try {
     const notifDel = await pool.query(
       `DELETE FROM notifications
-       WHERE (is_read = TRUE AND created_at < (NOW() - INTERVAL '${rc.notificationReadRetentionHours} hours'))
-          OR created_at < (NOW() - INTERVAL '${rc.notificationUnreadRetentionHours} hours')`
+       WHERE (is_read = TRUE AND created_at < (NOW() - $1::int * INTERVAL '1 hour'))
+          OR created_at < (NOW() - $2::int * INTERVAL '1 hour')`,
+      [rc.notificationReadRetentionHours, rc.notificationUnreadRetentionHours]
     );
     logPurge(label, 'notifications', notifDel.rowCount);
 
     const fcmDel = await pool.query(
-      `DELETE FROM fcm_tokens WHERE updated_at < (NOW() - INTERVAL '${rc.fcmTokenRetentionDays} days')`
+      `DELETE FROM fcm_tokens WHERE updated_at < (NOW() - $1::int * INTERVAL '1 day')`,
+      [rc.fcmTokenRetentionDays]
     );
     logPurge(label, 'fcm_tokens', fcmDel.rowCount);
   } catch (e) {

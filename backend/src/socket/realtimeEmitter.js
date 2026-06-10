@@ -29,16 +29,21 @@ function emitTripUpdated(tripId, extra = {}) {
 function emitNotificationToUser(userId, notification) {
   if (!userId) return;
 
-  if (notification && notification.title) {
-    sendPushToUser(userId, notification.title, notification.body || '').catch(() => {});
+  const io = getIo();
+  let userOnline = false;
+
+  if (io) {
+    try {
+      const room = io.sockets.adapter.rooms.get(`user:${userId}`);
+      userOnline = room && room.size > 0;
+      io.to(`user:${userId}`).emit('notification:new', { notification });
+    } catch (e) {
+      logger.warn('emitNotificationToUser failed:', e.message);
+    }
   }
 
-  const io = getIo();
-  if (!io) return;
-  try {
-    io.to(`user:${userId}`).emit('notification:new', { notification });
-  } catch (e) {
-    logger.warn('emitNotificationToUser failed:', e.message);
+  if (!userOnline && notification && notification.title) {
+    sendPushToUser(userId, notification.title, notification.body || '').catch(() => {});
   }
 }
 

@@ -2,9 +2,7 @@ const cron = require('node-cron');
 const { pool } = require('../config/database');
 const logger = require('../config/logger');
 const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
-const { withPgAdvisoryTryLock, JOB_NS } = require('./pgAdvisoryTryLock');
-
-const JOB_DAILY_STATS = 4;
+const { withPgAdvisoryTryLock, JOB_NS, JOB_DAILY_STATS } = require('./pgAdvisoryTryLock');
 const RETENTION_DAYS = 180;
 
 async function aggregateYesterday() {
@@ -27,8 +25,8 @@ async function aggregateYesterday() {
           (SELECT COUNT(*)::int FROM trips WHERE status = 'cancelled' AND updated_at::date = ${yesterday}::date),
           (SELECT COUNT(*)::int FROM bookings WHERE created_at::date = ${yesterday}::date),
           (SELECT COUNT(*)::int FROM bookings WHERE status = 'confirmed' AND created_at::date = ${yesterday}::date),
-          (SELECT COUNT(*)::int FROM bookings WHERE status = 'cancelled' AND cancelled_at::date = ${yesterday}::date),
-          (SELECT COUNT(*)::int FROM trips WHERE status = 'scheduled' AND departure_time > NOW()),
+          (SELECT COUNT(*)::int FROM bookings WHERE status = 'cancelled' AND cancelled_at::date = ${yesterday}::date AND COALESCE(cancellation_reason, '') NOT LIKE 'auto-expired%'),
+          (SELECT COUNT(*)::int FROM trips WHERE status = 'scheduled' AND departure_time::date > ${yesterday}::date AND created_at::date <= ${yesterday}::date),
           (SELECT COUNT(DISTINCT driver_id)::int FROM trips WHERE created_at::date = ${yesterday}::date)
         ON CONFLICT (stat_date) DO UPDATE SET
           new_users = EXCLUDED.new_users,

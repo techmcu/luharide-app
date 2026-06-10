@@ -47,8 +47,10 @@ async function submitRating(bookingId, userId, { rating, comment }) {
 
   const booking = await bookingRepository.getBookingWithTripForRating(bookingId);
   if (!booking) throw ApiError.notFound('Booking not found');
-  if (booking.status !== 'confirmed') {
-    throw ApiError.badRequest('Can only rate after booking is confirmed');
+
+  const wasCancelled = booking.status === 'cancelled';
+  if (booking.status !== 'confirmed' && !wasCancelled) {
+    throw ApiError.badRequest('Can only rate confirmed or cancelled bookings');
   }
 
   let fromRole;
@@ -61,6 +63,20 @@ async function submitRating(bookingId, userId, { rating, comment }) {
     ratedUserId = booking.passenger_id;
   } else {
     throw ApiError.forbidden('You can only rate your own booking');
+  }
+
+  if (wasCancelled) {
+    const cancelledByDriver = (booking.cancellation_reason || '').includes('Driver cancelled');
+    const cancelledByPassenger = !cancelledByDriver && booking.cancellation_reason && !booking.cancellation_reason.startsWith('auto-');
+    if (cancelledByDriver && fromRole === ROLES.DRIVER) {
+      throw ApiError.badRequest('Aapne ride cancel ki thi — aap rate nahi kar sakte.');
+    }
+    if (cancelledByPassenger && fromRole === ROLES.PASSENGER) {
+      throw ApiError.badRequest('Aapne booking cancel ki thi — aap rate nahi kar sakte.');
+    }
+    if (!cancelledByDriver && !cancelledByPassenger) {
+      throw ApiError.badRequest('Auto-cancelled bookings cannot be rated.');
+    }
   }
 
   await rideRatingsRepository.ensureTable();

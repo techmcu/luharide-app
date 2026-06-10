@@ -58,6 +58,7 @@ describe('createTrip', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [verif] })         // driver_verification_requests
       .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] }) // vehicle_model_id query
+      .mockResolvedValueOnce({ rows: [] })               // overlap check
       .mockResolvedValueOnce({ rows: [trip] });          // INSERT trip
 
     const req = {

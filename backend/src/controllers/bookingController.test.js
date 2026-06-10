@@ -55,15 +55,17 @@ describe('createBooking — seat reservation', () => {
     // 1. BEGIN
     // 2. cooldown check
     // 3. SELECT trip FOR UPDATE
-    // 4. existing bookings check
-    // 5. INSERT booking
-    // 6. UPDATE available_seats
-    // 7. (if confirmed) UPDATE confirmed_at
-    // 8. COMMIT
+    // 4. duplicate booking check
+    // 5. existing bookings check
+    // 6. INSERT booking
+    // 7. UPDATE available_seats
+    // 8. (if confirmed) UPDATE confirmed_at
+    // 9. COMMIT
     const mocks = [
       { rows: [] },             // BEGIN
       { rows: [] },             // cooldown check
       { rows: [trip] },         // SELECT trip FOR UPDATE
+      { rows: [] },             // duplicate booking check
       { rows: [] },             // existing bookings
       { rows: [booking] },      // INSERT booking
       { rows: [] },             // UPDATE available_seats

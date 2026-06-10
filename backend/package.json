@@ -26,7 +26,8 @@
     "test:ci": "jest --ci",
     "test:watch": "jest --watch",
     "test-db": "node test-connection.js",
-    "setup-db": "node setup-database.js"
+    "setup-db": "node setup-database.js",
+    "backup": "bash infra/scripts/pg-backup.sh"
   },
   "keywords": [
     "taxi",

@@ -36,6 +36,8 @@ const JOB_RATE_NOTIFICATIONS = 1;
 const JOB_RIDE_CLEANUP = 2;
 const JOB_PENDING_BOOKING_EXPIRY = 3;
 const JOB_TRIP_AUTO_COMPLETE = 4;
+const JOB_DAILY_STATS = 5;
+const JOB_TRIP_LIFECYCLE = 6;
 
 module.exports = {
   withPgAdvisoryTryLock,
@@ -44,4 +46,6 @@ module.exports = {
   JOB_RIDE_CLEANUP,
   JOB_PENDING_BOOKING_EXPIRY,
   JOB_TRIP_AUTO_COMPLETE,
+  JOB_DAILY_STATS,
+  JOB_TRIP_LIFECYCLE,
 };
