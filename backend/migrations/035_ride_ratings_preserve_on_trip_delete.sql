@@ -10,6 +10,10 @@ ALTER TABLE ride_ratings DROP CONSTRAINT IF EXISTS ride_ratings_booking_id_fkey;
 
 ALTER TABLE ride_ratings ALTER COLUMN booking_id DROP NOT NULL;
 
+UPDATE ride_ratings SET booking_id = NULL
+WHERE booking_id IS NOT NULL
+  AND booking_id NOT IN (SELECT id FROM bookings);
+
 ALTER TABLE ride_ratings
   ADD CONSTRAINT ride_ratings_booking_id_fkey
   FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL;
