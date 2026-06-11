@@ -1,7 +1,7 @@
 # LuhaRide — Complete Testing SOP (Standard Operating Procedure)
 
 **Last Updated:** 2026-06-11  
-**Version:** 4.0 — Complete A-to-Z (324 test cases, 141 P0, 16 parts)
+**Version:** 5.0 — Complete A-to-Z (349 test cases, 155 P0, 17 parts)
 
 ---
 
@@ -359,7 +359,7 @@
 | L-008 | Cancel rating prompt localized | Driver cancels trip → passenger sees rate prompt in Hindi | Hindi body shown | P1 |
 | L-009 | FCM push stays Hinglish/English | Trigger FCM push → check system notification tray | FCM text unchanged (backend English or Hinglish for SMS/FCM) — acceptable | P2 |
 | L-010 | No Hinglish in any API error response | Hit all error cases (blocked, invalid, etc.) | All error messages are proper English | P0 |
-| L-011 | Trip completed notification localized | Trip auto-completes → check notification in Hindi mode | Title: "राइड पूरी हो गई!", Body: "आपकी राइड पूरी हो गई है। अपना अनुभव रेट करें!" | P1 |
+| L-011 | Trip completed notification localized | Trip auto-completes → check notification in Hindi mode | Title: "शुभ यात्रा!", Body: "उम्मीद है आपकी यात्रा LuhaRide के साथ अच्छी रही!" | P1 |
 
 ## Part M: Infrastructure & Health
 
@@ -427,6 +427,36 @@
 | P-006 | Expired FCM tokens deleted | FCM token older than retention period | Deleted by cleanup job | P2 |
 | P-007 | Old trips deleted (retention) | Completed/cancelled trip older than retention | Trip + bookings deleted, ratings kept (booking_id SET NULL) | P2 |
 | P-008 | Advisory lock prevents duplicate jobs | 2 instances running same job | Only 1 gets the lock, other skips | P1 |
+
+## Part Q: Notification Flow & Timing Tests
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| Q-001 | Booking request notification (approval ON) | Passenger books seats on require_approval=true trip | Driver gets "New booking request!" instantly | P0 |
+| Q-002 | Booking confirmed notification | Driver accepts pending booking | Passenger gets "Booking confirmed!" instantly | P0 |
+| Q-003 | Booking rejected notification | Driver rejects pending booking | Passenger gets "Booking not approved" instantly | P0 |
+| Q-004 | Booking cancelled notification | Passenger cancels confirmed booking | Driver gets "Booking cancelled" instantly | P0 |
+| Q-005 | Auto-approved booking (approval OFF) | Passenger books on require_approval=false trip | Booking status=confirmed instantly, driver notified | P0 |
+| Q-006 | Ride started notification (auto-start) | Departure time arrives → cron runs | Driver gets "Your ride has started!" (0-2 min delay) | P0 |
+| Q-007 | Pending auto-cancel at start | Pending bookings exist when trip auto-starts | Pending passengers get "Driver did not respond" notification | P0 |
+| Q-008 | Happy Journey notification (auto-complete) | Departure + 2h → cron runs | Each confirmed passenger gets "Happy Journey!" (NOT "Rate your experience") | P0 |
+| Q-009 | Rate reminder timing | Departure + 5h → rateNotificationJob runs | Driver + passengers get "Rate your ride" notification | P0 |
+| Q-010 | Rate reminder NOT sent if cancelled | Trip cancelled before 5h mark | No rate notification sent, pending_rate_notifications deleted | P0 |
+| Q-011 | Rate reminder checks completed status | Booking status=completed at 5h mark | Rate notification sent (not just confirmed) | P0 |
+| Q-012 | Driver cancel → passengers notified | Driver cancels trip with bookings | ALL passengers (confirmed+pending) get "Ride cancelled" | P0 |
+| Q-013 | Driver cancel → auto 1-star silent | Driver cancels with confirmed bookings | Auto-1-star inserted per confirmed booking, NO notification for it | P1 |
+| Q-014 | Passenger cancel → driver notified | Passenger cancels confirmed booking | Driver gets "Booking cancelled" notification | P0 |
+| Q-015 | Passenger cancel → auto 1-star silent | Passenger cancels confirmed booking | Auto-1-star on passenger, NO notification for it | P1 |
+| Q-016 | Admin cancel → driver notified | Admin cancels trip | Driver gets "Your ride was cancelled by admin" | P0 |
+| Q-017 | Admin cancel → passengers notified | Admin cancels trip with bookings | All passengers get "Ride cancelled by admin" | P0 |
+| Q-018 | Admin cancel → rate reminders deleted | Admin cancels trip | pending_rate_notifications deleted for all affected bookings | P1 |
+| Q-019 | Pending cancel → NO notification to driver | Passenger cancels pending (not confirmed) booking | No cancel notification to driver (not confirmed yet) | P1 |
+| Q-020 | KYC approved notification | Admin approves driver verification | Driver gets "Verification approved" | P1 |
+| Q-021 | KYC rejected notification | Admin rejects driver verification | Driver gets "Verification rejected" with reason | P1 |
+| Q-022 | KYC reverify notification | Admin grants reverify | Driver gets "Please re-submit your documents" | P1 |
+| Q-023 | Union docs approved notification | Admin approves union documents | Union admin gets "Union documents approved" | P1 |
+| Q-024 | No duplicate notifications | Same event triggered twice (idempotency) | Only 1 notification sent, not 2 | P1 |
+| Q-025 | Happy Journey has NO rating mention | Check auto-complete notification text | Body must NOT contain "rate" or "review" or "experience" | P0 |
 
 ---
 
@@ -700,13 +730,14 @@ export default function () {
 | 4 | Union + Admin | J, K | Before every release | Tester |
 | 5 | UI/UX | (device testing) | Before every release | Tester (on device) |
 | 6 | Localization | L | After any text change | Tester |
-| 7 | Infrastructure | M, P | Before deploy | Tester / DevOps |
-| 8 | API Regression | All parts | Every push (CI/CD) | Automated (Jest/Newman) |
-| 9 | Network / Connectivity | (manual) | Before release | Tester (emulator) |
-| 10 | Load / Stress | (k6 scripts) | Before launch + monthly | Tester (k6/Artillery) |
-| 11 | Performance Profiling | (DevTools) | Before launch | Tester (DevTools) |
-| 12 | Device Compatibility | (real devices) | Before launch | Tester (real devices) |
-| 13 | Regression | All parts | Every release | Automated + Manual |
+| 7 | Notification Flow | Q | Before every release | Tester |
+| 8 | Infrastructure | M, P | Before deploy | Tester / DevOps |
+| 9 | API Regression | All parts | Every push (CI/CD) | Automated (Jest/Newman) |
+| 10 | Network / Connectivity | (manual) | Before release | Tester (emulator) |
+| 11 | Load / Stress | (k6 scripts) | Before launch + monthly | Tester (k6/Artillery) |
+| 12 | Performance Profiling | (DevTools) | Before launch | Tester (DevTools) |
+| 13 | Device Compatibility | (real devices) | Before launch | Tester (real devices) |
+| 14 | Regression | All parts | Every release | Automated + Manual |
 
 ---
 
