@@ -56,7 +56,7 @@ const createBooking = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        `Aapne bahut baar cancel kiya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak naye booking nahi kar sakte.`
+        'Aapne recently bahut baar cancel kiya hai. Kuch samay baad try karein.'
       );
     }
   } catch (e) {
@@ -669,7 +669,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        `Aapne bahut baar cancel kiya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak cancel nahi kar sakte.`
+        'Aapne recently bahut baar cancel kiya hai. Kuch samay baad try karein.'
       );
     }
   } catch (e) {
@@ -722,7 +722,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
       const graceMs = PASSENGER_CANCEL_GRACE_MINUTES * 60 * 1000;
       if ((now - bookingCreatedMs) > graceMs) {
         throw ApiError.badRequest(
-          `Cancellation not allowed. Cancel at least ${CANCEL_BEFORE_DEPARTURE_MINUTES} minutes before departure.`
+          'Departure ke kareeb cancel nahi ho sakta. Pehle se cancel karein.'
         );
       }
     }

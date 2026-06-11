@@ -509,9 +509,9 @@ class AppLocalizations {
     },
     'my_rides.cancel_policy': {
       'en':
-          'You can cancel until 2 minutes before the scheduled departure time (same rules as the server).',
+          'Cancellation is not allowed close to departure time. Cancel early to avoid restrictions.',
       'hi':
-          'निर्धारित प्रस्थान से 2 मिनट पहले तक आप रद्द कर सकते हैं (सर्वर के नियमों के अनुसार)।',
+          'प्रस्थान के करीब रद्द करना संभव नहीं है। जल्दी रद्द करें ताकि कोई प्रतिबंध न लगे।',
     },
     'my_rides.reason_label': {
       'en': 'Reason (optional)',

@@ -40,7 +40,7 @@ const createTrip = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        `Aapka cancel limit cross ho gaya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak naye ride nahi bana sakte.`
+        'Aapne recently bahut baar ride cancel ki hai. Kuch samay baad try karein.'
       );
     }
   } catch (e) {
@@ -1229,7 +1229,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        `Aapka cancel limit cross ho gaya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak naye cancel nahi kar sakte.`
+        'Aapne recently bahut baar ride cancel ki hai. Kuch samay baad try karein.'
       );
     }
   } catch (e) {
@@ -1284,7 +1284,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
         await client.query('ROLLBACK');
         throw ApiError.badRequest(
           `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
-          `Driver cannot cancel within ${DRIVER_CANCEL_CUTOFF_HOURS} hours of departure when passengers are confirmed.`
+          'Departure ke kareeb cancel nahi ho sakta jab passengers confirmed hain.'
         );
       }
     }

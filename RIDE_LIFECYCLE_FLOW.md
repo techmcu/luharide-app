@@ -926,15 +926,15 @@ sent (departure+5h)          (nothing to clean yet)    period expires
 │    → "auto-" prefix stripped                 │
 │    → counted as normal cancel                │
 │                                              │
-│ 2. Driver 48h block covers EVERYTHING        │
+│ 2. Driver block covers EVERYTHING             │
 │    → Cannot cancel rides                     │
 │    → Cannot CREATE new rides                 │
-│    → Must wait full 48 hours                 │
+│    → Must wait until block expires           │
 │                                              │
-│ 3. Passenger 24h block covers EVERYTHING     │
+│ 3. Passenger block covers EVERYTHING         │
 │    → Cannot cancel bookings                  │
 │    → Cannot book new rides                   │
-│    → Must wait full 24 hours                 │
+│    → Must wait until block expires           │
 │                                              │
 │ 4. NULL reason loophole FIXED                │
 │    → COALESCE(reason, '') NOT LIKE 'auto-%'  │
@@ -954,7 +954,11 @@ sent (departure+5h)          (nothing to clean yet)    period expires
 
 ---
 
-## CANCEL LIMITS SUMMARY
+## CANCEL LIMITS SUMMARY (INTERNAL — NOT SHOWN TO USERS)
+
+⚠ These thresholds are SECRET (BlaBlaCar style). User-facing messages
+never reveal exact numbers. Only vague messages like "bahut baar cancel
+kiya hai, kuch samay baad try karein."
 
 ```
 ┌────────────┬─────────┬──────────┬────────────┬──────────┐

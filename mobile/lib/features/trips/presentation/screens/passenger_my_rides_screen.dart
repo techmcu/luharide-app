@@ -76,7 +76,6 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     }
   }
 
-  /// Cancel allowed only until 2 min before departure; after ride start = not allowed (matches backend).
   bool _canCancelBooking(Map<String, dynamic> b) {
     if (b['status'] != 'confirmed') return true;
     final dep = b['departure_time'];
@@ -85,7 +84,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     if (depTime == null) return true;
     final now = DateTime.now();
     if (!now.isBefore(depTime)) return false;
-    if (depTime.difference(now).inMinutes < 30) return false;
+    if (depTime.difference(now).inMinutes < 60) return false;
     return true;
   }
 
