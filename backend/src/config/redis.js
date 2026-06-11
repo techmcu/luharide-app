@@ -85,7 +85,10 @@ function createRateLimitRedisStore(name) {
   try {
     const { RedisStore } = require('rate-limit-redis');
     return new RedisStore({
-      sendCommand: (...args) => client.call(...args),
+      sendCommand: (...args) => {
+        if (client.status !== 'ready') return Promise.resolve();
+        return client.call(...args);
+      },
       prefix: `luha:rl:${name}:`,
     });
   } catch (e) {
