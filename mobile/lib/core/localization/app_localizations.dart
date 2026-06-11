@@ -1974,8 +1974,8 @@ class AppLocalizations {
       'hi': 'राइड पूरी हो गई!',
     },
     'notif.trip_completed.body': {
-      'en': 'Your ride has been completed. Rate your experience!',
-      'hi': 'आपकी राइड पूरी हो गई है। अपना अनुभव रेट करें!',
+      'en': 'Your ride has been completed. Thank you for travelling with LuhaRide!',
+      'hi': 'आपकी राइड पूरी हो गई है। LuhaRide के साथ यात्रा करने के लिए धन्यवाद!',
     },
     'notif.trip_cancelled.title': {
       'en': 'Ride cancelled',
