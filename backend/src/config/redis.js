@@ -3,8 +3,7 @@
  *
  * - Alerts only on state transitions (up→down, down→up) — no spam.
  * - Never gives up reconnecting (30s max backoff).
- * - enableOfflineQueue=false: commands fail immediately when disconnected.
- * - getRedisHealth() for health endpoints.
+ * - getRedisHealth() for health endpoints + memory monitoring.
  */
 const logger = require('./logger');
 const { sendTelegramAlert, formatInfraAlert } = require('../utils/telegramAlert');
@@ -45,7 +44,6 @@ function buildRedisOptions() {
     port,
     ...(password ? { password } : {}),
     maxRetriesPerRequest: 3,
-    enableOfflineQueue: false,
     connectTimeout: 5000,
     lazyConnect: false,
     retryStrategy(times) {
@@ -85,10 +83,7 @@ function createRateLimitRedisStore(name) {
   try {
     const { RedisStore } = require('rate-limit-redis');
     return new RedisStore({
-      sendCommand: (...args) => {
-        if (client.status !== 'ready') return Promise.resolve();
-        return client.call(...args);
-      },
+      sendCommand: (...args) => client.call(...args),
       prefix: `luha:rl:${name}:`,
     });
   } catch (e) {
