@@ -212,9 +212,6 @@ describe('cancelTrip', () => {
       id: TRIP_ID, status: 'scheduled', driver_id: DRIVER_ID,
       departure_time: new Date(Date.now() + 86400000).toISOString(),
     };
-    const confirmedBookings = [
-      { id: BOOK_ID, passenger_id: PASS_ID, seat_numbers: [1, 2] },
-    ];
     const allActiveBookings = [
       { id: BOOK_ID, passenger_id: PASS_ID, seat_numbers: [1, 2], status: 'confirmed' },
       { id: BOOK2_ID, passenger_id: PASS2_ID, seat_numbers: [3], status: 'pending' },
@@ -223,7 +220,6 @@ describe('cancelTrip', () => {
     client.query
       .mockResolvedValueOnce({ rows: [] })                       // BEGIN
       .mockResolvedValueOnce({ rows: [trip] })                   // SELECT trip FOR UPDATE
-      .mockResolvedValueOnce({ rows: confirmedBookings })        // SELECT confirmed bookings
       .mockResolvedValueOnce({ rows: allActiveBookings })        // SELECT all active bookings
       .mockResolvedValueOnce({ rows: [], rowCount: 2 })          // UPDATE bookings
       .mockResolvedValueOnce({ rows: [] })                       // UPDATE trip + seats

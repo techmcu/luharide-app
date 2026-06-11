@@ -1210,11 +1210,11 @@ const completeTrip = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
-const DRIVER_CANCEL_CUTOFF_HOURS = 5;
-const DRIVER_CANCEL_GRACE_MINUTES = 5;
 const DRIVER_CANCEL_WINDOW_DAYS = 30;
 const DRIVER_CANCEL_MAX = 5;
 const DRIVER_CANCEL_BLOCK_HOURS = 48;
+const DRIVER_PERM_BLOCK_WINDOW_DAYS = 90;
+const DRIVER_PERM_BLOCK_MAX = 12;
 
 const cancelTrip = asyncHandler(async (req, res) => {
   const { id: tripId } = req.params;
@@ -1269,24 +1269,6 @@ const cancelTrip = asyncHandler(async (req, res) => {
     if (now >= departureTimeMs) {
       await client.query('ROLLBACK');
       throw ApiError.badRequest('Ride start time has passed. Cancellation not allowed.');
-    }
-
-    const confirmedBookings = await client.query(
-      `SELECT id, passenger_id, seat_numbers FROM bookings WHERE trip_id = $1 AND status = 'confirmed'`,
-      [tripId]
-    );
-
-    const cutoffMs = DRIVER_CANCEL_CUTOFF_HOURS * 60 * 60 * 1000;
-    if (confirmedBookings.rows.length > 0 && (departureTimeMs - now) < cutoffMs) {
-      const createdAtMs = new Date(trip.created_at).getTime();
-      const graceMs = DRIVER_CANCEL_GRACE_MINUTES * 60 * 1000;
-      if ((now - createdAtMs) > graceMs) {
-        await client.query('ROLLBACK');
-        throw ApiError.badRequest(
-          `Cannot cancel trip. You have ${confirmedBookings.rows.length} confirmed passenger(s). ` +
-          'Departure ke kareeb cancel nahi ho sakta jab passengers confirmed hain.'
-        );
-      }
     }
 
     const allActiveBookings = await client.query(
@@ -1377,19 +1359,27 @@ const cancelTrip = asyncHandler(async (req, res) => {
 
   try {
     const countRes = await pool.query(
-      `SELECT COUNT(*)::int AS cnt FROM trips
-       WHERE driver_id = $1 AND status = 'cancelled'
-         AND updated_at > NOW() - ($2::int * INTERVAL '1 day')`,
-      [driverId, DRIVER_CANCEL_WINDOW_DAYS]
+      `SELECT
+         (SELECT COUNT(*)::int FROM trips WHERE driver_id = $1 AND status = 'cancelled' AND updated_at > NOW() - ($2::int * INTERVAL '1 day')) AS recent,
+         (SELECT COUNT(*)::int FROM trips WHERE driver_id = $1 AND status = 'cancelled' AND updated_at > NOW() - ($3::int * INTERVAL '1 day')) AS long_term`,
+      [driverId, DRIVER_CANCEL_WINDOW_DAYS, DRIVER_PERM_BLOCK_WINDOW_DAYS]
     );
-    const recentCancels = countRes.rows[0]?.cnt || 0;
-    if (recentCancels >= DRIVER_CANCEL_MAX) {
+    const recent = countRes.rows[0]?.recent || 0;
+    const longTerm = countRes.rows[0]?.long_term || 0;
+    if (longTerm >= DRIVER_PERM_BLOCK_MAX) {
+      await pool.query(
+        `UPDATE users SET cancel_blocked_until = '2099-12-31'::timestamp, cancel_count = $2
+         WHERE id = $1`,
+        [driverId, longTerm]
+      );
+      logger.info(`Driver ${driverId} PERMANENTLY blocked (${longTerm} cancels in ${DRIVER_PERM_BLOCK_WINDOW_DAYS}d)`);
+    } else if (recent >= DRIVER_CANCEL_MAX) {
       await pool.query(
         `UPDATE users SET cancel_blocked_until = NOW() + ($2::int * INTERVAL '1 hour'), cancel_count = $3
          WHERE id = $1`,
-        [driverId, DRIVER_CANCEL_BLOCK_HOURS, recentCancels]
+        [driverId, DRIVER_CANCEL_BLOCK_HOURS, recent]
       );
-      logger.info(`Driver ${driverId} cancel-blocked for ${DRIVER_CANCEL_BLOCK_HOURS}h (${recentCancels} cancels in ${DRIVER_CANCEL_WINDOW_DAYS}d)`);
+      logger.info(`Driver ${driverId} temp-blocked ${DRIVER_CANCEL_BLOCK_HOURS}h (${recent} cancels in ${DRIVER_CANCEL_WINDOW_DAYS}d)`);
     }
   } catch (e) {
     if (e.code !== '42703') logger.warn('Cancel tracking failed:', e.message);

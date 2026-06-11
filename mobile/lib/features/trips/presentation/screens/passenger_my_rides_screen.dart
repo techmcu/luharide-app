@@ -77,15 +77,11 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
   }
 
   bool _canCancelBooking(Map<String, dynamic> b) {
-    if (b['status'] != 'confirmed') return true;
     final dep = b['departure_time'];
     if (dep == null) return true;
     final depTime = DateTime.tryParse(dep.toString());
     if (depTime == null) return true;
-    final now = DateTime.now();
-    if (!now.isBefore(depTime)) return false;
-    if (depTime.difference(now).inMinutes < 60) return false;
-    return true;
+    return DateTime.now().isBefore(depTime);
   }
 
   @override

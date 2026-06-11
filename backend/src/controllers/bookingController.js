@@ -640,17 +640,17 @@ const getMyBookings = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
-const CANCEL_BEFORE_DEPARTURE_MINUTES = 60;
-const PASSENGER_CANCEL_GRACE_MINUTES = 5;
 const PASSENGER_CANCEL_WINDOW_DAYS = 30;
 const PASSENGER_CANCEL_MAX = 8;
 const PASSENGER_CANCEL_BLOCK_HOURS = 24;
+const PASSENGER_PERM_BLOCK_WINDOW_DAYS = 90;
+const PASSENGER_PERM_BLOCK_MAX = 20;
 
 /**
  * Cancel booking (Passenger only)
  * POST /api/bookings/:id/cancel
  * Body: { reason?: string }
- * Pending: always allowed. Confirmed: allowed until 2 min before departure (testing).
+ * Allowed anytime before departure. Cancel count tracked — repeat offenders blocked.
  */
 const cancelBooking = asyncHandler(async (req, res) => {
   const bookingId = req.params.id;
@@ -710,21 +710,9 @@ const cancelBooking = asyncHandler(async (req, res) => {
     }
 
     const departureTime = new Date(booking.departure_time).getTime();
-    const now = Date.now();
 
-    if (now >= departureTime) {
+    if (Date.now() >= departureTime) {
       throw ApiError.badRequest('Ride has already started. Cancellation not allowed.');
-    }
-
-    const cutoffMs = CANCEL_BEFORE_DEPARTURE_MINUTES * 60 * 1000;
-    if (booking.status === 'confirmed' && (departureTime - now) < cutoffMs) {
-      const bookingCreatedMs = new Date(booking.booking_created_at).getTime();
-      const graceMs = PASSENGER_CANCEL_GRACE_MINUTES * 60 * 1000;
-      if ((now - bookingCreatedMs) > graceMs) {
-        throw ApiError.badRequest(
-          'Departure ke kareeb cancel nahi ho sakta. Pehle se cancel karein.'
-        );
-      }
     }
 
     const seatCount = Array.isArray(booking.seat_numbers) ? booking.seat_numbers.length : 0;
@@ -771,20 +759,31 @@ const cancelBooking = asyncHandler(async (req, res) => {
     if (wasConfirmed) {
       try {
         const countRes = await pool.query(
-          `SELECT COUNT(*)::int AS cnt FROM bookings
-           WHERE passenger_id = $1 AND status = 'cancelled'
-             AND COALESCE(cancellation_reason, '') NOT LIKE 'auto-%'
-             AND cancelled_at > NOW() - ($2::int * INTERVAL '1 day')`,
-          [passengerId, PASSENGER_CANCEL_WINDOW_DAYS]
+          `SELECT
+             (SELECT COUNT(*)::int FROM bookings WHERE passenger_id = $1 AND status = 'cancelled'
+                AND COALESCE(cancellation_reason, '') NOT LIKE 'auto-%'
+                AND cancelled_at > NOW() - ($2::int * INTERVAL '1 day')) AS recent,
+             (SELECT COUNT(*)::int FROM bookings WHERE passenger_id = $1 AND status = 'cancelled'
+                AND COALESCE(cancellation_reason, '') NOT LIKE 'auto-%'
+                AND cancelled_at > NOW() - ($3::int * INTERVAL '1 day')) AS long_term`,
+          [passengerId, PASSENGER_CANCEL_WINDOW_DAYS, PASSENGER_PERM_BLOCK_WINDOW_DAYS]
         );
-        const recentCancels = countRes.rows[0]?.cnt || 0;
-        if (recentCancels >= PASSENGER_CANCEL_MAX) {
+        const recent = countRes.rows[0]?.recent || 0;
+        const longTerm = countRes.rows[0]?.long_term || 0;
+        if (longTerm >= PASSENGER_PERM_BLOCK_MAX) {
+          await pool.query(
+            `UPDATE users SET cancel_blocked_until = '2099-12-31'::timestamp, cancel_count = $2
+             WHERE id = $1`,
+            [passengerId, longTerm]
+          );
+          logger.info(`Passenger ${passengerId} PERMANENTLY blocked (${longTerm} cancels in ${PASSENGER_PERM_BLOCK_WINDOW_DAYS}d)`);
+        } else if (recent >= PASSENGER_CANCEL_MAX) {
           await pool.query(
             `UPDATE users SET cancel_blocked_until = NOW() + ($2::int * INTERVAL '1 hour'), cancel_count = $3
              WHERE id = $1`,
-            [passengerId, PASSENGER_CANCEL_BLOCK_HOURS, recentCancels]
+            [passengerId, PASSENGER_CANCEL_BLOCK_HOURS, recent]
           );
-          logger.info(`Passenger ${passengerId} cancel-blocked for ${PASSENGER_CANCEL_BLOCK_HOURS}h (${recentCancels} cancels in ${PASSENGER_CANCEL_WINDOW_DAYS}d)`);
+          logger.info(`Passenger ${passengerId} temp-blocked ${PASSENGER_CANCEL_BLOCK_HOURS}h (${recent} cancels in ${PASSENGER_CANCEL_WINDOW_DAYS}d)`);
         }
       } catch (e) {
         if (e.code !== '42703') logger.warn('Cancel tracking failed:', e.message);
