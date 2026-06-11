@@ -76,17 +76,17 @@ Driver taps "Create Ride"
                   ▼
 ┌─────────────────────────┐
 │ Departure time check     │
-│ Must be ≥ 2 hours ahead  │
-│ (NOW + 2h minimum)       │
+│ Must be ≥ 30 min ahead   │
+│ (NOW + 30min minimum)    │
 └────────┬────────────────┘
          │
     ┌────▼──────────────┐
-    │ < 2h from now?     │
+    │ < 30min from now?  │
     └────┬──────────────┘
      YES │        NO
      ┌───▼───┐   │
      │ ERROR │   │
-     │ "2h   │   │
+     │ "30m  │   │
      │ adv"  │   │
      └───────┘   │
                   ▼

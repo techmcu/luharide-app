@@ -19,7 +19,7 @@ Driver app mein "Create Ride" tap karta hai.
 | 5 | `fare_per_seat` Rs.10 se Rs.10,000 ke beech | 400 error |
 | 6 | Driver verified hai? (`driver_verification_requests` table, status=approved) | 403 — "Pehle verification complete karo" |
 | 7 | `departure_time` future mein hona chahiye | 400 — "Past time nahi" |
-| 8 | Departure minimum 2 hours aage | 400 — "2h advance chahiye" |
+| 8 | Departure minimum 30 minutes aage | 400 — "30 min advance chahiye" |
 | 9 | Same driver ki same time pe koi aur ride overlap? | 400 — "Pehle wali complete/cancel karo" |
 
 ### Sab pass hone pe:

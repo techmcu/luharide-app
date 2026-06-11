@@ -121,11 +121,11 @@ const createTrip = asyncHandler(async (req, res) => {
   if (departureDate.getTime() < Date.now()) {
     throw ApiError.badRequest('Departure time cannot be in the past');
   }
-  const MIN_ADVANCE_HOURS = 2;
-  const minAdvanceMs = MIN_ADVANCE_HOURS * 60 * 60 * 1000;
+  const MIN_ADVANCE_MINUTES = 30;
+  const minAdvanceMs = MIN_ADVANCE_MINUTES * 60 * 1000;
   if (departureDate.getTime() - Date.now() < minAdvanceMs) {
     throw ApiError.badRequest(
-      `Ride departure must be at least ${MIN_ADVANCE_HOURS} hours from now.`
+      `Ride departure must be at least ${MIN_ADVANCE_MINUTES} minutes from now.`
     );
   }
   const arrivalDate = new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
