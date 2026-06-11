@@ -52,7 +52,7 @@ describe('createTrip', () => {
     const verif = { vehicle_capacity: 7, vehicle_registration: 'UK07-1234' };
     const trip = {
       id: TRIP_ID, driver_id: DRIVER_ID, from_location: 'Dehradun', to_location: 'Purola',
-      total_capacity: 7, available_seats: 7, status: 'scheduled',
+      total_capacity: 7, available_seats: 6, status: 'scheduled',
     };
 
     pool.query

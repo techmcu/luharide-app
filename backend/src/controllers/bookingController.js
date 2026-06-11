@@ -762,9 +762,13 @@ const cancelBooking = asyncHandler(async (req, res) => {
           `SELECT
              (SELECT COUNT(*)::int FROM bookings WHERE passenger_id = $1 AND status = 'cancelled'
                 AND COALESCE(cancellation_reason, '') NOT LIKE 'auto-%'
+                AND COALESCE(cancellation_reason, '') NOT LIKE 'Driver cancelled%'
+                AND COALESCE(cancellation_reason, '') NOT LIKE 'Cancelled by platform%'
                 AND cancelled_at > NOW() - ($2::int * INTERVAL '1 day')) AS recent,
              (SELECT COUNT(*)::int FROM bookings WHERE passenger_id = $1 AND status = 'cancelled'
                 AND COALESCE(cancellation_reason, '') NOT LIKE 'auto-%'
+                AND COALESCE(cancellation_reason, '') NOT LIKE 'Driver cancelled%'
+                AND COALESCE(cancellation_reason, '') NOT LIKE 'Cancelled by platform%'
                 AND cancelled_at > NOW() - ($3::int * INTERVAL '1 day')) AS long_term`,
           [passengerId, PASSENGER_CANCEL_WINDOW_DAYS, PASSENGER_PERM_BLOCK_WINDOW_DAYS]
         );

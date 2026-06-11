@@ -335,8 +335,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
       [id]
     );
 
-    const confirmedSeatCount = activeBookings.rows
-      .filter(r => r.status === 'confirmed')
+    const totalSeatCount = activeBookings.rows
       .reduce((sum, r) => sum + (Array.isArray(r.seat_numbers) ? r.seat_numbers.length : 0), 0);
 
     if (activeBookings.rows.length > 0) {
@@ -352,7 +351,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
       `UPDATE trips SET status = 'cancelled', updated_at = NOW(),
               available_seats = available_seats + $2
        WHERE id = $1`,
-      [id, confirmedSeatCount]
+      [id, totalSeatCount]
     );
 
     const affectedBookings = { rows: activeBookings.rows, rowCount: activeBookings.rowCount };

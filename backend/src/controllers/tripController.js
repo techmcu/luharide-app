@@ -99,7 +99,8 @@ const createTrip = asyncHandler(async (req, res) => {
   const cap = verif.rows[0].vehicle_capacity;
   let totalSeats = (cap != null && cap > 0) ? cap : 7;
   if (totalSeats > MAX_SEATS) totalSeats = MAX_SEATS;
-  if (totalSeats < 1) totalSeats = 1;
+  if (totalSeats < 2) totalSeats = 2; // minimum 2 (1 driver + 1 passenger)
+  const bookableSeats = totalSeats - 1; // seat 1 reserved for driver
   const vehicleNumber = (verif.rows[0].vehicle_registration || bodyVehicleNumber || '').toString().trim().slice(0, 20);
   let vehicleModelId = null;
   try {
@@ -176,7 +177,7 @@ const createTrip = asyncHandler(async (req, res) => {
         RETURNING *`,
         [
           driverId, from_location, to_location, departureStr, arrivalStr,
-          fare_per_seat, totalSeats, totalSeats,
+          fare_per_seat, totalSeats, bookableSeats,
           vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
           tripLuggage,
           'independent_driver',
@@ -196,7 +197,7 @@ const createTrip = asyncHandler(async (req, res) => {
             RETURNING *`,
             [
               driverId, from_location, to_location, departureStr, arrivalStr,
-              fare_per_seat, totalSeats, totalSeats,
+              fare_per_seat, totalSeats, bookableSeats,
               vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
               'independent_driver',
             ]
@@ -213,7 +214,7 @@ const createTrip = asyncHandler(async (req, res) => {
               RETURNING *`,
               [
                 driverId, from_location, to_location, departureStr, arrivalStr,
-                fare_per_seat, totalSeats, totalSeats,
+                fare_per_seat, totalSeats, bookableSeats,
                 vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
               ]
             );
@@ -234,7 +235,7 @@ const createTrip = asyncHandler(async (req, res) => {
             RETURNING *`,
             [
               driverId, from_location, to_location, departureStr, arrivalStr,
-              fare_per_seat, totalSeats, totalSeats,
+              fare_per_seat, totalSeats, bookableSeats,
               vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
               tripLuggage,
             ]
@@ -251,7 +252,7 @@ const createTrip = asyncHandler(async (req, res) => {
               RETURNING *`,
               [
                 driverId, from_location, to_location, departureStr, arrivalStr,
-                fare_per_seat, totalSeats, totalSeats,
+                fare_per_seat, totalSeats, bookableSeats,
                 vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
               ]
             );
@@ -276,7 +277,7 @@ const createTrip = asyncHandler(async (req, res) => {
           RETURNING *`,
           [
             driverId, from_location, to_location, departureStr, arrivalStr,
-            fare_per_seat, totalSeats, totalSeats,
+            fare_per_seat, totalSeats, bookableSeats,
             vehicleNumber, stopsJson, 'scheduled', routeId
           ]
         );
