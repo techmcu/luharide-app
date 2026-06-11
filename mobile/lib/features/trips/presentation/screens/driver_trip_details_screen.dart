@@ -190,7 +190,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
         title: const Text('Cancel trip?'),
         content: const Text(
           'This will cancel the trip and all bookings. Passengers will be notified. '
-          'Not allowed within 2 hours of departure if passengers are confirmed.',
+          'Frequent cancellations may lead to account restrictions.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),

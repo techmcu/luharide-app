@@ -377,7 +377,7 @@ class TripService {
     }
   }
 
-  /// Cancel trip (Driver only) - not allowed within 2h of departure if confirmed passengers
+  /// Cancel trip (Driver only) - allowed anytime before departure
   Future<Map<String, dynamic>> cancelTrip(String tripId) async {
     try {
       final response = await _apiService.put(
