@@ -132,9 +132,6 @@ const createBooking = asyncHandler(async (req, res) => {
       await client.query('ROLLBACK');
       throw ApiError.badRequest('This ride has already departed. You cannot book now.');
     }
-    const AUTO_CONFIRM_WITHIN_MINUTES = 2;
-    const forceAutoConfirm = (depMs - Date.now()) < AUTO_CONFIRM_WITHIN_MINUTES * 60 * 1000;
-
     if (trip.driver_id != null && String(trip.driver_id) === String(passengerId)) {
       await client.query('ROLLBACK');
       throw ApiError.badRequest(
@@ -200,7 +197,7 @@ const createBooking = asyncHandler(async (req, res) => {
     }
 
     const totalAmount = uniqueSeats.length * farePerSeat;
-    const bookingStatus = (requireApproval && !forceAutoConfirm) ? 'pending' : 'confirmed';
+    const bookingStatus = requireApproval ? 'pending' : 'confirmed';
 
     let result;
     try {
