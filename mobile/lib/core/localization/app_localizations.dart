@@ -1970,12 +1970,12 @@ class AppLocalizations {
       'hi': 'आपकी राइड कैसी रही? अपना अनुभव साझा करें।',
     },
     'notif.trip_completed.title': {
-      'en': 'Ride completed!',
-      'hi': 'राइड पूरी हो गई!',
+      'en': 'Happy Journey!',
+      'hi': 'शुभ यात्रा!',
     },
     'notif.trip_completed.body': {
-      'en': 'Your ride has been completed. Thank you for travelling with LuhaRide!',
-      'hi': 'आपकी राइड पूरी हो गई है। LuhaRide के साथ यात्रा करने के लिए धन्यवाद!',
+      'en': 'We hope you had a great travel experience with LuhaRide!',
+      'hi': 'उम्मीद है आपकी यात्रा LuhaRide के साथ अच्छी रही!',
     },
     'notif.trip_cancelled.title': {
       'en': 'Ride cancelled',

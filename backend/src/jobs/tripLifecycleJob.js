@@ -106,8 +106,8 @@ async function run() {
             const n = await client.query(
               `INSERT INTO notifications (user_id, type, title, body, data)
                VALUES ($1, 'trip_completed',
-                 'Ride completed!',
-                 'Your ride has been completed. Thank you for travelling with LuhaRide!',
+                 'Happy Journey!',
+                 'We hope you had a great travel experience with LuhaRide!',
                  $2::jsonb)
                RETURNING id, user_id, type, title, body, data, created_at, is_read`,
               [row.passenger_id, JSON.stringify({ booking_id: row.id, trip_id: trip.id })]
