@@ -1341,9 +1341,19 @@ const cancelTrip = asyncHandler(async (req, res) => {
 
   for (const { passenger_id, booking_id } of confirmedPassengerIds) {
     try {
+      await pool.query(
+        `INSERT INTO ride_ratings (booking_id, from_user_id, rated_user_id, from_role, rating, comment)
+         VALUES ($1, $2, $3, 'passenger', 1, 'Auto-rating: Driver ne ride cancel ki.')
+         ON CONFLICT DO NOTHING`,
+        [booking_id, passenger_id, driverId]
+      );
+    } catch (e) {
+      if (e.code !== '42P01') logger.warn('Auto 1-star for driver failed:', e.message);
+    }
+    try {
       const rn = await pool.query(
         `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'rate_ride', 'Rate your driver', 'Driver ne ride cancel ki. Apna experience rate karein.', $2::jsonb)
+         VALUES ($1, 'rate_ride', 'Rate your driver', 'Driver ne ride cancel ki. Apna experience share karein.', $2::jsonb)
          RETURNING id, user_id, type, title, body, data, created_at, is_read`,
         [passenger_id, JSON.stringify({ booking_id, trip_id: tripId, rate_only: 'driver' })]
       );

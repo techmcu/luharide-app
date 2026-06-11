@@ -81,17 +81,27 @@ async function submitRating(bookingId, userId, { rating, comment }) {
 
   await rideRatingsRepository.ensureTable();
   const existing = await rideRatingsRepository.findByBookingAndRole(bookingId, fromRole);
-  if (existing) throw ApiError.badRequest('You have already rated for this ride');
-
-  await rideRatingsRepository.create({
-    bookingId,
-    fromUserId: userId,
-    ratedUserId,
-    fromRole,
-    rating,
-    comment: safeComment,
-    tripContext: buildTripContext(booking),
-  });
+  if (existing) {
+    const isAutoRating = (existing.comment || '').startsWith('Auto-rating:');
+    if (!isAutoRating) {
+      throw ApiError.badRequest('You have already rated for this ride');
+    }
+    await pool.query(
+      `UPDATE ride_ratings SET rating = $1, comment = $2, trip_context = $3
+       WHERE id = $4`,
+      [rating, safeComment, buildTripContext(booking), existing.id]
+    );
+  } else {
+    await rideRatingsRepository.create({
+      bookingId,
+      fromUserId: userId,
+      ratedUserId,
+      fromRole,
+      rating,
+      comment: safeComment,
+      tripContext: buildTripContext(booking),
+    });
+  }
 
   try {
     const roleLabel = fromRole === ROLES.PASSENGER ? 'passenger' : 'driver';

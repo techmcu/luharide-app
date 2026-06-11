@@ -489,9 +489,9 @@ class AppLocalizations {
     },
     'my_rides.cancel_blocked': {
       'en':
-          'Cancellation is not available within 2 minutes of departure, or after the ride has started.',
+          'Cancellation is not available after the ride has started.',
       'hi':
-          'प्रस्थान के 2 मिनट के अंदर या यात्रा शुरू होने के बाद रद्दीकरण उपलब्ध नहीं है।',
+          'यात्रा शुरू होने के बाद रद्दीकरण उपलब्ध नहीं है।',
     },
     'my_rides.contact_unavailable': {
       'en':
@@ -509,9 +509,9 @@ class AppLocalizations {
     },
     'my_rides.cancel_policy': {
       'en':
-          'Cancellation is not allowed close to departure time. Cancel early to avoid restrictions.',
+          'You can cancel anytime before departure. Frequent cancellations may lead to restrictions.',
       'hi':
-          'प्रस्थान के करीब रद्द करना संभव नहीं है। जल्दी रद्द करें ताकि कोई प्रतिबंध न लगे।',
+          'प्रस्थान से पहले कभी भी रद्द कर सकते हैं। बार-बार रद्द करने पर प्रतिबंध लग सकता है।',
     },
     'my_rides.reason_label': {
       'en': 'Reason (optional)',
@@ -808,8 +808,8 @@ class AppLocalizations {
       'hi': 'टिप्पणी (वैकल्पिक, अधिकतम 20 शब्द)',
     },
     'rating.info': {
-      'en': 'You can rate after your ride is confirmed (one-time rating).',
-      'hi': 'राइड कन्फर्म होने के बाद आप रेटिंग दे सकते हैं (एक बार)।',
+      'en': 'You can rate after your ride is completed. If cancelled, only the affected party can rate.',
+      'hi': 'राइड पूरी होने के बाद आप रेटिंग दे सकते हैं। रद्द होने पर सिर्फ प्रभावित पक्ष रेट कर सकता है।',
     },
     'rating.submit': {
       'en': 'Submit',
