@@ -94,6 +94,30 @@ async function run() {
       );
 
       for (const trip of finishResult.rows) {
+        await client.query(
+          `UPDATE bookings SET status = 'completed'
+           WHERE trip_id = $1 AND status = 'confirmed'`,
+          [trip.id]
+        );
+
+        const pendingLeft = await client.query(
+          `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+             cancellation_reason = 'auto-expired-trip-completed'
+           WHERE trip_id = $1 AND status = 'pending'
+           RETURNING seat_numbers`,
+          [trip.id]
+        );
+        let seats = 0;
+        for (const r of pendingLeft.rows) {
+          seats += Array.isArray(r.seat_numbers) ? r.seat_numbers.length : 0;
+        }
+        if (seats > 0) {
+          await client.query(
+            'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+            [seats, trip.id]
+          );
+        }
+
         emitTripUpdated(trip.id, { status: 'completed', reason: 'auto_finished' });
       }
 

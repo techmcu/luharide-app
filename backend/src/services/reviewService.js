@@ -49,8 +49,8 @@ async function submitRating(bookingId, userId, { rating, comment }) {
   if (!booking) throw ApiError.notFound('Booking not found');
 
   const wasCancelled = booking.status === 'cancelled';
-  if (booking.status !== 'confirmed' && !wasCancelled) {
-    throw ApiError.badRequest('Can only rate confirmed or cancelled bookings');
+  if (!['confirmed', 'completed'].includes(booking.status) && !wasCancelled) {
+    throw ApiError.badRequest('Can only rate completed or cancelled bookings');
   }
 
   let fromRole;

@@ -449,6 +449,10 @@ class AppLocalizations {
       'en': 'Approved',
       'hi': 'मंज़ूर',
     },
+    'my_rides.status.completed': {
+      'en': 'Completed',
+      'hi': 'पूरी हुई',
+    },
     'my_rides.status.pending': {
       'en': 'Pending',
       'hi': 'लंबित',

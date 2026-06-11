@@ -1171,6 +1171,31 @@ const completeTrip = asyncHandler(async (req, res) => {
       [tripId]
     );
 
+    await client.query(
+      `UPDATE bookings SET status = 'completed'
+       WHERE trip_id = $1 AND status = 'confirmed'`,
+      [tripId]
+    );
+
+    const pendingOnComplete = await client.query(
+      `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+         cancellation_reason = 'auto-expired-trip-completed'
+       WHERE trip_id = $1 AND status = 'pending'
+       RETURNING id, passenger_id, seat_numbers`,
+      [tripId]
+    );
+
+    let restoredSeats = 0;
+    for (const row of pendingOnComplete.rows) {
+      restoredSeats += Array.isArray(row.seat_numbers) ? row.seat_numbers.length : 0;
+    }
+    if (restoredSeats > 0) {
+      await client.query(
+        'UPDATE trips SET available_seats = available_seats + $1 WHERE id = $2',
+        [restoredSeats, tripId]
+      );
+    }
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

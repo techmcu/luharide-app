@@ -220,6 +220,7 @@ class _PlatformTripDetailScreenState extends State<PlatformTripDetailScreen> {
     Color statusColor;
     switch (status) {
       case 'confirmed': statusColor = Colors.green; break;
+      case 'completed': statusColor = Colors.teal; break;
       case 'pending': statusColor = Colors.orange; break;
       case 'cancelled': statusColor = Colors.red; break;
       default: statusColor = Colors.grey;

@@ -497,7 +497,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                       driverName: _displayTrip!.driver!.name,
                     ),
                     // Contact only visible after confirmed booking
-                    if (_userBookingStatus == 'confirmed' &&
+                    if ((_userBookingStatus == 'confirmed' || _userBookingStatus == 'completed') &&
                         _displayTrip!.driver!.phone != null &&
                         _displayTrip!.driver!.phone!
                             .trim()

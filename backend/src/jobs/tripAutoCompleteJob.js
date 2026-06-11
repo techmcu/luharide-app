@@ -26,10 +26,21 @@ async function run() {
 
       if (result.rows.length === 0) return;
 
-      logger.info(`[TripAutoComplete] Auto-completed ${result.rows.length} independent driver trip(s)`);
       for (const row of result.rows) {
+        await client.query(
+          `UPDATE bookings SET status = 'completed'
+           WHERE trip_id = $1 AND status = 'confirmed'`,
+          [row.id]
+        );
+        await client.query(
+          `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+             cancellation_reason = 'auto-expired-trip-completed'
+           WHERE trip_id = $1 AND status = 'pending'`,
+          [row.id]
+        );
         emitTripUpdated(row.id, { reason: 'auto_completed' });
       }
+      logger.info(`[TripAutoComplete] Auto-completed ${result.rows.length} independent driver trip(s)`);
     });
   } catch (err) {
     if (err.code === '42P01') return;

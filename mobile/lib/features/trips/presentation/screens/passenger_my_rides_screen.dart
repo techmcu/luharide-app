@@ -50,6 +50,8 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     switch (status) {
       case 'confirmed':
         return Colors.green;
+      case 'completed':
+        return Colors.teal;
       case 'pending':
         return Colors.orange;
       case 'cancelled':
@@ -63,6 +65,8 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
     switch (status) {
       case 'confirmed':
         return loc.t('my_rides.status.confirmed');
+      case 'completed':
+        return loc.t('my_rides.status.completed');
       case 'pending':
         return loc.t('my_rides.status.pending');
       case 'cancelled':
@@ -380,7 +384,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                   ],
                 ),
               ),
-            if (status != 'cancelled' && status != 'pending') ...[
+            if (status != 'cancelled' && status != 'pending' && status != 'completed') ...[
               const SizedBox(height: 12),
               if (_canCancelBooking(b))
                 OutlinedButton.icon(

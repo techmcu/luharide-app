@@ -99,8 +99,21 @@ async function runEveningMaintenance() {
         `UPDATE trips SET status = 'completed', updated_at = NOW()
          WHERE status IN ('scheduled', 'in_progress')
            AND COALESCE(created_source, '') != 'independent_driver'
-           AND COALESCE(arrival_time, departure_time + INTERVAL '2 hours') <= NOW()`
+           AND COALESCE(arrival_time, departure_time + INTERVAL '2 hours') <= NOW()
+         RETURNING id`
       );
+      for (const row of tc.rows) {
+        await client.query(
+          `UPDATE bookings SET status = 'completed' WHERE trip_id = $1 AND status = 'confirmed'`,
+          [row.id]
+        );
+        await client.query(
+          `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),
+             cancellation_reason = 'auto-expired-trip-completed'
+           WHERE trip_id = $1 AND status = 'pending'`,
+          [row.id]
+        );
+      }
       logPurge(label, 'union trips auto-completed', tc.rowCount);
 
       // ── Dependent data: purge BEFORE trips (FK references without CASCADE) ──
