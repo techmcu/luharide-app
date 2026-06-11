@@ -161,7 +161,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
 
   Widget _buildBookingCard(AppLocalizations loc, Map<String, dynamic> b) {
     final status = b['status']?.toString() ?? 'pending';
-    final isApproved = status == 'confirmed';
+    final isApproved = status == 'confirmed' || status == 'completed';
     final statusColor = _statusColor(status);
 
     return Card(
