@@ -32,6 +32,22 @@ const createTrip = asyncHandler(async (req, res) => {
 
   const driverId = req.user.id;
 
+  try {
+    const blockCheck = await pool.query(
+      `SELECT cancel_blocked_until FROM users WHERE id = $1`,
+      [driverId]
+    );
+    if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
+      const until = new Date(blockCheck.rows[0].cancel_blocked_until);
+      throw ApiError.badRequest(
+        `Aapka cancel limit cross ho gaya hai. ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} tak naye ride nahi bana sakte.`
+      );
+    }
+  } catch (e) {
+    if (e.statusCode) throw e;
+    if (e.code !== '42703') logger.warn('Create trip block check failed:', e.message);
+  }
+
   const tripLuggage =
     rawTripLuggage != null && String(rawTripLuggage).trim() !== ''
       ? String(rawTripLuggage).trim().slice(0, 200)

@@ -659,7 +659,10 @@ const cancelBooking = asyncHandler(async (req, res) => {
   const bookingId = req.params.id;
   requireUuid(bookingId, 'booking ID');
   const passengerId = req.user.id;
-  const reason = (req.body && req.body.reason != null) ? String(req.body.reason).trim() : null;
+  let reason = (req.body && req.body.reason != null) ? String(req.body.reason).trim() : null;
+  if (reason && /^auto-/i.test(reason)) {
+    reason = reason.replace(/^auto-/i, '');
+  }
 
   try {
     const blockCheck = await pool.query(

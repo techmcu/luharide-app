@@ -56,6 +56,7 @@ describe('createTrip', () => {
     };
 
     pool.query
+      .mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] }) // cancel block check
       .mockResolvedValueOnce({ rows: [verif] })         // driver_verification_requests
       .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] }) // vehicle_model_id query
       .mockResolvedValueOnce({ rows: [] })               // overlap check
@@ -79,7 +80,9 @@ describe('createTrip', () => {
   });
 
   it('rejects if driver is not verified', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [] }); // no verification
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] }) // cancel block check
+      .mockResolvedValueOnce({ rows: [] }); // no verification
 
     const req = {
       body: {
@@ -101,6 +104,7 @@ describe('createTrip', () => {
   it('rejects past departure time', async () => {
     const verif = { vehicle_capacity: 7, vehicle_registration: 'UK07-1234' };
     pool.query
+      .mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] }) // cancel block check
       .mockResolvedValueOnce({ rows: [verif] })
       .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] });
 
@@ -123,6 +127,7 @@ describe('createTrip', () => {
   });
 
   it('rejects empty from_location', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] }); // cancel block check
     const req = {
       body: {
         from_location: '', to_location: 'Purola',
@@ -142,7 +147,9 @@ describe('createTrip', () => {
 
   it('rejects zero fare', async () => {
     const verif = { vehicle_capacity: 7, vehicle_registration: 'UK07-1234' };
-    pool.query.mockResolvedValueOnce({ rows: [verif] });
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] }) // cancel block check
+      .mockResolvedValueOnce({ rows: [verif] });
 
     const req = {
       body: {
