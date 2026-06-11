@@ -53,7 +53,7 @@ async function run() {
               `INSERT INTO notifications (user_id, type, title, body, data)
                VALUES ($1, 'booking_auto_cancelled',
                  'Booking not confirmed',
-                 'Driver ne aapki booking confirm nahi ki. Ride shuru ho gayi hai. Kripya doosri ride dekhein.',
+                 'The driver did not confirm your booking. The ride has started. Please try another ride.',
                  $2::jsonb)
                RETURNING id, user_id, type, title, body, data, created_at, is_read`,
               [row.passenger_id, JSON.stringify({ booking_id: row.id, trip_id: trip.id })]
@@ -66,8 +66,8 @@ async function run() {
           const dn = await client.query(
             `INSERT INTO notifications (user_id, type, title, body, data)
              VALUES ($1, 'trip_auto_started',
-               'Ride shuru ho gayi!',
-               'Aapki scheduled ride ka time aa gaya hai — ride auto-start ho gayi hai. Safe ride!',
+               'Your ride has started!',
+               'Your scheduled ride has auto-started as departure time has arrived. Have a safe ride!',
                $2::jsonb)
              RETURNING id, user_id, type, title, body, data, created_at, is_read`,
             [trip.driver_id, JSON.stringify({ trip_id: trip.id })]
@@ -94,11 +94,27 @@ async function run() {
       );
 
       for (const trip of finishResult.rows) {
-        await client.query(
+        const completed = await client.query(
           `UPDATE bookings SET status = 'completed'
-           WHERE trip_id = $1 AND status = 'confirmed'`,
+           WHERE trip_id = $1 AND status = 'confirmed'
+           RETURNING id, passenger_id`,
           [trip.id]
         );
+
+        for (const row of completed.rows) {
+          try {
+            const n = await client.query(
+              `INSERT INTO notifications (user_id, type, title, body, data)
+               VALUES ($1, 'trip_completed',
+                 'Ride completed!',
+                 'Your ride has been completed. Rate your experience!',
+                 $2::jsonb)
+               RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+              [row.passenger_id, JSON.stringify({ booking_id: row.id, trip_id: trip.id })]
+            );
+            if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+          } catch (_) {}
+        }
 
         const pendingLeft = await client.query(
           `UPDATE bookings SET status = 'cancelled', cancelled_at = NOW(),

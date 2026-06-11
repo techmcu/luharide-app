@@ -19,6 +19,7 @@ const {
 const { cleanupExpiredTokens } = require('../services/tokenService');
 const { cleanupExpiredOTPs } = require('../services/otpService');
 const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
+const { isRedisEnabled, checkRedisMemory, flushExpiredKeys } = require('../config/redis');
 
 function logPurge(label, name, count) {
   if (count > 0) logger.info(`${label} purged ${count} ${name}`);
@@ -82,7 +83,7 @@ async function runEveningMaintenance() {
             `INSERT INTO notifications (user_id, type, title, body, data)
              VALUES ($1, 'booking_auto_cancelled',
                'Booking expired',
-               'Driver ne time pe respond nahi kiya, aapki booking auto-cancel ho gayi. Kripya doosri ride dekhein.',
+               'The driver did not respond in time. Your booking was auto-cancelled. Please try another ride.',
                $2::jsonb)`,
             [row.passenger_id, JSON.stringify({ booking_id: row.id, trip_id: row.trip_id })]
           );
@@ -339,6 +340,18 @@ async function runEveningMaintenance() {
     logPurge(label, 'fcm_tokens', fcmDel.rowCount);
   } catch (e) {
     logger.warn(`${label} notification/FCM cleanup failed: ${e.message}`);
+  }
+
+  // ── Redis health check (memory + stale keys) ──
+  if (isRedisEnabled()) {
+    try {
+      const mem = await checkRedisMemory();
+      if (mem) logger.info(`${label} Redis memory: ${(mem.used / 1024 / 1024).toFixed(1)}MB, maxmemory-policy: ${mem.policy}`);
+      const keys = await flushExpiredKeys();
+      if (keys > 0) logger.info(`${label} Redis key count: ${keys}`);
+    } catch (e) {
+      logger.warn(`${label} Redis health check failed: ${e.message}`);
+    }
   }
 }
 

@@ -397,9 +397,9 @@ Driver taps "Cancel Ride"
      YES │        NO
      ┌───▼──────────────┐  │
      │ ERROR (vague msg) │  │
-     │ "Bahut baar cancel│  │
-     │  kiya, kuch samay │  │
-     │  baad try karein" │  │
+     │ "Cancelled too    │  │
+     │  many times. Try  │  │
+     │  again later."    │  │
      └──────────────────┘  │
                   ▼
 ┌──────────────────────────────────────┐
@@ -422,7 +422,7 @@ Driver taps "Cancel Ride"
 │ Seats restored (+N for all)       │
 │                                   │
 │ All passengers get notification:  │
-│ "Driver ne ride cancel ki"        │
+│ "The driver cancelled the ride."  │
 │                                   │
 │ ⭐ AUTO 1-STAR RATING:            │
 │ For each confirmed booking:       │
@@ -430,7 +430,7 @@ Driver taps "Cancel Ride"
 │   from_role = 'passenger'         │
 │   rating = 1                      │
 │   comment = 'Auto-rating:         │
-│     Driver ne ride cancel ki.'    │
+│     Driver cancelled the ride.'   │
 │   ON CONFLICT DO NOTHING          │
 └──────────────┬───────────────────┘
                │
@@ -480,9 +480,9 @@ Passenger taps "Cancel Booking"
      YES │        NO
      ┌───▼──────────────┐  │
      │ ERROR (vague msg) │  │
-     │ "Bahut baar cancel│  │
-     │  kiya, kuch samay │  │
-     │  baad try karein" │  │
+     │ "Cancelled too    │  │
+     │  many times. Try  │  │
+     │  again later."    │  │
      └──────────────────┘  │
                   ▼
 ┌──────────────────────────┐
@@ -534,15 +534,15 @@ Passenger taps "Cancel Booking"
 │ available_seats increases          │
 │                                   │
 │ Driver gets notification:         │
-│ "Passenger ne cancel ki"          │
+│ "Passenger cancelled booking."    │
 │                                   │
 │ ⭐ AUTO 1-STAR RATING:            │
 │ → INSERT ride_ratings             │
 │   from_role = 'driver'            │
 │   rating = 1                      │
 │   comment = 'Auto-rating:         │
-│     Passenger ne booking          │
-│     cancel ki.'                   │
+│     Passenger cancelled the       │
+│     booking.'                     │
 │   ON CONFLICT DO NOTHING          │
 │                                   │
 │ Rate reminder deleted             │
@@ -606,8 +606,8 @@ Passenger taps "Cancel Booking"
 │ │ • reason = "auto-expired-trip-started"   │ │
 │ │ • Seats restored (+N)                    │ │
 │ │ • Each passenger notified:               │ │
-│ │   "Driver ne confirm nahi ki,            │ │
-│ │    ride shuru ho gayi"                   │ │
+│ │   "Driver did not confirm your booking.  │ │
+│ │    The ride has started."               │ │
 │ │                                          │ │
 │ │ NO:                                      │ │
 │ │ • Nothing extra                          │ │
@@ -617,7 +617,7 @@ Passenger taps "Cancel Booking"
 │ rahi hai, passengers are on board)           │
 │                                              │
 │ Driver gets notification:                    │
-│ "Ride shuru ho gayi! Safe ride!"             │
+│ "Your ride has started! Have a safe ride!"   │
 │                                              │
 │ Socket emit: trip status = in_progress       │
 └─────────────────────────────────────────────┘
@@ -658,7 +658,7 @@ Passenger taps "Cancel Booking"
 │                                                  │
 │ A. AUTO 1-STAR (instant, on cancel)              │
 │    → Inserted when someone cancels               │
-│    → comment = "Auto-rating: ... cancel ki."     │
+│    → comment = "Auto-rating: ... cancelled ..."   │
 │    → ON CONFLICT DO NOTHING                      │
 │                                                  │
 │ B. MANUAL RATING (user submits later)            │
@@ -761,7 +761,7 @@ Passenger taps "Cancel Booking"
 │ YES → cancelled (auto-expired)               │
 │     → seats restored                         │
 │     → passenger notified:                    │
-│       "Driver ne respond nahi kiya"          │
+│       "Driver did not respond in time."      │
 └─────────────────┬───────────────────────────┘
                   │
     ══════════════▼══════════════

@@ -348,7 +348,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
     }
 
     await client.query(
-      `UPDATE trips SET status = 'cancelled', updated_at = NOW(),
+      `UPDATE trips SET status = 'cancelled', cancelled_by = 'admin', updated_at = NOW(),
               available_seats = available_seats + $2
        WHERE id = $1`,
       [id, totalSeatCount]
@@ -484,8 +484,8 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
   const { segment, title, body } = req.body || {};
 
   if (!title || !body) throw ApiError.badRequest('title and body are required');
-  if (title.length > 50) throw ApiError.badRequest('Title max 50 characters (push notification me zyada nahi dikhta)');
-  if (body.length > 150) throw ApiError.badRequest('Body max 150 characters (push notification me zyada nahi dikhta)');
+  if (title.length > 50) throw ApiError.badRequest('Title max 50 characters (longer text gets cut off in push notifications)');
+  if (body.length > 150) throw ApiError.badRequest('Body max 150 characters (longer text gets cut off in push notifications)');
   const validSegments = ['all', 'passenger', 'driver', 'drivers', 'union_admin', 'union_admins'];
   if (!segment || !validSegments.includes(segment)) {
     throw ApiError.badRequest(`segment must be one of: all, passenger, driver, union_admin`);
@@ -498,7 +498,7 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
     [title, body]
   );
   if (dupCheck.rows.length > 0) {
-    throw ApiError.badRequest('Yahi notification 1 ghante mein pehle bhi bheja ja chuka hai. Duplicate bhejne se users pareshaan hote hain.');
+    throw ApiError.badRequest('This exact notification was already sent within the last hour. Sending duplicates annoys users.');
   }
 
   const roleFilter = segment === 'all' ? null

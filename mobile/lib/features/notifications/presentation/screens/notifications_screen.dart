@@ -117,8 +117,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  String _localizedTitle(AppLocalizations loc, NotificationModel n) {
+    final key = 'notif.${n.type}.title';
+    final localized = loc.t(key);
+    return localized != key ? localized : n.title;
+  }
+
+  String _localizedBody(AppLocalizations loc, NotificationModel n) {
+    final key = 'notif.${n.type}.body';
+    final localized = loc.t(key);
+    return localized != key ? localized : (n.message ?? '');
+  }
+
   Widget _buildNotificationTile(AppLocalizations loc, NotificationModel n) {
-    final subtitle = n.message ?? '';
+    final subtitle = _localizedBody(loc, n);
     final created = n.createdAt;
     final timeText =
         created != null ? loc.notificationRelativeTime(created) : '';
@@ -130,7 +142,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       child: ListTile(
         leading: _leadingIconForType(n.type),
         title: Text(
-          n.title,
+          _localizedTitle(loc, n),
           style: TextStyle(
             fontWeight: n.isRead ? FontWeight.w400 : FontWeight.w600,
           ),
@@ -189,6 +201,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'verification_rejected':
         icon = Icons.error_outline;
         color = Colors.redAccent;
+        break;
+      case 'trip_completed':
+        icon = Icons.check_circle;
+        color = Colors.green;
         break;
       case 'booking_status':
         icon = Icons.directions_car;

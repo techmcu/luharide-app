@@ -56,7 +56,7 @@ const createBooking = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        'Aapne recently bahut baar cancel kiya hai. Kuch samay baad try karein.'
+        'You have cancelled too many times recently. Please try again later.'
       );
     }
   } catch (e) {
@@ -402,7 +402,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
       try {
         const rn = await pool.query(
           `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'booking_rejected', 'Booking not approved', 'Driver ne aapki booking approve nahi ki. Kripya doosri ride try karein.', $2::jsonb)
+           VALUES ($1, 'booking_rejected', 'Booking not approved', 'The driver did not approve your booking. Please try another ride.', $2::jsonb)
            RETURNING id, user_id, type, title, body, data, created_at, is_read`,
           [booking.passenger_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id })]
         );
@@ -624,7 +624,7 @@ const getMyBookings = asyncHandler(async (req, res) => {
     departure_time: row.departure_time,
     fare_per_seat:  parseFloat(row.fare_per_seat),
     vehicle_number: row.vehicle_number,
-    driver: row.status === 'confirmed' ? {
+    driver: (row.status === 'confirmed' || row.status === 'completed') ? {
       name:                          row.driver_name,
       phone:                         row.driver_phone,
       email:                         row.driver_email,
@@ -669,7 +669,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        'Aapne recently bahut baar cancel kiya hai. Kuch samay baad try karein.'
+        'You have cancelled too many times recently. Please try again later.'
       );
     }
   } catch (e) {
@@ -798,7 +798,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
       try {
         await pool.query(
           `INSERT INTO ride_ratings (booking_id, from_user_id, rated_user_id, from_role, rating, comment)
-           VALUES ($1, $2, $3, 'driver', 1, 'Auto-rating: Passenger ne booking cancel ki.')
+           VALUES ($1, $2, $3, 'driver', 1, 'Auto-rating: Passenger cancelled the booking.')
            ON CONFLICT DO NOTHING`,
           [bookingId, booking.driver_id, passengerId]
         );
@@ -808,7 +808,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
       try {
         const rn = await pool.query(
           `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'rate_ride', 'Rate your passenger', 'Passenger ne ride cancel ki. Apna experience share karein.', $2::jsonb)
+           VALUES ($1, 'rate_ride', 'Rate your passenger', 'A passenger cancelled their booking. Share your experience.', $2::jsonb)
            RETURNING id, user_id, type, title, body, data, created_at, is_read`,
           [booking.driver_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id, rate_only: 'passenger' })]
         );

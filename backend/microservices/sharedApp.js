@@ -32,7 +32,7 @@ function createBaseApp(serviceName) {
       const { pool } = require('../src/config/database');
       const { getRedisHealth } = require('../src/config/redis');
       await pool.query('SELECT 1');
-      const redis = getRedisHealth();
+      const redis = await getRedisHealth();
       res.json({
         ok: true,
         service: serviceName,

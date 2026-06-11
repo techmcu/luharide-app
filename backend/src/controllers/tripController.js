@@ -40,7 +40,7 @@ const createTrip = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        'Aapne recently bahut baar ride cancel ki hai. Kuch samay baad try karein.'
+        'You have cancelled too many rides recently. Please try again later.'
       );
     }
   } catch (e) {
@@ -140,7 +140,7 @@ const createTrip = asyncHandler(async (req, res) => {
   );
   if (overlap.rows.length > 0) {
     throw ApiError.badRequest(
-      'Aapki ek aur ride iss time pe already scheduled hai. Pehle woh complete ya cancel karein.'
+      'You already have another ride scheduled at this time. Complete or cancel it first.'
     );
   }
 
@@ -1060,7 +1060,7 @@ const startTrip = asyncHandler(async (req, res) => {
 
     if (trip.created_source === 'independent_driver' && trip.departure_time && new Date(trip.departure_time).getTime() > Date.now()) {
       await client.query('ROLLBACK');
-      throw ApiError.badRequest('Independent ride auto-start hoti hai departure time pe. Manually start nahi kar sakte.');
+      throw ApiError.badRequest('Independent rides auto-start at departure time. Manual start is not available.');
     }
 
     const pending = await client.query(
@@ -1155,10 +1155,10 @@ const completeTrip = asyncHandler(async (req, res) => {
     }
 
     const trip = tripResult.rows[0];
-    if (trip.status !== 'in_progress' && trip.status !== 'scheduled') {
+    if (trip.status !== 'in_progress') {
       await client.query('ROLLBACK');
       throw ApiError.badRequest(
-        `Cannot complete trip. Current status: ${trip.status}. Only scheduled or in-progress trips can be completed.`
+        `Cannot complete trip. Current status: ${trip.status}. Only in-progress trips can be completed.`
       );
     }
 
@@ -1230,7 +1230,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
     if (blockCheck.rows[0]?.cancel_blocked_until && new Date(blockCheck.rows[0].cancel_blocked_until) > new Date()) {
       const until = new Date(blockCheck.rows[0].cancel_blocked_until);
       throw ApiError.badRequest(
-        'Aapne recently bahut baar ride cancel ki hai. Kuch samay baad try karein.'
+        'You have cancelled too many rides recently. Please try again later.'
       );
     }
   } catch (e) {
@@ -1293,12 +1293,12 @@ const cancelTrip = asyncHandler(async (req, res) => {
 
     if (seatsToRelease > 0) {
       await client.query(
-        'UPDATE trips SET available_seats = available_seats + $1, status = $3 WHERE id = $2',
-        [seatsToRelease, tripId, 'cancelled']
+        `UPDATE trips SET available_seats = available_seats + $1, status = 'cancelled', cancelled_by = 'driver' WHERE id = $2`,
+        [seatsToRelease, tripId]
       );
     } else {
       await client.query(
-        "UPDATE trips SET status = 'cancelled' WHERE id = $1",
+        "UPDATE trips SET status = 'cancelled', cancelled_by = 'driver' WHERE id = $1",
         [tripId]
       );
     }
@@ -1344,7 +1344,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
     try {
       await pool.query(
         `INSERT INTO ride_ratings (booking_id, from_user_id, rated_user_id, from_role, rating, comment)
-         VALUES ($1, $2, $3, 'passenger', 1, 'Auto-rating: Driver ne ride cancel ki.')
+         VALUES ($1, $2, $3, 'passenger', 1, 'Auto-rating: Driver cancelled the ride.')
          ON CONFLICT DO NOTHING`,
         [booking_id, passenger_id, driverId]
       );
@@ -1354,7 +1354,7 @@ const cancelTrip = asyncHandler(async (req, res) => {
     try {
       const rn = await pool.query(
         `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'rate_ride', 'Rate your driver', 'Driver ne ride cancel ki. Apna experience share karein.', $2::jsonb)
+         VALUES ($1, 'rate_ride', 'Rate your driver', 'The driver cancelled your ride. Share your experience.', $2::jsonb)
          RETURNING id, user_id, type, title, body, data, created_at, is_read`,
         [passenger_id, JSON.stringify({ booking_id, trip_id: tripId, rate_only: 'driver' })]
       );
@@ -1371,8 +1371,8 @@ const cancelTrip = asyncHandler(async (req, res) => {
   try {
     const countRes = await pool.query(
       `SELECT
-         (SELECT COUNT(*)::int FROM trips WHERE driver_id = $1 AND status = 'cancelled' AND updated_at > NOW() - ($2::int * INTERVAL '1 day')) AS recent,
-         (SELECT COUNT(*)::int FROM trips WHERE driver_id = $1 AND status = 'cancelled' AND updated_at > NOW() - ($3::int * INTERVAL '1 day')) AS long_term`,
+         (SELECT COUNT(*)::int FROM trips WHERE driver_id = $1 AND status = 'cancelled' AND COALESCE(cancelled_by, 'driver') = 'driver' AND updated_at > NOW() - ($2::int * INTERVAL '1 day')) AS recent,
+         (SELECT COUNT(*)::int FROM trips WHERE driver_id = $1 AND status = 'cancelled' AND COALESCE(cancelled_by, 'driver') = 'driver' AND updated_at > NOW() - ($3::int * INTERVAL '1 day')) AS long_term`,
       [driverId, DRIVER_CANCEL_WINDOW_DAYS, DRIVER_PERM_BLOCK_WINDOW_DAYS]
     );
     const recent = countRes.rows[0]?.recent || 0;
@@ -1432,7 +1432,7 @@ const deleteTrip = asyncHandler(async (req, res) => {
     const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
     if (hoursSinceCreation > DELETE_WINDOW_HOURS) {
       throw ApiError.badRequest(
-        `Ride sirf banane ke ${DELETE_WINDOW_HOURS} ghante ke andar delete ho sakti hai. Uske baad cancel karein.`
+        `Ride can only be deleted within ${DELETE_WINDOW_HOURS} hour(s) of creation. Use cancel instead.`
       );
     }
 

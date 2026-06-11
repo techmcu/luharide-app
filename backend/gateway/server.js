@@ -97,7 +97,7 @@ app.get('/health', async (req, res) => {
   try {
     const { getRedisHealth } = require('../src/config/redis');
     await pool.query('SELECT 1');
-    const redis = getRedisHealth();
+    const redis = await getRedisHealth();
     res.json({
       status: 'ok',
       role: 'gateway',

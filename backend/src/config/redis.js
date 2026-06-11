@@ -45,6 +45,9 @@ function buildRedisOptions() {
     port,
     ...(password ? { password } : {}),
     maxRetriesPerRequest: 3,
+    enableOfflineQueue: false,
+    connectTimeout: 5000,
+    lazyConnect: false,
     retryStrategy(times) {
       return Math.min(times * 500, 30000);
     },
@@ -112,14 +115,65 @@ function getSocketIoRedisClients() {
   }
 }
 
-function getRedisHealth() {
+async function getRedisHealth() {
   if (!isRedisEnabled()) return { enabled: false };
   if (!mainClient) return { enabled: true, status: 'not_initialized' };
-  return {
+  const health = {
     enabled: true,
     status: mainClient.status,
     up: mainClient.status === 'ready',
   };
+  if (health.up) {
+    try {
+      const info = await mainClient.info('memory');
+      const used = info.match(/used_memory_human:(\S+)/);
+      const max = info.match(/maxmemory_human:(\S+)/);
+      const keys = await mainClient.dbsize();
+      health.memory = used ? used[1] : 'unknown';
+      health.maxmemory = max ? max[1] : 'not set';
+      health.keys = keys;
+    } catch (_) {}
+  }
+  return health;
+}
+
+const REDIS_MEM_WARN_BYTES = parseInt(process.env.REDIS_MEM_WARN_MB || '80', 10) * 1024 * 1024;
+
+async function checkRedisMemory() {
+  const client = getRedisClient();
+  if (!client || client.status !== 'ready') return null;
+  try {
+    const info = await client.info('memory');
+    const usedMatch = info.match(/used_memory:(\d+)/);
+    const maxMatch = info.match(/maxmemory:(\d+)/);
+    const used = usedMatch ? parseInt(usedMatch[1], 10) : 0;
+    const max = maxMatch ? parseInt(maxMatch[1], 10) : 0;
+
+    if (max === 0) {
+      logger.warn('Redis maxmemory is NOT set — set it to prevent OOM kills (e.g. maxmemory 100mb in redis.conf)');
+    }
+    if (used > REDIS_MEM_WARN_BYTES) {
+      const usedMB = (used / 1024 / 1024).toFixed(1);
+      sendTelegramAlert(formatInfraAlert('Redis', `Memory high: ${usedMB}MB used (warn threshold: ${REDIS_MEM_WARN_BYTES / 1024 / 1024}MB).`));
+    }
+    return { used, max, policy: info.match(/maxmemory_policy:(\S+)/)?.[1] || 'unknown' };
+  } catch (e) {
+    return null;
+  }
+}
+
+async function flushExpiredKeys() {
+  const client = getRedisClient();
+  if (!client || client.status !== 'ready') return 0;
+  try {
+    const dbsize = await client.dbsize();
+    if (dbsize > 10000) {
+      logger.warn(`Redis has ${dbsize} keys — unexpectedly high, investigate stale keys`);
+    }
+    return dbsize;
+  } catch (e) {
+    return 0;
+  }
 }
 
 module.exports = {
@@ -128,4 +182,6 @@ module.exports = {
   createRateLimitRedisStore,
   getSocketIoRedisClients,
   getRedisHealth,
+  checkRedisMemory,
+  flushExpiredKeys,
 };

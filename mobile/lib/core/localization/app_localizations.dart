@@ -1936,6 +1936,111 @@ class AppLocalizations {
       'en': 'Passenger has not added a phone number',
       'hi': 'पैसेंजर ने फ़ोन नंबर नहीं जोड़ा है',
     },
+    // Notification type-based localization (title + body per backend type)
+    'notif.booking_rejected.title': {
+      'en': 'Booking not approved',
+      'hi': 'बुकिंग स्वीकृत नहीं हुई',
+    },
+    'notif.booking_rejected.body': {
+      'en': 'The driver did not approve your booking. Please try another ride.',
+      'hi': 'ड्राइवर ने आपकी बुकिंग स्वीकृत नहीं की। कृपया दूसरी राइड आज़माएँ।',
+    },
+    'notif.booking_auto_cancelled.title': {
+      'en': 'Booking not confirmed',
+      'hi': 'बुकिंग पुष्टि नहीं हुई',
+    },
+    'notif.booking_auto_cancelled.body': {
+      'en': 'The driver did not confirm your booking. Please try another ride.',
+      'hi': 'ड्राइवर ने आपकी बुकिंग की पुष्टि नहीं की। कृपया दूसरी राइड आज़माएँ।',
+    },
+    'notif.trip_auto_started.title': {
+      'en': 'Your ride has started!',
+      'hi': 'आपकी राइड शुरू हो गई!',
+    },
+    'notif.trip_auto_started.body': {
+      'en': 'Your scheduled ride has auto-started as departure time has arrived. Have a safe ride!',
+      'hi': 'प्रस्थान का समय आ गया है — आपकी राइड ऑटो-स्टार्ट हो गई है। सुरक्षित यात्रा करें!',
+    },
+    'notif.rate_ride.title': {
+      'en': 'Rate your ride',
+      'hi': 'अपनी राइड को रेट करें',
+    },
+    'notif.rate_ride.body': {
+      'en': 'How was your ride? Share your experience.',
+      'hi': 'आपकी राइड कैसी रही? अपना अनुभव साझा करें।',
+    },
+    'notif.trip_completed.title': {
+      'en': 'Ride completed!',
+      'hi': 'राइड पूरी हो गई!',
+    },
+    'notif.trip_completed.body': {
+      'en': 'Your ride has been completed. Rate your experience!',
+      'hi': 'आपकी राइड पूरी हो गई है। अपना अनुभव रेट करें!',
+    },
+    'notif.trip_cancelled.title': {
+      'en': 'Ride cancelled',
+      'hi': 'राइड रद्द हो गई',
+    },
+    'notif.trip_cancelled.body': {
+      'en': 'The driver cancelled the ride. You can rate your experience.',
+      'hi': 'ड्राइवर ने राइड रद्द कर दी। आप अपना अनुभव रेट कर सकते हैं।',
+    },
+    'notif.booking_cancelled.title': {
+      'en': 'Booking cancelled',
+      'hi': 'बुकिंग रद्द हो गई',
+    },
+    'notif.booking_cancelled.body': {
+      'en': 'A passenger cancelled their booking.',
+      'hi': 'एक यात्री ने अपनी बुकिंग रद्द कर दी।',
+    },
+    'notif.booking_accepted.title': {
+      'en': 'Booking approved!',
+      'hi': 'बुकिंग स्वीकृत!',
+    },
+    'notif.booking_accepted.body': {
+      'en': 'Your booking has been approved by the driver.',
+      'hi': 'ड्राइवर ने आपकी बुकिंग स्वीकृत कर दी है।',
+    },
+    'notif.verification_approved.title': {
+      'en': 'Verification approved',
+      'hi': 'सत्यापन स्वीकृत',
+    },
+    'notif.verification_approved.body': {
+      'en': 'Your documents have been verified. You can now create rides.',
+      'hi': 'आपके दस्तावेज़ सत्यापित हो गए हैं। अब आप राइड बना सकते हैं।',
+    },
+    'notif.verification_rejected.title': {
+      'en': 'Verification update needed',
+      'hi': 'सत्यापन अपडेट ज़रूरी',
+    },
+    'notif.verification_rejected.body': {
+      'en': 'Your verification was not approved. Please update your documents.',
+      'hi': 'आपका सत्यापन स्वीकृत नहीं हुआ। कृपया दस्तावेज़ अपडेट करें।',
+    },
+    'notif.kyc_reverify_required.title': {
+      'en': 'Re-verification required',
+      'hi': 'पुनः सत्यापन आवश्यक',
+    },
+    'notif.kyc_reverify_required.body': {
+      'en': 'The admin has requested re-verification of your documents.',
+      'hi': 'एडमिन ने आपके दस्तावेज़ों का पुनः सत्यापन माँगा है।',
+    },
+    'notif.new_review.title': {
+      'en': 'New review received',
+      'hi': 'नई समीक्षा मिली',
+    },
+    'notif.new_review.body': {
+      'en': 'Someone rated their experience with you.',
+      'hi': 'किसी ने आपके साथ अपने अनुभव की रेटिंग दी।',
+    },
+    'notif.union_documents_approved.title': {
+      'en': 'Union documents approved',
+      'hi': 'यूनियन दस्तावेज़ स्वीकृत',
+    },
+    'notif.union_documents_approved.body': {
+      'en': 'Your union documents have been approved.',
+      'hi': 'आपके यूनियन दस्तावेज़ स्वीकृत हो गए हैं।',
+    },
   };
 
   String t(String key) {

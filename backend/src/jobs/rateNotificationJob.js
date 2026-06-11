@@ -25,7 +25,8 @@ async function sendAndDelete(client, row) {
     'SELECT status FROM bookings WHERE id = $1',
     [row.booking_id]
   );
-  if (booking.rows.length === 0 || booking.rows[0].status !== 'confirmed') {
+  const st = booking.rows[0]?.status;
+  if (!st || (st !== 'confirmed' && st !== 'completed')) {
     await client.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]);
     return;
   }
@@ -33,8 +34,8 @@ async function sendAndDelete(client, row) {
   const dataJson = JSON.stringify({ booking_id: row.booking_id });
   const r = await client.query(
     `INSERT INTO notifications (user_id, type, title, body, data)
-     VALUES ($1, 'rate_ride', 'How was your ride?', 'Aaj ki ride kaisi rahi? Apne driver ko rate karein.', $2::jsonb),
-            ($3, 'rate_ride', 'Rate your passenger', 'Aaj ki ride kaisi rahi? Apne passenger ko rate karein.', $2::jsonb)
+     VALUES ($1, 'rate_ride', 'How was your ride?', 'How was your ride today? Rate your driver.', $2::jsonb),
+            ($3, 'rate_ride', 'Rate your passenger', 'How was your ride today? Rate your passenger.', $2::jsonb)
      RETURNING id, user_id, type, title, body, data, created_at, is_read`,
     [row.passenger_id, dataJson, row.driver_id]
   );

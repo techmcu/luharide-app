@@ -8,18 +8,15 @@ const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 /** Default in-app copy (EN + HI) when admin does not pass a custom `message` body. */
 const DRIVER_REVERIFY_TITLE = 'Documents need re-verification';
 const DRIVER_REVERIFY_BODY =
-  'Your verified badge has been removed. Open Profile, then Driver verification, upload updated documents, and submit for review. The badge returns after admin approval.\n\n' +
-  'आपका वेरिफाइड बैज हटा दिया गया है। प्रोफ़ाइल → ड्राइवर वेरिफिकेशन में जाकर अपडेटेड दस्तावेज़ अपलोड कर समीक्षा के लिए भेजें। अप्रूवल के बाद बैज वापस मिलेगा।';
+  'Your verified badge has been removed. Open Profile → Driver verification, upload updated documents, and submit for review. The badge returns after admin approval.';
 
 const UNION_REVERIFY_TITLE = 'Union documents need re-verification';
 const UNION_REVERIFY_BODY =
-  'Your union verified status has been reset. Open Union documents in the app, upload updated files, and save. The badge returns after admin approval.\n\n' +
-  'संघ का वेरिफाइड स्टेटस रीसेट किया गया है। ऐप में Union documents खोलें, नए दस्तावेज़ अपलोड करें और सेव करें। अप्रूवल के बाद बैज वापस मिलेगा।';
+  'Your union verified status has been reset. Open Union documents in the app, upload updated files, and save. The badge returns after admin approval.';
 
 const UNION_DOC_REJECT_TITLE = 'Union documents need an update';
 const UNION_DOC_REJECT_BODY =
-  'Your recent document update could not be approved. Please upload correct documents under Union documents and submit again.\n\n' +
-  'आपके दस्तावेज़ स्वीकृत नहीं किए गए। कृपया Union documents में सही फ़ाइलें अपलोड कर पुनः भेजें।';
+  'Your recent document update could not be approved. Please upload correct documents under Union documents and submit again.';
 
 function clampDays(days) {
   const n = parseInt(days, 10);

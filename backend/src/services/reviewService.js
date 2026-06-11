@@ -74,10 +74,10 @@ async function submitRating(bookingId, userId, { rating, comment }) {
       throw ApiError.badRequest('Admin-cancelled bookings cannot be rated.');
     }
     if (cancelledByDriver && fromRole === ROLES.DRIVER) {
-      throw ApiError.badRequest('Aapne ride cancel ki thi — aap rate nahi kar sakte.');
+      throw ApiError.badRequest('You cancelled the ride — you cannot rate.');
     }
     if (cancelledByPassenger && fromRole === ROLES.PASSENGER) {
-      throw ApiError.badRequest('Aapne booking cancel ki thi — aap rate nahi kar sakte.');
+      throw ApiError.badRequest('You cancelled the booking — you cannot rate.');
     }
     if (!cancelledByDriver && !cancelledByPassenger) {
       throw ApiError.badRequest('Auto-cancelled bookings cannot be rated.');

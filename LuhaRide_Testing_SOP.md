@@ -1,7 +1,7 @@
 # LuhaRide — Complete Testing SOP (Standard Operating Procedure)
 
 **Last Updated:** 2026-06-11  
-**Version:** 2.0 (BlaBlaCar-style cancel + auto-rating)
+**Version:** 3.0 (Bug fixes: cancel fairness, rate notifications, Redis hardening)
 
 ---
 
@@ -102,10 +102,13 @@
 | F-021 | Driver rejects booking | PUT /bookings/:id/respond action=reject | 200, status=cancelled, seats restored | P0 |
 | F-022 | Accept already-confirmed | Accept a confirmed booking | 400 | P1 |
 | F-023 | Reject after departure | Respond to booking after trip departed | 400 | P1 |
-| F-024 | Start trip | PUT /trips/:id/start | 200, status=in_progress | P0 |
-| F-025 | Start already completed | Start a completed trip | 400 | P1 |
+| F-024 | Start trip (union/legacy) | PUT /trips/:id/start for union trip | 200, status=in_progress | P0 |
+| F-025 | Start independent driver trip before departure | PUT /trips/:id/start for independent_driver before departure_time | 400, "Independent rides auto-start at departure time" | P0 |
 | F-026 | Delete empty trip | DELETE /trips/:id (no bookings) | 200 | P1 |
 | F-027 | Delete trip with bookings | DELETE /trips/:id (active bookings) | 400 | P0 |
+| F-028 | Complete trip from in_progress | PUT /trips/:id/complete when status=in_progress | 200, status=completed | P0 |
+| F-029 | Complete trip from scheduled (blocked) | PUT /trips/:id/complete when status=scheduled | 400, "Only in-progress trips can be completed" | P0 |
+| F-030 | Complete trip before departure | PUT /trips/:id/complete before departure_time | 400, "Cannot complete ride before departure time" | P1 |
 
 ## Part G: BlaBlaCar-Style Cancel Rules (Independent Driver)
 
@@ -123,8 +126,8 @@
 | G-008 | Cannot cancel in_progress trip | Cancel after trip status=in_progress | 400 | P0 |
 | G-009 | Cannot cancel completed trip | Cancel after trip status=completed | 400 | P0 |
 | G-010 | Cannot cancel already cancelled | Cancel same trip twice | 400 | P1 |
-| G-011 | Passengers notified on cancel | Cancel trip with passengers → check notifications | All passengers get "Driver ne ride cancel ki" | P0 |
-| G-012 | Auto 1-star on driver (confirmed booking) | Driver cancels trip with confirmed booking | ride_ratings row inserted: from_role=passenger, rating=1, comment starts with "Auto-rating:" | P0 |
+| G-011 | Passengers notified on cancel | Cancel trip with passengers → check notifications | All passengers get notification (type=trip_cancelled). Body in user's language (EN or HI via app localization) | P0 |
+| G-012 | Auto 1-star on driver (confirmed booking) | Driver cancels trip with confirmed booking | ride_ratings row inserted: from_role=passenger, rating=1, comment="Auto-rating: Driver cancelled the ride." | P0 |
 | G-013 | Auto 1-star per confirmed booking | Driver cancels trip with 3 confirmed bookings | 3 auto-1-star ratings inserted (one per booking) | P1 |
 | G-014 | No auto-rating for pending bookings | Cancel trip, check pending booking passengers | No auto-rating for pending-only passengers | P1 |
 
@@ -140,8 +143,8 @@
 | G-025 | Cannot cancel in_progress ride | Cancel when trip status=in_progress | 400 | P0 |
 | G-026 | Cannot cancel completed ride | Cancel when trip status=completed | 400 | P1 |
 | G-027 | Cannot cancel already cancelled | Cancel same booking twice | 400 | P1 |
-| G-028 | Driver notified on cancel | Cancel confirmed booking → check driver notification | Driver gets "Passenger ne cancel ki" | P0 |
-| G-029 | Auto 1-star on passenger | Passenger cancels confirmed booking | ride_ratings: from_role=driver, rating=1, comment="Auto-rating: Passenger ne booking cancel ki." | P0 |
+| G-028 | Driver notified on cancel | Cancel confirmed booking → check driver notification | Driver gets notification (type=booking_cancelled). Body in user's language | P0 |
+| G-029 | Auto 1-star on passenger | Passenger cancels confirmed booking | ride_ratings: from_role=driver, rating=1, comment="Auto-rating: Passenger cancelled the booking." | P0 |
 | G-030 | Cancel reason stored | Cancel with reason="plan changed" | cancellation_reason = "plan changed" | P1 |
 | G-031 | Auto-prefix stripped | Cancel with reason="auto-something" | cancellation_reason = "something" (auto- removed) | P1 |
 | G-032 | Null reason handled | Cancel with no reason | cancellation_reason = null, still counted | P1 |
@@ -161,6 +164,10 @@
 | G-048 | Passenger permanent block | Cancel excessively in 90 days | cancel_blocked_until = 2099-12-31 | P0 |
 | G-049 | Vague error messages only | Check error text when blocked | Must NOT contain numbers, thresholds, or countdown | P0 |
 | G-050 | Only user-initiated cancels counted | Check that auto-expired cancels (reason starts with "auto-") don't count | Cancel count excludes auto-reasons | P1 |
+| G-051 | Admin cancel does NOT count against driver | Admin cancels driver's trip → check driver cancel count | trips.cancelled_by = 'admin', NOT counted in cancel tracking query | P0 |
+| G-052 | Driver cancel sets cancelled_by = 'driver' | Driver cancels own trip → check trips table | cancelled_by = 'driver' | P0 |
+| G-053 | Admin cancel sets cancelled_by = 'admin' | Admin cancels trip via platform admin → check trips table | cancelled_by = 'admin' | P0 |
+| G-054 | Rejected booking has no cancelled_at | Driver rejects pending booking → check bookings table | status = 'cancelled', cancelled_at = NULL, not counted in passenger cancel tracking | P1 |
 
 ## Part H: Rating & Review (BlaBlaCar-Style)
 
@@ -184,9 +191,9 @@
 | ID | Scenario | Steps | Expected | Priority |
 |----|----------|-------|----------|----------|
 | H-020 | Driver cancels → passenger CAN rate | Driver cancels trip → passenger submits rating | 201, rating accepted | P0 |
-| H-021 | Driver cancels → driver CANNOT rate | Driver cancels trip → driver tries to rate | 400, "Aapne ride cancel ki thi" | P0 |
+| H-021 | Driver cancels → driver CANNOT rate | Driver cancels trip → driver tries to rate | 400, "You cancelled the ride — you cannot rate." | P0 |
 | H-022 | Passenger cancels → driver CAN rate | Passenger cancels → driver submits rating | 201, rating accepted | P0 |
-| H-023 | Passenger cancels → passenger CANNOT rate | Passenger cancels → passenger tries to rate | 400, "Aapne booking cancel ki thi" | P0 |
+| H-023 | Passenger cancels → passenger CANNOT rate | Passenger cancels → passenger tries to rate | 400, "You cancelled the booking — you cannot rate." | P0 |
 | H-024 | Auto-cancelled → nobody rates | Auto-expired booking → anyone tries to rate | 400, "Auto-cancelled bookings cannot be rated" | P0 |
 | H-025 | Auto-rating replaced by manual | Passenger cancels → auto-1-star on passenger → driver submits 3-star with comment | Driver's rating replaces auto-1-star (comment no longer starts with "Auto-rating:") | P0 |
 | H-026 | Auto-rating replacement keeps booking_id | After replacing auto-rating → check ride_ratings table | Same row updated, same id, same booking_id | P1 |
@@ -205,7 +212,10 @@
 | I-007 | Booking confirmed → cancelled (passenger cancel) | Passenger cancels own booking | status = cancelled | P0 |
 | I-008 | Completed booking visible in UI | Check "My Rides" screen | Completed booking shows teal color, "Completed" / "Purihooi" text | P1 |
 | I-009 | Completed booking — no cancel button | Check UI for completed booking | Cancel button hidden | P1 |
-| I-010 | Contact visible for completed booking | Check trip details for completed booking | Contact info still visible | P2 |
+| I-010 | Driver contact visible for completed booking | GET /bookings/my → check completed booking | driver object present (name, phone, whatsapp) — NOT null | P0 |
+| I-011 | Passengers notified on auto-complete | Trip auto-completes (arrival_time reached) → check passenger notifications | Notification type=trip_completed, title="Ride completed!", body="Rate your experience!" | P0 |
+| I-012 | Rate notification sent for completed rides | Ride completes → wait 5h after departure → check rate_ride notification | Notification sent (status check includes 'completed', not just 'confirmed') | P0 |
+| I-013 | Rate notification NOT sent for cancelled rides | Ride cancelled → pending_rate_notifications deleted | No rate_ride notification sent | P1 |
 
 ## Part J: Union Flow Tests
 
@@ -251,14 +261,35 @@
 | K-017 | Disabled login blocked | Login as disabled user | 401 | P0 |
 | K-018 | Re-enable user | PUT /platform-admin/users/:id/enable | 200 | P1 |
 
-## Part L: Infrastructure & Health
+## Part L: Notification Localization Tests
 
 | ID | Scenario | Steps | Expected | Priority |
 |----|----------|-------|----------|----------|
-| L-001 | Public search (no auth) | GET /trips/search without token | 200 | P0 |
-| L-002 | Public locations (no auth) | GET /trips/locations without token | 200 | P0 |
-| L-003 | Health check | GET /health | 200 | P0 |
-| L-004 | Auth service ping | GET /auth/ping | 200 | P1 |
+| L-001 | Backend sends English notification body | Trigger any notification (cancel, reject, rate) → read DB | Body text is proper English (no Hinglish) | P0 |
+| L-002 | Flutter shows English (EN mode) | Set app to English → open Notifications screen | All notification titles/bodies in English | P0 |
+| L-003 | Flutter shows Hindi (HI mode) | Set app to Hindi → open Notifications screen | Known notification types show Hindi title/body | P0 |
+| L-004 | Unknown type fallback | Backend sends notification with new/unknown type | Flutter shows raw backend English text (no crash) | P1 |
+| L-005 | Booking rejected notification localized | Reject a booking → check passenger notification in Hindi | Title: "बुकिंग स्वीकृत नहीं हुई", Body: Hindi text | P1 |
+| L-006 | Rate ride notification localized | Trigger rate reminder → check notification in Hindi | Title: "अपनी राइड को रेट करें", Body: Hindi text | P1 |
+| L-007 | Trip auto-started notification localized | Wait for trip auto-start → check driver notification in Hindi | Title: "आपकी राइड शुरू हो गई!", Body: Hindi text | P1 |
+| L-008 | Cancel rating prompt localized | Driver cancels trip → passenger sees rate prompt in Hindi | Hindi body shown | P1 |
+| L-009 | FCM push stays Hinglish/English | Trigger FCM push → check system notification tray | FCM text unchanged (backend English or Hinglish for SMS/FCM) — acceptable | P2 |
+| L-010 | No Hinglish in any API error response | Hit all error cases (blocked, invalid, etc.) | All error messages are proper English | P0 |
+| L-011 | Trip completed notification localized | Trip auto-completes → check notification in Hindi mode | Title: "राइड पूरी हो गई!", Body: "आपकी राइड पूरी हो गई है। अपना अनुभव रेट करें!" | P1 |
+
+## Part M: Infrastructure & Health
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| M-001 | Public search (no auth) | GET /trips/search without token | 200 | P0 |
+| M-002 | Public locations (no auth) | GET /trips/locations without token | 200 | P0 |
+| M-003 | Health check | GET /health | 200, includes redis.memory and redis.keys | P0 |
+| M-004 | Auth service ping | GET /auth/ping | 200 | P1 |
+| M-005 | Redis health in health endpoint | GET /health → check redis object | redis.up=true, redis.memory shows usage, redis.keys shows count | P1 |
+| M-006 | Redis maxmemory configured | redis-cli CONFIG GET maxmemory on VPS | Value > 0 (e.g. 100mb), policy = allkeys-lru | P0 |
+| M-007 | Redis auto-restart on crash | sudo systemctl show redis-server \| grep Restart | Restart=always, RestartSec=5 | P0 |
+| M-008 | Redis fallback on failure | Stop Redis → hit API endpoints | Rate limiting falls back to in-memory, app doesn't crash | P1 |
+| M-009 | Redis recovery alert | Stop then start Redis → check Telegram | DOWN alert on stop, RECOVERED alert on restart | P1 |
 
 ---
 
@@ -283,7 +314,7 @@
 **What:** Full end-to-end flows work together. Trip create → book → accept → ride complete → rating.  
 **Tools:**  
 - **Postman Collection Runner** — chain requests, pass variables between steps  
-- **Jest + Supertest** — automated backend integration tests (already 207 tests)  
+- **Jest + Supertest** — automated backend integration tests (already 208 tests)  
 - **Custom scripts** — lifecycle test scripts
 
 **How to tell tester:**  
@@ -487,12 +518,21 @@ export default function () {
 - **Flutter `flutter test`** — localization key validation
 
 **Checklist:**  
-- Language switch karo — sab text change ho  
-- Koi "key_not_found" ya English text Hindi mode mein nahi dikhna chahiye  
-- Hindi text zyada lamba ho sakta hai — button ya card overflow nahi hona chahiye  
-- Cancel policy text — bilingual correct ho (no time numbers shown)  
+- Switch language (Settings → Language) — all UI text must change  
+- No "key_not_found" or raw English text visible in Hindi mode  
+- Hindi text may be longer — verify no button/card overflow  
+- Cancel policy text — bilingual correct (no time numbers shown)  
 - Rating info text — bilingual correct  
 - Error messages — bilingual  
+- **Notification text** — switch to Hindi, open Notifications screen:
+  - Booking rejected → Hindi title & body shown
+  - Booking auto-cancelled → Hindi title & body shown
+  - Trip started → Hindi title & body shown
+  - Rate ride → Hindi title & body shown
+  - Verification approved/rejected → Hindi title & body shown
+  - Unknown notification types → fall back to backend English text (acceptable)
+- No Hinglish anywhere in UI — only proper English or proper Hindi
+- FCM push notifications (system tray) may remain Hinglish — this is acceptable  
 
 ---
 
@@ -500,7 +540,7 @@ export default function () {
 
 **What:** New changes didn't break existing features.  
 **Tools:**  
-- **Jest** — `npm test` (207 automated tests already)  
+- **Jest** — `npm test` (208 automated tests already)  
 - **Postman Collection** — full API regression suite  
 - **Flutter test** — `flutter test` for widget/unit tests  
 

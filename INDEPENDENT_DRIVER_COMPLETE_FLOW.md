@@ -12,7 +12,7 @@ Driver app mein "Create Ride" tap karta hai.
 
 | # | Check | Fail hone pe |
 |---|-------|-------------|
-| 1 | `cancel_blocked_until` check — driver blocked toh nahi? | "Bahut baar cancel kiya, kuch samay baad try karein" |
+| 1 | `cancel_blocked_until` check — driver blocked toh nahi? | "You have cancelled too many rides recently. Please try again later." |
 | 2 | `from_location` minimum 2 characters | 400 error |
 | 3 | `to_location` minimum 2 characters | 400 error |
 | 4 | from aur to same nahi hone chahiye | 400 error |
@@ -42,7 +42,7 @@ Driver galti se ride banaya toh delete kar sakta hai.
 
 | # | Check | Fail hone pe |
 |---|-------|-------------|
-| 1 | Ride banaye 1 hour se zyada ho gaya? | "1 ghante ke andar hi delete hoti hai, cancel karo" |
+| 1 | Ride banaye 1 hour se zyada ho gaya? | "Ride can only be deleted within 1 hour(s) of creation. Use cancel instead." |
 | 2 | Koi booking hai (pending ya confirmed)? | "Bookings hain, delete nahi hoga" |
 
 **Pass:** Trip DB se DELETE ho jaata hai (permanently, not cancelled). No penalty, no tracking.
@@ -57,7 +57,7 @@ Passenger search karta hai, ride milti hai, seat select karta hai.
 
 | # | Check | Fail hone pe |
 |---|-------|-------------|
-| 1 | `cancel_blocked_until` check — passenger blocked? | "Bahut baar cancel kiya" |
+| 1 | `cancel_blocked_until` check — passenger blocked? | "You have cancelled too many times recently. Please try again later." |
 | 2 | Same trip pe 10 min pehle cancel kiya tha? (cooldown) | "X minute wait karo" |
 | 3 | Trip exist karti hai aur status = scheduled? | 404 |
 | 4 | Departure time abhi tak nahi guzra? | "Ride departed ho chuki" |
@@ -124,7 +124,7 @@ Driver ko notification aata hai — Accept ya Reject karo.
 ```
 1. Booking status = CANCELLED (no cancelled_at set)
 2. Seats restore (+N)
-3. Passenger ko notification: "Driver ne approve nahi ki"
+3. Passenger ko notification: "The driver did not approve your booking. Please try another ride."
 4. Cancel tracking mein count NAHI hota (cancelled_at NULL)
 5. No auto-rating (rejection is not a cancel)
 ```
@@ -154,20 +154,20 @@ Driver "Cancel Trip" karta hai.
 
 2. Seats restore (sab ki seats wapas)
 
-3. Trip status = CANCELLED
+3. Trip status = CANCELLED, cancelled_by = 'driver'
 
-4. Sab passengers ko notification: "Driver ne ride cancel ki"
+4. Sab passengers ko notification: "The driver cancelled the ride."
 
 5. AUTO 1-STAR RATING (sirf confirmed bookings ke liye):
    - Har confirmed booking ke liye:
      ride_ratings INSERT
      from_role = 'passenger', rating = 1
-     comment = "Auto-rating: Driver ne ride cancel ki."
+     comment = "Auto-rating: Driver cancelled the ride."
      ON CONFLICT DO NOTHING
    - Pending bookings pe koi auto-rating nahi
 
 6. Confirmed passengers ko RATE notification:
-   "Driver ne cancel ki - apna experience share karein"
+   "The driver cancelled your ride. Share your experience."
 
 7. Rate reminders DELETE (cancelled bookings ke)
 ```
@@ -176,7 +176,8 @@ Driver "Cancel Trip" karta hai.
 
 ```
 TIER 1 - TEMP BLOCK:
-  Count = cancelled trips in last 30 days
+  Count = cancelled trips in last 30 days WHERE cancelled_by = 'driver'
+  (Admin-cancelled trips are EXCLUDED — cancelled_by = 'admin')
   Count >= SECRET threshold?
   YES -> cancel_blocked_until = NOW + 48 hours
   (Blocks: cancel + create rides)
@@ -218,7 +219,7 @@ Passenger "Cancel Booking" karta hai.
 
 3. Seats restore (+N)
 
-4. Driver ko notification: "Passenger ne cancel ki"
+4. Driver ko notification: "A passenger cancelled their booking."
 
 5. Rate reminder DELETE
 ```
@@ -248,11 +249,11 @@ TIER 2 - PERMANENT BLOCK:
 ```
 ride_ratings INSERT
   from_role = 'driver', rating = 1
-  comment = "Auto-rating: Passenger ne booking cancel ki."
+  comment = "Auto-rating: Passenger cancelled the booking."
   ON CONFLICT DO NOTHING
 
 Driver ko RATE notification:
-  "Passenger ne cancel ki - rate karein"
+  "A passenger cancelled their booking. Share your experience."
 ```
 
 ---
@@ -275,12 +276,12 @@ Action:
      - reason = "auto-expired-trip-started"
      - Seats restore
      - Passenger ko notification:
-       "Driver ne confirm nahi ki, ride shuru ho gayi"
+       "The driver did not confirm your booking. The ride has started. Please try another ride."
 
   3. CONFIRMED bookings: UNTOUCHED
      (passenger ride pe hai, booking theek hai)
 
-  4. Driver ko notification: "Ride shuru ho gayi! Safe ride!"
+  4. Driver ko notification: "Your ride has started! Have a safe ride!"
 ```
 
 ---
@@ -301,12 +302,17 @@ Action:
   2. Confirmed bookings -> COMPLETED
      (ride khatam, safar poori)
 
-  3. Leftover pending? (rare edge case)
+  3. Har completed passenger ko notification:
+     type = 'trip_completed'
+     title = "Ride completed!"
+     body = "Your ride has been completed. Rate your experience!"
+
+  4. Leftover pending? (rare edge case)
      - status = CANCELLED
      - reason = "auto-expired-trip-completed"
      - Seats restore
 
-  4. NO notification to driver (silent auto-complete)
+  5. NO notification to driver (silent auto-complete)
 ```
 
 ---
@@ -372,7 +378,7 @@ Agar koi rating nahi:
 1. STALE PENDING BOOKINGS:
    - X hours purani pending bookings
    - Cancel, seats restore
-   - Passenger notify: "Driver ne respond nahi kiya"
+   - Passenger notify: "The driver did not respond in time. Your booking was auto-cancelled."
 
 2. UNION TRIPS AUTO-COMPLETE:
    - Past arrival time union trips
@@ -453,13 +459,14 @@ Agar koi rating nahi:
 | Auto-expired bookings (system) | System action, user ki galti nahi |
 | "Driver cancelled the trip" bookings | Driver ki galti, passenger ki nahi |
 | "Cancelled by platform admin" bookings | Admin action |
+| Admin-cancelled trips (cancelled_by='admin') | Driver pe count nahi hota — admin ki action |
 | Driver reject (booking) | Not a cancel by passenger |
 
 ### User ko kya dikhta hai:
 
 ```
 Sirf vague message:
-  "Bahut baar cancel kiya, kuch samay baad try karein"
+  "You have cancelled too many times recently. Please try again later."
 
 NEVER shown:
   - Exact threshold numbers
@@ -532,12 +539,13 @@ BOOKING:
 | Booking created (pending) | Driver | "New booking request! Approve karein" |
 | Booking created (confirmed) | Driver | "New booking confirmed!" |
 | Booking accepted | Passenger | "Booking approved!" |
-| Booking rejected | Passenger | "Driver ne approve nahi ki" |
-| Passenger cancels | Driver | "Passenger ne cancel ki" |
-| Driver cancels trip | All passengers | "Driver ne ride cancel ki" |
-| Trip auto-started | Driver | "Ride shuru ho gayi! Safe ride!" |
-| Pending auto-cancelled (trip start) | Passenger | "Driver ne confirm nahi ki, ride shuru ho gayi" |
+| Booking rejected | Passenger | "The driver did not approve your booking. Please try another ride." |
+| Passenger cancels | Driver | "A passenger cancelled their booking." |
+| Driver cancels trip | All passengers | "The driver cancelled the ride." |
+| Trip auto-started | Driver | "Your ride has started! Have a safe ride!" |
+| Trip auto-completed | All confirmed passengers | "Ride completed! Rate your experience!" |
+| Pending auto-cancelled (trip start) | Passenger | "The driver did not confirm your booking. The ride has started." |
 | Seat conflict auto-cancel | Passenger | "Seats given to another passenger" |
 | Cancel rating prompt | Affected party | "Rate your driver/passenger" |
-| Rate reminder (5h after departure) | Both | "Rate your ride" |
+| Rate reminder (5h after departure) | Both | "Rate your ride" (only if booking confirmed/completed, not cancelled) |
 | Rating received | Rated user | "New review received" |
