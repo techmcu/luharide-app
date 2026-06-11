@@ -304,28 +304,7 @@ class _TripCard extends StatelessWidget {
   }
 }
 
-class _TripContactBtn extends StatelessWidget {
-  const _TripContactBtn({required this.icon, required this.color, required this.onTap});
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
 
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, size: 20, color: color),
-      ),
-    );
-  }
-}
 
 // ── Union ride card ──────────────────────────────────────────────────────────
 class _UnionCard extends StatelessWidget {
