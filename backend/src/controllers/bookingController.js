@@ -776,7 +776,7 @@ const cancelBooking = asyncHandler(async (req, res) => {
         const countRes = await pool.query(
           `SELECT COUNT(*)::int AS cnt FROM bookings
            WHERE passenger_id = $1 AND status = 'cancelled'
-             AND cancellation_reason NOT LIKE 'auto-%'
+             AND COALESCE(cancellation_reason, '') NOT LIKE 'auto-%'
              AND cancelled_at > NOW() - ($2::int * INTERVAL '1 day')`,
           [passengerId, PASSENGER_CANCEL_WINDOW_DAYS]
         );
