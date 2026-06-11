@@ -1,7 +1,7 @@
 # LuhaRide — Complete Testing SOP (Standard Operating Procedure)
 
 **Last Updated:** 2026-06-11  
-**Version:** 3.0 (Bug fixes: cancel fairness, rate notifications, Redis hardening)
+**Version:** 4.0 — Complete A-to-Z (324 test cases, 141 P0, 16 parts)
 
 ---
 
@@ -24,6 +24,15 @@
 | A-013 | Logout | POST /auth/logout | 200 | P1 |
 | A-014 | Token refresh | POST /auth/refresh with refresh token | 200, new access token | P0 |
 | A-015 | Delete own account | DELETE /auth/account | 200 | P2 |
+| A-016 | Send OTP | POST /auth/send-otp with valid phone | 200, OTP sent | P0 |
+| A-017 | Verify OTP (login/register) | POST /auth/verify-otp with correct OTP | 200, tokens returned | P0 |
+| A-018 | Verify OTP wrong code | POST /auth/verify-otp with wrong OTP | 400 | P0 |
+| A-019 | Google Sign-In valid | POST /simple-auth/google with valid Google token | 200, user created/logged in | P0 |
+| A-020 | Google Sign-In invalid token | POST /simple-auth/google with garbage token | 401 | P0 |
+| A-021 | Firebase Email Sign-In | POST /simple-auth/firebase-email with valid Firebase token | 200 | P1 |
+| A-022 | Expired JWT access | GET /auth/me with expired access token | 401 | P0 |
+| A-023 | Refresh with invalid token | POST /auth/refresh with garbage | 401 | P1 |
+| A-024 | Refresh with expired refresh token | POST /auth/refresh with expired token | 401 | P1 |
 
 ## Part B: Input Validation Tests
 
@@ -36,6 +45,13 @@
 | B-005 | XSS in profile name | Update name with `<script>alert(1)</script>` | 200 (stored safely) | P1 |
 | B-006 | SQL injection in login | Login email = `' OR 1=1 --` | 400 | P1 |
 | B-007 | Invalid UUID in path | GET /trips/not-a-uuid | 400 | P2 |
+| B-008 | Fare below minimum | Create trip with fare_per_seat = 5 | 400, min Rs.10 | P1 |
+| B-009 | Fare above maximum | Create trip with fare_per_seat = 15000 | 400, max Rs.10,000 | P1 |
+| B-010 | From location too short | Create trip with from_location = "A" | 400, min 2 chars | P1 |
+| B-011 | Rating comment over 20 words | Submit rating with 25-word comment | 400 | P1 |
+| B-012 | Cancel reason auto-prefix stripped | Cancel with reason="auto-exploit" | reason stored as "exploit" (auto- removed) | P1 |
+| B-013 | Admin broadcast title too long | POST broadcast with title > 50 chars | 400, "Title max 50 characters" | P2 |
+| B-014 | Admin cancel reason too long | Admin cancel trip with reason > 500 chars | 400 | P2 |
 
 ## Part C: Security & Rate Limiting Tests
 
@@ -46,6 +62,16 @@
 | C-003 | Other user during lock | Different user login | 200 (not affected) | P1 |
 | C-004 | IP rate limit | 30 failed logins from same IP | Rate limited | P1 |
 | C-005 | Forgot password rate limit | Rapid forgot-password requests | Rate limited | P2 |
+| C-006 | OTP send rate limit per phone | Send OTP 4+ times to same phone in 1 hour | 429, "Too many OTP requests for this number" | P0 |
+| C-007 | OTP verify rate limit | 9+ wrong OTP attempts in 15 min | 429 | P0 |
+| C-008 | Search rate limit | 60+ search requests in 1 minute | 429 | P1 |
+| C-009 | Upload rate limit | 30+ uploads in 1 hour | 429 | P1 |
+| C-010 | Write operation rate limit | 20+ write requests in 1 minute | 429 | P1 |
+| C-011 | Cancel spam protection | 5+ cancel requests in 10 seconds | 429 | P1 |
+| C-012 | Google Sign-In rate limit | 10+ failed Google sign-in in 5 min | 429 | P1 |
+| C-013 | Profile update rate limit | 10+ profile updates in 1 hour | 429 | P2 |
+| C-014 | Bulk write rate limit | 10+ bulk schedule creates in 1 min | 429 | P2 |
+| C-015 | Admin dashboard rate limit | 60+ admin requests in 15 min | 429 | P2 |
 
 ## Part D: RBAC / Cross-Role Access Tests
 
@@ -57,6 +83,12 @@
 | D-004 | Passenger union dashboard | GET /unions/dashboard as passenger | 403 | P1 |
 | D-005 | Driver union routes | GET /unions/routes as driver | 403 | P1 |
 | D-006 | Union admin complaints | GET /platform-admin/complaints as union_admin | 403 | P1 |
+| D-007 | Driver accesses passenger bookings | GET /bookings/my as driver (no bookings) | 200, empty (no cross-role data leak) | P1 |
+| D-008 | Passenger starts trip | PUT /trips/:id/start as passenger | 403 | P1 |
+| D-009 | Passenger completes trip | PUT /trips/:id/complete as passenger | 403/404 | P1 |
+| D-010 | Non-owner driver cancels trip | PUT /trips/:id/cancel as different driver | 404 (trip not found for this driver) | P1 |
+| D-011 | Passenger responds to booking | PUT /bookings/:id/respond as passenger | 403/404 | P1 |
+| D-012 | Non-admin grants KYC reverify | POST /admin/kyc/drivers/:id/reverify as driver | 403 | P1 |
 
 ## Part E: Passenger Flow Tests
 
@@ -74,6 +106,12 @@
 | E-010 | Submit complaint | POST /complaints | 201 | P2 |
 | E-011 | View complaints | GET /complaints/my | 200 | P2 |
 | E-012 | Save FCM token | POST /notifications/fcm-token | 200 | P1 |
+| E-013 | Delete FCM token | DELETE /notifications/fcm-token | 200 | P2 |
+| E-014 | Mark single notification read | POST /notifications/:id/read | 200 | P2 |
+| E-015 | Search routes | GET /routes/search?from=Dehradun&to=Purola | 200 | P1 |
+| E-016 | Popular routes | GET /routes/popular | 200 | P2 |
+| E-017 | View user rating summary | GET /reviews/user/:userId/summary | 200, avg rating + count | P1 |
+| E-018 | View user review bundle | GET /reviews/user/:userId/bundle | 200, reviews + summary | P2 |
 
 ## Part F: Independent Driver — Trip & Booking Lifecycle
 
@@ -109,6 +147,28 @@
 | F-028 | Complete trip from in_progress | PUT /trips/:id/complete when status=in_progress | 200, status=completed | P0 |
 | F-029 | Complete trip from scheduled (blocked) | PUT /trips/:id/complete when status=scheduled | 400, "Only in-progress trips can be completed" | P0 |
 | F-030 | Complete trip before departure | PUT /trips/:id/complete before departure_time | 400, "Cannot complete ride before departure time" | P1 |
+| F-031 | Create trip — min 30 min advance | Create trip with departure 10 min from now | 400, "30 min advance required" | P0 |
+| F-032 | Create trip — overlapping trip blocked | Create 2nd trip overlapping with existing scheduled trip | 400, "existing trip overlaps" | P0 |
+| F-033 | Create trip — blocked driver | Create trip while cancel_blocked_until > NOW | 400, vague message | P0 |
+| F-034 | Delete trip — after 1 hour window | Delete trip created > 1 hour ago | 400, "Use cancel instead" | P1 |
+| F-035 | Book — 10 min cooldown after cancel | Cancel booking on trip A → re-book trip A within 10 min | 400, "wait X minutes" | P0 |
+| F-036 | Book — cooldown cross-trip allowed | Cancel booking on trip A → book trip B immediately | 201, allowed (cooldown is per-trip) | P1 |
+| F-037 | Book — passenger phone required | Book independent driver ride without phone in profile | 400, "phone required" | P0 |
+| F-038 | Book — idempotency key prevents duplicate | POST /bookings twice with same idempotency_key, same data | 1st: 201, 2nd: 200 (returns existing) | P1 |
+| F-039 | Book — idempotency key conflict | POST /bookings with same key but different trip/seats | 409, "key already used" | P1 |
+| F-040 | Accept — seat conflict auto-rejects | 2 passengers book same seats (pending), driver accepts 1st | 2nd booking auto-cancelled, seats conflict | P0 |
+| F-041 | Accept — other pending same seat auto-cancelled | Accept booking → other pending bookings on same seats | Auto-cancelled with notification "seats given to another" | P1 |
+| F-042 | Auto-start at departure time | Create trip 30 min ahead, wait for departure → cron runs | Trip: scheduled → in_progress, driver notified | P0 |
+| F-043 | Auto-start cancels pending bookings | Pending bookings exist at auto-start | Pending → cancelled, reason="auto-expired-trip-started", passenger notified | P0 |
+| F-044 | Auto-complete at arrival time | Trip in_progress, arrival_time (departure + 2h) passes → cron | Trip: in_progress → completed, confirmed bookings → completed | P0 |
+| F-045 | Auto-complete leftover pending | Rare: pending booking exists at auto-complete time | Pending → cancelled, reason="auto-expired-trip-completed" | P1 |
+| F-046 | Seat math — book reduces available | Create 7-seat vehicle trip → book 2 seats | available_seats = 4 (7 - 1 driver - 2 booked) | P0 |
+| F-047 | Seat math — cancel restores available | Cancel 2-seat booking from above | available_seats = 6 (restored) | P0 |
+| F-048 | Full trip hidden from search | Book all available seats → search | Trip not in search results (available_seats = 0) | P0 |
+| F-049 | Cancel restores → trip visible again | Cancel one booking on full trip → search | Trip appears again in results | P1 |
+| F-050 | Seat 1 always blocked | Any attempt to book seat 1 | 400, "Seat 1 is driver seat" | P0 |
+| F-051 | available_seats cannot exceed total_capacity | DB constraint: available_seats <= total_capacity | CHECK constraint prevents overflow | P1 |
+| F-052 | Stale pending cleanup (nightly job) | Pending booking older than threshold, not responded | Auto-cancelled by rideCleanupJob, passenger notified | P1 |
 
 ## Part G: BlaBlaCar-Style Cancel Rules (Independent Driver)
 
@@ -148,6 +208,9 @@
 | G-030 | Cancel reason stored | Cancel with reason="plan changed" | cancellation_reason = "plan changed" | P1 |
 | G-031 | Auto-prefix stripped | Cancel with reason="auto-something" | cancellation_reason = "something" (auto- removed) | P1 |
 | G-032 | Null reason handled | Cancel with no reason | cancellation_reason = null, still counted | P1 |
+| G-033 | Pending cancel — NO penalty | Cancel pending (not confirmed) booking | No cancel count increment, no auto-rating, no block risk | P0 |
+| G-034 | Pending cancel — no auto-rating | Cancel pending booking → check ride_ratings | No auto-1-star inserted | P1 |
+| G-035 | Confirmed cancel — auto-rating + rate prompt | Cancel confirmed booking | Auto-1-star inserted + driver gets rate notification | P0 |
 
 ### G3: Cancel Block (Temp + Permanent)
 
@@ -237,6 +300,17 @@
 | J-014 | Contact stats | GET /unions/contact-stats | 200 | P2 |
 | J-015 | Delete route | DELETE /unions/routes/:id | 200 | P2 |
 | J-016 | Union directory | GET /unions/directory (admin) | 200 | P2 |
+| J-017 | Register union | POST /union/register with name, documents | 201 | P0 |
+| J-018 | Register duplicate union | POST /union/register again | 400/409 | P1 |
+| J-019 | Update union documents | PATCH /union/me/documents | 200 | P1 |
+| J-020 | Remove driver from union | DELETE /union/drivers/:driverId | 200 | P1 |
+| J-021 | Create trip for union driver | POST /union/trips | 201 | P1 |
+| J-022 | Get union trips | GET /union/trips | 200 | P1 |
+| J-023 | Schedule poster PDF | GET /union/schedules/:id/poster | 200, PDF response | P2 |
+| J-024 | Combined poster PDF | GET /union/schedules/poster-combined | 200, PDF response | P2 |
+| J-025 | Admin approve union | POST /union/admin/unions/:id/approve | 200 | P0 |
+| J-026 | Admin reject union | POST /union/admin/unions/:id/reject | 200 | P0 |
+| J-027 | Independent drivers directory | GET /admin/directory/independent-drivers | 200 | P2 |
 
 ## Part K: Admin Tests
 
@@ -260,6 +334,16 @@
 | K-016 | Disable user | PUT /platform-admin/users/:id/disable | 200 | P0 |
 | K-017 | Disabled login blocked | Login as disabled user | 401 | P0 |
 | K-018 | Re-enable user | PUT /platform-admin/users/:id/enable | 200 | P1 |
+| K-019 | Broadcast history | GET /platform-admin/notifications/history | 200, list of past broadcasts | P1 |
+| K-020 | Broadcast dedup blocked | Send same title+body broadcast twice within 1 hour | 400, "duplicate notification" | P1 |
+| K-021 | App config GET | GET /platform-admin/config | 200 | P2 |
+| K-022 | App config PATCH | PATCH /platform-admin/config with valid data | 200 | P2 |
+| K-023 | DB health endpoint | GET /platform-admin/db-health | 200, table sizes + dead tuples | P1 |
+| K-024 | Admin cancel sets cancelled_by=admin | Admin cancel trip → check trips.cancelled_by | 'admin' | P0 |
+| K-025 | Admin cancel notifies passengers | Admin cancel trip with bookings → check notifications | Passengers get "Ride cancelled by admin" | P0 |
+| K-026 | Admin cancel notifies driver | Admin cancel trip → check driver notification | Driver gets "Your ride was cancelled by admin" | P0 |
+| K-027 | Admin cancel cleans rate reminders | Admin cancel trip → check pending_rate_notifications | Deleted for affected bookings | P1 |
+| K-028 | Union FCM per-union toggle | PATCH /platform-admin/union-fcm/:unionId | 200 | P2 |
 
 ## Part L: Notification Localization Tests
 
@@ -290,6 +374,59 @@
 | M-007 | Redis auto-restart on crash | sudo systemctl show redis-server \| grep Restart | Restart=always, RestartSec=5 | P0 |
 | M-008 | Redis fallback on failure | Stop Redis → hit API endpoints | Rate limiting falls back to in-memory, app doesn't crash | P1 |
 | M-009 | Redis recovery alert | Stop then start Redis → check Telegram | DOWN alert on stop, RECOVERED alert on restart | P1 |
+| M-010 | Microservice health checks | GET /health on each port (3001-3004) | All return ok + service name | P1 |
+| M-011 | Gateway proxies correctly | GET /api/v1/trips/search via gateway :3000 | Proxied to core service, 200 | P0 |
+| M-012 | PM2 process restart | pm2 restart all → check uptime | All processes running, no crash loops | P1 |
+| M-013 | Migration runs cleanly | npm run migrate on fresh DB | All 059 migrations succeed in order | P0 |
+| M-014 | VACUUM ANALYZE in nightly job | Check cleanup job logs after midnight IST | "VACUUM ANALYZE complete" logged | P2 |
+| M-015 | Nightly Redis health logged | Check cleanup job logs | Redis memory + key count logged | P2 |
+
+## Part N: Driver Verification & KYC Tests
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| N-001 | Submit driver verification | POST /driver-verification with documents | 200, status=pending | P0 |
+| N-002 | Get verification status | GET /driver-verification | 200, current status | P0 |
+| N-003 | Submit without documents | POST /driver-verification with no files | 400 | P1 |
+| N-004 | Admin approve driver | POST /admin/driver-requests/:id/approve | 200, status=approved | P0 |
+| N-005 | Admin reject driver | POST /admin/driver-requests/:id/reject with reason | 200, status=rejected | P0 |
+| N-006 | Approved driver can create trip | After approval → POST /trips | 201 | P0 |
+| N-007 | Rejected driver cannot create trip | After rejection → POST /trips | 403 | P0 |
+| N-008 | View submitted KYC documents | GET /kyc/submitted-documents | 200, document list | P1 |
+| N-009 | Stream KYC document file | GET /kyc/document-file?path=... | 200, file stream | P2 |
+| N-010 | Admin grant driver reverify | POST /admin/kyc/drivers/:userId/reverify | 200, status=needs_reverify | P0 |
+| N-011 | Reverify same user twice in one day | POST /admin/kyc/drivers/:userId/reverify twice same day | 400, "already granted today" | P1 |
+| N-012 | Reverified driver uploads new docs | After reverify → re-submit verification | 200, status=pending | P1 |
+| N-013 | Admin grant union reverify | POST /admin/kyc/unions/:unionId/reverify | 200 | P1 |
+| N-014 | Union reverify same day blocked | POST /admin/kyc/unions/:id/reverify twice same day | 400 | P1 |
+| N-015 | List pending union doc requests | GET /admin/union-doc-requests?status=pending | 200, list | P1 |
+| N-016 | Approve union doc request | POST /admin/union-doc-requests/:id/approve | 200, documents_status=approved | P1 |
+| N-017 | Reject union doc request | POST /admin/union-doc-requests/:id/reject | 200, documents_status=needs_reverify | P1 |
+| N-018 | Reverify notification sent | Admin reverify → check user notifications | type=kyc_reverify_required, deadline in data | P1 |
+| N-019 | Approval notification sent | Admin approve docs → check union admin notifications | type=union_documents_approved | P1 |
+
+## Part O: File Upload Tests
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| O-001 | Upload driver document | POST /uploads/driver-doc with image file | 200, file path returned | P0 |
+| O-002 | Upload union document | POST /uploads/union-doc with image file | 200, file path returned | P1 |
+| O-003 | Upload without auth | POST /uploads/driver-doc without JWT | 401 | P0 |
+| O-004 | Upload rate limited | 30+ uploads in 1 hour | 429 | P1 |
+| O-005 | Upload oversized file | Upload file > max size | 400 | P1 |
+
+## Part P: Cron Jobs & Background Tasks
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| P-001 | Trip lifecycle job runs | Check logs for "[TripLifecycle]" every 2 min | Auto-start and auto-complete entries when applicable | P0 |
+| P-002 | Rate notification job runs | Check logs for "Rate notification job" every 15 min | Pending notifications sent when send_after <= NOW | P0 |
+| P-003 | Nightly cleanup runs | Check logs at midnight IST (18:30 UTC) | "[Cleanup] evening maintenance complete" logged | P0 |
+| P-004 | Stale pending bookings cleaned | Old pending booking not responded → nightly job | Booking cancelled, passenger notified "driver did not respond" | P1 |
+| P-005 | Old notifications deleted | Read notification > 48h, unread > 168h | Deleted by cleanup job | P1 |
+| P-006 | Expired FCM tokens deleted | FCM token older than retention period | Deleted by cleanup job | P2 |
+| P-007 | Old trips deleted (retention) | Completed/cancelled trip older than retention | Trip + bookings deleted, ratings kept (booking_id SET NULL) | P2 |
+| P-008 | Advisory lock prevents duplicate jobs | 2 instances running same job | Only 1 gets the lock, other skips | P1 |
 
 ---
 
@@ -528,8 +665,12 @@ export default function () {
   - Booking rejected → Hindi title & body shown
   - Booking auto-cancelled → Hindi title & body shown
   - Trip started → Hindi title & body shown
+  - Trip completed → Hindi title & body shown
   - Rate ride → Hindi title & body shown
+  - Booking accepted → Hindi title & body shown
   - Verification approved/rejected → Hindi title & body shown
+  - KYC reverify required → Hindi title & body shown
+  - Union documents approved → Hindi title & body shown
   - Unknown notification types → fall back to backend English text (acceptable)
 - No Hinglish anywhere in UI — only proper English or proper Hindi
 - FCM push notifications (system tray) may remain Hinglish — this is acceptable  
@@ -551,18 +692,21 @@ export default function () {
 
 ## Testing Priority Order (Summary)
 
-| Order | Type | When | Who |
-|-------|------|------|-----|
-| 1 | Functional + Integration | Before every release | Tester / Automated |
-| 2 | Security | Before every release | Tester |
-| 3 | UI/UX | Before every release | Tester (on device) |
-| 4 | API Regression | Every push (CI/CD) | Automated (Jest/Newman) |
-| 5 | Network / Connectivity | Before release | Tester (emulator) |
-| 6 | Load / Stress | Before launch + monthly | Tester (k6/Artillery) |
-| 7 | Performance Profiling | Before launch | Tester (DevTools) |
-| 8 | Device Compatibility | Before launch | Tester (real devices) |
-| 9 | Localization | After any text change | Tester |
-| 10 | Regression | Every release | Automated + Manual |
+| Order | Type | SOP Parts | When | Who |
+|-------|------|-----------|------|-----|
+| 1 | Functional + Integration | A, B, E, F, G, H, I | Before every release | Tester / Automated |
+| 2 | Security + Rate Limiting | C, D | Before every release | Tester |
+| 3 | KYC / Verification | N, O | Before every release | Tester |
+| 4 | Union + Admin | J, K | Before every release | Tester |
+| 5 | UI/UX | (device testing) | Before every release | Tester (on device) |
+| 6 | Localization | L | After any text change | Tester |
+| 7 | Infrastructure | M, P | Before deploy | Tester / DevOps |
+| 8 | API Regression | All parts | Every push (CI/CD) | Automated (Jest/Newman) |
+| 9 | Network / Connectivity | (manual) | Before release | Tester (emulator) |
+| 10 | Load / Stress | (k6 scripts) | Before launch + monthly | Tester (k6/Artillery) |
+| 11 | Performance Profiling | (DevTools) | Before launch | Tester (DevTools) |
+| 12 | Device Compatibility | (real devices) | Before launch | Tester (real devices) |
+| 13 | Regression | All parts | Every release | Automated + Manual |
 
 ---
 
