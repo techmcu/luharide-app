@@ -379,7 +379,7 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                   ],
                 ),
               ),
-            if (status != 'cancelled' && status != 'pending' && status != 'completed') ...[
+            if (status != 'cancelled' && status != 'completed') ...[
               const SizedBox(height: 12),
               if (_canCancelBooking(b))
                 OutlinedButton.icon(

@@ -66,8 +66,13 @@ async function submitRating(bookingId, userId, { rating, comment }) {
   }
 
   if (wasCancelled) {
-    const cancelledByDriver = (booking.cancellation_reason || '').includes('Driver cancelled');
-    const cancelledByPassenger = !cancelledByDriver && booking.cancellation_reason && !booking.cancellation_reason.startsWith('auto-');
+    const reason = (booking.cancellation_reason || '');
+    const cancelledByDriver = reason.includes('Driver cancelled');
+    const cancelledByAdmin = reason.toLowerCase().includes('platform admin');
+    const cancelledByPassenger = !cancelledByDriver && !cancelledByAdmin && booking.cancellation_reason && !reason.startsWith('auto-');
+    if (cancelledByAdmin) {
+      throw ApiError.badRequest('Admin-cancelled bookings cannot be rated.');
+    }
     if (cancelledByDriver && fromRole === ROLES.DRIVER) {
       throw ApiError.badRequest('Aapne ride cancel ki thi — aap rate nahi kar sakte.');
     }
