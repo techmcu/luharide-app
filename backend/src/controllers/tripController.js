@@ -1172,9 +1172,10 @@ const completeTrip = asyncHandler(async (req, res) => {
       [tripId]
     );
 
-    await client.query(
+    const completedBookings = await client.query(
       `UPDATE bookings SET status = 'completed'
-       WHERE trip_id = $1 AND status = 'confirmed'`,
+       WHERE trip_id = $1 AND status = 'confirmed'
+       RETURNING id, passenger_id`,
       [tripId]
     );
 
@@ -1204,6 +1205,23 @@ const completeTrip = asyncHandler(async (req, res) => {
   } finally {
     client.release();
   }
+
+  for (const bk of completedBookings.rows) {
+    try {
+      const n = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1, 'trip_completed',
+           'Happy Journey!',
+           'We hope you had a great travel experience with LuhaRide!',
+           $2::jsonb)
+         RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+        [bk.passenger_id, JSON.stringify({ booking_id: bk.id, trip_id: tripId })]
+      );
+      if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+    } catch (_) {}
+  }
+
+  emitTripUpdated(tripId, { status: 'completed', reason: 'driver_completed' });
 
   ApiResponse.success(
     { status: 'completed' },
