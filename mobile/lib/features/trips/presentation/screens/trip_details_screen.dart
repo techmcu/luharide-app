@@ -728,17 +728,30 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   }
 }
 
-class _DriverRatingRow extends StatelessWidget {
+class _DriverRatingRow extends StatefulWidget {
   final String driverId;
   final String driverName;
 
   const _DriverRatingRow({required this.driverId, required this.driverName});
 
   @override
+  State<_DriverRatingRow> createState() => _DriverRatingRowState();
+}
+
+class _DriverRatingRowState extends State<_DriverRatingRow> {
+  late final Future<Map<String, dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ReviewService().getUserRatingSummary(widget.driverId);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     return FutureBuilder<Map<String, dynamic>>(
-      future: ReviewService().getUserRatingSummary(driverId),
+      future: _future,
       builder: (context, snapshot) {
         final total = (snapshot.data?['total_ratings'] as num?)?.toInt() ?? 0;
         final avg = (snapshot.data?['average_rating'] as num?)?.toDouble();
@@ -782,7 +795,7 @@ class _DriverRatingRow extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => UserReviewsScreen(
-                        userId: driverId, displayName: driverName),
+                        userId: widget.driverId, displayName: widget.driverName),
                   ),
                 );
               },

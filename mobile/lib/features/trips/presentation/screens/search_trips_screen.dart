@@ -8,6 +8,7 @@ import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
+import '../../../../services/review_service.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/union_service.dart';
 import '../../../../utils/phone_call_helper.dart';
@@ -16,6 +17,7 @@ import '../../../../widgets/location_picker_screen.dart';
 import '../../../../widgets/shimmer_trip_card.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../../widgets/brand_app_bar_title.dart';
+import '../../../profile/presentation/screens/user_reviews_screen.dart';
 import 'trip_details_screen.dart';
 
 // ── Palette constants ────────────────────────────────────────────────────────
@@ -279,6 +281,12 @@ class _TripCard extends StatelessWidget {
               ],
             ),
           ),
+          // Driver rating — visible before booking
+          if (driver != null && driver.id.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: _DriverRatingChip(driverId: driver.id, driverName: driver.name),
+            ),
           // Book button only — no call/WhatsApp until booking is confirmed
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -816,6 +824,84 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
             Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.black54)),
             const SizedBox(height: 6),
             Text(subtitle, style: TextStyle(fontSize: 14, color: Colors.grey[500]), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DriverRatingChip extends StatefulWidget {
+  const _DriverRatingChip({required this.driverId, required this.driverName});
+  final String driverId;
+  final String driverName;
+
+  @override
+  State<_DriverRatingChip> createState() => _DriverRatingChipState();
+}
+
+class _DriverRatingChipState extends State<_DriverRatingChip> {
+  Map<String, dynamic>? _data;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final result = await ReviewService().getUserRatingSummary(widget.driverId);
+    if (!mounted) return;
+    setState(() {
+      _data = result;
+      _loaded = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) return const SizedBox.shrink();
+    final total = (_data?['total_ratings'] as num?)?.toInt() ?? 0;
+    final avg = (_data?['average_rating'] as num?)?.toDouble() ?? 0.0;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => UserReviewsScreen(
+              userId: widget.driverId,
+              displayName: widget.driverName,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.amber[50],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.amber[200]!),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.star, color: Colors.amber[700], size: 18),
+            const SizedBox(width: 6),
+            Text(
+              total > 0
+                  ? '${avg.toStringAsFixed(1)} ($total reviews)'
+                  : 'No ratings yet',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: total > 0 ? Colors.amber[900] : Colors.grey[600],
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right, size: 16, color: Colors.grey[500]),
           ],
         ),
       ),

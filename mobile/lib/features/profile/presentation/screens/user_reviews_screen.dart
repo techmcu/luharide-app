@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../services/review_service.dart';
+import '../../../../services/review_cache_store.dart';
 
 /// Rating summary + latest reviews for another user (e.g. driver on trip details).
+/// Uses stale-while-revalidate: shows cached data instantly, refreshes in background.
 class UserReviewsScreen extends StatefulWidget {
   final String userId;
   final String displayName;
@@ -22,30 +24,59 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
   bool _hasMore = false;
   int _windowMax = 50;
   bool _fromCache = false;
+  bool _refreshing = false;
 
   @override
   void initState() {
     super.initState();
-    _loadBundle();
+    _loadCacheThenRefresh();
   }
 
-  Future<void> _loadBundle() async {
-    setState(() => _isLoading = true);
-    final result = await _reviewService.loadUserReviewBundleWithCache(widget.userId);
+  Future<void> _loadCacheThenRefresh() async {
+    final cached = await ReviewCacheStore.readBundle(widget.userId);
+    if (cached != null && mounted) {
+      _applyData(cached, isCache: true);
+    }
+
     if (!mounted) return;
+    setState(() => _refreshing = true);
+    final result = await _reviewService.fetchUserReviewBundle(widget.userId);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      _applyData(result, isCache: false);
+    } else if (_reviews.isEmpty) {
+      setState(() {
+        _isLoading = false;
+        _refreshing = false;
+      });
+    } else {
+      setState(() => _refreshing = false);
+    }
+  }
+
+  void _applyData(Map<String, dynamic> data, {required bool isCache}) {
+    final list = data['reviews'] as List? ?? [];
+    final rawTotal = data['total'] ?? data['total_ratings'];
     setState(() {
       _isLoading = false;
+      _refreshing = false;
       _summaryLoaded = true;
-      _total = (result['total'] as num?)?.toInt() ?? 0;
-      _avgRating = (result['average_rating'] as num?)?.toDouble() ?? 0.0;
-      _hasMore = result['has_more'] == true;
-      _windowMax = (result['reviews_window_max'] as num?)?.toInt() ?? 50;
-      _fromCache = result['from_cache'] == true;
+      _fromCache = isCache;
+      _total = (rawTotal as num?)?.toInt() ?? 0;
+      _avgRating = (data['average_rating'] as num?)?.toDouble() ?? 0.0;
+      _hasMore = data['has_more'] == true;
+      _windowMax = (data['reviews_window_max'] as num?)?.toInt() ?? 50;
       _reviews.clear();
-      if (result['success'] == true && result['reviews'] != null) {
-        _reviews.addAll(List<Map<String, dynamic>>.from(result['reviews'] as List));
-      }
+      _reviews.addAll(List<Map<String, dynamic>>.from(list));
     });
+  }
+
+  Future<void> _onRefresh() async {
+    final result = await _reviewService.fetchUserReviewBundle(widget.userId);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      _applyData(result, isCache: false);
+    }
   }
 
   @override
@@ -61,11 +92,28 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
           : _reviews.isEmpty && _total == 0
               ? _buildEmptyState()
               : RefreshIndicator(
-                  onRefresh: _loadBundle,
+                  onRefresh: _onRefresh,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
                       if (_summaryLoaded) _buildSummaryChip(),
+                      if (_refreshing)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Row(
+                            children: [
+                              const SizedBox(
+                                width: 14, height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Updating...',
+                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                              ),
+                            ],
+                          ),
+                        ),
                       if (_hasMore)
                         Padding(
                           padding: const EdgeInsets.only(top: 8, bottom: 8),
@@ -74,7 +122,7 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
                             style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
                           ),
                         ),
-                      if (_fromCache)
+                      if (_fromCache && !_refreshing)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(

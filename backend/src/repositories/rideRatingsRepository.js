@@ -7,13 +7,15 @@ const { pool } = require('../config/database');
 const logger = require('../config/logger');
 
 const TABLE = 'ride_ratings';
+let _tableVerified = false;
 
 async function ensureTable() {
+  if (_tableVerified) return;
   const check = await pool.query(
     `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`,
     [TABLE]
   );
-  if (check.rows.length > 0) return;
+  if (check.rows.length > 0) { _tableVerified = true; return; }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ride_ratings (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -30,6 +32,7 @@ async function ensureTable() {
     CREATE INDEX IF NOT EXISTS idx_ride_ratings_rated_user ON ride_ratings(rated_user_id);
     CREATE INDEX IF NOT EXISTS idx_ride_ratings_booking ON ride_ratings(booking_id);
   `);
+  _tableVerified = true;
   logger.info('ride_ratings table created (auto)');
 }
 

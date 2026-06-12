@@ -433,6 +433,24 @@ const profileUpdateLimiter = rateLimit(
   })
 );
 
+/**
+ * Public review reads — scraping protection without hurting real users.
+ * 60 per minute per IP (enough for browsing multiple drivers).
+ * Env: REVIEW_READ_MAX_PER_MINUTE
+ */
+const reviewReadLimiter = rateLimit(
+  withStore('review-read', {
+    windowMs: 60 * 1000,
+    max: parseLimitEnv('REVIEW_READ_MAX_PER_MINUTE', 60, 10, 200),
+    skipSuccessfulRequests: false,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: () => {
+      throw ApiError.tooManyRequests('Too many review requests. Please wait a moment.');
+    },
+  })
+);
+
 module.exports = {
   apiLimiter,
   authLimiter,
@@ -457,4 +475,5 @@ module.exports = {
   refreshTokenLimiter,
   bulkWriteLimiter,
   profileUpdateLimiter,
+  reviewReadLimiter,
 };

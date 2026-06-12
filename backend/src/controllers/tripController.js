@@ -750,7 +750,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
   const availableSeats = Math.max(0, totalSeats - allTakenSet.size);
 
   // Only reveal driver contact if the requesting user has a confirmed booking (or is the driver)
-  const contactVisible = isDriver || userBookingStatus === 'confirmed';
+  const contactVisible = isDriver || userBookingStatus === 'confirmed' || userBookingStatus === 'completed';
 
   ApiResponse.success(
     {
