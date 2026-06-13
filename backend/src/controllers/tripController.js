@@ -132,16 +132,13 @@ const createTrip = asyncHandler(async (req, res) => {
   const MIN_DURATION_HOURS = 1;
   const MAX_DURATION_HOURS = 12;
   const DEFAULT_DURATION_HOURS = 2;
-  const estimatedDuration = Number(rawDuration);
-  const durationHours = (!Number.isNaN(estimatedDuration) && estimatedDuration >= MIN_DURATION_HOURS && estimatedDuration <= MAX_DURATION_HOURS)
-    ? estimatedDuration
-    : DEFAULT_DURATION_HOURS;
+  const estimatedDuration = rawDuration != null ? Number(rawDuration) : NaN;
   if (rawDuration != null && (Number.isNaN(estimatedDuration) || estimatedDuration < MIN_DURATION_HOURS || estimatedDuration > MAX_DURATION_HOURS)) {
     throw ApiError.badRequest(`Estimated travel time must be between ${MIN_DURATION_HOURS} and ${MAX_DURATION_HOURS} hours.`);
   }
-  if (rawDuration == null) {
-    throw ApiError.badRequest('Estimated travel time is required. Please specify how many hours the journey will take.');
-  }
+  const durationHours = (!Number.isNaN(estimatedDuration) && estimatedDuration >= MIN_DURATION_HOURS && estimatedDuration <= MAX_DURATION_HOURS)
+    ? estimatedDuration
+    : DEFAULT_DURATION_HOURS;
   const arrivalDate = new Date(departureDate.getTime() + durationHours * 60 * 60 * 1000);
 
   const overlap = await pool.query(
