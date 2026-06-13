@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Joi = require('joi');
 const { createBooking, respondToBooking, getMyBookings, cancelBooking } = require('../controllers/bookingController');
-const { submitRating } = require('../controllers/reviewController');
+const { submitRating, getRatingContext } = require('../controllers/reviewController');
 const { authenticate, authorize } = require('../middleware/auth'); // authorize used for driver-only respond
 const { validate } = require('../middleware/validation');
 const { writeLimiter, stateChangeLimiter } = require('../middleware/rateLimiter');
@@ -55,6 +55,12 @@ router.post(
   stateChangeLimiter,
   validate(rateSchema),
   submitRating
+);
+
+router.get(
+  '/:id/rating-context',
+  authenticate,
+  getRatingContext
 );
 
 module.exports = router;

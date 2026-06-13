@@ -318,11 +318,55 @@ async function checkRatingThreshold(userId) {
   }
 }
 
+async function getRatingContext(bookingId, userId) {
+  const booking = await pool.query(
+    `SELECT b.id, b.passenger_id, b.seat_numbers, b.status,
+            t.driver_id, t.from_location, t.to_location,
+            p.name AS passenger_name, p.profile_image_url AS passenger_photo,
+            d.name AS driver_name, d.profile_image_url AS driver_photo
+     FROM bookings b
+     JOIN trips t ON b.trip_id = t.id
+     JOIN users p ON b.passenger_id = p.id
+     JOIN users d ON t.driver_id = d.id
+     WHERE b.id = $1`,
+    [bookingId]
+  );
+  const bk = booking.rows[0];
+  if (!bk) throw ApiError.notFound('Booking not found');
+
+  let fromRole;
+  if (bk.passenger_id === userId) fromRole = ROLES.PASSENGER;
+  else if (bk.driver_id === userId) fromRole = ROLES.DRIVER;
+  else throw ApiError.forbidden('You can only view your own booking');
+
+  await rideRatingsRepository.ensureTable();
+  const existing = await rideRatingsRepository.findByBookingAndRole(bookingId, fromRole);
+  const isAutoRating = existing && (existing.comment || '').startsWith('Auto-rating:');
+  const alreadyRated = existing && !isAutoRating;
+
+  const targetName = fromRole === ROLES.PASSENGER ? bk.driver_name : bk.passenger_name;
+  const rawPhoto = fromRole === ROLES.PASSENGER ? bk.driver_photo : bk.passenger_photo;
+  const targetPhoto = rawPhoto && !rawPhoto.startsWith('data:') ? rawPhoto : null;
+  const seats = Array.isArray(bk.seat_numbers) ? bk.seat_numbers : [];
+  const route = [bk.from_location, bk.to_location].filter(Boolean).join(' → ') || '';
+
+  return {
+    booking_id: bookingId,
+    from_role: fromRole,
+    target_name: targetName || 'User',
+    target_photo: targetPhoto,
+    seat_numbers: fromRole === ROLES.DRIVER ? seats : [],
+    trip_route: route,
+    already_rated: alreadyRated,
+  };
+}
+
 module.exports = {
   submitRating,
   getReviewsForUser,
   getRatingSummary,
   getReviewBundleForUser,
   checkRatingThreshold,
+  getRatingContext,
   RATING_COMMENT_MAX_WORDS,
 };

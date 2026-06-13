@@ -182,6 +182,25 @@ class ReviewService {
     return net;
   }
 
+  Future<Map<String, dynamic>> getRatingContext(String bookingId) async {
+    try {
+      final response = await _apiService.get(ApiConstants.ratingContext(bookingId));
+      final data = response.data['data'];
+      if (data is! Map) return {'success': false};
+      return {
+        'success': true,
+        'target_name': data['target_name'] ?? 'User',
+        'target_photo': data['target_photo'],
+        'seat_numbers': data['seat_numbers'] ?? [],
+        'trip_route': data['trip_route'] ?? '',
+        'from_role': data['from_role'] ?? '',
+        'already_rated': data['already_rated'] == true,
+      };
+    } catch (_) {
+      return {'success': false};
+    }
+  }
+
   /// Get rating summary for a user (for trip details row) — short in-memory TTL.
   Future<Map<String, dynamic>> getUserRatingSummary(String userId) async {
     _pruneExpiredCache();

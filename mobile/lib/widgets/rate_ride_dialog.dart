@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../core/feedback/app_feedback.dart';
 import '../core/constants/input_limits.dart';
@@ -9,11 +11,19 @@ const int _maxCommentWords = 20;
 class RateRideDialog extends StatefulWidget {
   final String bookingId;
   final String title;
+  final String? targetName;
+  final String? targetPhoto;
+  final List<int>? seatNumbers;
+  final String? tripRoute;
 
   const RateRideDialog({
     super.key,
     required this.bookingId,
     this.title = 'Rate this ride',
+    this.targetName,
+    this.targetPhoto,
+    this.seatNumbers,
+    this.tripRoute,
   });
 
   @override
@@ -26,11 +36,40 @@ class _RateRideDialogState extends State<RateRideDialog> {
   int _rating = 0;
   bool _submitting = false;
   int _wordCount = 0;
+  bool _loading = true;
+  bool _alreadyRated = false;
+  String _targetName = '';
+  String? _targetPhoto;
+  List<int> _seatNumbers = [];
+  String _tripRoute = '';
 
   @override
   void initState() {
     super.initState();
     _commentController.addListener(_updateWordCount);
+    _targetName = widget.targetName ?? '';
+    _targetPhoto = widget.targetPhoto;
+    _seatNumbers = widget.seatNumbers ?? [];
+    _tripRoute = widget.tripRoute ?? '';
+    _loadContext();
+  }
+
+  Future<void> _loadContext() async {
+    final ctx = await _reviewService.getRatingContext(widget.bookingId);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (ctx['success'] == true) {
+        _targetName = ctx['target_name'] ?? _targetName;
+        _targetPhoto = ctx['target_photo'] ?? _targetPhoto;
+        final seats = ctx['seat_numbers'];
+        if (seats is List && seats.isNotEmpty) {
+          _seatNumbers = seats.map<int>((e) => (e as num).toInt()).toList();
+        }
+        _tripRoute = ctx['trip_route'] ?? _tripRoute;
+        _alreadyRated = ctx['already_rated'] == true;
+      }
+    });
   }
 
   void _updateWordCount() {
@@ -96,9 +135,117 @@ class _RateRideDialogState extends State<RateRideDialog> {
     }
   }
 
+  Widget _buildTargetInfo() {
+    if (_targetName.isEmpty && _seatNumbers.isEmpty) return const SizedBox.shrink();
+
+    ImageProvider? photoProvider;
+    if (_targetPhoto != null && _targetPhoto!.isNotEmpty) {
+      if (_targetPhoto!.startsWith('data:image')) {
+        try {
+          final b64 = _targetPhoto!.substring(_targetPhoto!.indexOf(',') + 1);
+          final Uint8List bytes = base64Decode(b64);
+          photoProvider = MemoryImage(bytes);
+        } catch (_) {}
+      } else if (_targetPhoto!.startsWith('http')) {
+        photoProvider = NetworkImage(_targetPhoto!);
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.blue.shade100,
+            backgroundImage: photoProvider,
+            child: photoProvider == null
+                ? Text(
+                    _targetName.isNotEmpty ? _targetName[0].toUpperCase() : '?',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue.shade700),
+                  )
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _targetName,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                if (_seatNumbers.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Seat ${_seatNumbers.join(', ')}',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700], fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                if (_tripRoute.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      _tripRoute,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+
+    if (_loading) {
+      return AlertDialog(
+        title: Text(widget.title),
+        content: const SizedBox(
+          height: 80,
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      );
+    }
+
+    if (_alreadyRated) {
+      return AlertDialog(
+        title: Text(widget.title),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTargetInfo(),
+            Icon(Icons.check_circle, color: Colors.green.shade400, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              loc.t('rating.already_rated'),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(loc.t('app.ok')),
+          ),
+        ],
+      );
+    }
+
     return AlertDialog(
       title: Text(widget.title),
       content: SingleChildScrollView(
@@ -106,6 +253,7 @@ class _RateRideDialogState extends State<RateRideDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildTargetInfo(),
             Text(
               loc.t('rating.info'),
               style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),

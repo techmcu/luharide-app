@@ -815,6 +815,10 @@ class AppLocalizations {
       'en': 'Submit',
       'hi': 'जमा करें',
     },
+    'rating.already_rated': {
+      'en': 'You have already rated this ride.',
+      'hi': 'आपने इस राइड को पहले ही रेट कर दिया है।',
+    },
     // Seat selection
     'seat.select.title': {
       'en': 'Select seats',

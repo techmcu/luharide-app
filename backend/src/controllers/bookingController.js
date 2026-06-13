@@ -792,11 +792,21 @@ const cancelBooking = asyncHandler(async (req, res) => {
         if (e.code !== '42P01') logger.warn('Auto 1-star for passenger failed:', e.message);
       }
       try {
+        const names = await pool.query(
+          `SELECT name FROM users WHERE id = $1`, [passengerId]
+        );
+        const pName = names.rows[0]?.name || 'Passenger';
+        const seats = Array.isArray(booking.seat_numbers) ? booking.seat_numbers : [];
+        const seatLabel = seats.length > 0 ? ` (Seat ${seats.join(', ')})` : '';
+        const rateData = JSON.stringify({
+          booking_id: bookingId, trip_id: booking.trip_id, rate_only: 'passenger',
+          target_name: pName, seat_numbers: seats,
+        });
         const rn = await pool.query(
           `INSERT INTO notifications (user_id, type, title, body, data)
-           VALUES ($1, 'rate_ride', 'Rate your passenger', 'A passenger cancelled their booking. Share your experience.', $2::jsonb)
+           VALUES ($1, 'rate_ride', 'Rate your passenger', $2, $3::jsonb)
            RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-          [booking.driver_id, JSON.stringify({ booking_id: bookingId, trip_id: booking.trip_id, rate_only: 'passenger' })]
+          [booking.driver_id, `Rate ${pName}${seatLabel} — cancelled their booking.`, rateData]
         );
         if (rn.rows[0]) emitNotificationToUser(rn.rows[0].user_id, rn.rows[0]);
       } catch (e) {

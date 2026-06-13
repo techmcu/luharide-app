@@ -22,16 +22,23 @@ const INTERVAL_MS =
 
 async function sendAndDelete(client, row) {
   const booking = await client.query(
-    'SELECT status FROM bookings WHERE id = $1',
+    `SELECT b.status, b.seat_numbers,
+            p.name AS passenger_name,
+            d.name AS driver_name,
+            t.from_location, t.to_location
+     FROM bookings b
+     LEFT JOIN users p ON b.passenger_id = p.id
+     LEFT JOIN trips t ON b.trip_id = t.id
+     LEFT JOIN users d ON t.driver_id = d.id
+     WHERE b.id = $1`,
     [row.booking_id]
   );
-  const st = booking.rows[0]?.status;
-  if (!st || (st !== 'confirmed' && st !== 'completed')) {
+  const bk = booking.rows[0];
+  if (!bk || (bk.status !== 'confirmed' && bk.status !== 'completed')) {
     await client.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]);
     return;
   }
 
-  const dataJson = JSON.stringify({ booking_id: row.booking_id });
   const alreadySent = await client.query(
     `SELECT 1 FROM notifications WHERE type = 'rate_ride' AND data->>'booking_id' = $1 LIMIT 1`,
     [row.booking_id]
@@ -40,12 +47,37 @@ async function sendAndDelete(client, row) {
     await client.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]);
     return;
   }
+
+  const seats = Array.isArray(bk.seat_numbers) ? bk.seat_numbers : [];
+  const seatLabel = seats.length > 0 ? `Seat ${seats.join(', ')}` : '';
+  const route = [bk.from_location, bk.to_location].filter(Boolean).join(' → ') || 'Ride';
+  const pName = bk.passenger_name || 'Passenger';
+  const dName = bk.driver_name || 'Driver';
+
+  const passengerData = JSON.stringify({
+    booking_id: row.booking_id,
+    target_name: dName,
+    trip_route: route,
+  });
+  const driverData = JSON.stringify({
+    booking_id: row.booking_id,
+    target_name: pName,
+    seat_numbers: seats,
+    trip_route: route,
+  });
+
+  const driverBody = seatLabel
+    ? `Rate ${pName} (${seatLabel}) — ${route}`
+    : `Rate ${pName} — ${route}`;
+
   const r = await client.query(
     `INSERT INTO notifications (user_id, type, title, body, data)
-     VALUES ($1, 'rate_ride', 'How was your ride?', 'Rate your experience — it helps future passengers.', $2::jsonb),
-            ($3, 'rate_ride', 'Rate your passenger', 'Rate your experience — it helps fellow drivers.', $2::jsonb)
+     VALUES ($1, 'rate_ride', 'Rate your driver', $3, $4::jsonb),
+            ($2, 'rate_ride', 'Rate your passenger', $5, $6::jsonb)
      RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-    [row.passenger_id, dataJson, row.driver_id]
+    [row.passenger_id, row.driver_id,
+     `Rate ${dName} — ${route}`, passengerData,
+     driverBody, driverData]
   );
   for (const n of r.rows) emitNotificationToUser(n.user_id, n);
   await client.query('DELETE FROM pending_rate_notifications WHERE id = $1', [row.id]);

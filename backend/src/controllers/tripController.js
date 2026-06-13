@@ -1406,6 +1406,12 @@ const cancelTrip = asyncHandler(async (req, res) => {
     emitNotificationToUser(row.user_id, row);
   }
 
+  let driverNameForNotif = '';
+  try {
+    const dr = await pool.query('SELECT name FROM users WHERE id = $1', [driverId]);
+    driverNameForNotif = dr.rows[0]?.name || 'Driver';
+  } catch (_) {}
+
   for (const { passenger_id, booking_id } of confirmedPassengerIds) {
     try {
       await pool.query(
@@ -1418,11 +1424,15 @@ const cancelTrip = asyncHandler(async (req, res) => {
       if (e.code !== '42P01') logger.warn('Auto 1-star for driver failed:', e.message);
     }
     try {
+      const rateData = JSON.stringify({
+        booking_id, trip_id: tripId, rate_only: 'driver',
+        target_name: driverNameForNotif,
+      });
       const rn = await pool.query(
         `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'rate_ride', 'Rate your driver', 'The driver cancelled your ride. Share your experience.', $2::jsonb)
+         VALUES ($1, 'rate_ride', 'Rate your driver', $2, $3::jsonb)
          RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-        [passenger_id, JSON.stringify({ booking_id, trip_id: tripId, rate_only: 'driver' })]
+        [passenger_id, `Rate ${driverNameForNotif} — cancelled your ride.`, rateData]
       );
       if (rn.rows[0]) emitNotificationToUser(rn.rows[0].user_id, rn.rows[0]);
     } catch (e) {

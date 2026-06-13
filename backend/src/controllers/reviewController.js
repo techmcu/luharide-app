@@ -82,10 +82,18 @@ const getUserReviewBundle = asyncHandler(async (req, res) => {
   ApiResponse.success(data, 'Reviews bundle').send(res);
 });
 
+const getRatingContext = asyncHandler(async (req, res) => {
+  const bookingId = req.params.id;
+  const userId = req.user.id;
+  const data = await reviewService.getRatingContext(bookingId, userId);
+  ApiResponse.success(data, 'Rating context').send(res);
+});
+
 module.exports = {
   submitRating,
   getMyReviews,
   getReviewsForUser,
   getUserRatingSummary,
   getUserReviewBundle,
+  getRatingContext,
 };

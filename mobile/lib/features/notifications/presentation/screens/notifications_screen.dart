@@ -174,12 +174,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
           if (n.type == 'rate_ride' && n.bookingId != null && n.bookingId!.isNotEmpty) {
             if (!mounted) return;
+            final data = n.data;
+            final targetName = data?['target_name']?.toString();
+            final rawSeats = data?['seat_numbers'];
+            final seatNumbers = rawSeats is List
+                ? rawSeats.map<int>((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0).toList()
+                : <int>[];
+            final tripRoute = data?['trip_route']?.toString();
             final submitted = await showDialog<bool>(
               context: context,
               barrierDismissible: false,
               builder: (_) => RateRideDialog(
                 bookingId: n.bookingId!,
                 title: n.title,
+                targetName: targetName,
+                seatNumbers: seatNumbers.isNotEmpty ? seatNumbers : null,
+                tripRoute: tripRoute,
               ),
             );
             if (submitted == true && mounted) _refresh();

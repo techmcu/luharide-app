@@ -104,4 +104,5 @@ class ApiConstants {
   static String userReviews(String userId, {int page = 1, int limit = 20}) =>
       '/reviews/user/$userId/reviews?page=$page&limit=$limit';
   static String rateBooking(String bookingId) => '/bookings/$bookingId/rate';
+  static String ratingContext(String bookingId) => '/bookings/$bookingId/rating-context';
 }

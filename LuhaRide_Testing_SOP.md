@@ -1,7 +1,7 @@
 # LuhaRide — Complete Testing SOP (Standard Operating Procedure)
 
 **Last Updated:** 2026-06-13  
-**Version:** 6.0 — Complete A-to-Z (405 test cases, 189 P0, 17 parts)
+**Version:** 7.0 — Complete A-to-Z (486 test cases, 221 P0, 22 parts)
 
 ---
 
@@ -529,6 +529,126 @@
 | Q-033 | Admin ban temporary notification | Admin bans driver for 7 days | Notification body="restricted for 7 days" | P1 |
 | Q-034 | Admin unban notification | Admin unbans driver | Notification type='account_warning', title="Account restriction lifted" | P1 |
 
+## Part R: Socket.IO / Real-Time Tracking Tests
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| R-001 | Socket connect with valid JWT | Connect with valid token in handshake.auth.token | Connected, auto-joined user:{userId} room | P0 |
+| R-002 | Socket connect without token | Connect without auth token | Connected as anonymous (authFailed=true), no user room | P0 |
+| R-003 | Socket connect with invalid token | Connect with garbage JWT | Connected as anonymous (authFailed=true) | P1 |
+| R-004 | Join trip room | Emit 'join-trip' with tripId (authenticated) | Joined room trip:{tripId}, ack received | P0 |
+| R-005 | Leave trip room | Emit 'leave-trip' with tripId | Left room trip:{tripId} | P1 |
+| R-006 | Driver location update | Driver emits 'location-update' with lat/lng/tripId | Location broadcast to trip room subscribers | P0 |
+| R-007 | Location update — invalid coordinates | Emit location-update with lat=999, lng=999 | Silently dropped (no broadcast) | P1 |
+| R-008 | Location update — throttle (200ms) | Emit 5 location updates within 100ms | Only ~1 processed, rest throttled | P1 |
+| R-009 | Socket rate limit (20 conn/min/IP) | Open 21 connections from same IP within 60s | 21st connection rejected: "Too many connections" | P0 |
+| R-010 | Socket disconnect cleanup | Disconnect authenticated socket | User removed from rooms, no orphan listeners | P1 |
+| R-011 | Real-time notification delivery | Create booking → check driver's socket | Notification emitted to user:{driverId} room instantly | P0 |
+| R-012 | Socket reconnection after disconnect | Disconnect then reconnect with same token | Re-authenticated, re-joined user room | P1 |
+
+## Part S: Account Lockout & Multi-Auth Tests
+
+### S1: Account Lockout
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| S-001 | Failed login increments counter | POST /simple-auth/login with wrong password | failed_login_attempts incremented | P0 |
+| S-002 | Account locked after 10 failures | 10 wrong passwords for same user | 429, "Account temporarily locked. Try again in 30 minute(s)." | P0 |
+| S-003 | Login blocked during lockout | Correct password while locked_until > NOW | 429, still blocked with remaining minutes | P0 |
+| S-004 | Lockout expires after 30 min | Wait 30 min (or advance DB time) → login with correct password | 200, login succeeds | P1 |
+| S-005 | Successful login resets counter | Login correctly after partial failures (e.g., 5 wrong) | failed_login_attempts = 0, locked_until = NULL | P0 |
+| S-006 | OTP verify resets lockout | Verify OTP for locked user | failed_login_attempts = 0, locked_until = NULL | P1 |
+| S-007 | Other users unaffected during lockout | Lock user A → login as user B | 200, user B login works | P1 |
+
+### S2: Multi-Auth Methods
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| S-010 | Email/password signup | POST /simple-auth/signup with email/password/name | 201, user created | P0 |
+| S-011 | Duplicate email signup | POST /simple-auth/signup with existing email | 409/400, blocked | P0 |
+| S-012 | Email/password login | POST /simple-auth/login with correct credentials | 200, tokens returned | P0 |
+| S-013 | Password change | PUT /simple-auth/change-password with old + new password | 200, password changed | P1 |
+| S-014 | Password reset via OTP | POST /simple-auth/forgot-password → receive OTP → verify | 200, password reset | P1 |
+| S-015 | Google Sign-In creates new user | POST /simple-auth/google with valid Google token (new email) | 200, user created with google_id | P0 |
+| S-016 | Google Sign-In existing user | POST /simple-auth/google with existing Google user | 200, login (no duplicate) | P1 |
+| S-017 | Firebase email sign-in | POST /simple-auth/firebase-email with valid Firebase token | 200, user created/logged in with firebase_uid | P1 |
+
+## Part T: Complaint & Broadcast System Tests
+
+### T1: Complaints
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| T-001 | Submit complaint | POST /platform-admin/complaints/submit with subject + body | 201, status='open' | P0 |
+| T-002 | Submit complaint — subject too long | Subject > 200 chars | 400 | P1 |
+| T-003 | Submit complaint — body too long | Body > 2000 chars | 400 | P1 |
+| T-004 | Submit complaint — missing subject | POST without subject field | 400 | P1 |
+| T-005 | View my complaints | GET /platform-admin/complaints/mine (as user) | 200, list of own complaints | P0 |
+| T-006 | Admin list complaints | GET /platform-admin/complaints (as admin) | 200, paginated list with user_name, user_role | P0 |
+| T-007 | Admin filter by status | GET /platform-admin/complaints?status=open | 200, only open complaints | P1 |
+| T-008 | Admin search complaints | GET /platform-admin/complaints?search=booking | 200, filtered by subject/user name | P1 |
+| T-009 | Admin view complaint detail | GET /platform-admin/complaints/:id | 200, full complaint with user info | P1 |
+| T-010 | Admin resolve complaint | POST /platform-admin/complaints/:id/resolve with resolution_note | 200, status='resolved', resolved_by set | P0 |
+| T-011 | Resolve notification sent to user | Admin resolves complaint → check user notifications | type='complaint_resolved' notification sent | P1 |
+| T-012 | Non-admin cannot list all complaints | GET /platform-admin/complaints as driver | 403 | P0 |
+
+### T2: Broadcasts
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| T-020 | Send broadcast to all | POST /platform-admin/notifications/bulk segment='all' | 200, sentCount = total users | P0 |
+| T-021 | Send broadcast to drivers | POST /platform-admin/notifications/bulk segment='drivers' | 200, sentCount = driver count | P0 |
+| T-022 | Send broadcast to passengers | POST /platform-admin/notifications/bulk segment='passenger' | 200, sentCount = passenger count | P1 |
+| T-023 | Broadcast dedup (same title+body within 1h) | Send same broadcast twice within 1 hour | 2nd: 400, "already sent within the last hour" | P0 |
+| T-024 | Broadcast title max 50 chars | POST with title > 50 chars | 400 | P1 |
+| T-025 | Broadcast body max 150 chars | POST with body > 150 chars | 400 | P1 |
+| T-026 | Broadcast segment > 10,000 users | Segment with > 10,000 matching users | 400, rejected (too many) | P1 |
+| T-027 | Broadcast history | GET /platform-admin/notifications/history | 200, list with admin_name, sent_count, created_at | P0 |
+| T-028 | Non-admin cannot broadcast | POST /platform-admin/notifications/bulk as driver | 403 | P0 |
+
+## Part U: Data Retention & Cleanup Tests
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| U-001 | Read notifications cleaned (48h) | Read notification > 48h old → nightly job runs | Notification deleted | P1 |
+| U-002 | Unread notifications cleaned (168h) | Unread notification > 7 days old → nightly job runs | Notification deleted | P1 |
+| U-003 | Login history cleaned (90 days) | Login history > 90 days old → nightly job | Rows deleted | P2 |
+| U-004 | Location history cleaned (7 days) | GPS location > 7 days old → nightly job | Rows deleted | P2 |
+| U-005 | SOS logs cleaned (90 days) | SOS log > 90 days old → nightly job | Rows deleted | P2 |
+| U-006 | FCM tokens cleaned (30 days) | FCM token > 30 days old → nightly job | Token deleted | P1 |
+| U-007 | Resolved complaints cleaned (90 days) | Resolved complaint > 90 days post-resolution → nightly job | Complaint deleted | P2 |
+| U-008 | Independent trips cleaned (7 days) | Completed/cancelled independent trip > 7 days → nightly job | Trip + bookings deleted, ratings kept (booking_id SET NULL) | P1 |
+| U-009 | Union trips cleaned (15 days) | Completed/cancelled union trip > 15 days → nightly job | Trip + bookings deleted | P1 |
+| U-010 | Broadcasts capped at 100 | 101st broadcast → nightly job | Oldest broadcast deleted (FIFO) | P2 |
+| U-011 | Union schedules cleaned (15 days) | Past union schedule > 15 days → nightly job | Schedule deleted | P2 |
+| U-012 | Union schedules capped at 100/union | 101st schedule for same union → nightly job | Oldest deleted (FIFO) | P2 |
+| U-013 | Driver verification requests cleaned (90 days) | Approved/rejected request > 90 days → nightly job | Request deleted | P2 |
+| U-014 | VACUUM ANALYZE runs post-cleanup | Nightly job completes → check logs | "VACUUM ANALYZE complete" for high-churn tables | P1 |
+| U-015 | Pending booking auto-expiry (pre-departure) | Pending booking 1 min before departure → pendingBookingExpiryJob runs | Status=cancelled, reason='auto-expired-before-departure', seats restored, passenger notified | P0 |
+| U-016 | Daily stats aggregated | 18:35 UTC → dailyStatsJob runs | daily_stats row inserted with new_users, new_trips, completed/cancelled counts | P0 |
+| U-017 | Daily stats retention (180 days) | Stats row > 180 days → dailyStatsJob | Old row deleted | P2 |
+| U-018 | Daily stats UPSERT | Run dailyStatsJob twice for same date | No duplicate, values overwritten | P1 |
+
+## Part V: Union Advanced & Poster Tests
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| V-001 | Generate single poster PDF | GET /union/schedules/:id/poster (union admin) | 200, Content-Type: application/pdf | P0 |
+| V-002 | Generate combined poster PDF | GET /union/schedules/poster-combined (union admin) | 200, Content-Type: application/pdf | P1 |
+| V-003 | Poster daily limit (3/day) | Generate 3 posters → generate 4th | 400, daily limit reached (Hindi message) | P0 |
+| V-004 | Poster limit resets next day | Hit limit today → next day generate poster | 200, allowed | P1 |
+| V-005 | Poster for other union's schedule | GET /union/schedules/:id/poster for schedule not in own union | 403/404 | P1 |
+| V-006 | Non-union-admin cannot generate poster | GET /union/schedules/:id/poster as passenger | 403 | P0 |
+| V-007 | Log WhatsApp contact click | POST /unions/contact-log type='whatsapp', driver_id | 200, contact_log row inserted | P1 |
+| V-008 | Log phone contact click | POST /unions/contact-log type='phone', driver_id | 200, contact_log row inserted | P1 |
+| V-009 | Contact stats for union admin | GET /unions/contact-stats | 200, aggregated click counts per driver | P1 |
+| V-010 | Contact logs cleaned (30 days) | Contact log > 30 days → nightly job | Log deleted | P2 |
+| V-011 | Bulk schedule creation | POST /unions/schedules/bulk with valid routes + times | 201, multiple schedules created | P0 |
+| V-012 | Bulk schedule daily limit (3/day) | Create bulk schedules 3 times → 4th attempt | 400, daily limit | P0 |
+| V-013 | Cancel union schedule (within 1h) | DELETE /unions/schedules/:id within 1 hour of creation | 200, schedule + trips cancelled | P1 |
+| V-014 | Cancel union schedule (after 1h) | DELETE /unions/schedules/:id after 1 hour | 400, "Use cancel instead" | P1 |
+| V-015 | API version rewrite (/api/v1 → /api) | GET /api/v1/trips/search | 200, transparently rewritten to /api/trips/search | P0 |
+
 ---
 
 # Testing Types Guide — Priority Order
@@ -796,19 +916,21 @@ export default function () {
 | Order | Type | SOP Parts | When | Who |
 |-------|------|-----------|------|-----|
 | 1 | Functional + Integration | A, B, E, F, G, H, I | Before every release | Tester / Automated |
-| 2 | Security + Rate Limiting | C, D | Before every release | Tester |
+| 2 | Security + Rate Limiting + Lockout | C, D, S | Before every release | Tester |
 | 3 | KYC / Verification | N, O | Before every release | Tester |
-| 4 | Union + Admin | J, K | Before every release | Tester |
-| 5 | UI/UX | (device testing) | Before every release | Tester (on device) |
-| 6 | Localization | L | After any text change | Tester |
-| 7 | Notification Flow | Q | Before every release | Tester |
-| 8 | Infrastructure | M, P | Before deploy | Tester / DevOps |
-| 9 | API Regression | All parts | Every push (CI/CD) | Automated (Jest/Newman) |
-| 10 | Network / Connectivity | (manual) | Before release | Tester (emulator) |
-| 11 | Load / Stress | (k6 scripts) | Before launch + monthly | Tester (k6/Artillery) |
-| 12 | Performance Profiling | (DevTools) | Before launch | Tester (DevTools) |
-| 13 | Device Compatibility | (real devices) | Before launch | Tester (real devices) |
-| 14 | Regression | All parts | Every release | Automated + Manual |
+| 4 | Union + Admin + Posters | J, K, V | Before every release | Tester |
+| 5 | Complaints + Broadcasts | T | Before every release | Tester |
+| 6 | UI/UX | (device testing) | Before every release | Tester (on device) |
+| 7 | Localization | L | After any text change | Tester |
+| 8 | Notification Flow | Q | Before every release | Tester |
+| 9 | Real-Time / Socket.IO | R | Before every release | Tester |
+| 10 | Infrastructure + Cleanup | M, P, U | Before deploy | Tester / DevOps |
+| 11 | API Regression | All parts | Every push (CI/CD) | Automated (Jest/Newman) |
+| 12 | Network / Connectivity | (manual) | Before release | Tester (emulator) |
+| 13 | Load / Stress | (k6 scripts) | Before launch + monthly | Tester (k6/Artillery) |
+| 14 | Performance Profiling | (DevTools) | Before launch | Tester (DevTools) |
+| 15 | Device Compatibility | (real devices) | Before launch | Tester (real devices) |
+| 16 | Regression | All parts | Every release | Automated + Manual |
 
 ---
 
