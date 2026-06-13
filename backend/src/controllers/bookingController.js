@@ -269,24 +269,17 @@ const createBooking = asyncHandler(async (req, res) => {
         logger.warn('Booking confirmed notification failed:', e.message);
       }
 
-      // Rate reminders: departure_time + 5h (independent) or NOW + 5h (union/legacy)
+      // Rate reminder: arrival_time + 2h (single notification per booking)
       try {
-        const independent = trip.created_source === 'independent_driver' && trip.departure_time;
-        if (independent) {
-          await pool.query(
-            `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-             VALUES ($1, $2, $3, $4::timestamp + INTERVAL '5 hours')`,
-            [booking.id, passengerId, trip.driver_id, trip.departure_time]
-          );
-        } else {
-          await pool.query(
-            `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-             VALUES ($1, $2, $3, NOW() + INTERVAL '5 hours')`,
-            [booking.id, passengerId, trip.driver_id]
-          );
-        }
+        const arrivalTime = trip.arrival_time || new Date(new Date(trip.departure_time).getTime() + 2 * 60 * 60 * 1000).toISOString();
+        await pool.query(
+          `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+           VALUES ($1, $2, $3, $4::timestamp + INTERVAL '2 hours')
+           ON CONFLICT (booking_id) DO NOTHING`,
+          [booking.id, passengerId, trip.driver_id, arrivalTime]
+        );
       } catch (err) {
-        if (err.code !== '42P01') {
+        if (err.code !== '42P01' && err.code !== '23505') {
           logger.warn('Pending rate notification insert failed:', err.message);
         }
       }
@@ -340,7 +333,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
     let bookingResult;
     try {
       bookingResult = await client.query(
-        `SELECT b.*, t.driver_id, t.available_seats, t.departure_time, t.created_source
+        `SELECT b.*, t.driver_id, t.available_seats, t.departure_time, t.arrival_time, t.created_source
          FROM bookings b
          JOIN trips t ON b.trip_id = t.id
          WHERE b.id = $1
@@ -350,7 +343,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
     } catch (qErr) {
       if (qErr.code === '42703' && (qErr.message || '').includes('created_source')) {
         bookingResult = await client.query(
-          `SELECT b.*, t.driver_id, t.available_seats, t.departure_time
+          `SELECT b.*, t.driver_id, t.available_seats, t.departure_time, t.arrival_time
            FROM bookings b
            JOIN trips t ON b.trip_id = t.id
            WHERE b.id = $1
@@ -516,22 +509,15 @@ const respondToBooking = asyncHandler(async (req, res) => {
     }
 
     try {
-      const independent = booking.created_source === 'independent_driver' && booking.departure_time;
-      if (independent) {
-        await pool.query(
-          `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-           VALUES ($1, $2, $3, $4::timestamp + INTERVAL '5 hours')`,
-          [bookingId, booking.passenger_id, booking.driver_id, booking.departure_time]
-        );
-      } else {
-        await pool.query(
-          `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-           VALUES ($1, $2, $3, NOW() + INTERVAL '5 hours')`,
-          [bookingId, booking.passenger_id, booking.driver_id]
-        );
-      }
+      const arrivalTime = booking.arrival_time || new Date(new Date(booking.departure_time).getTime() + 2 * 60 * 60 * 1000).toISOString();
+      await pool.query(
+        `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
+         VALUES ($1, $2, $3, $4::timestamp + INTERVAL '2 hours')
+         ON CONFLICT (booking_id) DO NOTHING`,
+        [bookingId, booking.passenger_id, booking.driver_id, arrivalTime]
+      );
     } catch (err) {
-      if (err.code !== '42P01') {
+      if (err.code !== '42P01' && err.code !== '23505') {
         logger.warn('Pending rate notification insert failed:', err.message);
       }
     }

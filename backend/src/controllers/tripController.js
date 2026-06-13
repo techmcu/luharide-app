@@ -28,6 +28,7 @@ const createTrip = asyncHandler(async (req, res) => {
     require_approval = true,
     route_id: rawRouteId,
     luggage_allowance_per_passenger: rawTripLuggage,
+    estimated_duration_hours: rawDuration,
   } = req.body;
 
   const driverId = req.user.id;
@@ -128,7 +129,20 @@ const createTrip = asyncHandler(async (req, res) => {
       `Ride departure must be at least ${MIN_ADVANCE_MINUTES} minutes from now.`
     );
   }
-  const arrivalDate = new Date(departureDate.getTime() + 2 * 60 * 60 * 1000);
+  const MIN_DURATION_HOURS = 1;
+  const MAX_DURATION_HOURS = 12;
+  const DEFAULT_DURATION_HOURS = 2;
+  const estimatedDuration = Number(rawDuration);
+  const durationHours = (!Number.isNaN(estimatedDuration) && estimatedDuration >= MIN_DURATION_HOURS && estimatedDuration <= MAX_DURATION_HOURS)
+    ? estimatedDuration
+    : DEFAULT_DURATION_HOURS;
+  if (rawDuration != null && (Number.isNaN(estimatedDuration) || estimatedDuration < MIN_DURATION_HOURS || estimatedDuration > MAX_DURATION_HOURS)) {
+    throw ApiError.badRequest(`Estimated travel time must be between ${MIN_DURATION_HOURS} and ${MAX_DURATION_HOURS} hours.`);
+  }
+  if (rawDuration == null) {
+    throw ApiError.badRequest('Estimated travel time is required. Please specify how many hours the journey will take.');
+  }
+  const arrivalDate = new Date(departureDate.getTime() + durationHours * 60 * 60 * 1000);
 
   const overlap = await pool.query(
     `SELECT id FROM trips
@@ -142,6 +156,25 @@ const createTrip = asyncHandler(async (req, res) => {
     throw ApiError.badRequest(
       'You already have another ride scheduled at this time. Complete or cancel it first.'
     );
+  }
+
+  const DAILY_RIDE_LIMIT = 4;
+  try {
+    const dailyCount = await pool.query(
+      `SELECT COUNT(*)::int AS cnt FROM trips
+       WHERE driver_id = $1 AND created_source = 'independent_driver'
+         AND created_at >= CURRENT_DATE::timestamp
+         AND created_at < (CURRENT_DATE + 1)::timestamp`,
+      [driverId]
+    );
+    if ((dailyCount.rows[0]?.cnt || 0) >= DAILY_RIDE_LIMIT) {
+      throw ApiError.badRequest(
+        `You can create a maximum of ${DAILY_RIDE_LIMIT} rides per day. Please try again tomorrow.`
+      );
+    }
+  } catch (e) {
+    if (e.statusCode) throw e;
+    logger.warn('Daily ride limit check failed:', e.message);
   }
 
   const MAX_FARE_PER_SEAT = 10000;
@@ -171,21 +204,39 @@ const createTrip = asyncHandler(async (req, res) => {
           driver_id, from_location, to_location, departure_time, arrival_time,
           fare_per_seat, total_capacity, available_seats,
           vehicle_number, vehicle_model_id, stops, status, require_approval, route_id,
-          luggage_allowance_per_passenger, created_source
+          luggage_allowance_per_passenger, created_source, estimated_duration_hours
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *`,
         [
           driverId, from_location, to_location, departureStr, arrivalStr,
           fare_per_seat, totalSeats, bookableSeats,
           vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
           tripLuggage,
-          'independent_driver',
+          'independent_driver', durationHours,
         ]
       );
     } catch (eCreated) {
       const emsg = (eCreated.message || '').toString();
-      if (eCreated.code === '42703' && emsg.includes('luggage_allowance_per_passenger')) {
+      if (eCreated.code === '42703' && emsg.includes('estimated_duration_hours')) {
+        result = await runInsert(
+          `INSERT INTO trips (
+            driver_id, from_location, to_location, departure_time, arrival_time,
+            fare_per_seat, total_capacity, available_seats,
+            vehicle_number, vehicle_model_id, stops, status, require_approval, route_id,
+            luggage_allowance_per_passenger, created_source
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+          RETURNING *`,
+          [
+            driverId, from_location, to_location, departureStr, arrivalStr,
+            fare_per_seat, totalSeats, bookableSeats,
+            vehicleNumber, vehicleModelId, stopsJson, 'scheduled', useRequireApproval, routeId,
+            tripLuggage,
+            'independent_driver',
+          ]
+        );
+      } else if (eCreated.code === '42703' && emsg.includes('luggage_allowance_per_passenger')) {
         try {
           result = await runInsert(
             `INSERT INTO trips (
@@ -1412,6 +1463,93 @@ const cancelTrip = asyncHandler(async (req, res) => {
     }
   } catch (e) {
     if (e.code !== '42703') logger.warn('Cancel tracking failed:', e.message);
+  }
+
+  // Create+cancel abuse tracking: flag drivers who repeatedly create and cancel rides
+  const CREATE_CANCEL_DAILY_LIMIT = 5;
+  const CREATE_CANCEL_MONTH_STRIKE_LIMIT = 3;
+  const CREATE_CANCEL_BLOCK_HOURS = 48;
+  try {
+    const dailyCancels = await pool.query(
+      `SELECT COUNT(*)::int AS cnt FROM trips
+       WHERE driver_id = $1 AND status = 'cancelled' AND COALESCE(cancelled_by, 'driver') = 'driver'
+         AND created_source = 'independent_driver'
+         AND updated_at >= CURRENT_DATE::timestamp
+         AND updated_at < (CURRENT_DATE + 1)::timestamp`,
+      [driverId]
+    );
+    const todayCancels = dailyCancels.rows[0]?.cnt || 0;
+
+    if (todayCancels >= CREATE_CANCEL_DAILY_LIMIT) {
+      const monthKey = new Date().toISOString().slice(0, 7);
+      let monthStrikes = 0;
+      try {
+        const strikeRes = await pool.query(
+          `SELECT COUNT(*)::int AS cnt FROM driver_abuse_flags
+           WHERE user_id = $1 AND flag_type = 'create_cancel_abuse' AND month_window = $2`,
+          [driverId, monthKey]
+        );
+        monthStrikes = strikeRes.rows[0]?.cnt || 0;
+      } catch (e2) {
+        if (e2.code !== '42P01') logger.warn('Abuse flag check failed:', e2.message);
+      }
+
+      const blockedUntil = monthStrikes + 1 >= CREATE_CANCEL_MONTH_STRIKE_LIMIT
+        ? new Date(Date.now() + CREATE_CANCEL_BLOCK_HOURS * 60 * 60 * 1000)
+        : null;
+
+      try {
+        await pool.query(
+          `INSERT INTO driver_abuse_flags (user_id, flag_type, reason, month_window, violation_count, blocked_until)
+           VALUES ($1, 'create_cancel_abuse', $2, $3, $4, $5)`,
+          [
+            driverId,
+            `Driver cancelled ${todayCancels} rides today (limit: ${CREATE_CANCEL_DAILY_LIMIT}). Strike ${monthStrikes + 1}/${CREATE_CANCEL_MONTH_STRIKE_LIMIT} this month.`,
+            monthKey,
+            todayCancels,
+            blockedUntil,
+          ]
+        );
+      } catch (e3) {
+        if (e3.code !== '42P01') logger.warn('Abuse flag insert failed:', e3.message);
+      }
+
+      if (blockedUntil) {
+        await pool.query(
+          `UPDATE users SET cancel_blocked_until = $2 WHERE id = $1`,
+          [driverId, blockedUntil.toISOString()]
+        );
+        logger.info(`Driver ${driverId} blocked ${CREATE_CANCEL_BLOCK_HOURS}h for create+cancel abuse (${monthStrikes + 1} strikes this month)`);
+
+        try {
+          const wn = await pool.query(
+            `INSERT INTO notifications (user_id, type, title, body, data)
+             VALUES ($1, 'account_warning',
+               'Account temporarily restricted',
+               'Your account has been temporarily restricted for 48 hours due to repeated ride cancellations. Please create rides only when you intend to complete them.',
+               $2::jsonb)
+             RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+            [driverId, JSON.stringify({ blocked_until: blockedUntil.toISOString(), reason: 'create_cancel_abuse' })]
+          );
+          if (wn.rows[0]) emitNotificationToUser(wn.rows[0].user_id, wn.rows[0]);
+        } catch (_) {}
+      } else if (todayCancels >= CREATE_CANCEL_DAILY_LIMIT) {
+        try {
+          const wn = await pool.query(
+            `INSERT INTO notifications (user_id, type, title, body, data)
+             VALUES ($1, 'account_warning',
+               'Warning: Too many cancellations',
+               'You have cancelled too many rides today. Repeated abuse may lead to temporary account restrictions.',
+               '{"reason":"create_cancel_warning"}'::jsonb)
+             RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+            [driverId]
+          );
+          if (wn.rows[0]) emitNotificationToUser(wn.rows[0].user_id, wn.rows[0]);
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    if (e.code !== '42P01' && e.code !== '42703') logger.warn('Create+cancel abuse tracking failed:', e.message);
   }
 
   ApiResponse.success(

@@ -28,6 +28,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
+  double? _estimatedDurationHours;
 
   List<String> _fromSuggestions = [];
   List<String> _toSuggestions = [];
@@ -138,6 +139,18 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       return;
     }
 
+    if (_estimatedDurationHours == null) {
+      setState(() => _isLoading = false);
+      if (mounted) {
+        AppFeedback.show(
+          context,
+          'Please select estimated travel time',
+          kind: AppFeedbackKind.warning,
+        );
+      }
+      return;
+    }
+
     final departureTime = DateTime(
       _selectedDate.year,
       _selectedDate.month,
@@ -146,8 +159,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       _selectedTime.minute,
     );
 
-    // For now we treat trips as token-based, not exact seat layout.
-    // Keep a fixed small capacity to prevent over-booking.
     const int totalSeats = 10;
     final result = await _tripService.createTrip(
       fromLocation: fromLocation,
@@ -155,6 +166,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       departureTime: departureTime,
       farePerSeat: double.parse(_fareController.text),
       vehicleNumber: _vehicleNumberController.text.trim(),
+      estimatedDurationHours: _estimatedDurationHours!,
       totalSeats: totalSeats,
       requireApproval: _requireApproval,
       luggageAllowancePerPassenger: _luggageController.text.trim().isEmpty
@@ -313,6 +325,36 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
             const SizedBox(height: 16),
 
+            // Estimated Travel Time (required)
+            DropdownButtonFormField<double>(
+              value: _estimatedDurationHours,
+              decoration: InputDecoration(
+                labelText: 'Estimated travel time *',
+                prefixIcon: const Icon(Icons.timer_outlined, color: Colors.green),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              items: const [
+                DropdownMenuItem(value: 1.0, child: Text('1 hour')),
+                DropdownMenuItem(value: 1.5, child: Text('1.5 hours')),
+                DropdownMenuItem(value: 2.0, child: Text('2 hours')),
+                DropdownMenuItem(value: 2.5, child: Text('2.5 hours')),
+                DropdownMenuItem(value: 3.0, child: Text('3 hours')),
+                DropdownMenuItem(value: 3.5, child: Text('3.5 hours')),
+                DropdownMenuItem(value: 4.0, child: Text('4 hours')),
+                DropdownMenuItem(value: 5.0, child: Text('5 hours')),
+                DropdownMenuItem(value: 6.0, child: Text('6 hours')),
+                DropdownMenuItem(value: 7.0, child: Text('7 hours')),
+                DropdownMenuItem(value: 8.0, child: Text('8 hours')),
+                DropdownMenuItem(value: 10.0, child: Text('10 hours')),
+                DropdownMenuItem(value: 12.0, child: Text('12 hours')),
+              ],
+              onChanged: (v) => setState(() => _estimatedDurationHours = v),
+              validator: (v) => v == null ? 'Please select travel time' : null,
+            ),
+            const SizedBox(height: 16),
+
             // Vehicle Number (prefilled from KYC when approved — backend also uses verified RC)
             if (_loadingVerifiedVehicle)
               const Padding(
@@ -346,8 +388,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 return null;
               },
             ),
-            const SizedBox(height: 16),
-
             const SizedBox(height: 16),
 
             // Fare per seat

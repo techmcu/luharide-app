@@ -38,8 +38,11 @@ function setupCreateMocks(overrides = {}) {
     .mockResolvedValueOnce({ rows: [overrides.verif || verif] })        // verification
     .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] })      // model
     .mockResolvedValueOnce({ rows: overrides.overlap || [] })           // overlap check
+    .mockResolvedValueOnce({ rows: [{ cnt: 0 }] })                     // daily ride limit
     .mockResolvedValueOnce({ rows: [{ id: TRIP_ID, status: 'scheduled' }] }); // INSERT
 }
+
+const validBody = { from_location: 'Dehradun', to_location: 'Purola', departure_time: futureISO, fare_per_seat: 500, estimated_duration_hours: 3 };
 
 describe('createTrip — validation', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -49,7 +52,7 @@ describe('createTrip — validation', () => {
     pool.query.mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] });
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Dehradun', departure_time: futureISO, fare_per_seat: 500 },
+      body: { ...validBody, from_location: 'Dehradun', to_location: 'Dehradun' },
       user: { id: DRIVER_ID }, headers: {},
     };
     const next = jest.fn();
@@ -68,7 +71,7 @@ describe('createTrip — validation', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'existing-trip' }] }); // overlap found
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: futureISO, fare_per_seat: 500 },
+      body: { ...validBody },
       user: { id: DRIVER_ID }, headers: {},
     };
     const next = jest.fn();
@@ -84,10 +87,11 @@ describe('createTrip — validation', () => {
       .mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] })
       .mockResolvedValueOnce({ rows: [verif] })
       .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] })
-      .mockResolvedValueOnce({ rows: [] }); // overlap
+      .mockResolvedValueOnce({ rows: [] }) // overlap
+      .mockResolvedValueOnce({ rows: [{ cnt: 0 }] }); // daily ride limit
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: futureISO, fare_per_seat: 5 },
+      body: { ...validBody, fare_per_seat: 5 },
       user: { id: DRIVER_ID }, headers: {},
     };
     const next = jest.fn();
@@ -103,10 +107,11 @@ describe('createTrip — validation', () => {
       .mockResolvedValueOnce({ rows: [{ cancel_blocked_until: null }] })
       .mockResolvedValueOnce({ rows: [verif] })
       .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] })
-      .mockResolvedValueOnce({ rows: [] }); // overlap
+      .mockResolvedValueOnce({ rows: [] }) // overlap
+      .mockResolvedValueOnce({ rows: [{ cnt: 0 }] }); // daily ride limit
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: futureISO, fare_per_seat: 15000 },
+      body: { ...validBody, fare_per_seat: 15000 },
       user: { id: DRIVER_ID }, headers: {},
     };
     const next = jest.fn();
@@ -124,7 +129,7 @@ describe('createTrip — validation', () => {
       .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] });
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: soon15min, fare_per_seat: 500 },
+      body: { ...validBody, departure_time: soon15min },
       user: { id: DRIVER_ID }, headers: {},
     };
     const next = jest.fn();
@@ -140,7 +145,7 @@ describe('createTrip — validation', () => {
     pool.query.mockResolvedValueOnce({ rows: [{ cancel_blocked_until: futureBlock }] });
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: futureISO, fare_per_seat: 500 },
+      body: { ...validBody },
       user: { id: DRIVER_ID }, headers: {},
     };
     const next = jest.fn();
@@ -157,7 +162,7 @@ describe('createTrip — validation', () => {
       .mockResolvedValueOnce({ rows: [] }); // no verification
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: futureISO, fare_per_seat: 500 },
+      body: { ...validBody },
       user: { id: DRIVER_ID }, headers: {},
     };
     const next = jest.fn();
@@ -172,7 +177,7 @@ describe('createTrip — validation', () => {
     setupCreateMocks();
 
     const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: futureISO, fare_per_seat: 500 },
+      body: { ...validBody },
       user: { id: DRIVER_ID }, headers: {},
     };
     const res = mockRes();

@@ -60,12 +60,14 @@ describe('createTrip', () => {
       .mockResolvedValueOnce({ rows: [verif] })         // driver_verification_requests
       .mockResolvedValueOnce({ rows: [{ vehicle_model_id: null }] }) // vehicle_model_id query
       .mockResolvedValueOnce({ rows: [] })               // overlap check
+      .mockResolvedValueOnce({ rows: [{ cnt: 0 }] })    // daily ride limit check
       .mockResolvedValueOnce({ rows: [trip] });          // INSERT trip
 
     const req = {
       body: {
         from_location: 'Dehradun', to_location: 'Purola',
         departure_time: futureISO, fare_per_seat: 500,
+        estimated_duration_hours: 3,
       },
       user: { id: DRIVER_ID },
       headers: {},
@@ -88,6 +90,7 @@ describe('createTrip', () => {
       body: {
         from_location: 'Dehradun', to_location: 'Purola',
         departure_time: futureISO, fare_per_seat: 500,
+        estimated_duration_hours: 3,
       },
       user: { id: DRIVER_ID },
       headers: {},

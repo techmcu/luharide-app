@@ -15,6 +15,7 @@ class TripService {
     required DateTime departureTime,
     required double farePerSeat,
     required String vehicleNumber,
+    required double estimatedDurationHours,
     int totalSeats = 7,
     List<String> stops = const [],
     bool requireApproval = true,
@@ -30,6 +31,7 @@ class TripService {
         'vehicle_number': vehicleNumber,
         'stops': stops,
         'require_approval': requireApproval,
+        'estimated_duration_hours': estimatedDurationHours,
       };
       final lug = luggageAllowancePerPassenger?.trim();
       if (lug != null && lug.isNotEmpty) {

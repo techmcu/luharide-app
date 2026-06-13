@@ -10,6 +10,7 @@ const rideRatingsRepository = require('../repositories/rideRatingsRepository');
 const bookingRepository = require('../repositories/bookingRepository');
 const { pool } = require('../config/database');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
+const logger = require('../config/logger');
 
 function buildTripContext(booking) {
   const from = (booking.from_location || '').trim();
@@ -123,6 +124,32 @@ async function submitRating(bookingId, userId, { rating, comment }) {
     if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
   } catch (_) {}
 
+  // Rating ≤ 2 with comment = auto-report (complaint)
+  if (rating <= 2 && safeComment) {
+    try {
+      const monthKey = new Date().toISOString().slice(0, 7);
+      await pool.query(
+        `INSERT INTO driver_abuse_flags (user_id, flag_type, reason, month_window, violation_count)
+         VALUES ($1, 'low_rating_report', $2, $3, $4)`,
+        [
+          ratedUserId,
+          `${rating}-star rating with comment: "${safeComment.slice(0, 100)}" (booking: ${bookingId})`,
+          monthKey,
+          rating,
+        ]
+      );
+    } catch (e) {
+      if (e.code !== '42P01') logger.warn('Low rating report insert failed:', e.message);
+    }
+  }
+
+  // Rating threshold check: after 5+ ratings, warn or block based on avg
+  try {
+    await checkRatingThreshold(ratedUserId);
+  } catch (e) {
+    if (e.code !== '42P01') logger.warn('Rating threshold check failed:', e.message);
+  }
+
   return { message: 'Rating submitted', rated_user_id: ratedUserId };
 }
 
@@ -196,10 +223,106 @@ async function getReviewBundleForUser(userId) {
   };
 }
 
+const RATING_THRESHOLD_MIN_COUNT = 5;
+const RATING_THRESHOLD_WARNING = 2.0;
+const RATING_THRESHOLD_BLOCK = 1.5;
+const RATING_BLOCK_DAYS = 7;
+
+async function checkRatingThreshold(userId) {
+  const summary = await rideRatingsRepository.getSummaryByUserId(userId);
+  if (summary.total_ratings < RATING_THRESHOLD_MIN_COUNT) return;
+
+  const avg = parseFloat(summary.average_rating);
+  if (avg >= RATING_THRESHOLD_WARNING) return;
+
+  const monthKey = new Date().toISOString().slice(0, 7);
+
+  if (avg < RATING_THRESHOLD_BLOCK) {
+    // Auto-block: avg < 1.5 with 5+ ratings
+    const blockedUntil = new Date(Date.now() + RATING_BLOCK_DAYS * 24 * 60 * 60 * 1000);
+    try {
+      await pool.query(
+        `INSERT INTO driver_abuse_flags (user_id, flag_type, reason, month_window, violation_count, blocked_until)
+         VALUES ($1, 'low_avg_rating_block', $2, $3, $4, $5)`,
+        [
+          userId,
+          `Average rating ${avg.toFixed(2)} (${summary.total_ratings} ratings) — below ${RATING_THRESHOLD_BLOCK} threshold. Auto-blocked for ${RATING_BLOCK_DAYS} days.`,
+          monthKey,
+          summary.total_ratings,
+          blockedUntil,
+        ]
+      );
+    } catch (e) {
+      if (e.code !== '42P01') logger.warn('Rating block flag insert failed:', e.message);
+    }
+
+    try {
+      await pool.query(
+        `UPDATE users SET cancel_blocked_until = $2 WHERE id = $1`,
+        [userId, blockedUntil.toISOString()]
+      );
+    } catch (_) {}
+
+    try {
+      const n = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1, 'account_warning',
+           'Account restricted — low ratings',
+           'Your account has been temporarily restricted due to consistently low ratings. Please improve your service quality.',
+           $2::jsonb)
+         RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+        [userId, JSON.stringify({ avg_rating: avg, total_ratings: summary.total_ratings, blocked_until: blockedUntil.toISOString(), reason: 'low_avg_rating_block' })]
+      );
+      if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+    } catch (_) {}
+
+    logger.info(`Driver ${userId} blocked ${RATING_BLOCK_DAYS}d — avg rating ${avg.toFixed(2)} (${summary.total_ratings} ratings)`);
+  } else {
+    // Warning: avg < 2.0 but >= 1.5
+    const alreadyWarned = await pool.query(
+      `SELECT 1 FROM driver_abuse_flags
+       WHERE user_id = $1 AND flag_type = 'low_avg_rating_warning' AND month_window = $2 LIMIT 1`,
+      [userId, monthKey]
+    );
+    if (alreadyWarned.rows.length > 0) return;
+
+    try {
+      await pool.query(
+        `INSERT INTO driver_abuse_flags (user_id, flag_type, reason, month_window, violation_count)
+         VALUES ($1, 'low_avg_rating_warning', $2, $3, $4)`,
+        [
+          userId,
+          `Average rating ${avg.toFixed(2)} (${summary.total_ratings} ratings) — below ${RATING_THRESHOLD_WARNING} threshold. Warning issued.`,
+          monthKey,
+          summary.total_ratings,
+        ]
+      );
+    } catch (e) {
+      if (e.code !== '42P01') logger.warn('Rating warning flag insert failed:', e.message);
+    }
+
+    try {
+      const n = await pool.query(
+        `INSERT INTO notifications (user_id, type, title, body, data)
+         VALUES ($1, 'account_warning',
+           'Warning: Your ratings are low',
+           'Your average rating has dropped below 2 stars. Continued low ratings may result in account restrictions. Please ensure a good experience for passengers.',
+           $2::jsonb)
+         RETURNING id, user_id, type, title, body, data, created_at, is_read`,
+        [userId, JSON.stringify({ avg_rating: avg, total_ratings: summary.total_ratings, reason: 'low_avg_rating_warning' })]
+      );
+      if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
+    } catch (_) {}
+
+    logger.info(`Driver ${userId} warned — avg rating ${avg.toFixed(2)} (${summary.total_ratings} ratings)`);
+  }
+}
+
 module.exports = {
   submitRating,
   getReviewsForUser,
   getRatingSummary,
   getReviewBundleForUser,
+  checkRatingThreshold,
   RATING_COMMENT_MAX_WORDS,
 };

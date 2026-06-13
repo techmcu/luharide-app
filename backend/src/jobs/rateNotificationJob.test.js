@@ -55,6 +55,7 @@ describe('rateNotificationJob.run', () => {
             id: 'pn1', booking_id: 'bk1', passenger_id: 'p1', driver_id: 'd1',
           }] })
           .mockResolvedValueOnce({ rows: [{ status: 'completed' }] })  // booking status
+          .mockResolvedValueOnce({ rows: [] })                          // already-sent check
           .mockResolvedValueOnce({ rows: [                              // INSERT notifications
             { id: 'n1', user_id: 'p1', type: 'rate_ride' },
             { id: 'n2', user_id: 'd1', type: 'rate_ride' },

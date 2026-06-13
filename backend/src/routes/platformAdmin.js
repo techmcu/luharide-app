@@ -26,6 +26,11 @@ const {
   toggleGlobalUnionFcm,
   toggleUnionFcm,
   getDbHealth,
+  getFlaggedDrivers,
+  resolveFlaggedDriver,
+  deleteRating,
+  banDriver,
+  unbanDriver,
 } = require('../controllers/platformAdminController');
 
 const guard = [authenticate, authorizePlatformAdmin];
@@ -62,5 +67,12 @@ router.patch('/union-fcm/:unionId', ...guard, toggleUnionFcm);
 
 // Phase 4 — DB Health
 router.get('/db-health', ...guard, getDbHealth);
+
+// Phase 5 — Flagged Drivers & Admin Controls
+router.get('/flagged-drivers', ...guard, getFlaggedDrivers);
+router.patch('/flagged-drivers/:id/resolve', ...guard, resolveFlaggedDriver);
+router.delete('/ratings/:id', ...guard, deleteRating);
+router.post('/users/:id/ban', ...guard, banDriver);
+router.post('/users/:id/unban', ...guard, unbanDriver);
 
 module.exports = router;
