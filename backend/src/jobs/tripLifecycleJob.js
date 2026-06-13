@@ -148,9 +148,11 @@ async function run() {
   }
 }
 
+let _timer = null;
+
 function start() {
   run().catch((e) => logger.warn('[TripLifecycle] startup error:', e.message));
-  setInterval(() => {
+  _timer = setInterval(() => {
     run().catch((e) => logger.warn('[TripLifecycle] error:', e.message));
   }, INTERVAL_MS);
   logger.info(
@@ -158,4 +160,8 @@ function start() {
   );
 }
 
-module.exports = { start, run };
+function stop() {
+  if (_timer) { clearInterval(_timer); _timer = null; }
+}
+
+module.exports = { start, stop, run };

@@ -65,8 +65,10 @@ async function aggregateYesterday() {
   }
 }
 
+let _task = null;
+
 function start() {
-  cron.schedule('35 18 * * *', () => {
+  _task = cron.schedule('35 18 * * *', () => {
     logger.info('[DailyStats] daily aggregation starting');
     aggregateYesterday().catch((e) => {
       logger.error('[DailyStats] aggregation failed:', e.message);
@@ -77,4 +79,8 @@ function start() {
   logger.info(`[DailyStats] scheduled 18:35 UTC (00:05 IST). Retention: ${RETENTION_DAYS} days.`);
 }
 
-module.exports = { start, aggregateYesterday };
+function stop() {
+  if (_task) { _task.stop(); _task = null; }
+}
+
+module.exports = { start, stop, aggregateYesterday };

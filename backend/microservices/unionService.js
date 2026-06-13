@@ -13,6 +13,8 @@ const { mountUploadsStatic } = require('../src/config/staticUploads');
 
 const unionRoutes = require('../src/routes/union');
 
+const { installGracefulShutdown } = require('../src/utils/gracefulShutdown');
+
 const app = createBaseApp('union');
 // Merged union KYC PDFs under uploads/union-merged (and legacy union-docs); gateway proxies those paths here.
 mountUploadsStatic(app, path.join(__dirname, '../uploads'));
@@ -21,6 +23,8 @@ attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.UNION_SERVICE_PORT || '3003', 10);
 const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
-app.listen(PORT, LISTEN_HOST, () => {
+const server = app.listen(PORT, LISTEN_HOST, () => {
   console.log(`[union-service] listening on ${LISTEN_HOST}:${PORT}`);
 });
+
+installGracefulShutdown(server, { serviceName: 'union-service' });

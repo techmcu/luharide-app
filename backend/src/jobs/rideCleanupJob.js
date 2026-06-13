@@ -363,10 +363,12 @@ async function runStartupTokenCleanupOnly() {
   }
 }
 
+let _task = null;
+
 function start() {
   runStartupTokenCleanupOnly().catch((e) => logger.warn('[Cleanup] startup token cleanup failed:', e.message));
 
-  cron.schedule('30 18 * * *', () => {
+  _task = cron.schedule('30 18 * * *', () => {
     logger.info('[Cleanup] Evening IST maintenance starting');
     runEveningMaintenance().catch((e) => {
       logger.error('[Cleanup] evening maintenance failed:', e.message);
@@ -379,4 +381,8 @@ function start() {
   );
 }
 
-module.exports = { start, runCleanup: runEveningMaintenance, runEveningMaintenance };
+function stop() {
+  if (_task) { _task.stop(); _task = null; }
+}
+
+module.exports = { start, stop, runCleanup: runEveningMaintenance, runEveningMaintenance };

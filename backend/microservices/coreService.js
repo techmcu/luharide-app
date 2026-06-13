@@ -26,6 +26,8 @@ const tripLifecycleJob = require('../src/jobs/tripLifecycleJob');
 const dailyStatsJob = require('../src/jobs/dailyStatsJob');
 const logger = require('../src/config/logger');
 
+const { installGracefulShutdown } = require('../src/utils/gracefulShutdown');
+
 const app = createBaseApp('core');
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/trips', tripRoutes);
@@ -39,7 +41,7 @@ attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.CORE_SERVICE_PORT || '3002', 10);
 const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
-app.listen(PORT, LISTEN_HOST, () => {
+const server = app.listen(PORT, LISTEN_HOST, () => {
   logger.info(`[core-service] listening on ${LISTEN_HOST}:${PORT}`);
   rateNotificationJob.start();
   rideCleanupJob.start();
@@ -47,3 +49,6 @@ app.listen(PORT, LISTEN_HOST, () => {
   tripLifecycleJob.start();
   dailyStatsJob.start();
 });
+
+const jobs = [rateNotificationJob, rideCleanupJob, pendingBookingExpiryJob, tripLifecycleJob, dailyStatsJob];
+installGracefulShutdown(server, { jobs, serviceName: 'core-service' });

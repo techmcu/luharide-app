@@ -27,6 +27,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const socketIo = require('socket.io');
 
 const { pool } = require('../src/config/database');
+const { installGracefulShutdown } = require('../src/utils/gracefulShutdown');
 const { apiLimiter } = require('../src/middleware/rateLimiter');
 const { apiVersionRewrite } = require('../src/middleware/apiVersionRewrite');
 const { attachSocketIoRedisAdapter } = require('../src/socket/socketRedisAdapter');
@@ -352,5 +353,7 @@ server.listen(PORT, LISTEN_HOST, () => {
     );
   }
 });
+
+installGracefulShutdown(server, { serviceName: 'gateway' });
 
 module.exports = { app, server, io };

@@ -12,6 +12,8 @@ const { createBaseApp, attachErrorHandlers } = require('./sharedApp');
 const authRoutes = require('../src/routes/auth');
 const simpleAuthRoutes = require('../src/routes/simpleAuth');
 
+const { installGracefulShutdown } = require('../src/utils/gracefulShutdown');
+
 const app = createBaseApp('auth');
 app.use('/api/auth', authRoutes);
 app.use('/api/simple-auth', simpleAuthRoutes);
@@ -19,6 +21,8 @@ attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.AUTH_SERVICE_PORT || '3001', 10);
 const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
-app.listen(PORT, LISTEN_HOST, () => {
+const server = app.listen(PORT, LISTEN_HOST, () => {
   console.log(`[auth-service] listening on ${LISTEN_HOST}:${PORT}`);
 });
+
+installGracefulShutdown(server, { serviceName: 'auth-service' });

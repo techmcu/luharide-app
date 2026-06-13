@@ -219,8 +219,13 @@ server.listen(PORT, LISTEN_HOST, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received: closing HTTP server');
+const allJobs = [rateNotificationJob, rideCleanupJob, pendingBookingExpiryJob, tripLifecycleJob, dailyStatsJob];
+let _shuttingDown = false;
+function monolithShutdown(signal) {
+  if (_shuttingDown) return;
+  _shuttingDown = true;
+  console.log(`${signal} signal received: closing HTTP server`);
+  for (const job of allJobs) { try { job.stop(); } catch (_) {} }
   server.close(async () => {
     try {
       await Promise.all([
@@ -234,6 +239,8 @@ process.on('SIGTERM', async () => {
     process.exit(0);
   });
   setTimeout(() => { console.error('Forced shutdown after timeout'); process.exit(1); }, 15000);
-});
+}
+process.on('SIGTERM', () => monolithShutdown('SIGTERM'));
+process.on('SIGINT', () => monolithShutdown('SIGINT'));
 
 module.exports = { app, server, io };

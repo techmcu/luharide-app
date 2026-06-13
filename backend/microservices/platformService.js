@@ -18,6 +18,8 @@ const notificationRoutes = require('../src/routes/notifications');
 const reviewRoutes = require('../src/routes/reviews');
 const uploadRoutes = require('../src/routes/uploads');
 
+const { installGracefulShutdown } = require('../src/utils/gracefulShutdown');
+
 const app = createBaseApp('platform');
 mountUploadsStatic(app, path.join(__dirname, '../uploads'));
 app.use('/api/admin', adminRoutes);
@@ -40,6 +42,8 @@ attachErrorHandlers(app);
 
 const PORT = parseInt(process.env.PLATFORM_SERVICE_PORT || '3004', 10);
 const LISTEN_HOST = process.env.LISTEN_HOST || '0.0.0.0';
-app.listen(PORT, LISTEN_HOST, () => {
+const server = app.listen(PORT, LISTEN_HOST, () => {
   console.log(`[platform-service] listening on ${LISTEN_HOST}:${PORT}`);
 });
+
+installGracefulShutdown(server, { serviceName: 'platform-service' });
