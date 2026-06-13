@@ -42,9 +42,10 @@ class TripService {
         data: data,
       );
 
+      final respData = response.data['data'] ?? {};
       return {
         'success': true,
-        'trip': TripModel.fromJson(response.data['data']['trip']),
+        'trip': TripModel.fromJson(respData['trip'] ?? {}),
         'message': response.data['message'] ?? 'Trip created successfully',
       };
     } on DioException catch (e) {
@@ -211,7 +212,8 @@ class TripService {
         queryParameters: status != null ? {'status': status} : null,
       );
 
-      final List<dynamic> tripsJson = response.data['data']['trips'] ?? [];
+      final data = response.data['data'] ?? {};
+      final List<dynamic> tripsJson = data['trips'] ?? [];
       final List<TripModel> trips = tripsJson
           .map((json) => TripModel.fromJson(json))
           .toList();
@@ -219,7 +221,7 @@ class TripService {
       return {
         'success': true,
         'trips': trips,
-        'count': response.data['data']['count'] ?? 0,
+        'count': data['count'] ?? 0,
       };
     } on DioException catch (e) {
       return {
@@ -278,7 +280,8 @@ class TripService {
   Future<Map<String, dynamic>> getMyBookings() async {
     try {
       final response = await _apiService.get('${ApiConstants.createBooking}/my-bookings');
-      final List<dynamic> bookingsJson = response.data['data']['bookings'] ?? [];
+      final data = response.data['data'] ?? {};
+      final List<dynamic> bookingsJson = data['bookings'] ?? [];
       return {
         'success': true,
         'bookings': bookingsJson,
@@ -426,7 +429,8 @@ class TripService {
         '${ApiConstants.tripDetails}/$tripId/bookings',
       );
 
-      final List<dynamic> bookingsJson = response.data['data']['bookings'] ?? [];
+      final data = response.data['data'] ?? {};
+      final List<dynamic> bookingsJson = data['bookings'] ?? [];
       return {
         'success': true,
         'bookings': bookingsJson,
@@ -481,7 +485,8 @@ class TripService {
         queryParameters: {'q': query},
       );
 
-      final List<dynamic> suggestionsJson = response.data['data']['suggestions'] ?? [];
+      final data = response.data['data'] ?? {};
+      final List<dynamic> suggestionsJson = data['suggestions'] ?? [];
       return suggestionsJson.map((s) => s.toString()).toList();
     } catch (e) {
       return [];

@@ -101,7 +101,10 @@ class AuthService {
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final data = response.data['data'];
+        final data = response.data['data'] ?? {};
+        if (data['tokens'] == null || data['user'] == null) {
+          throw Exception('Invalid server response');
+        }
         final tokens = AuthTokens.fromJson(data['tokens']);
         final user = UserModel.fromJson(data['user']);
         await _saveAuthData(tokens, user);
@@ -209,7 +212,9 @@ class AuthService {
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final tokens = AuthTokens.fromJson(response.data['data']['tokens']);
+        final data = response.data['data'] ?? {};
+        if (data['tokens'] == null) throw Exception('Invalid server response');
+        final tokens = AuthTokens.fromJson(data['tokens']);
         await _saveTokens(tokens);
       } else {
         throw Exception('Failed to refresh token');

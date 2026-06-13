@@ -1,7 +1,7 @@
 # LuhaRide — Complete Testing SOP (Standard Operating Procedure)
 
-**Last Updated:** 2026-06-11  
-**Version:** 5.0 — Complete A-to-Z (349 test cases, 155 P0, 17 parts)
+**Last Updated:** 2026-06-13  
+**Version:** 6.0 — Complete A-to-Z (405 test cases, 189 P0, 17 parts)
 
 ---
 
@@ -169,6 +169,16 @@
 | F-050 | Seat 1 always blocked | Any attempt to book seat 1 | 400, "Seat 1 is driver seat" | P0 |
 | F-051 | available_seats cannot exceed total_capacity | DB constraint: available_seats <= total_capacity | CHECK constraint prevents overflow | P1 |
 | F-052 | Stale pending cleanup (nightly job) | Pending booking older than threshold, not responded | Auto-cancelled by rideCleanupJob, passenger notified | P1 |
+| F-053 | Create trip — estimated duration valid | POST /trips with estimated_duration_hours=3 | 201, arrival_time = departure + 3h | P0 |
+| F-054 | Create trip — estimated duration omitted | POST /trips without estimated_duration_hours field | 201, arrival_time = departure + 2h (default) | P0 |
+| F-055 | Create trip — estimated duration below min | POST /trips with estimated_duration_hours=0.5 | 400, "must be between 1 and 12 hours" | P0 |
+| F-056 | Create trip — estimated duration above max | POST /trips with estimated_duration_hours=15 | 400, "must be between 1 and 12 hours" | P0 |
+| F-057 | Create trip — estimated duration NaN | POST /trips with estimated_duration_hours="abc" | 400, "must be between 1 and 12 hours" | P1 |
+| F-058 | Create trip — estimated duration boundary 1h | POST /trips with estimated_duration_hours=1 | 201, arrival_time = departure + 1h | P1 |
+| F-059 | Create trip — estimated duration boundary 12h | POST /trips with estimated_duration_hours=12 | 201, arrival_time = departure + 12h | P1 |
+| F-060 | Daily ride creation limit (4/day) | Create 4 trips in same day → create 5th | 400, "maximum of 4 rides per day" | P0 |
+| F-061 | Daily ride limit resets next day | Hit limit today → next day create trip | 201, allowed (new day) | P1 |
+| F-062 | Daily ride limit counts only independent driver | Union trips do NOT count toward 4/day limit | Independent limit independent; union rides unaffected | P1 |
 
 ## Part G: BlaBlaCar-Style Cancel Rules (Independent Driver)
 
@@ -232,6 +242,16 @@
 | G-053 | Admin cancel sets cancelled_by = 'admin' | Admin cancels trip via platform admin → check trips table | cancelled_by = 'admin' | P0 |
 | G-054 | Rejected booking has no cancelled_at | Driver rejects pending booking → check bookings table | status = 'cancelled', cancelled_at = NULL, not counted in passenger cancel tracking | P1 |
 
+### G4: Create+Cancel Abuse Tracking
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| G-060 | Create+cancel daily limit warning | Driver cancels 5 rides in one day (below monthly strike limit) | Warning notification: "Too many cancellations", driver_abuse_flags row with flag_type='create_cancel_abuse' | P0 |
+| G-061 | Create+cancel monthly strike accumulation | Trigger daily limit 3 times in same month | 3 strikes → 48h block, notification "Account temporarily restricted for 48 hours" | P0 |
+| G-062 | Create+cancel block sets cancel_blocked_until | 3 monthly strikes → check users table | cancel_blocked_until = NOW + 48h | P0 |
+| G-063 | Create+cancel only counts driver-initiated cancels | Admin cancels driver's trip → check abuse count | NOT counted (cancelled_by='admin' excluded) | P1 |
+| G-064 | Create+cancel flag visible in admin user detail | Admin GET /platform-admin/users/:id for flagged driver | abuse_flags array shows create_cancel_abuse entries with reason, month, violation_count | P1 |
+
 ## Part H: Rating & Review (BlaBlaCar-Style)
 
 ### H1: Normal Rating Flow
@@ -261,6 +281,26 @@
 | H-025 | Auto-rating replaced by manual | Passenger cancels → auto-1-star on passenger → driver submits 3-star with comment | Driver's rating replaces auto-1-star (comment no longer starts with "Auto-rating:") | P0 |
 | H-026 | Auto-rating replacement keeps booking_id | After replacing auto-rating → check ride_ratings table | Same row updated, same id, same booking_id | P1 |
 | H-027 | Cannot replace manual rating | Driver submits manual rating → tries to submit again | 400, "already rated" | P1 |
+
+### H3: Low Rating Auto-Complaint
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| H-030 | Rating ≤ 2 with comment = auto-complaint | Submit 2-star rating with comment "bad driver" | driver_abuse_flags row: flag_type='low_rating_report', reason includes rating + comment + booking_id | P0 |
+| H-031 | Rating ≤ 2 without comment = NO complaint | Submit 1-star rating without comment | No low_rating_report row inserted | P0 |
+| H-032 | Rating 3+ with comment = NO complaint | Submit 3-star rating with comment "okay driver" | No low_rating_report row inserted | P1 |
+| H-033 | Auto-complaint visible in admin | Admin GET /platform-admin/flagged-drivers | low_rating_report entries visible with driver name/phone/avg rating | P1 |
+
+### H4: Rating Threshold System
+
+| ID | Scenario | Steps | Expected | Priority |
+|----|----------|-------|----------|----------|
+| H-040 | Threshold skipped below 5 ratings | Driver has 4 ratings, avg 1.0 | No threshold action (min 5 ratings required) | P0 |
+| H-041 | Warning at avg < 2.0 (5+ ratings) | Driver receives 5th rating, avg = 1.8 | driver_abuse_flags: 'low_avg_rating_warning', notification "Your ratings are low" | P0 |
+| H-042 | Warning not duplicated same month | Same driver gets another low rating same month, avg still < 2.0 | No second warning flag (already warned this month) | P1 |
+| H-043 | Block at avg < 1.5 (5+ ratings) | Driver receives rating dropping avg to 1.4 | 7-day block: cancel_blocked_until set, flag 'low_avg_rating_block', notification "Account restricted — low ratings" | P0 |
+| H-044 | Blocked driver cannot create trip | Driver blocked by rating threshold → POST /trips | 400, blocked (cancel_blocked_until > NOW) | P0 |
+| H-045 | Rating avg ≥ 2.0 = no action | Driver has 6 ratings, avg = 2.5 | No warning, no block | P1 |
 
 ## Part I: Booking Status Lifecycle
 
@@ -344,6 +384,20 @@
 | K-026 | Admin cancel notifies driver | Admin cancel trip → check driver notification | Driver gets "Your ride was cancelled by admin" | P0 |
 | K-027 | Admin cancel cleans rate reminders | Admin cancel trip → check pending_rate_notifications | Deleted for affected bookings | P1 |
 | K-028 | Union FCM per-union toggle | PATCH /platform-admin/union-fcm/:unionId | 200 | P2 |
+| K-029 | Get flagged drivers | GET /platform-admin/flagged-drivers | 200, list of unresolved flags with driver_name, avg_rating, flag_type | P0 |
+| K-030 | Resolve flagged driver | PATCH /platform-admin/flagged-drivers/:id/resolve | 200, resolved_at set, resolved_by = admin_id | P0 |
+| K-031 | Resolve already-resolved flag | PATCH /platform-admin/flagged-drivers/:id/resolve on resolved flag | 404, "already resolved" | P1 |
+| K-032 | Delete fake/spam rating | DELETE /platform-admin/ratings/:id | 200, rating deleted from ride_ratings | P0 |
+| K-033 | Delete non-existent rating | DELETE /platform-admin/ratings/999 | 404, "Rating not found" | P1 |
+| K-034 | Ban driver permanently | POST /platform-admin/users/:id/ban with reason, no duration_days | 200, cancel_blocked_until = 2099-12-31, notification sent | P0 |
+| K-035 | Ban driver temporarily | POST /platform-admin/users/:id/ban with reason + duration_days=7 | 200, cancel_blocked_until = NOW + 7d, notification sent | P0 |
+| K-036 | Ban without reason | POST /platform-admin/users/:id/ban without reason | 400, "Reason is required" | P0 |
+| K-037 | Ban with short reason | POST /platform-admin/users/:id/ban with reason="ab" | 400, "min 3 characters" | P1 |
+| K-038 | Unban driver | POST /platform-admin/users/:id/unban | 200, cancel_blocked_until = NULL, all unresolved flags resolved, notification sent | P0 |
+| K-039 | Unban clears all flags | Unban driver → check driver_abuse_flags | All flags for user resolved (resolved_at set, resolved_by = admin) | P1 |
+| K-040 | User detail shows ratings + flags | GET /platform-admin/users/:id for driver with ratings | Response includes ratings (total, avg, low_ratings), recent_reviews, abuse_flags arrays | P0 |
+| K-041 | Non-admin cannot access flagged-drivers | GET /platform-admin/flagged-drivers with driver token | 403 | P0 |
+| K-042 | Non-admin cannot ban/unban | POST /platform-admin/users/:id/ban with passenger token | 403 | P0 |
 
 ## Part L: Notification Localization Tests
 
@@ -377,7 +431,7 @@
 | M-010 | Microservice health checks | GET /health on each port (3001-3004) | All return ok + service name | P1 |
 | M-011 | Gateway proxies correctly | GET /api/v1/trips/search via gateway :3000 | Proxied to core service, 200 | P0 |
 | M-012 | PM2 process restart | pm2 restart all → check uptime | All processes running, no crash loops | P1 |
-| M-013 | Migration runs cleanly | npm run migrate on fresh DB | All 059 migrations succeed in order | P0 |
+| M-013 | Migration runs cleanly | npm run migrate on fresh DB | All 061 migrations succeed in order | P0 |
 | M-014 | VACUUM ANALYZE in nightly job | Check cleanup job logs after midnight IST | "VACUUM ANALYZE complete" logged | P2 |
 | M-015 | Nightly Redis health logged | Check cleanup job logs | Redis memory + key count logged | P2 |
 
@@ -427,6 +481,14 @@
 | P-006 | Expired FCM tokens deleted | FCM token older than retention period | Deleted by cleanup job | P2 |
 | P-007 | Old trips deleted (retention) | Completed/cancelled trip older than retention | Trip + bookings deleted, ratings kept (booking_id SET NULL) | P2 |
 | P-008 | Advisory lock prevents duplicate jobs | 2 instances running same job | Only 1 gets the lock, other skips | P1 |
+| P-009 | Graceful shutdown — monolith | Send SIGTERM to monolith process | Jobs stopped → HTTP server closes → DB pools drained → clean exit(0), logged | P0 |
+| P-010 | Graceful shutdown — microservices | Send SIGTERM to each microservice (auth/core/union/platform) | Each exits cleanly: server closes → DB pools drained → exit(0) | P0 |
+| P-011 | Graceful shutdown — gateway | Send SIGTERM to gateway process | Gateway exits cleanly: server closes → DB pools drained → exit(0) | P0 |
+| P-012 | Force shutdown after 15s timeout | SIGTERM + simulate stuck connections (server.close hangs) | Force exit(1) after 15s, logged as forced | P1 |
+| P-013 | Double SIGTERM ignored | Send SIGTERM twice rapidly | Second signal ignored (shuttingDown guard), no double-exit | P1 |
+| P-014 | SIGINT handled same as SIGTERM | Send SIGINT (Ctrl+C) to monolith | Same clean shutdown as SIGTERM | P1 |
+| P-015 | Job timers cleaned on shutdown | SIGTERM during running jobs | All cron tasks stopped, setInterval timers cleared, no orphan timers | P0 |
+| P-016 | Staggered job start guarded | SIGTERM within 5s of startup (before all jobs started) | Pending setTimeout callbacks skip job.start() (shuttingDown check) | P1 |
 
 ## Part Q: Notification Flow & Timing Tests
 
@@ -440,7 +502,7 @@
 | Q-006 | Ride started notification (auto-start) | Departure time arrives → cron runs | Driver gets "Your ride has started!" (0-2 min delay) | P0 |
 | Q-007 | Pending auto-cancel at start | Pending bookings exist when trip auto-starts | Pending passengers get "Driver did not respond" notification | P0 |
 | Q-008 | Happy Journey notification (auto-complete) | Departure + 2h → cron runs | Each confirmed passenger gets "Happy Journey!" (NOT "Rate your experience") | P0 |
-| Q-009 | Rate reminder timing | Departure + 5h → rateNotificationJob runs | Driver + passengers get "Rate your ride" notification | P0 |
+| Q-009 | Rate reminder timing | arrival_time + 2h → rateNotificationJob runs | Driver + passengers get "Rate your ride" notification | P0 |
 | Q-010 | Rate reminder NOT sent if cancelled | Trip cancelled before 5h mark | No rate notification sent, pending_rate_notifications deleted | P0 |
 | Q-011 | Rate reminder checks completed status | Booking status=completed at 5h mark | Rate notification sent (not just confirmed) | P0 |
 | Q-012 | Driver cancel → passengers notified | Driver cancels trip with bookings | ALL passengers (confirmed+pending) get "Ride cancelled" | P0 |
@@ -457,6 +519,15 @@
 | Q-023 | Union docs approved notification | Admin approves union documents | Union admin gets "Union documents approved" | P1 |
 | Q-024 | No duplicate notifications | Same event triggered twice (idempotency) | Only 1 notification sent, not 2 | P1 |
 | Q-025 | Happy Journey has NO rating mention | Check auto-complete notification text | Body must NOT contain "rate" or "review" or "experience" | P0 |
+| Q-026 | Rate notification uses arrival_time + 2h | Create trip with estimated_duration_hours=4 → complete → check pending_rate_notifications | send_after = departure + 4h (arrival) + 2h = departure + 6h | P0 |
+| Q-027 | Rate notification dedup (UNIQUE constraint) | Same booking triggers rate notification insert twice | ON CONFLICT (booking_id) DO NOTHING — only 1 row exists | P0 |
+| Q-028 | Create+cancel abuse warning notification | Driver cancels 5 rides in one day | Notification type='account_warning', title="Warning: Too many cancellations" | P0 |
+| Q-029 | Create+cancel abuse block notification | 3 monthly strikes triggered | Notification type='account_warning', title="Account temporarily restricted", body mentions 48 hours | P0 |
+| Q-030 | Rating threshold warning notification | Driver avg drops below 2.0 (5+ ratings) | Notification type='account_warning', title="Warning: Your ratings are low" | P1 |
+| Q-031 | Rating threshold block notification | Driver avg drops below 1.5 (5+ ratings) | Notification type='account_warning', title="Account restricted — low ratings" | P1 |
+| Q-032 | Admin ban notification | Admin bans driver permanently | Notification type='account_warning', title="Account restricted by admin", body="permanently restricted" | P1 |
+| Q-033 | Admin ban temporary notification | Admin bans driver for 7 days | Notification body="restricted for 7 days" | P1 |
+| Q-034 | Admin unban notification | Admin unbans driver | Notification type='account_warning', title="Account restriction lifted" | P1 |
 
 ---
 

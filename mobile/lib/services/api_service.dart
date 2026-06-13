@@ -261,7 +261,7 @@ class ApiService {
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final data = response.data['data'];
+        final data = response.data['data'] ?? {};
         final tokens = data['tokens'] as Map<String, dynamic>? ?? {};
         final access = tokens['accessToken']?.toString();
         final refresh = tokens['refreshToken']?.toString();
