@@ -210,12 +210,12 @@ server.listen(PORT, LISTEN_HOST, () => {
       '⚠️  TRUST_PROXY not set — behind nginx all clients may share ONE rate-limit IP. Set TRUST_PROXY=1 in .env'
     );
   }
-  // Stagger job startup to avoid pool connection spike
-  setTimeout(() => rideCleanupJob.start(), 1000);
-  setTimeout(() => pendingBookingExpiryJob.start(), 2000);
-  setTimeout(() => tripLifecycleJob.start(), 3000);
-  setTimeout(() => rateNotificationJob.start(), 4000);
-  setTimeout(() => dailyStatsJob.start(), 5000);
+  // Stagger job startup to avoid pool connection spike; skip if shutdown already started
+  setTimeout(() => { if (!_shuttingDown) rideCleanupJob.start(); }, 1000);
+  setTimeout(() => { if (!_shuttingDown) pendingBookingExpiryJob.start(); }, 2000);
+  setTimeout(() => { if (!_shuttingDown) tripLifecycleJob.start(); }, 3000);
+  setTimeout(() => { if (!_shuttingDown) rateNotificationJob.start(); }, 4000);
+  setTimeout(() => { if (!_shuttingDown) dailyStatsJob.start(); }, 5000);
 });
 
 // Graceful shutdown
@@ -238,7 +238,8 @@ function monolithShutdown(signal) {
     console.log('HTTP server closed');
     process.exit(0);
   });
-  setTimeout(() => { console.error('Forced shutdown after timeout'); process.exit(1); }, 15000);
+  const forceTimer = setTimeout(() => { console.error('Forced shutdown after timeout'); process.exit(1); }, 15000);
+  forceTimer.unref();
 }
 process.on('SIGTERM', () => monolithShutdown('SIGTERM'));
 process.on('SIGINT', () => monolithShutdown('SIGINT'));
