@@ -109,7 +109,7 @@ class _RatingsScreenState extends State<RatingsScreen> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Ratings you received from drivers & passengers',
+                'Others rated you after rides',
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.white.withValues(alpha: 0.9),
@@ -262,19 +262,10 @@ class _RatingsScreenState extends State<RatingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Line 1: Name + role badge + time
+              // "Rahul (Driver) rated you" + time
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: roleColor.withValues(alpha: 0.15),
-                    child: Icon(
-                      isDriver ? Icons.directions_car : Icons.person,
-                      size: 16,
-                      color: roleColor,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   Expanded(
                     child: Text.rich(
                       TextSpan(children: [
@@ -283,46 +274,42 @@ class _RatingsScreenState extends State<RatingsScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                         ),
                         TextSpan(
-                          text: '  $roleLabel',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: roleColor,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          text: ' ($roleLabel)',
+                          style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w500),
+                        ),
+                        TextSpan(
+                          text: ' rated you',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                         ),
                       ]),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (timeAgo.isNotEmpty)
-                    Text(timeAgo, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    Text(timeAgo, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
                 ],
               ),
-              const SizedBox(height: 8),
-              // Line 2: Stars — big and clear
+              const SizedBox(height: 6),
+              // Stars + score
               Row(
                 children: [
                   ...List.generate(
                     5,
-                    (i) => Padding(
-                      padding: const EdgeInsets.only(right: 2),
-                      child: Icon(
-                        i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                        color: Colors.amber[700],
-                        size: 22,
-                      ),
+                    (i) => Icon(
+                      i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: Colors.amber,
+                      size: 18,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     '$rating/5',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
                   ),
                 ],
               ),
-              // Line 3: Comment (if any)
               if (comment.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   '"$comment"',
                   style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic),
