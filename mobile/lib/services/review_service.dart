@@ -11,9 +11,18 @@ class ReviewService {
   static final Map<String, _CachedRating> _ratingCache = {};
   static const _cacheDuration = Duration(minutes: 15);
 
+  static const _maxCacheEntries = 100;
+
   static void _pruneExpiredCache() {
     final now = DateTime.now();
     _ratingCache.removeWhere((_, v) => now.difference(v.at).compareTo(_cacheDuration) > 0);
+    if (_ratingCache.length > _maxCacheEntries) {
+      final sorted = _ratingCache.entries.toList()
+        ..sort((a, b) => a.value.at.compareTo(b.value.at));
+      for (final e in sorted.take(_ratingCache.length - _maxCacheEntries)) {
+        _ratingCache.remove(e.key);
+      }
+    }
   }
 
   static void clearMemoryCacheForUser(String? userId) {

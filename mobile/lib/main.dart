@@ -15,9 +15,12 @@ import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/push_notification_service.dart'
     if (dart.library.html) 'services/push_notification_service_web.dart';
+import 'core/routes.dart';
 import 'features/home/presentation/screens/home_screen.dart';
 import 'features/landing/presentation/screens/landing_screen.dart';
 import 'services/in_app_update_service.dart';
+import 'services/network_status_service.dart';
+import 'widgets/offline_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +54,7 @@ void main() async {
   await EnvConfig.init();
 
   InAppUpdateService.instance.checkForUpdate();
+  NetworkStatusService.instance.startMonitoring();
 
   // Single instance for app lifecycle (stable, no recreate on rebuild)
   final apiService = ApiService();
@@ -86,6 +90,7 @@ class LuhaRideApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
             themeMode: ThemeMode.light,
+            onGenerateRoute: onGenerateRoute,
             locale: locale,
             supportedLocales: const [
               Locale('en'),
@@ -96,6 +101,12 @@ class LuhaRideApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
+            builder: (context, child) => Column(
+              children: [
+                const OfflineBanner(),
+                Expanded(child: child!),
+              ],
+            ),
             home: Builder(
                 builder: (context) {
                   if (authProvider.status == AuthStatus.initial ||

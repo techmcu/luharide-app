@@ -534,6 +534,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   List<dynamic>     _unionRides = [];
   bool _loading  = false;
   bool _searched = false;
+  String? _searchError;
   CancelToken? _searchCancelToken;
   Timer? _debounce;
 
@@ -580,32 +581,32 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       return;
     }
 
-    // Cancel any in-flight search before starting a new one
     _searchCancelToken?.cancel('new search');
     _searchCancelToken = CancelToken();
 
-    setState(() { _loading = true; _searched = true; });
+    setState(() { _loading = true; _searched = true; _searchError = null; });
 
-    final result = await _tripService.searchTrips(
-      from: from, to: to, date: _date,
-      cancelToken: _searchCancelToken,
-    );
-
-    if (!mounted) return;
-    if (result['cancelled'] == true) return;
-
-    setState(() {
-      _loading    = false;
-      _trips      = List<TripModel>.from(result['trips'] ?? []);
-      _unionRides = List<dynamic>.from(result['unionRides'] ?? []);
-    });
-
-    if (result['success'] != true) {
-      AppFeedback.show(
-        context,
-        result['message'] ?? 'Search failed',
-        kind: AppFeedbackKind.error,
+    try {
+      final result = await _tripService.searchTrips(
+        from: from, to: to, date: _date,
+        cancelToken: _searchCancelToken,
       );
+
+      if (!mounted) return;
+      if (result['cancelled'] == true) return;
+
+      setState(() {
+        _loading    = false;
+        _trips      = List<TripModel>.from(result['trips'] ?? []);
+        _unionRides = List<dynamic>.from(result['unionRides'] ?? []);
+        _searchError = result['success'] == true ? null : (result['message'] ?? 'Search failed');
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _searchError = 'Something went wrong. Please try again.';
+      });
     }
   }
 
@@ -731,8 +732,6 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     );
   }
 
-  // ── Results: scrollable body for NestedScrollView (search form + results scroll together
-  // when keyboard is open so fields stay reachable). ───────────────────────
   Widget _buildResultsScrollable() {
     if (!_searched) {
       return CustomScrollView(
@@ -760,6 +759,17 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
         ],
       );
     }
+    if (_searchError != null && _trips.isEmpty && _unionRides.isEmpty) {
+      return CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildErrorState(),
+          ),
+        ],
+      );
+    }
     if (_trips.isEmpty && _unionRides.isEmpty) {
       return CustomScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -779,36 +789,75 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
     final children = <Widget>[
       if (_trips.isNotEmpty) ...[
         _SectionLabel(label: 'Independent driver rides', count: _trips.length),
-        ..._trips.map((t) => _TripCard(
-              trip: t,
-              onBook: () {
-                final uid = context.read<AuthProvider>().user?.id;
-                if (t.isCreatedByUserId(uid)) {
-                  showCannotBookOwnTripDialog(context);
-                  return;
-                }
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => TripDetailsScreen(tripId: t.id, initialTrip: t)),
-                );
-              },
+        ..._trips.map((t) => _SafeCard(
+              child: _TripCard(
+                trip: t,
+                onBook: () {
+                  final uid = context.read<AuthProvider>().user?.id;
+                  if (t.isCreatedByUserId(uid)) {
+                    showCannotBookOwnTripDialog(context);
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => TripDetailsScreen(tripId: t.id, initialTrip: t)),
+                  );
+                },
+              ),
             )),
         const SizedBox(height: 8),
       ],
       if (_unionRides.isNotEmpty) ...[
         _SectionLabel(label: 'Union scheduled rides', count: _unionRides.length),
-        ..._unionRides.map((r) => _UnionCard(ride: r as Map<String, dynamic>)),
+        ..._unionRides.map((r) {
+          if (r is! Map) return const SizedBox.shrink();
+          return _SafeCard(child: _UnionCard(ride: Map<String, dynamic>.from(r)));
+        }),
       ],
     ];
 
-    return CustomScrollView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          sliver: SliverList(delegate: SliverChildListDelegate(children)),
+    return RefreshIndicator(
+      onRefresh: _search,
+      child: CustomScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            sliver: SliverList(delegate: SliverChildListDelegate(children)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            Text(
+              _searchError ?? 'Search failed',
+              style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loading ? null : _search,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Retry', style: TextStyle(fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kBlue,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -961,6 +1010,26 @@ class _LocationField extends StatelessWidget {
             isDense: true,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SafeCard extends StatelessWidget {
+  const _SafeCard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Builder(
+        builder: (ctx) {
+          try {
+            return child;
+          } catch (_) {
+            return const SizedBox.shrink();
+          }
+        },
       ),
     );
   }

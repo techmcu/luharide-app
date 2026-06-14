@@ -86,7 +86,7 @@ async function listByRatedUserId(ratedUserId, limit, off) {
   let result;
   try {
     result = await pool.query(
-      `SELECT r.id, r.rating, r.comment, r.created_at, r.from_role, r.trip_context, u.name AS from_name
+      `SELECT r.id, r.from_user_id, r.rating, r.comment, r.created_at, r.from_role, r.trip_context, u.name AS from_name
        FROM ride_ratings r
        JOIN users u ON u.id = r.from_user_id
        WHERE r.rated_user_id = $1
@@ -97,7 +97,7 @@ async function listByRatedUserId(ratedUserId, limit, off) {
   } catch (e) {
     if (e.code !== '42703') throw e;
     result = await pool.query(
-      `SELECT r.id, r.rating, r.comment, r.created_at, r.from_role, u.name AS from_name
+      `SELECT r.id, r.from_user_id, r.rating, r.comment, r.created_at, r.from_role, u.name AS from_name
        FROM ride_ratings r
        JOIN users u ON u.id = r.from_user_id
        WHERE r.rated_user_id = $1
@@ -108,6 +108,7 @@ async function listByRatedUserId(ratedUserId, limit, off) {
   }
   return result.rows.map((row) => ({
     id: row.id,
+    from_user_id: row.from_user_id,
     rating: row.rating,
     comment: row.comment || '',
     created_at: row.created_at,

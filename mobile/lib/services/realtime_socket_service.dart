@@ -19,9 +19,9 @@ class RealtimeSocketService {
   int _manualReconnectAttempts = 0;
   static const _maxManualReconnectAttempts = 10;
 
-  StreamController<Map<String, dynamic>> _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
-  StreamController<Map<String, dynamic>> _notifications = StreamController<Map<String, dynamic>>.broadcast();
-  StreamController<Map<String, dynamic>> _driverLocation = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _notifications = StreamController<Map<String, dynamic>>.broadcast();
+  final StreamController<Map<String, dynamic>> _driverLocation = StreamController<Map<String, dynamic>>.broadcast();
 
   /// Booking / seat changes for a trip (payload includes `tripId`).
   Stream<Map<String, dynamic>> get tripUpdatedStream => _tripUpdated.stream;
@@ -174,16 +174,10 @@ class RealtimeSocketService {
     _isReconnectingManually = false;
     _manualReconnectAttempts = 0;
     try {
+      _socket?.clearListeners();
       _socket?.disconnect();
       _socket?.dispose();
     } catch (_) {}
     _socket = null;
-
-    _tripUpdated.close();
-    _notifications.close();
-    _driverLocation.close();
-    _tripUpdated = StreamController<Map<String, dynamic>>.broadcast();
-    _notifications = StreamController<Map<String, dynamic>>.broadcast();
-    _driverLocation = StreamController<Map<String, dynamic>>.broadcast();
   }
 }

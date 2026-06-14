@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Token Efficiency
+
+**Before re-reading files**, check `CODEBASE_MAP.md` (gitignored, local only) — it has the full file tree, controller→route mapping, service layer map, and key patterns. Use it to jump directly to the right file instead of exploring. Also check memory entries for project status, completed work, and user preferences.
+
+**Barrel controllers:** `tripController.js`, `platformAdminController.js`, and `unionController.js` are barrel files that re-export from sub-controllers in subdirectories. Routes always import from the barrel — never change route imports when splitting controllers.
+
 ## Project Overview
 
 LuhaRide is an Uttarakhand taxi booking platform — a legal taxi aggregator with digital seat booking, real-time tracking, and union partnerships. The repo contains a Flutter mobile/web app (`mobile/`) and a Node.js backend (`backend/`), plus infrastructure configs (`infra/`) and a pre-built Flutter web deploy (`webapp/`).

@@ -74,3 +74,7 @@ webapp/
 # Temporary files
 *.tmp
 *.temp
+
+# Claude Code local knowledge (stays local, never pushed)
+.claude/
+CODEBASE_MAP.md

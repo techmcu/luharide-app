@@ -8,6 +8,20 @@ import '../../../../providers/app_language_provider.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../utils/phone_call_helper.dart';
 
+DateTime? _safeParseDt(dynamic v) {
+  if (v == null) return null;
+  final s = v.toString().trim();
+  if (s.isEmpty) return null;
+  final withZ = (s.endsWith('Z') || s.contains('+')) ? s : '${s}Z';
+  return DateTime.tryParse(withZ)?.toLocal();
+}
+
+Map<String, dynamic>? _safeMap(dynamic v) {
+  if (v is Map<String, dynamic>) return v;
+  if (v is Map) return Map<String, dynamic>.from(v);
+  return null;
+}
+
 class PassengerMyRidesScreen extends StatefulWidget {
   const PassengerMyRidesScreen({super.key});
 
@@ -236,107 +250,113 @@ class _PassengerMyRidesScreenState extends State<PassengerMyRidesScreen> {
                 const Icon(Icons.access_time, size: 18, color: Colors.grey),
                 const SizedBox(width: 4),
                 Text(
-                  b['departure_time'] != null
+                  _safeParseDt(b['departure_time']) != null
                       ? DateFormat('dd MMM, hh:mm a')
-                          .format(DateTime.parse(b['departure_time'] as String).toLocal())
+                          .format(_safeParseDt(b['departure_time'])!)
                       : '-',
                   style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
               ],
             ),
-            if (isApproved && b['driver'] != null) ...[
+            if (isApproved && _safeMap(b['driver']) != null) ...[
               const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 18,
-                          backgroundColor: Colors.blue,
-                          child: Text(
-                            (b['driver']['name'] ?? 'D')[0].toUpperCase(),
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                b['driver']['name']?.toString() ?? loc.t('my_rides.driver_default'),
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                              ),
-                              if ((b['vehicle_number'] ?? '').toString().isNotEmpty)
-                                Text(
-                                  b['vehicle_number'].toString(),
-                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        if ((b['driver']['phone'] ?? '').toString().trim().isNotEmpty)
-                          Expanded(
-                            child: InkWell(
-                              onTap: () => launchPhoneCall(context, b['driver']['phone'].toString()),
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF16A34A).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.call_rounded, size: 18, color: Color(0xFF16A34A)),
-                                    SizedBox(width: 6),
-                                    Text('Call', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF16A34A))),
-                                  ],
-                                ),
-                              ),
+              Builder(builder: (_) {
+                final driver = _safeMap(b['driver'])!;
+                final driverName = driver['name']?.toString() ?? loc.t('my_rides.driver_default');
+                final driverPhone = (driver['phone'] ?? '').toString().trim();
+                final driverWhatsapp = (driver['whatsapp_number'] ?? '').toString().trim();
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Colors.blue,
+                            child: Text(
+                              driverName.isNotEmpty ? driverName[0].toUpperCase() : 'D',
+                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
                             ),
                           ),
-                        if ((b['driver']['whatsapp_number'] ?? '').toString().trim().isNotEmpty) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: InkWell(
-                              onTap: () => _openChatWithDriver(loc, b['driver']),
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF25D366).withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  driverName,
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                                 ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),
-                                    SizedBox(width: 6),
-                                    Text('WhatsApp', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF25D366))),
-                                  ],
-                                ),
-                              ),
+                                if ((b['vehicle_number'] ?? '').toString().isNotEmpty)
+                                  Text(
+                                    b['vehicle_number'].toString(),
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                              ],
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          if (driverPhone.isNotEmpty)
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => launchPhoneCall(context, driverPhone),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.call_rounded, size: 18, color: Color(0xFF16A34A)),
+                                      SizedBox(width: 6),
+                                      Text('Call', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF16A34A))),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          if (driverWhatsapp.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => _openChatWithDriver(loc, driver),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF25D366).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.chat_rounded, size: 18, color: Color(0xFF25D366)),
+                                      SizedBox(width: 6),
+                                      Text('WhatsApp', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF25D366))),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ] else if (status == 'pending')
               Padding(
                 padding: const EdgeInsets.only(top: 12),

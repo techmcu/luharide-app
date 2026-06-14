@@ -4,49 +4,55 @@
  */
 
 describe('trip search column constants', () => {
-  let fileContent;
+  let searchContent;
+  let mainContent;
 
   beforeAll(() => {
     const fs = require('fs');
     const path = require('path');
-    fileContent = fs.readFileSync(path.join(__dirname, 'tripController.js'), 'utf8');
+    searchContent = fs.readFileSync(path.join(__dirname, 'trip', 'tripSearchController.js'), 'utf8');
+    mainContent = fs.readFileSync(path.join(__dirname, 'tripController.js'), 'utf8');
   });
 
   it('defines _TRIP_COLS with explicit columns (no SELECT t.*)', () => {
-    expect(fileContent).toContain('const _TRIP_COLS');
-    expect(fileContent).toContain('t.id');
-    expect(fileContent).toContain('t.available_seats');
-    expect(fileContent).toContain('t.departure_time');
+    expect(searchContent).toContain('const _TRIP_COLS');
+    expect(searchContent).toContain('t.id');
+    expect(searchContent).toContain('t.available_seats');
+    expect(searchContent).toContain('t.departure_time');
   });
 
   it('defines _DRIVER_COLS with user columns', () => {
-    expect(fileContent).toContain('const _DRIVER_COLS');
-    expect(fileContent).toContain('driver_name');
-    expect(fileContent).toContain('driver_email');
+    expect(searchContent).toContain('const _DRIVER_COLS');
+    expect(searchContent).toContain('driver_name');
+    expect(searchContent).toContain('driver_email');
   });
 
   it('uses _TRIP_COLS in search queries (not SELECT t.*)', () => {
-    const start = fileContent.indexOf('const searchTrips');
-    const end = fileContent.indexOf('const getTripDetails');
-    const searchSection = fileContent.slice(start, end);
+    const start = searchContent.indexOf('const searchTrips');
+    const searchSection = searchContent.slice(start);
     expect(searchSection).toContain('${_TRIP_COLS}');
     expect(searchSection).not.toContain('SELECT t.*');
   });
 
   it('uses Promise.allSettled for crash safety', () => {
-    expect(fileContent).toContain('Promise.allSettled');
-    expect(fileContent).toContain('_tripsSettled');
-    expect(fileContent).toContain('_unionSettled');
+    expect(searchContent).toContain('Promise.allSettled');
+    expect(searchContent).toContain('_tripsSettled');
+    expect(searchContent).toContain('_unionSettled');
   });
 
   it('rejects trip creation with past departure time', () => {
-    expect(fileContent).toContain('Departure time cannot be in the past');
+    expect(mainContent).toContain('Departure time cannot be in the past');
   });
 
   it('uses parameterized make_interval in getMyTrips (no SQL interpolation)', () => {
-    const myTripsSection = fileContent.slice(fileContent.indexOf('const getMyTrips'));
+    const myTripsSection = mainContent.slice(mainContent.indexOf('const getMyTrips'));
     expect(myTripsSection).toContain('make_interval');
     expect(myTripsSection).not.toMatch(/INTERVAL '\$\{days\}/);
+  });
+
+  it('barrel re-exports sub-controllers', () => {
+    expect(mainContent).toContain("require('./trip/tripSearchController')");
+    expect(mainContent).toContain("require('./trip/tripLifecycleController')");
   });
 });
 

@@ -5,7 +5,7 @@ DateTime _parseUtc(String s) {
   final trimmed = s.trim();
   if (trimmed.isEmpty) return DateTime.now();
   final withZ = (trimmed.endsWith('Z') || trimmed.contains('+')) ? trimmed : '${trimmed}Z';
-  return DateTime.parse(withZ).toLocal();
+  return DateTime.tryParse(withZ)?.toLocal() ?? DateTime.now();
 }
 
 class TripModel {
@@ -61,15 +61,13 @@ class TripModel {
       totalSeats: int.tryParse(json['total_seats']?.toString() ?? '0') ?? 0,
       vehicleNumber: json['vehicle_number']?.toString(),
       vehicleModelId: json['vehicle_model_id']?.toString(),
-      stops: json['stops'] != null
-          ? (json['stops'] is List
-              ? List<String>.from(json['stops'])
-              : [])
-          : [],
+      stops: json['stops'] is List
+          ? (json['stops'] as List).map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList()
+          : const [],
       status: json['status']?.toString() ?? 'scheduled',
       createdSource: json['created_source']?.toString(),
-      driver: json['driver'] is Map<String, dynamic>
-          ? DriverInfo.fromJson(json['driver'] as Map<String, dynamic>)
+      driver: json['driver'] is Map
+          ? DriverInfo.fromJson(Map<String, dynamic>.from(json['driver'] as Map))
           : null,
       pendingRequestsCount: int.tryParse(json['pending_requests_count']?.toString() ?? '0') ?? 0,
     );

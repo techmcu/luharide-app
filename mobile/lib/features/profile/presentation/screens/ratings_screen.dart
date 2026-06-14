@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../services/review_service.dart';
 import '../../../../services/review_cache_store.dart';
+import 'user_reviews_screen.dart';
 
 /// Ratings you received — latest window from server; full history stays in DB.
 /// Uses stale-while-revalidate: shows cached data instantly, refreshes in background.
@@ -218,6 +219,7 @@ class _RatingsScreenState extends State<RatingsScreen> {
     final rating = (r['rating'] is int) ? r['rating'] as int : int.tryParse(r['rating']?.toString() ?? '0') ?? 0;
     final comment = r['comment'] as String? ?? '';
     final fromName = r['from_name'] as String? ?? 'User';
+    final fromUserId = r['from_user_id']?.toString();
     final dateRaw = r['created_at'];
     final date = dateRaw != null ? (dateRaw is String ? dateRaw : dateRaw.toString()) : '';
 
@@ -225,48 +227,64 @@ class _RatingsScreenState extends State<RatingsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.amber[100],
-                  child: Text(
-                    fromName.isNotEmpty ? fromName[0].toUpperCase() : '?',
-                    style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(fromName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (date.isNotEmpty)
-                        Text(date, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                    ],
-                  ),
-                ),
-                Row(
-                  children: List.generate(
-                    5,
-                    (i) => Icon(
-                      i < rating ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                      size: 20,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: fromUserId != null && fromUserId.isNotEmpty
+            ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => UserReviewsScreen(
+                      userId: fromUserId,
+                      displayName: fromName,
                     ),
                   ),
-                ),
+                )
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.amber[100],
+                    child: Text(
+                      fromName.isNotEmpty ? fromName[0].toUpperCase() : '?',
+                      style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(fromName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        if (date.isNotEmpty)
+                          Text(date, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (i) => Icon(
+                        i < rating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  if (fromUserId != null)
+                    Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                ],
+              ),
+              if (comment.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(comment, style: TextStyle(fontSize: 14, color: Colors.grey[700])),
               ],
-            ),
-            if (comment.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(comment, style: TextStyle(fontSize: 14, color: Colors.grey[700])),
             ],
-          ],
+          ),
         ),
       ),
     );
