@@ -362,7 +362,7 @@ const createTrip = asyncHandler(async (req, res) => {
 
   ApiResponse.created(
     { trip },
-    `Trip created successfully. ID: ${trip.id}`
+    'Trip created successfully'
   ).send(res);
 });
 

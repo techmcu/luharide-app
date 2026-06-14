@@ -632,6 +632,10 @@ class AppLocalizations {
       'en': 'Create new trip',
       'hi': 'नई यात्रा बनाएँ',
     },
+    'driver.create_trip.success': {
+      'en': 'Your ride has been created successfully!',
+      'hi': 'आपकी राइड सफलतापूर्वक बन गई है!',
+    },
     'driver.footer.create': {
       'en': 'Create',
       'hi': 'बनाएँ',

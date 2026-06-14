@@ -178,9 +178,10 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     setState(() => _isLoading = false);
 
     if (result['success']) {
+      final loc = AppLocalizations.of(context);
       AppFeedback.show(
         context,
-        result['message'].toString(),
+        loc.t('driver.create_trip.success'),
         kind: AppFeedbackKind.success,
       );
       Navigator.pop(context, true); // Return true to indicate success
