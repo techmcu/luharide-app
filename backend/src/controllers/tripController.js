@@ -453,6 +453,36 @@ const getTripDetails = asyncHandler(async (req, res) => {
 
   const contactVisible = isDriver || userBookingStatus === 'confirmed' || userBookingStatus === 'completed';
 
+  // Co-passengers: confirmed passengers with avg rating (no contact info)
+  let coPassengers = [];
+  try {
+    const confirmedIds = bookingsResult.rows
+      .filter(r => r.status === 'confirmed' && r.passenger_id)
+      .map(r => r.passenger_id);
+
+    if (confirmedIds.length > 0) {
+      const cpResult = await pool.query(
+        `SELECT
+           u.id, u.name,
+           COUNT(rr.id)::int AS total_ratings,
+           COALESCE(AVG(rr.rating), 0)::decimal(3,2) AS average_rating
+         FROM users u
+         LEFT JOIN ride_ratings rr ON rr.rated_user_id = u.id
+         WHERE u.id = ANY($1::uuid[])
+         GROUP BY u.id, u.name`,
+        [confirmedIds]
+      );
+      coPassengers = cpResult.rows.map(r => ({
+        id: r.id,
+        name: r.name || 'Passenger',
+        total_ratings: parseInt(r.total_ratings, 10) || 0,
+        average_rating: parseFloat(r.average_rating) || 0,
+      }));
+    }
+  } catch (e) {
+    if (e.code !== '42P01') logger.warn('Co-passengers fetch failed:', e.message);
+  }
+
   ApiResponse.success(
     {
       trip: {
@@ -482,6 +512,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
       booked_seats: [...bookedSet].sort((a, b) => a - b),
       pending_seats: [...pendingSet].sort((a, b) => a - b),
       user_booking_status: userBookingStatus,
+      co_passengers: coPassengers,
     },
     'Trip details'
   ).send(res);

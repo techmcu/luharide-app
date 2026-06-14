@@ -40,6 +40,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   TripModel? _trip;
   List<int> _bookedSeats = [];
   List<int> _pendingSeats = [];
+  List<Map<String, dynamic>> _coPassengers = [];
   bool _isLoading = true;
 
   /// null = not booked, 'pending' = waiting, 'confirmed' = confirmed
@@ -95,6 +96,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           _bookedSeats = List<int>.from(result['booked_seats'] ?? []);
           _pendingSeats = List<int>.from(result['pending_seats'] ?? []);
           _userBookingStatus = result['user_booking_status'] as String?;
+          _coPassengers = (result['co_passengers'] as List<dynamic>?)
+              ?.map((e) => e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+              .toList() ?? [];
         }
         if (_trip == null && widget.initialTrip != null) {
           _trip = widget.initialTrip;
@@ -518,6 +522,13 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
             ),
           const SizedBox(height: 16),
 
+          // Co-passengers Card
+          if (_coPassengers.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _CoPassengersCard(passengers: _coPassengers),
+            ),
+
           // Fare Card
           Card(
             elevation: 2,
@@ -753,6 +764,117 @@ class _DriverRatingRowState extends State<_DriverRatingRow> {
           ],
         );
       },
+    );
+  }
+}
+
+class _CoPassengersCard extends StatelessWidget {
+  final List<Map<String, dynamic>> passengers;
+
+  const _CoPassengersCard({required this.passengers});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.people_outline, size: 22, color: Colors.blue[700]),
+                const SizedBox(width: 8),
+                Text(
+                  'Co-passengers (${passengers.length})',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...passengers.map((p) => _buildPassengerTile(context, p)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPassengerTile(BuildContext context, Map<String, dynamic> p) {
+    final name = p['name']?.toString() ?? 'Passenger';
+    final userId = p['id']?.toString() ?? '';
+    final totalRatings = (p['total_ratings'] as num?)?.toInt() ?? 0;
+    final avgRating = (p['average_rating'] as num?)?.toDouble() ?? 0;
+
+    return InkWell(
+      onTap: userId.isNotEmpty
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserReviewsScreen(userId: userId, displayName: name),
+                ),
+              )
+          : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: Colors.blue[100],
+              child: Text(
+                name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                style: TextStyle(
+                  color: Colors.blue[800],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (totalRatings > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.amber[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.star, color: Colors.amber[700], size: 14),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${avgRating.toStringAsFixed(1)} ($totalRatings)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.amber[900],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Text(
+                'New',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+          ],
+        ),
+      ),
     );
   }
 }

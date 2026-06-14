@@ -190,6 +190,8 @@ class TripService {
         'trip': TripModel.fromJson(tripJson is Map ? Map<String, dynamic>.from(tripJson) : {}),
         'booked_seats': bookedList,
         'pending_seats': pendingList,
+        'user_booking_status': data['user_booking_status'],
+        'co_passengers': data['co_passengers'] ?? [],
       };
     } on DioException catch (e) {
       return {
