@@ -9,6 +9,13 @@ import '../core/utils/api_error_messages.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
 
+class AccountSuspendedException implements Exception {
+  final String message;
+  AccountSuspendedException(this.message);
+  @override
+  String toString() => message;
+}
+
 class AuthService {
   final ApiService _apiService;
   ApiService get apiService => _apiService;
@@ -505,6 +512,11 @@ class AuthService {
         }
         if (e.response?.statusCode == 404) {
           throw Exception(userMessageFromDio(e));
+        }
+        if (e.response?.statusCode == 403) {
+          final data = e.response!.data;
+          final msg = data is Map ? data['message']?.toString() ?? '' : '';
+          throw AccountSuspendedException(msg.isNotEmpty ? msg : 'Your account has been suspended.');
         }
         if (e.response?.statusCode == 429) {
           throw Exception(

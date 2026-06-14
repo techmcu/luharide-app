@@ -25,6 +25,7 @@ class AuthProvider with ChangeNotifier {
   late final FirebaseAuthService _firebaseAuthService;
   StreamSubscription<void>? _tokenRefreshSub;
   StreamSubscription<void>? _sessionLostSub;
+  StreamSubscription<String>? _suspendedSub;
 
   AuthProvider(this._authService) {
     _firebaseAuthService = FirebaseAuthService(_authService.apiService);
@@ -35,6 +36,7 @@ class AuthProvider with ChangeNotifier {
   AuthStatus _status = AuthStatus.initial;
   UserModel? _user;
   String? _error;
+  String? _suspensionMessage;
   bool _isLoading = false;
   bool _isCheckingAuth = false;
 
@@ -42,6 +44,7 @@ class AuthProvider with ChangeNotifier {
   AuthStatus get status => _status;
   UserModel? get user => _user;
   String? get error => _error;
+  String? get suspensionMessage => _suspensionMessage;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
@@ -59,6 +62,15 @@ class AuthProvider with ChangeNotifier {
         unawaited(AuthHeadersSync.refreshAuthHeadersCache());
         notifyListeners();
       }
+    });
+    _suspendedSub = api.onAccountSuspended.listen((msg) {
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      _suspensionMessage = msg;
+      _error = null;
+      unawaited(RealtimeSocketService.instance.disconnect());
+      unawaited(AuthHeadersSync.refreshAuthHeadersCache());
+      notifyListeners();
     });
   }
 
@@ -488,6 +500,14 @@ class AuthProvider with ChangeNotifier {
       _setLoading(false);
       notifyListeners(); // Ensure UI rebuilds
       return true;
+    } on AccountSuspendedException catch (e) {
+      _suspensionMessage = e.message;
+      _error = null;
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      _setLoading(false);
+      notifyListeners();
+      return false;
     } catch (e) {
       _error = userFacingAuthError(e);
       _user = null;
@@ -547,10 +567,15 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  void clearSuspensionMessage() {
+    _suspensionMessage = null;
+  }
+
   @override
   void dispose() {
     _tokenRefreshSub?.cancel();
     _sessionLostSub?.cancel();
+    _suspendedSub?.cancel();
     super.dispose();
   }
 

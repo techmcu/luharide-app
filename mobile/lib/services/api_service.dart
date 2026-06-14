@@ -36,12 +36,16 @@ class ApiService {
 
   final _tokenRefreshed = StreamController<void>.broadcast();
   final _authSessionLost = StreamController<void>.broadcast();
+  final _accountSuspended = StreamController<String>.broadcast();
 
   /// Fires after a silent 401→refresh succeeds (new token saved).
   Stream<void> get onTokenRefreshed => _tokenRefreshed.stream;
 
   /// Fires when refresh fails — session is dead, user must re-login.
   Stream<void> get onAuthSessionLost => _authSessionLost.stream;
+
+  /// Fires when backend returns 403 with account deactivation/suspension.
+  Stream<String> get onAccountSuspended => _accountSuspended.stream;
 
   factory ApiService() {
     return _instance;
@@ -166,6 +170,17 @@ class ApiService {
               message: userMessageFromDio(error),
             );
             return handler.next(friendly);
+          }
+          // 403 account suspended/deactivated — clear session and notify UI.
+          if (error.response?.statusCode == 403) {
+            final body = error.response?.data;
+            final msg = body is Map ? body['message']?.toString() ?? '' : '';
+            if (msg.contains('deactivated') || msg.contains('suspended')) {
+              clearAuthToken();
+              unawaited(SecureTokenStorage.instance.clearTokens());
+              _accountSuspended.add(msg);
+              return handler.next(error);
+            }
           }
           // Global 401 handler: try refresh once, then logout on failure.
           if (error.response?.statusCode == 401 &&

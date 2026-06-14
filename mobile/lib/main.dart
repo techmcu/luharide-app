@@ -111,6 +111,58 @@ class LuhaRideApp extends StatelessWidget {
                     return const HomeScreen();
                   }
 
+                  if (authProvider.suspensionMessage != null) {
+                    final msg = authProvider.suspensionMessage!;
+                    authProvider.clearSuspensionMessage();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final nav = navigatorKey.currentContext;
+                      if (nav != null) {
+                        showDialog(
+                          context: nav,
+                          barrierDismissible: false,
+                          builder: (ctx) => AlertDialog(
+                            icon: Icon(Icons.block, color: Colors.red.shade600, size: 48),
+                            title: const Text('Account Suspended'),
+                            content: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(msg, textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 14)),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.email_outlined, size: 20,
+                                          color: Colors.blue.shade700),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(BrandConfig.supportEmail,
+                                          style: TextStyle(fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.blue.shade700)),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            actions: [
+                              FilledButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('OK'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    });
+                  }
+
                   return const LandingScreen();
                 },
               ),

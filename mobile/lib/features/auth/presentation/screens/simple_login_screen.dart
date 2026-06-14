@@ -9,6 +9,7 @@ import '../../../../features/home/presentation/screens/home_screen.dart';
 import '../../../../core/config/env_config.dart';
 import '../../../../core/constants/input_limits.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/brand_config.dart';
 import 'forgot_password_screen.dart';
 import 'simple_signup_screen.dart';
 import '../view_models/simple_login_view_model.dart';
@@ -87,21 +88,73 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
         );
       }
     } else if (mounted) {
-      final loc = AppLocalizations.of(context);
-      final err = authProvider.error ?? loc.t('auth.login.failed_fallback');
-      final isInvalidCreds = err.toLowerCase().contains('invalid') || err.toLowerCase().contains('password');
-      final is404 = err.contains('404') || err.contains('unavailable');
-      AppFeedback.show(
-        context,
-        isInvalidCreds
-            ? loc.t('auth.login.invalid_credentials')
-            : (is404
-                ? '$err${kDebugMode ? '\n\nAPI: ${EnvConfig.apiBaseUrl}' : ''}'
-                : err),
-        kind: AppFeedbackKind.error,
-        duration: Duration(seconds: is404 ? 8 : 4),
-      );
+      if (authProvider.suspensionMessage != null) {
+        _showSuspendedDialog(authProvider.suspensionMessage!);
+        authProvider.clearSuspensionMessage();
+      } else {
+        final loc = AppLocalizations.of(context);
+        final err = authProvider.error ?? loc.t('auth.login.failed_fallback');
+        final isInvalidCreds = err.toLowerCase().contains('invalid') || err.toLowerCase().contains('password');
+        final is404 = err.contains('404') || err.contains('unavailable');
+        AppFeedback.show(
+          context,
+          isInvalidCreds
+              ? loc.t('auth.login.invalid_credentials')
+              : (is404
+                  ? '$err${kDebugMode ? '\n\nAPI: ${EnvConfig.apiBaseUrl}' : ''}'
+                  : err),
+          kind: AppFeedbackKind.error,
+          duration: Duration(seconds: is404 ? 8 : 4),
+        );
+      }
     }
+  }
+
+  void _showSuspendedDialog(String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        icon: Icon(Icons.block, color: Colors.red.shade600, size: 48),
+        title: const Text('Account Suspended'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.email_outlined, size: 20, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      BrandConfig.supportEmail,
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.blue.shade700),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

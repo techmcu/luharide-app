@@ -108,7 +108,7 @@ const login = asyncHandler(async (req, res) => {
   const user = result.rows[0];
 
   if (!user.is_active) {
-    throw ApiError.unauthorized('Invalid email or password');
+    throw ApiError.forbidden('Your account has been suspended. Please contact support for assistance.');
   }
 
   if (user.locked_until && new Date(user.locked_until) > new Date()) {

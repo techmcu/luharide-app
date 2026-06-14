@@ -205,7 +205,7 @@ describe('login', () => {
     login(req, res = mockRes(), next);
     await flush();
 
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 401 }));
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
   });
 });
 
