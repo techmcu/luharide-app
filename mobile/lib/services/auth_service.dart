@@ -191,7 +191,9 @@ class AuthService {
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
-        return UserModel.fromJson(response.data['data']);
+        final user = UserModel.fromJson(response.data['data']);
+        await _saveUserData(user);
+        return user;
       } else {
         throw Exception('Failed to get user profile');
       }

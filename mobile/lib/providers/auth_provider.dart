@@ -257,6 +257,12 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
+      notifyListeners();
+      // Refresh full profile (login response has limited fields)
+      try {
+        _user = await _authService.getCurrentUser()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       unawaited(PushNotificationService.instance.registerToken());
@@ -316,6 +322,11 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
+      notifyListeners();
+      try {
+        _user = await _authService.getCurrentUser()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       unawaited(PushNotificationService.instance.registerToken());
