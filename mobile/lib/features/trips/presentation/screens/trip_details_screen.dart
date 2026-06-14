@@ -804,21 +804,10 @@ class _CoPassengersCard extends StatelessWidget {
 
   Widget _buildPassengerTile(BuildContext context, Map<String, dynamic> p) {
     final name = p['name']?.toString() ?? 'Passenger';
-    final userId = p['id']?.toString() ?? '';
     final totalRatings = (p['total_ratings'] as num?)?.toInt() ?? 0;
     final avgRating = (p['average_rating'] as num?)?.toDouble() ?? 0;
 
-    return InkWell(
-      onTap: userId.isNotEmpty
-          ? () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => UserReviewsScreen(userId: userId, displayName: name),
-                ),
-              )
-          : null,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
+    return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
           children: [
@@ -871,11 +860,8 @@ class _CoPassengersCard extends StatelessWidget {
                 'New',
                 style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
-            const SizedBox(width: 4),
-            Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
           ],
         ),
-      ),
     );
   }
 }
