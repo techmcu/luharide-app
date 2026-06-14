@@ -1601,8 +1601,14 @@ class _KycSectionState extends State<_KycSection> with AutomaticKeepAliveClientM
 
     final docUrls = <String, String>{};
     if (_hasUrl(req['aadhaar_document_url'])) docUrls['Aadhaar'] = req['aadhaar_document_url'];
+    if (_hasUrl(req['aadhaar_front_url'])) docUrls['Aadhaar Front'] = req['aadhaar_front_url'];
+    if (_hasUrl(req['aadhaar_back_url'])) docUrls['Aadhaar Back'] = req['aadhaar_back_url'];
     if (_hasUrl(req['driving_license_url'])) docUrls['DL'] = req['driving_license_url'];
+    if (_hasUrl(req['driving_license_front_url'])) docUrls['DL Front'] = req['driving_license_front_url'];
+    if (_hasUrl(req['driving_license_back_url'])) docUrls['DL Back'] = req['driving_license_back_url'];
     if (_hasUrl(req['rc_document_url'])) docUrls['RC'] = req['rc_document_url'];
+    if (_hasUrl(req['rc_front_url'])) docUrls['RC Front'] = req['rc_front_url'];
+    if (_hasUrl(req['rc_back_url'])) docUrls['RC Back'] = req['rc_back_url'];
     if (_hasUrl(req['permit_document_url'])) docUrls['Permit'] = req['permit_document_url'];
     if (_hasUrl(req['insurance_document_url'])) docUrls['Insurance'] = req['insurance_document_url'];
 
@@ -1689,6 +1695,19 @@ class _KycSectionState extends State<_KycSection> with AutomaticKeepAliveClientM
     final applicantName = req['applicant_name'] ?? '';
     final applicantPhone = req['applicant_phone'] ?? '';
 
+    final docUrls = <String, String>{};
+    if (_hasUrl(req['owner_aadhaar_url'])) docUrls['Aadhaar'] = req['owner_aadhaar_url'];
+    if (_hasUrl(req['owner_aadhaar_front_url'])) docUrls['Aadhaar Front'] = req['owner_aadhaar_front_url'];
+    if (_hasUrl(req['owner_aadhaar_back_url'])) docUrls['Aadhaar Back'] = req['owner_aadhaar_back_url'];
+    if (_hasUrl(req['owner_vehicle_rc_url'])) docUrls['Vehicle RC'] = req['owner_vehicle_rc_url'];
+    if (_hasUrl(req['owner_vehicle_rc_front_url'])) docUrls['RC Front'] = req['owner_vehicle_rc_front_url'];
+    if (_hasUrl(req['owner_vehicle_rc_back_url'])) docUrls['RC Back'] = req['owner_vehicle_rc_back_url'];
+    if (_hasUrl(req['leader_driving_license_front_url'])) docUrls['DL Front'] = req['leader_driving_license_front_url'];
+    if (_hasUrl(req['leader_driving_license_back_url'])) docUrls['DL Back'] = req['leader_driving_license_back_url'];
+    if (_hasUrl(req['office_photo_url'])) docUrls['Office'] = req['office_photo_url'];
+    if (_hasUrl(req['union_photo_url'])) docUrls['Union Photo'] = req['union_photo_url'];
+    if (_hasUrl(req['union_driver_list_photo_url'])) docUrls['Driver List'] = req['union_driver_list_photo_url'];
+
     return Card(
       elevation: 0,
       color: Colors.purple.shade50,
@@ -1724,6 +1743,19 @@ class _KycSectionState extends State<_KycSection> with AutomaticKeepAliveClientM
               Text(
                 'Applicant: $applicantName${applicantPhone.isNotEmpty ? ' • $applicantPhone' : ''}',
                 style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+            if (docUrls.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: docUrls.entries.map((e) => ActionChip(
+                  avatar: const Icon(Icons.visibility, size: 16),
+                  label: Text(e.key, style: const TextStyle(fontSize: 11)),
+                  onPressed: () => _viewDocument(e.value, e.key),
+                  visualDensity: VisualDensity.compact,
+                )).toList(),
               ),
             ],
             const SizedBox(height: 10),

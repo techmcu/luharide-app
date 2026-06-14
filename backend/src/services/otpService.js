@@ -4,7 +4,10 @@ const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 const { sendOTPEmail, isEmailConfigured } = require('./emailService');
 
-const OTP_HMAC_KEY = process.env.OTP_HMAC_KEY || process.env.JWT_SECRET || 'dev-otp-key';
+const OTP_HMAC_KEY = process.env.OTP_HMAC_KEY || process.env.JWT_SECRET || '';
+if (!OTP_HMAC_KEY && process.env.NODE_ENV === 'production') {
+  throw new Error('OTP_HMAC_KEY or JWT_SECRET must be set in production');
+}
 
 const generateOTP = () => {
   return crypto.randomInt(100000, 1000000).toString();

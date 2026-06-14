@@ -1,5 +1,5 @@
 const { pool } = require('../config/database');
-const { generateTokenPair } = require('../services/tokenService');
+const { generateTokenPair, revokeAllUserTokens } = require('../services/tokenService');
 const { createOTPByEmail, verifyOTPByEmail, sendOTPByEmail } = require('../services/otpService');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
@@ -258,8 +258,10 @@ const changePassword = asyncHandler(async (req, res) => {
     [newHash, userId]
   );
 
+  await revokeAllUserTokens(userId);
+
   const action = hasExistingPassword ? 'changed' : 'set';
-  logger.info(`Password ${action} for user ${userId}`);
+  logger.info(`Password ${action} for user ${userId} — all refresh tokens revoked`);
 
   ApiResponse.success(null, hasExistingPassword ? 'Password updated successfully' : 'Password set successfully').send(res);
 });
@@ -352,7 +354,9 @@ const resetPassword = asyncHandler(async (req, res) => {
     [newHash, userId]
   );
 
-  logger.info(`Password reset via OTP for user ${userId}`);
+  await revokeAllUserTokens(userId);
+
+  logger.info(`Password reset via OTP for user ${userId} — all refresh tokens revoked`);
 
   ApiResponse.success(
     null,

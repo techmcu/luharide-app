@@ -11,6 +11,7 @@ jest.mock('../services/tokenService', () => ({
   generateTokenPair: jest.fn().mockResolvedValue({
     accessToken: 'at-mock', refreshToken: 'rt-mock',
   }),
+  revokeAllUserTokens: jest.fn().mockResolvedValue(0),
 }));
 jest.mock('../services/otpService', () => ({
   createOTPByEmail: jest.fn().mockResolvedValue({ otp: '123456' }),
