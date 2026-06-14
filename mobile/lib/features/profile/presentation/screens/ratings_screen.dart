@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../services/review_service.dart';
 import '../../../../services/review_cache_store.dart';
-import 'user_reviews_screen.dart';
 
 /// Ratings you received — latest window from server; full history stays in DB.
 /// Uses stale-while-revalidate: shows cached data instantly, refreshes in background.
@@ -233,7 +232,6 @@ class _RatingsScreenState extends State<RatingsScreen> {
     final rating = (r['rating'] is int) ? r['rating'] as int : int.tryParse(r['rating']?.toString() ?? '0') ?? 0;
     final comment = r['comment'] as String? ?? '';
     final fromName = r['from_name'] as String? ?? 'User';
-    final fromUserId = r['from_user_id']?.toString();
     final fromRole = r['from_role']?.toString() ?? '';
     final timeAgo = _timeAgo(r['created_at']?.toString());
     final isDriver = fromRole == 'driver';
@@ -244,20 +242,7 @@ class _RatingsScreenState extends State<RatingsScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: fromUserId != null && fromUserId.isNotEmpty
-            ? () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => UserReviewsScreen(
-                      userId: fromUserId,
-                      displayName: fromName,
-                    ),
-                  ),
-                )
-            : null,
-        child: Padding(
+      child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,7 +302,6 @@ class _RatingsScreenState extends State<RatingsScreen> {
               ],
             ],
           ),
-        ),
       ),
     );
   }
