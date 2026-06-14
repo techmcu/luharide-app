@@ -694,22 +694,6 @@ class AppLocalizations {
       'en': 'Trip details',
       'hi': 'यात्रा विवरण',
     },
-    'trip.details.share_tooltip': {
-      'en': 'Share trip',
-      'hi': 'यात्रा साझा करें',
-    },
-    'trip.details.share_link': {
-      'en': 'Share trip link',
-      'hi': 'यात्रा लिंक साझा करें',
-    },
-    'trip.details.copy_link': {
-      'en': 'Copy link',
-      'hi': 'लिंक कॉपी करें',
-    },
-    'trip.details.link_copied': {
-      'en': 'Link copied to clipboard',
-      'hi': 'लिंक कॉपी हो गया',
-    },
     'trip.details.not_found': {
       'en': 'Trip not found',
       'hi': 'यात्रा नहीं मिली',

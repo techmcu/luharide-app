@@ -1,15 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/localization/app_localizations.dart';
-import '../../../../core/feedback/app_feedback.dart';
 import '../../../../providers/app_language_provider.dart';
-import '../../../../core/brand_config.dart';
-import '../../../../core/constants/api_constants.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/realtime_socket_service.dart';
@@ -119,32 +113,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
     }
   }
 
-  void _shareTrip() {
-    final t = _displayTrip;
-    if (t == null) return;
-    final from = t.fromLocation;
-    final to = t.toLocation;
-    final date =
-        DateFormat('dd MMM yyyy, hh:mm a').format(t.departureTime.toLocal());
-    final shareUrl = '${ApiConstants.baseUrl}/trips/${widget.tripId}';
-    final text =
-        '${BrandConfig.appName}: $from → $to on $date. Book or view: $shareUrl';
-    Share.share(text, subject: '${BrandConfig.appName} trip');
-  }
-
-  void _copyTripLink() {
-    final shareUrl = '${ApiConstants.baseUrl}/trips/${widget.tripId}';
-    Clipboard.setData(ClipboardData(text: shareUrl));
-    if (!mounted) return;
-    final loc = AppLocalizations.of(context);
-    AppFeedback.show(
-      context,
-      loc.t('trip.details.link_copied'),
-      kind: AppFeedbackKind.success,
-      duration: const Duration(seconds: 2),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     context.watch<AppLanguageProvider>();
@@ -156,26 +124,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         title: Text(loc.t('trip.details.title')),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        actions: [
-          if (_displayTrip != null)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.share),
-              tooltip: loc.t('trip.details.share_tooltip'),
-              onSelected: (v) {
-                if (v == 'share')
-                  _shareTrip();
-                else if (v == 'copy') _copyTripLink();
-              },
-              itemBuilder: (ctx) => [
-                PopupMenuItem(
-                    value: 'share',
-                    child: Text(loc.t('trip.details.share_link'))),
-                PopupMenuItem(
-                    value: 'copy',
-                    child: Text(loc.t('trip.details.copy_link'))),
-              ],
-            ),
-        ],
+        actions: const [],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
