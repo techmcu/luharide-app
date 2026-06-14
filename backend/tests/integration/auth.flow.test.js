@@ -178,15 +178,15 @@ describe('POST /api/simple-auth/login', () => {
     expect(res.body.message).toBe('Invalid email or password');
   });
 
-  it('returns 401 for inactive user', async () => {
+  it('returns 403 for suspended user', async () => {
     pool.query.mockResolvedValueOnce({ rows: [mockUser({ is_active: false })] });
 
     const res = await request(app)
       .post('/api/simple-auth/login')
       .send({ email: 'test@example.com', password: 'Test1234' });
 
-    expect(res.status).toBe(401);
-    expect(res.body.message).toBe('Invalid email or password');
+    expect(res.status).toBe(403);
+    expect(res.body.message).toContain('suspended');
   });
 
   it('returns 401 for Google-only user (no password_hash)', async () => {
