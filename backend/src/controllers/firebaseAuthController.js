@@ -93,17 +93,18 @@ const googleSignIn = asyncHandler(async (req, res) => {
     let existingUser;
     try {
       existingUser = await client.query(
-        `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
+        `SELECT id, name, phone, email, role, is_verified, is_active, driver_verification_status,
                 driver_kyc_reupload_allowed, driver_code, password_hash, google_id,
-                failed_login_attempts, locked_until
+                profile_image_url, whatsapp_number, failed_login_attempts, locked_until
          FROM users WHERE email = $1 FOR UPDATE`,
         [email]
       );
     } catch (err) {
       if (err.code === '42703') {
         existingUser = await client.query(
-          `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
-                  driver_kyc_reupload_allowed, driver_code, password_hash, google_id
+          `SELECT id, name, phone, email, role, is_verified, is_active, driver_verification_status,
+                  driver_kyc_reupload_allowed, driver_code, password_hash, google_id,
+                  profile_image_url, whatsapp_number
            FROM users WHERE email = $1 FOR UPDATE`,
           [email]
         );
@@ -158,8 +159,8 @@ const googleSignIn = asyncHandler(async (req, res) => {
       const result = await client.query(
         `INSERT INTO users (name, email, google_id, role, is_verified, is_active)
          VALUES ($1, $2, $3, $4, TRUE, TRUE)
-         RETURNING id, name, email, role, is_verified, is_active, driver_verification_status,
-                   driver_kyc_reupload_allowed, driver_code`,
+         RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status,
+                   driver_kyc_reupload_allowed, driver_code, profile_image_url, whatsapp_number`,
         [name, email, googleId, effectiveRole]
       );
 
@@ -270,17 +271,18 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
     let existingUser;
     try {
       existingUser = await client.query(
-        `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
+        `SELECT id, name, phone, email, role, is_verified, is_active, driver_verification_status,
                 driver_kyc_reupload_allowed, driver_code, password_hash, firebase_uid,
-                failed_login_attempts, locked_until
+                profile_image_url, whatsapp_number, failed_login_attempts, locked_until
          FROM users WHERE email = $1 FOR UPDATE`,
         [email]
       );
     } catch (err) {
       if (err.code === '42703') {
         existingUser = await client.query(
-          `SELECT id, name, email, role, is_verified, is_active, driver_verification_status,
-                  driver_kyc_reupload_allowed, driver_code, password_hash, firebase_uid
+          `SELECT id, name, phone, email, role, is_verified, is_active, driver_verification_status,
+                  driver_kyc_reupload_allowed, driver_code, password_hash, firebase_uid,
+                  profile_image_url, whatsapp_number
            FROM users WHERE email = $1 FOR UPDATE`,
           [email]
         );
@@ -335,8 +337,8 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
       const result = await client.query(
         `INSERT INTO users (name, email, firebase_uid, role, is_verified, is_active)
          VALUES ($1, $2, $3, $4, TRUE, TRUE)
-         RETURNING id, name, email, role, is_verified, is_active, driver_verification_status,
-                   driver_kyc_reupload_allowed, driver_code`,
+         RETURNING id, name, phone, email, role, is_verified, is_active, driver_verification_status,
+                   driver_kyc_reupload_allowed, driver_code, profile_image_url, whatsapp_number`,
         [displayName, email, firebaseUid, effectiveRole]
       );
 

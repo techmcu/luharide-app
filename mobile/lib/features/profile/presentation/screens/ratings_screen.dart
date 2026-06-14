@@ -215,20 +215,37 @@ class _RatingsScreenState extends State<RatingsScreen> {
     );
   }
 
+  static String _timeAgo(String? raw) {
+    if (raw == null || raw.isEmpty) return '';
+    final dt = DateTime.tryParse(raw.endsWith('Z') ? raw : '${raw}Z');
+    if (dt == null) return '';
+    final diff = DateTime.now().toUtc().difference(dt.toUtc());
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
+    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
+    return '${(diff.inDays / 365).floor()}y ago';
+  }
+
   Widget _buildRatingCard(Map<String, dynamic> r) {
     final rating = (r['rating'] is int) ? r['rating'] as int : int.tryParse(r['rating']?.toString() ?? '0') ?? 0;
     final comment = r['comment'] as String? ?? '';
     final fromName = r['from_name'] as String? ?? 'User';
     final fromUserId = r['from_user_id']?.toString();
-    final dateRaw = r['created_at'];
-    final date = dateRaw != null ? (dateRaw is String ? dateRaw : dateRaw.toString()) : '';
+    final fromRole = r['from_role']?.toString() ?? '';
+    final timeAgo = _timeAgo(r['created_at']?.toString());
+    final isDriver = fromRole == 'driver';
+    final roleLabel = isDriver ? 'Driver' : 'Passenger';
+    final roleColor = isDriver ? Colors.green : Colors.blue;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.only(bottom: 10),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         onTap: fromUserId != null && fromUserId.isNotEmpty
             ? () => Navigator.push(
                   context,
@@ -241,47 +258,75 @@ class _RatingsScreenState extends State<RatingsScreen> {
                 )
             : null,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Line 1: Name + role badge + time
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Colors.amber[100],
-                    child: Text(
-                      fromName.isNotEmpty ? fromName[0].toUpperCase() : '?',
-                      style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold),
+                    radius: 16,
+                    backgroundColor: roleColor.withValues(alpha: 0.15),
+                    child: Icon(
+                      isDriver ? Icons.directions_car : Icons.person,
+                      size: 16,
+                      color: roleColor,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(fromName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        if (date.isNotEmpty)
-                          Text(date, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                      ],
+                    child: Text.rich(
+                      TextSpan(children: [
+                        TextSpan(
+                          text: fromName,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                        TextSpan(
+                          text: '  $roleLabel',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: roleColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ]),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Row(
-                    children: List.generate(
-                      5,
-                      (i) => Icon(
-                        i < rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                        size: 20,
+                  if (timeAgo.isNotEmpty)
+                    Text(timeAgo, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Line 2: Stars — big and clear
+              Row(
+                children: [
+                  ...List.generate(
+                    5,
+                    (i) => Padding(
+                      padding: const EdgeInsets.only(right: 2),
+                      child: Icon(
+                        i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
+                        color: Colors.amber[700],
+                        size: 22,
                       ),
                     ),
                   ),
-                  if (fromUserId != null)
-                    Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$rating/5',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                  ),
                 ],
               ),
+              // Line 3: Comment (if any)
               if (comment.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(comment, style: TextStyle(fontSize: 14, color: Colors.grey[700])),
+                const SizedBox(height: 8),
+                Text(
+                  '"$comment"',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic),
+                ),
               ],
             ],
           ),
