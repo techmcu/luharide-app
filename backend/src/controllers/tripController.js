@@ -453,14 +453,14 @@ const getTripDetails = asyncHandler(async (req, res) => {
 
   const contactVisible = isDriver || userBookingStatus === 'confirmed' || userBookingStatus === 'completed';
 
-  // Co-passengers: confirmed passengers with avg rating (no contact info)
+  // Co-passengers: confirmed/pending passengers with avg rating (exclude self, no contact info)
   let coPassengers = [];
   try {
-    const confirmedIds = bookingsResult.rows
-      .filter(r => r.status === 'confirmed' && r.passenger_id)
+    const passengerIds = bookingsResult.rows
+      .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== req.user.id)
       .map(r => r.passenger_id);
 
-    if (confirmedIds.length > 0) {
+    if (passengerIds.length > 0) {
       const cpResult = await pool.query(
         `SELECT
            u.id, u.name,
@@ -470,7 +470,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
          LEFT JOIN ride_ratings rr ON rr.rated_user_id = u.id
          WHERE u.id = ANY($1::uuid[])
          GROUP BY u.id, u.name`,
-        [confirmedIds]
+        [passengerIds]
       );
       coPassengers = cpResult.rows.map(r => ({
         id: r.id,

@@ -31,8 +31,11 @@ function buildUserResponse(user, isNewUser, isAppAdmin) {
   return {
     id: user.id,
     name: user.name,
+    phone: user.phone || null,
     email: user.email,
     role: user.role,
+    profile_image_url: user.profile_image_url || null,
+    whatsapp_number: user.whatsapp_number || null,
     isVerified: user.is_verified ?? true,
     isActive: user.is_active ?? true,
     driverVerificationStatus: user.driver_verification_status || 'none',
