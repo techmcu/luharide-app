@@ -266,6 +266,14 @@ class AuthProvider with ChangeNotifier {
       }
       _setLoading(false);
       return true;
+    } on AccountSuspendedException catch (e) {
+      _suspensionMessage = e.message;
+      _error = null;
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      _setLoading(false);
+      notifyListeners();
+      return false;
     } catch (e) {
       _error = userFacingAuthError(e);
       _setLoading(false);
@@ -317,6 +325,14 @@ class AuthProvider with ChangeNotifier {
       }
       _setLoading(false);
       return true;
+    } on AccountSuspendedException catch (e) {
+      _suspensionMessage = e.message;
+      _error = null;
+      _user = null;
+      _status = AuthStatus.unauthenticated;
+      _setLoading(false);
+      notifyListeners();
+      return false;
     } catch (e) {
       _error = userFacingAuthError(e);
       _setLoading(false);

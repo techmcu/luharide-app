@@ -9,6 +9,7 @@ import '../core/storage/secure_token_storage.dart';
 import '../core/utils/api_error_messages.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
+import 'auth_service.dart' show AccountSuspendedException;
 
 class FirebaseAuthService {
   final ApiService _apiService;
@@ -70,6 +71,11 @@ class FirebaseAuthService {
       }
       throw Exception(e.description ?? 'Google sign-in error');
     } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final data = e.response!.data;
+        final msg = data is Map ? data['message']?.toString() ?? '' : '';
+        throw AccountSuspendedException(msg.isNotEmpty ? msg : 'Your account has been suspended.');
+      }
       throw Exception(dioResponseMessage(e) ?? userMessageFromDio(e));
     } on fb.FirebaseAuthException catch (e) {
       throw Exception(e.message ?? 'Firebase auth error');
@@ -150,6 +156,11 @@ class FirebaseAuthService {
         throw Exception(response.data['message'] ?? 'Email link sign-in failed');
       }
     } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        final data = e.response!.data;
+        final msg = data is Map ? data['message']?.toString() ?? '' : '';
+        throw AccountSuspendedException(msg.isNotEmpty ? msg : 'Your account has been suspended.');
+      }
       throw Exception(dioResponseMessage(e) ?? userMessageFromDio(e));
     } on fb.FirebaseAuthException catch (e) {
       throw Exception(e.message ?? 'Firebase auth error');

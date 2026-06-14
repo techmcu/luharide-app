@@ -119,7 +119,7 @@ const googleSignIn = asyncHandler(async (req, res) => {
       if (!user.is_active) {
         await client.query('COMMIT');
         await logFailedLogin(user.id, 'google', req, 'account_deactivated');
-        throw ApiError.unauthorized('Invalid credentials');
+        throw ApiError.forbidden('Your account has been suspended. Please contact support for assistance.');
       }
 
       if (user.locked_until && new Date(user.locked_until) > new Date()) {
@@ -296,7 +296,7 @@ const firebaseEmailSignIn = asyncHandler(async (req, res) => {
       if (!user.is_active) {
         await client.query('COMMIT');
         await logFailedLogin(user.id, 'firebase_email', req, 'account_deactivated');
-        throw ApiError.unauthorized('Invalid credentials');
+        throw ApiError.forbidden('Your account has been suspended. Please contact support for assistance.');
       }
 
       if (user.locked_until && new Date(user.locked_until) > new Date()) {
