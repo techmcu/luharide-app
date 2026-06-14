@@ -175,6 +175,11 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
+      notifyListeners();
+      try {
+        _user = await _authService.getCurrentUser()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       unawaited(PushNotificationService.instance.registerToken());
@@ -230,6 +235,11 @@ class AuthProvider with ChangeNotifier {
 
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
+      notifyListeners();
+      try {
+        _user = await _authService.getCurrentUser()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
       await RealtimeSocketService.instance.connect();
       unawaited(AuthHeadersSync.refreshAuthHeadersCache());
       unawaited(PushNotificationService.instance.registerToken());
@@ -518,6 +528,11 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       _error = null;
+      notifyListeners();
+      try {
+        _user = await _authService.getCurrentUser()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
       await RealtimeSocketService.instance.connect();
       unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;
@@ -575,6 +590,11 @@ class AuthProvider with ChangeNotifier {
       _user = result['user'] as UserModel;
       _status = AuthStatus.authenticated;
       _error = null;
+      notifyListeners();
+      try {
+        _user = await _authService.getCurrentUser()
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {}
       await RealtimeSocketService.instance.connect();
       unawaited(PushNotificationService.instance.registerToken());
       final uid = _user?.id;

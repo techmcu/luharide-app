@@ -97,7 +97,8 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           _pendingSeats = List<int>.from(result['pending_seats'] ?? []);
           _userBookingStatus = result['user_booking_status'] as String?;
           _coPassengers = (result['co_passengers'] as List<dynamic>?)
-              ?.map((e) => e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+              ?.where((e) => e is Map)
+              .map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ?? [];
         }
         if (_trip == null && widget.initialTrip != null) {
