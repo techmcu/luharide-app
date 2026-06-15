@@ -453,37 +453,49 @@ const getTripDetails = asyncHandler(async (req, res) => {
 
   const contactVisible = isDriver || userBookingStatus === 'confirmed' || userBookingStatus === 'completed';
 
-  // Co-passengers: single query — bookings JOIN users, exclude self, no contact info
+  // Co-passengers: bookings + user names (simple, no complex joins)
   let coPassengers = [];
   try {
     const selfId = req.user?.id || null;
     const cpResult = await pool.query(
-      `SELECT
-         b.passenger_id AS id, u.name, b.seat_numbers, b.status,
-         COUNT(rr.id)::int AS total_ratings,
-         COALESCE(AVG(rr.rating), 0)::decimal(3,2) AS average_rating
+      `SELECT b.passenger_id AS id, u.name, b.seat_numbers, b.status
        FROM bookings b
        JOIN users u ON u.id = b.passenger_id
-       LEFT JOIN ride_ratings rr ON rr.rated_user_id = b.passenger_id
        WHERE b.trip_id = $1
          AND b.status IN ('confirmed', 'pending')
          AND ($2::uuid IS NULL OR b.passenger_id != $2)
-       GROUP BY b.passenger_id, u.name, b.seat_numbers, b.status
        LIMIT 100`,
       [id, selfId]
     );
+
+    // Fetch ratings separately (non-blocking — if fails, show 0)
+    const pids = cpResult.rows.map(r => r.id);
+    let ratingsMap = {};
+    if (pids.length > 0) {
+      try {
+        const rr = await pool.query(
+          `SELECT rated_user_id, COUNT(*)::int AS cnt, COALESCE(AVG(rating),0)::decimal(3,2) AS avg
+           FROM ride_ratings WHERE rated_user_id = ANY($1::uuid[]) GROUP BY rated_user_id`,
+          [pids]
+        );
+        for (const row of rr.rows) {
+          ratingsMap[row.rated_user_id] = { cnt: parseInt(row.cnt, 10) || 0, avg: parseFloat(row.avg) || 0 };
+        }
+      } catch (_) { /* ratings optional */ }
+    }
+
     coPassengers = cpResult.rows.map(r => {
       const rawSeats = Array.isArray(r.seat_numbers) ? r.seat_numbers : [];
       const seats = rawSeats
         .map(s => typeof s === 'number' ? s : parseInt(s, 10))
         .filter(n => Number.isInteger(n) && n >= 1)
         .sort((a, b) => a - b);
-      const avg = parseFloat(r.average_rating);
+      const rt = ratingsMap[r.id] || { cnt: 0, avg: 0 };
       return {
         id: r.id,
         name: (r.name || '').trim() || 'Passenger',
-        total_ratings: parseInt(r.total_ratings, 10) || 0,
-        average_rating: Number.isFinite(avg) ? avg : 0,
+        total_ratings: rt.cnt,
+        average_rating: Number.isFinite(rt.avg) ? rt.avg : 0,
         seat_numbers: seats,
         status: r.status || 'confirmed',
       };
