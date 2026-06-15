@@ -456,8 +456,9 @@ const getTripDetails = asyncHandler(async (req, res) => {
   // Co-passengers: confirmed/pending passengers with avg rating + seat numbers (exclude self, no contact info)
   let coPassengers = [];
   try {
+    const selfId = req.user?.id;
     const cpBookings = bookingsResult.rows
-      .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== req.user.id);
+      .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== selfId);
 
     const passengerIds = cpBookings.map(r => r.passenger_id);
 
