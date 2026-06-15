@@ -42,7 +42,7 @@ router.get('/recent-routes', authenticate, getRecentRoutes);
 router.post('/recent-routes', authenticate, writeLimiter, saveRecentRoute);
 router.get('/:id/bookings', authenticate, authorize('driver'), getTripBookings);
 router.get('/:id/booked-seats', getTripBookedSeats);
-router.get('/:id', searchLimiter, optionalAuth, redisCache(60), getTripDetails);
+router.get('/:id', searchLimiter, optionalAuth, getTripDetails);
 
 router.put('/:id/start', authenticate, authorize('driver'), stateChangeLimiter, startTrip);
 router.put('/:id/complete', authenticate, authorize('driver'), stateChangeLimiter, completeTrip);

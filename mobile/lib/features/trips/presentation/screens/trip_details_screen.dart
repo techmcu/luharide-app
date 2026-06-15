@@ -523,9 +523,9 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
             ),
           const SizedBox(height: 16),
 
-          // Fellow Travelers — only on active trips
+          // Fellow Travelers — hide only on completed/cancelled trips
           if (_coPassengers.isNotEmpty &&
-              (_displayTrip?.status == 'scheduled' || _displayTrip?.status == 'in_progress'))
+              _displayTrip?.status != 'completed' && _displayTrip?.status != 'cancelled')
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: _FellowTravelersCard(passengers: _coPassengers),
