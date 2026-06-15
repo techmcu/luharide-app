@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../services/review_service.dart';
 import '../../../../services/review_cache_store.dart';
 
-/// Ratings you received — latest window from server; full history stays in DB.
-/// Uses stale-while-revalidate: shows cached data instantly, refreshes in background.
 class RatingsScreen extends StatefulWidget {
   final String? userRole;
   final String? userId;
@@ -14,7 +12,7 @@ class RatingsScreen extends StatefulWidget {
   State<RatingsScreen> createState() => _RatingsScreenState();
 }
 
-class _RatingsScreenState extends State<RatingsScreen> {
+class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProviderStateMixin {
   final ReviewService _reviewService = ReviewService();
   final List<Map<String, dynamic>> _ratings = [];
   bool _isLoading = true;
@@ -25,10 +23,25 @@ class _RatingsScreenState extends State<RatingsScreen> {
   bool _refreshing = false;
   String? _loadError;
 
+  late TabController _tabController;
+
+  List<Map<String, dynamic>> get _asDriverRatings =>
+      _ratings.where((r) => r['from_role'] == 'passenger').toList();
+
+  List<Map<String, dynamic>> get _asPassengerRatings =>
+      _ratings.where((r) => r['from_role'] == 'driver').toList();
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadCacheThenRefresh();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCacheThenRefresh() async {
@@ -101,22 +114,18 @@ class _RatingsScreenState extends State<RatingsScreen> {
         title: const Text('My Ratings'),
         backgroundColor: isDriver ? Colors.green : Colors.blue,
         foregroundColor: Colors.white,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(36),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Others rated you after rides',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
+        bottom: _isLoading || _loadError != null || (_ratings.isEmpty && _total == 0)
+            ? null
+            : TabBar(
+                controller: _tabController,
+                indicatorColor: Colors.white,
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.white70,
+                tabs: [
+                  Tab(text: 'As Driver (${_asDriverRatings.length})'),
+                  Tab(text: 'As Passenger (${_asPassengerRatings.length})'),
+                ],
               ),
-            ),
-          ),
-        ),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -124,57 +133,79 @@ class _RatingsScreenState extends State<RatingsScreen> {
               ? Center(child: Text(_loadError!, style: TextStyle(color: Colors.grey[700])))
               : _ratings.isEmpty && _total == 0
                   ? _buildEmptyState()
-                  : RefreshIndicator(
-                      onRefresh: _onRefresh,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _ratings.length + 1,
-                        itemBuilder: (context, i) {
-                          if (i == 0) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (_refreshing)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(
-                                          width: 14, height: 14,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Updating...',
-                                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                if (_hasMore)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: Text(
-                                      'Showing latest $_windowMax of $_total reviews. '
-                                      'Older ones stay on the server for trust & safety.',
-                                      style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
-                                    ),
-                                  ),
-                                if (_fromCache && !_refreshing)
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: Text(
-                                      'Offline or cached — pull to refresh.',
-                                      style: TextStyle(fontSize: 12, color: Colors.orange[800]),
-                                    ),
-                                  ),
-                              ],
-                            );
-                          }
-                          return _buildRatingCard(_ratings[i - 1]);
-                        },
-                      ),
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildRatingsList(_asDriverRatings, 'No ratings as driver yet'),
+                        _buildRatingsList(_asPassengerRatings, 'No ratings as passenger yet'),
+                      ],
                     ),
+    );
+  }
+
+  Widget _buildRatingsList(List<Map<String, dynamic>> ratings, String emptyMsg) {
+    if (ratings.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.star_outline, size: 64, color: Colors.grey[300]),
+            const SizedBox(height: 12),
+            Text(emptyMsg, style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: ratings.length + 1,
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (_refreshing)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 14, height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Updating...',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_hasMore)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'Showing latest $_windowMax of $_total reviews.',
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
+                    ),
+                  ),
+                if (_fromCache && !_refreshing)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Offline or cached — pull to refresh.',
+                      style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                    ),
+                  ),
+              ],
+            );
+          }
+          return _buildRatingCard(ratings[i - 1]);
+        },
+      ),
     );
   }
 
@@ -195,7 +226,7 @@ class _RatingsScreenState extends State<RatingsScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                'Here you’ll see ratings others gave you after a ride.',
+                'Here you\'ll see ratings others gave you after a ride.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
@@ -234,9 +265,10 @@ class _RatingsScreenState extends State<RatingsScreen> {
     final fromName = r['from_name'] as String? ?? 'User';
     final fromRole = r['from_role']?.toString() ?? '';
     final timeAgo = _timeAgo(r['created_at']?.toString());
-    final isDriver = fromRole == 'driver';
-    final roleLabel = isDriver ? 'Driver' : 'Passenger';
-    final roleColor = isDriver ? Colors.green : Colors.blue;
+    final tripContext = r['trip_context'] as String? ?? '';
+    final isFromDriver = fromRole == 'driver';
+    final roleLabel = isFromDriver ? 'Driver' : 'Passenger';
+    final roleColor = isFromDriver ? Colors.green : Colors.blue;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -247,7 +279,6 @@ class _RatingsScreenState extends State<RatingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // "Rahul (Driver) rated you" + time
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -275,7 +306,6 @@ class _RatingsScreenState extends State<RatingsScreen> {
                 ],
               ),
               const SizedBox(height: 6),
-              // Stars + score
               Row(
                 children: [
                   ...List.generate(
@@ -298,6 +328,14 @@ class _RatingsScreenState extends State<RatingsScreen> {
                 Text(
                   '"$comment"',
                   style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic),
+                ),
+              ],
+              if (tripContext.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  tripContext,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ],

@@ -195,6 +195,7 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
     final fromName = r['from_name'] as String? ?? 'User';
     final fromRole = r['from_role']?.toString() ?? '';
     final timeAgo = _timeAgo(r['created_at']?.toString());
+    final tripContext = r['trip_context'] as String? ?? '';
     final isDriver = fromRole == 'driver';
     final roleLabel = isDriver ? 'Driver' : 'Passenger';
     final roleColor = isDriver ? Colors.green : Colors.blue;
@@ -253,6 +254,14 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
               Text(
                 '"$comment"',
                 style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic),
+              ),
+            ],
+            if (tripContext.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                tripContext,
+                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ],
