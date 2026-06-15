@@ -5,6 +5,31 @@ import '../core/utils/api_error_messages.dart';
 import '../models/trip_model.dart';
 import 'api_service.dart';
 
+/// Safely parse a JSON seat list into `List<int>`. Never throws regardless of
+/// shape (null, non-list, or elements that are num / String / null). Keeps
+/// seats >= 1. Uses an explicit List + typed loop to avoid the dynamic-receiver
+/// `.where` type error (`'(dynamic) => dynamic' is not a subtype of ... bool`).
+List<int> _parseSeatList(dynamic raw) {
+  if (raw is! List) return const <int>[];
+  final seats = <int>[];
+  for (final e in raw) {
+    final n = e is num ? e.toInt() : int.tryParse(e?.toString() ?? '');
+    if (n != null && n >= 1) seats.add(n);
+  }
+  return seats;
+}
+
+/// Safely parse a co-passenger list into typed maps. Never throws — non-map
+/// entries are skipped so one malformed row can't break the whole list.
+List<Map<String, dynamic>> _parseCoPassengers(dynamic raw) {
+  if (raw is! List) return const <Map<String, dynamic>>[];
+  final out = <Map<String, dynamic>>[];
+  for (final e in raw) {
+    if (e is Map) out.add(Map<String, dynamic>.from(e));
+  }
+  return out;
+}
+
 class TripService {
   final ApiService _apiService = ApiService();
 
@@ -175,23 +200,37 @@ class TripService {
     }
   }
 
-  /// Get trip details (includes booked_seats, pending_seats for seat selection)
+  /// Get trip details (includes booked_seats, pending_seats for seat selection,
+  /// and co_passengers for the Fellow Travelers section).
+  ///
+  /// Every field is parsed independently and defensively: a parse failure in
+  /// one field (e.g. trip model) can never nuke the whole response, so
+  /// co-passengers / seats always survive. This keeps the screen correct for
+  /// any backend payload shape, at any scale.
   Future<Map<String, dynamic>> getTripDetails(String tripId) async {
     try {
       final response = await _apiService.get('${ApiConstants.tripDetails}/$tripId');
-      final data = response.data['data'] ?? {};
-      final tripJson = data['trip'] ?? data;
+      final rawData = response.data is Map ? response.data['data'] : null;
+      final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
+      final tripJson = data['trip'] is Map ? data['trip'] : data;
 
-      final bookedList = (data['booked_seats'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0).where((n) => n > 0).toList();
-      final pendingList = (data['pending_seats'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0).where((n) => n > 0).toList();
+      // Trip model parse is isolated — if it ever throws, we still return the
+      // rest (co-passengers, seats) instead of failing the whole call.
+      TripModel trip;
+      try {
+        trip = TripModel.fromJson(
+            tripJson is Map ? Map<String, dynamic>.from(tripJson) : <String, dynamic>{});
+      } catch (_) {
+        trip = TripModel.fromJson(<String, dynamic>{});
+      }
 
       return {
         'success': true,
-        'trip': TripModel.fromJson(tripJson is Map ? Map<String, dynamic>.from(tripJson) : {}),
-        'booked_seats': bookedList,
-        'pending_seats': pendingList,
+        'trip': trip,
+        'booked_seats': _parseSeatList(data['booked_seats']),
+        'pending_seats': _parseSeatList(data['pending_seats']),
         'user_booking_status': data['user_booking_status'],
-        'co_passengers': data['co_passengers'] is List ? data['co_passengers'] : [],
+        'co_passengers': _parseCoPassengers(data['co_passengers']),
       };
     } on DioException catch (e) {
       return {

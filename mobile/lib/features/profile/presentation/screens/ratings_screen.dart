@@ -25,7 +25,9 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
 
   late TabController _tabController;
 
-  static const _pageSize = 20;
+  // Latest 15 per tab, button-triggered "Show more". Bounded server window
+  // fetched once per open — no polling, no repeated DB queries.
+  static const _pageSize = 15;
   int _driverVisible = _pageSize;
   int _passengerVisible = _pageSize;
 
@@ -221,7 +223,7 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     _hasMore
-                        ? 'Showing $shown of latest $_windowMax (${_total} total)'
+                        ? 'Showing $shown of latest $_windowMax ($_total total)'
                         : 'Showing $shown of ${ratings.length} reviews',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
@@ -295,27 +297,14 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
     );
   }
 
-  static String _timeAgo(String? raw) {
-    if (raw == null || raw.isEmpty) return '';
-    final dt = DateTime.tryParse(raw.endsWith('Z') ? raw : '${raw}Z');
-    if (dt == null) return '';
-    final diff = DateTime.now().toUtc().difference(dt.toUtc());
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    if (diff.inDays < 30) return '${(diff.inDays / 7).floor()}w ago';
-    if (diff.inDays < 365) return '${(diff.inDays / 30).floor()}mo ago';
-    return '${(diff.inDays / 365).floor()}y ago';
-  }
-
+  /// Rating card — minimal & privacy-safe: shows ONLY who rated
+  /// (name + Passenger/Driver) + "rated you", the star count, and the comment.
+  /// No user id, no route/trip info, no timestamp.
   Widget _buildRatingCard(Map<String, dynamic> r) {
     final rating = (r['rating'] is int) ? r['rating'] as int : int.tryParse(r['rating']?.toString() ?? '0') ?? 0;
     final comment = r['comment'] as String? ?? '';
     final fromName = r['from_name'] as String? ?? 'User';
     final fromRole = r['from_role']?.toString() ?? '';
-    final timeAgo = _timeAgo(r['created_at']?.toString());
-    final tripContext = r['trip_context'] as String? ?? '';
     final isFromDriver = fromRole == 'driver';
     final roleLabel = isFromDriver ? 'Driver' : 'Passenger';
     final roleColor = isFromDriver ? Colors.green : Colors.blue;
@@ -329,22 +318,13 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(children: [
-                      TextSpan(text: fromName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      TextSpan(text: ' ($roleLabel)', style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w500)),
-                      TextSpan(text: ' rated you', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                    ]),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (timeAgo.isNotEmpty)
-                  Text(timeAgo, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-              ],
+            Text.rich(
+              TextSpan(children: [
+                TextSpan(text: fromName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                TextSpan(text: ' ($roleLabel)', style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w500)),
+                TextSpan(text: ' rated you', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              ]),
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 6),
             Row(
@@ -359,10 +339,6 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
             if (comment.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text('"$comment"', style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic)),
-            ],
-            if (tripContext.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(tripContext, style: TextStyle(fontSize: 11, color: Colors.grey[400]), overflow: TextOverflow.ellipsis),
             ],
           ],
         ),

@@ -96,10 +96,13 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           _bookedSeats = List<int>.from(result['booked_seats'] ?? []);
           _pendingSeats = List<int>.from(result['pending_seats'] ?? []);
           _userBookingStatus = result['user_booking_status'] as String?;
-          _coPassengers = (result['co_passengers'] as List<dynamic>?)
-              ?.where((e) => e is Map)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ?? [];
+          final cp = result['co_passengers'];
+          _coPassengers = cp is List
+              ? cp
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList()
+              : <Map<String, dynamic>>[];
         }
         if (_trip == null && widget.initialTrip != null) {
           _trip = widget.initialTrip;
