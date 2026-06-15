@@ -25,6 +25,10 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
 
   late TabController _tabController;
 
+  static const _pageSize = 20;
+  int _driverVisible = _pageSize;
+  int _passengerVisible = _pageSize;
+
   List<Map<String, dynamic>> get _asDriverRatings =>
       _ratings.where((r) => r['from_role'] == 'passenger').toList();
 
@@ -92,6 +96,8 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
       _total = (rawTotal as num?)?.toInt() ?? 0;
       _hasMore = data['has_more'] == true;
       _windowMax = (data['reviews_window_max'] as num?)?.toInt() ?? 50;
+      _driverVisible = _pageSize;
+      _passengerVisible = _pageSize;
     });
   }
 
@@ -151,14 +157,29 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
                   : TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildRatingsList(_asDriverRatings, 'No ratings as driver yet'),
-                        _buildRatingsList(_asPassengerRatings, 'No ratings as passenger yet'),
+                        _buildRatingsList(
+                          _asDriverRatings,
+                          'No ratings as driver yet',
+                          _driverVisible,
+                          () => setState(() { _driverVisible += _pageSize; }),
+                        ),
+                        _buildRatingsList(
+                          _asPassengerRatings,
+                          'No ratings as passenger yet',
+                          _passengerVisible,
+                          () => setState(() { _passengerVisible += _pageSize; }),
+                        ),
                       ],
                     ),
     );
   }
 
-  Widget _buildRatingsList(List<Map<String, dynamic>> ratings, String emptyMsg) {
+  Widget _buildRatingsList(
+    List<Map<String, dynamic>> ratings,
+    String emptyMsg,
+    int visibleCount,
+    VoidCallback onShowMore,
+  ) {
     if (ratings.isEmpty) {
       return Center(
         child: Column(
@@ -172,11 +193,14 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
       );
     }
 
+    final shown = visibleCount.clamp(0, ratings.length);
+    final canShowMore = shown < ratings.length;
+
     return RefreshIndicator(
       onRefresh: _onRefresh,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: ratings.length + 1,
+        itemCount: shown + 2, // header + visible items + footer
         itemBuilder: (context, i) {
           if (i == 0) {
             return Column(
@@ -187,38 +211,52 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(
                       children: [
-                        const SizedBox(
-                          width: 14, height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                        const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
                         const SizedBox(width: 8),
-                        Text(
-                          'Updating...',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                        ),
+                        Text('Updating...', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
                       ],
                     ),
                   ),
-                if (_hasMore)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'Showing latest $_windowMax of $_total reviews.',
-                      style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
-                    ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _hasMore
+                        ? 'Showing $shown of latest $_windowMax (${_total} total)'
+                        : 'Showing $shown of ${ratings.length} reviews',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
+                ),
                 if (_fromCache && !_refreshing)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      'Offline or cached — pull to refresh.',
-                      style: TextStyle(fontSize: 12, color: Colors.orange[800]),
-                    ),
+                    child: Text('Offline or cached — pull to refresh.',
+                        style: TextStyle(fontSize: 12, color: Colors.orange[800])),
                   ),
               ],
             );
           }
-          return _buildRatingCard(ratings[i - 1]);
+          if (i <= shown) {
+            return _buildRatingCard(ratings[i - 1]);
+          }
+          // Footer
+          if (canShowMore) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: OutlinedButton.icon(
+                  onPressed: onShowMore,
+                  icon: const Icon(Icons.expand_more, size: 18),
+                  label: Text('Show more (${ratings.length - shown} remaining)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.blue[700],
+                    side: BorderSide(color: Colors.blue[200]!),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                ),
+              ),
+            );
+          }
+          return const SizedBox(height: 16);
         },
       ),
     );
@@ -233,10 +271,7 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
           children: [
             Icon(Icons.star_outline, size: 80, color: Colors.grey[300]),
             const SizedBox(height: 16),
-            Text(
-              'No ratings yet',
-              style: TextStyle(fontSize: 18, color: Colors.grey[600]),
-            ),
+            Text('No ratings yet', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -290,71 +325,47 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
       elevation: 0.5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(children: [
-                        TextSpan(
-                          text: fromName,
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                        ),
-                        TextSpan(
-                          text: ' ($roleLabel)',
-                          style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w500),
-                        ),
-                        TextSpan(
-                          text: ' rated you',
-                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                        ),
-                      ]),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Text.rich(
+                    TextSpan(children: [
+                      TextSpan(text: fromName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      TextSpan(text: ' ($roleLabel)', style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w500)),
+                      TextSpan(text: ' rated you', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                    ]),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  if (timeAgo.isNotEmpty)
-                    Text(timeAgo, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
-                ],
-              ),
+                ),
+                if (timeAgo.isNotEmpty)
+                  Text(timeAgo, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                ...List.generate(5, (i) => Icon(
+                  i < rating ? Icons.star_rounded : Icons.star_outline_rounded, color: Colors.amber, size: 18,
+                )),
+                const SizedBox(width: 6),
+                Text('$rating/5', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600])),
+              ],
+            ),
+            if (comment.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Row(
-                children: [
-                  ...List.generate(
-                    5,
-                    (i) => Icon(
-                      i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                      color: Colors.amber,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$rating/5',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-              if (comment.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  '"$comment"',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic),
-                ),
-              ],
-              if (tripContext.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  tripContext,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              Text('"$comment"', style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic)),
             ],
-          ),
+            if (tripContext.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(tripContext, style: TextStyle(fontSize: 11, color: Colors.grey[400]), overflow: TextOverflow.ellipsis),
+            ],
+          ],
+        ),
       ),
     );
   }

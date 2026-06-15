@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../services/review_service.dart';
 import '../../../../services/review_cache_store.dart';
 
-/// Rating summary + latest reviews for another user (e.g. driver on trip details).
-/// Uses stale-while-revalidate: shows cached data instantly, refreshes in background.
 class UserReviewsScreen extends StatefulWidget {
   final String userId;
   final String displayName;
@@ -21,11 +19,16 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
   double _avgRating = 0;
   bool _summaryLoaded = false;
   bool _isLoading = true;
-  bool _hasMore = false;
+  bool _hasMoreOnServer = false;
   int _windowMax = 50;
   bool _fromCache = false;
   bool _refreshing = false;
   String? _loadError;
+
+  static const _pageSize = 20;
+  int _visibleCount = _pageSize;
+
+  bool get _canShowMore => _visibleCount < _reviews.length;
 
   @override
   void initState() {
@@ -62,14 +65,16 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
     setState(() {
       _isLoading = false;
       _refreshing = false;
+      _loadError = null;
       _summaryLoaded = true;
       _fromCache = isCache;
       _total = (rawTotal as num?)?.toInt() ?? 0;
       _avgRating = (data['average_rating'] as num?)?.toDouble() ?? 0.0;
-      _hasMore = data['has_more'] == true;
+      _hasMoreOnServer = data['has_more'] == true;
       _windowMax = (data['reviews_window_max'] as num?)?.toInt() ?? 50;
       _reviews.clear();
       _reviews.addAll(List<Map<String, dynamic>>.from(list));
+      _visibleCount = _pageSize.clamp(0, _reviews.length);
     });
   }
 
@@ -79,6 +84,12 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
     if (result['success'] == true) {
       _applyData(result, isCache: false);
     }
+  }
+
+  void _showMore() {
+    setState(() {
+      _visibleCount = (_visibleCount + _pageSize).clamp(0, _reviews.length);
+    });
   }
 
   @override
@@ -92,79 +103,111 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
       body: _isLoading && _reviews.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null && _reviews.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[300]),
-                      const SizedBox(height: 12),
-                      Text(_loadError!, style: TextStyle(color: Colors.grey[700])),
-                      const SizedBox(height: 12),
-                      TextButton.icon(
-                        onPressed: () {
-                          setState(() { _loadError = null; _isLoading = true; });
-                          _loadCacheThenRefresh();
-                        },
-                        icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorState()
               : _reviews.isEmpty && _total == 0
                   ? _buildEmptyState()
-              : RefreshIndicator(
-                  onRefresh: _onRefresh,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _reviews.length + 1,
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_summaryLoaded) _buildSummaryChip(),
-                            if (_refreshing)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Row(
-                                  children: [
-                                    const SizedBox(
-                                      width: 14, height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Updating...',
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            if (_hasMore)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8, bottom: 8),
-                                child: Text(
-                                  'Showing latest $_windowMax of $_total reviews.',
-                                  style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
-                                ),
-                              ),
-                            if (_fromCache && !_refreshing)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                child: Text(
-                                  'Cached — pull to refresh.',
-                                  style: TextStyle(fontSize: 12, color: Colors.orange[800]),
-                                ),
-                              ),
-                            const SizedBox(height: 8),
-                          ],
-                        );
-                      }
-                      return _buildRatingCard(_reviews[index - 1]);
-                    },
-                  ),
-                ),
+                  : RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _visibleCount + 2, // header + visible reviews + footer
+                        itemBuilder: (context, index) {
+                          if (index == 0) return _buildHeader();
+                          if (index <= _visibleCount) {
+                            return _buildRatingCard(_reviews[index - 1]);
+                          }
+                          return _buildFooter();
+                        },
+                      ),
+                    ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_summaryLoaded) _buildSummaryChip(),
+        if (_refreshing)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: 8),
+                Text('Updating...', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+        if (_fromCache && !_refreshing)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('Cached — pull to refresh.', style: TextStyle(fontSize: 12, color: Colors.orange[800])),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Text(
+            _hasMoreOnServer
+                ? 'Showing $_visibleCount of latest $_windowMax (${_total} total)'
+                : 'Showing $_visibleCount of $_total reviews',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Widget _buildFooter() {
+    if (_canShowMore) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Center(
+          child: OutlinedButton.icon(
+            onPressed: _showMore,
+            icon: const Icon(Icons.expand_more, size: 18),
+            label: Text('Show more (${_reviews.length - _visibleCount} remaining)'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.blue[700],
+              side: BorderSide(color: Colors.blue[200]!),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_hasMoreOnServer) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'Older reviews are stored securely on the server.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+        ),
+      );
+    }
+    return const SizedBox(height: 16);
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          Text(_loadError!, style: TextStyle(color: Colors.grey[700])),
+          const SizedBox(height: 12),
+          TextButton.icon(
+            onPressed: () {
+              setState(() { _loadError = null; _isLoading = true; });
+              _loadCacheThenRefresh();
+            },
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -244,15 +287,9 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
                 Expanded(
                   child: Text.rich(
                     TextSpan(children: [
-                      TextSpan(
-                        text: fromName,
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                      ),
+                      TextSpan(text: fromName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                       if (fromRole.isNotEmpty)
-                        TextSpan(
-                          text: ' ($roleLabel)',
-                          style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w500),
-                        ),
+                        TextSpan(text: ' ($roleLabel)', style: TextStyle(fontSize: 12, color: roleColor, fontWeight: FontWeight.w500)),
                     ]),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -264,35 +301,20 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
             const SizedBox(height: 6),
             Row(
               children: [
-                ...List.generate(
-                  5,
-                  (i) => Icon(
-                    i < rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                    color: Colors.amber,
-                    size: 18,
-                  ),
-                ),
+                ...List.generate(5, (i) => Icon(
+                  i < rating ? Icons.star_rounded : Icons.star_outline_rounded, color: Colors.amber, size: 18,
+                )),
                 const SizedBox(width: 6),
-                Text(
-                  '$rating/5',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600]),
-                ),
+                Text('$rating/5', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey[600])),
               ],
             ),
             if (comment.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text(
-                '"$comment"',
-                style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic),
-              ),
+              Text('"$comment"', style: TextStyle(fontSize: 13, color: Colors.grey[700], fontStyle: FontStyle.italic)),
             ],
             if (tripContext.isNotEmpty) ...[
               const SizedBox(height: 4),
-              Text(
-                tripContext,
-                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(tripContext, style: TextStyle(fontSize: 11, color: Colors.grey[400]), overflow: TextOverflow.ellipsis),
             ],
           ],
         ),
