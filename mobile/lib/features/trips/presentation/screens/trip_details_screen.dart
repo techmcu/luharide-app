@@ -772,11 +772,13 @@ class _DriverRatingRowState extends State<_DriverRatingRow> {
 
 class _FellowTravelersCard extends StatelessWidget {
   final List<Map<String, dynamic>> passengers;
+  static const _maxVisible = 100;
 
   const _FellowTravelersCard({required this.passengers});
 
   @override
   Widget build(BuildContext context) {
+    final shown = passengers.length > _maxVisible ? _maxVisible : passengers.length;
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -784,6 +786,7 @@ class _FellowTravelersCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
@@ -805,7 +808,20 @@ class _FellowTravelersCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            ...passengers.map((p) => _buildPassengerTile(context, p)),
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: shown,
+              itemBuilder: (ctx, i) => _buildPassengerTile(ctx, passengers[i]),
+            ),
+            if (passengers.length > _maxVisible)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '+${passengers.length - _maxVisible} more travelers',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                ),
+              ),
           ],
         ),
       ),
@@ -814,11 +830,15 @@ class _FellowTravelersCard extends StatelessWidget {
 
   Widget _buildPassengerTile(BuildContext context, Map<String, dynamic> p) {
     final id = p['id']?.toString() ?? '';
-    final name = p['name']?.toString() ?? 'Passenger';
+    final rawName = (p['name']?.toString() ?? '').trim();
+    final name = rawName.isNotEmpty ? rawName : 'Passenger';
     final totalRatings = (p['total_ratings'] as num?)?.toInt() ?? 0;
-    final avgRating = (p['average_rating'] as num?)?.toDouble() ?? 0;
+    final rawAvg = (p['average_rating'] as num?)?.toDouble() ?? 0;
+    final avgRating = rawAvg.isFinite ? rawAvg : 0.0;
     final seatNumbers = (p['seat_numbers'] as List?)
-        ?.map((s) => s.toString())
+        ?.map((s) => s != null ? int.tryParse(s.toString()) : null)
+        .where((n) => n != null && n > 0)
+        .map((n) => n!.toString())
         .toList() ?? [];
     final status = p['status']?.toString() ?? '';
     final isPending = status == 'pending';
@@ -841,7 +861,7 @@ class _FellowTravelersCard extends StatelessWidget {
               radius: 18,
               backgroundColor: isPending ? Colors.orange[100] : Colors.blue[100],
               child: Text(
-                name.isNotEmpty ? name[0].toUpperCase() : 'P',
+                name[0].toUpperCase(),
                 style: TextStyle(
                   color: isPending ? Colors.orange[800] : Colors.blue[800],
                   fontWeight: FontWeight.bold,

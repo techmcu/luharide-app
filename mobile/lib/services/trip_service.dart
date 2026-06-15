@@ -191,7 +191,7 @@ class TripService {
         'booked_seats': bookedList,
         'pending_seats': pendingList,
         'user_booking_status': data['user_booking_status'],
-        'co_passengers': data['co_passengers'] ?? [],
+        'co_passengers': data['co_passengers'] is List ? data['co_passengers'] : [],
       };
     } on DioException catch (e) {
       return {

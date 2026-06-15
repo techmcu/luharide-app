@@ -454,19 +454,22 @@ const getTripDetails = asyncHandler(async (req, res) => {
   const contactVisible = isDriver || userBookingStatus === 'confirmed' || userBookingStatus === 'completed';
 
   // Co-passengers: confirmed/pending passengers with avg rating + seat numbers (exclude self, no contact info)
+  const MAX_CO_PASSENGERS = 100;
   let coPassengers = [];
   try {
     const selfId = req.user?.id;
     const cpBookings = bookingsResult.rows
       .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== selfId);
 
-    const passengerIds = cpBookings.map(r => r.passenger_id);
+    const uniqueIds = [...new Set(cpBookings.map(r => r.passenger_id))].slice(0, MAX_CO_PASSENGERS);
 
-    if (passengerIds.length > 0) {
+    if (uniqueIds.length > 0) {
       const seatMap = {};
       const statusMap = {};
       for (const b of cpBookings) {
-        const seats = (b.seat_numbers || [])
+        if (!uniqueIds.includes(b.passenger_id)) continue;
+        const rawSeats = Array.isArray(b.seat_numbers) ? b.seat_numbers : [];
+        const seats = rawSeats
           .map(s => typeof s === 'number' ? s : parseInt(s, 10))
           .filter(n => Number.isInteger(n) && n >= 1);
         if (seatMap[b.passenger_id]) {
@@ -482,27 +485,34 @@ const getTripDetails = asyncHandler(async (req, res) => {
       }
 
       const cpResult = await pool.query(
-        `SELECT
-           u.id, u.name,
-           COUNT(rr.id)::int AS total_ratings,
-           COALESCE(AVG(rr.rating), 0)::decimal(3,2) AS average_rating
+        `SELECT u.id, u.name,
+           COALESCE(rs.cnt, 0)::int AS total_ratings,
+           COALESCE(rs.avg_r, 0)::decimal(3,2) AS average_rating
          FROM users u
-         LEFT JOIN ride_ratings rr ON rr.rated_user_id = u.id
-         WHERE u.id = ANY($1::uuid[])
-         GROUP BY u.id, u.name`,
-        [passengerIds]
+         LEFT JOIN (
+           SELECT rated_user_id, COUNT(*)::int AS cnt, AVG(rating) AS avg_r
+           FROM ride_ratings WHERE rated_user_id = ANY($1::uuid[])
+           GROUP BY rated_user_id
+         ) rs ON rs.rated_user_id = u.id
+         WHERE u.id = ANY($1::uuid[])`,
+        [uniqueIds]
       );
-      coPassengers = cpResult.rows.map(r => ({
-        id: r.id,
-        name: r.name || 'Passenger',
-        total_ratings: parseInt(r.total_ratings, 10) || 0,
-        average_rating: parseFloat(r.average_rating) || 0,
-        seat_numbers: seatMap[r.id] || [],
-        status: statusMap[r.id] || 'confirmed',
-      }));
+      coPassengers = cpResult.rows
+        .filter(r => r.id != null)
+        .map(r => {
+          const avg = parseFloat(r.average_rating);
+          return {
+            id: r.id,
+            name: (r.name || '').trim() || 'Passenger',
+            total_ratings: parseInt(r.total_ratings, 10) || 0,
+            average_rating: Number.isFinite(avg) ? avg : 0,
+            seat_numbers: seatMap[r.id] || [],
+            status: statusMap[r.id] || 'confirmed',
+          };
+        });
     }
   } catch (e) {
-    if (e.code !== '42P01') logger.warn('Co-passengers fetch failed:', e.message);
+    logger.warn('Co-passengers fetch failed:', e.code, e.message);
   }
 
   ApiResponse.success(
