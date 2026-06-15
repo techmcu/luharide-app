@@ -182,11 +182,12 @@ class VehicleCatalog {
 
   /// Tempo Traveller / bus: RHD top view — front row [passenger, driver], then rows of 3 (or 2).
   static SeatLayoutConfig _tempoLayout(int totalSeats) {
+    final clamped = totalSeats.clamp(2, 32);
     final seats = <SeatPosition>[];
     final rowCols = <int>[2]; // row 0: passenger, driver
     seats.add(const SeatPosition(id: 'F1', row: 0, col: 0, type: 'front'));
     seats.add(const SeatPosition(id: 'D1', row: 0, col: 1, type: 'driver'));
-    int remaining = totalSeats - 2;
+    int remaining = clamped - 2;
     int row = 1;
     while (remaining > 0) {
       final inRow = remaining >= 3 ? 3 : remaining;
@@ -243,14 +244,14 @@ class VehicleCatalog {
       case 32:
         return _layoutTempo32;
       default:
-        // Fallback: simple car/bus style grid (similar to old seat selection)
-        final seatsPerRow = totalSeats <= 7 ? 2 : 3;
-        final rows = (totalSeats / seatsPerRow).ceil();
+        final safe = totalSeats.clamp(2, 32);
+        final seatsPerRow = safe <= 7 ? 2 : 3;
+        final rows = (safe / seatsPerRow).ceil();
         final seats = <SeatPosition>[];
         var index = 0;
         for (var r = 0; r < rows; r++) {
           for (var c = 0; c < seatsPerRow; c++) {
-            if (index >= totalSeats) break;
+            if (index >= safe) break;
             final type = r == 0
                 ? (index == 0 ? 'front' : 'driver')
                 : (r == rows - 1 ? 'rear' : 'middle');
