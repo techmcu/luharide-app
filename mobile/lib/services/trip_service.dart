@@ -192,7 +192,6 @@ class TripService {
         'pending_seats': pendingList,
         'user_booking_status': data['user_booking_status'],
         'co_passengers': data['co_passengers'] is List ? data['co_passengers'] : [],
-        '_cp_debug': data['_cp_debug'],
       };
     } on DioException catch (e) {
       return {

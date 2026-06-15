@@ -41,7 +41,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   List<int> _bookedSeats = [];
   List<int> _pendingSeats = [];
   List<Map<String, dynamic>> _coPassengers = [];
-  String _cpDebug = '';
   bool _isLoading = true;
 
   /// null = not booked, 'pending' = waiting, 'confirmed' = confirmed
@@ -101,7 +100,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
               ?.where((e) => e is Map)
               .map((e) => Map<String, dynamic>.from(e as Map))
               .toList() ?? [];
-          _cpDebug = result['_cp_debug']?.toString() ?? 'no debug';
         }
         if (_trip == null && widget.initialTrip != null) {
           _trip = widget.initialTrip;
@@ -553,13 +551,6 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                                     'No other passengers yet — you\'ll be the first!',
                                     style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                                   ),
-                                  if (_cpDebug.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'DEBUG: $_cpDebug',
-                                      style: TextStyle(fontSize: 10, color: Colors.red[300]),
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),

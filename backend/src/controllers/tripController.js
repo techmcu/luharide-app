@@ -453,77 +453,42 @@ const getTripDetails = asyncHandler(async (req, res) => {
 
   const contactVisible = isDriver || userBookingStatus === 'confirmed' || userBookingStatus === 'completed';
 
-  // Co-passengers: confirmed/pending passengers with avg rating + seat numbers (exclude self, no contact info)
-  const MAX_CO_PASSENGERS = 100;
+  // Co-passengers: single query — bookings JOIN users, exclude self, no contact info
   let coPassengers = [];
-  let _cpDebug = {};
   try {
-    const selfId = req.user?.id;
-    const allBookings = bookingsResult.rows;
-    const cpBookings = allBookings
-      .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== selfId);
-
-    _cpDebug = {
-      selfId: selfId || null,
-      totalBookingRows: allBookings.length,
-      statuses: allBookings.map(r => ({ pid: r.passenger_id?.slice(0, 8), status: r.status })),
-      afterFilter: cpBookings.length,
-    };
-
-    const uniqueIds = [...new Set(cpBookings.map(r => r.passenger_id))].slice(0, MAX_CO_PASSENGERS);
-
-    if (uniqueIds.length > 0) {
-      const seatMap = {};
-      const statusMap = {};
-      for (const b of cpBookings) {
-        if (!uniqueIds.includes(b.passenger_id)) continue;
-        const rawSeats = Array.isArray(b.seat_numbers) ? b.seat_numbers : [];
-        const seats = rawSeats
-          .map(s => typeof s === 'number' ? s : parseInt(s, 10))
-          .filter(n => Number.isInteger(n) && n >= 1);
-        if (seatMap[b.passenger_id]) {
-          const merged = new Set([...seatMap[b.passenger_id], ...seats]);
-          seatMap[b.passenger_id] = [...merged].sort((a, b) => a - b);
-        } else {
-          seatMap[b.passenger_id] = seats.sort((a, b) => a - b);
-        }
-        const prev = statusMap[b.passenger_id];
-        if (!prev || (prev === 'pending' && b.status === 'confirmed')) {
-          statusMap[b.passenger_id] = b.status;
-        }
-      }
-
-      const cpResult = await pool.query(
-        `SELECT u.id, u.name,
-           COALESCE(rs.cnt, 0)::int AS total_ratings,
-           COALESCE(rs.avg_r, 0)::decimal(3,2) AS average_rating
-         FROM users u
-         LEFT JOIN (
-           SELECT rated_user_id, COUNT(*)::int AS cnt, AVG(rating) AS avg_r
-           FROM ride_ratings WHERE rated_user_id = ANY($1::uuid[])
-           GROUP BY rated_user_id
-         ) rs ON rs.rated_user_id = u.id
-         WHERE u.id = ANY($1::uuid[])`,
-        [uniqueIds]
-      );
-      coPassengers = cpResult.rows
-        .filter(r => r.id != null)
-        .map(r => {
-          const avg = parseFloat(r.average_rating);
-          return {
-            id: r.id,
-            name: (r.name || '').trim() || 'Passenger',
-            total_ratings: parseInt(r.total_ratings, 10) || 0,
-            average_rating: Number.isFinite(avg) ? avg : 0,
-            seat_numbers: seatMap[r.id] || [],
-            status: statusMap[r.id] || 'confirmed',
-          };
-        });
-    }
-    _cpDebug.uniqueIds = uniqueIds.length;
-    _cpDebug.finalCount = coPassengers.length;
+    const selfId = req.user?.id || null;
+    const cpResult = await pool.query(
+      `SELECT
+         b.passenger_id AS id, u.name, b.seat_numbers, b.status,
+         COUNT(rr.id)::int AS total_ratings,
+         COALESCE(AVG(rr.rating), 0)::decimal(3,2) AS average_rating
+       FROM bookings b
+       JOIN users u ON u.id = b.passenger_id
+       LEFT JOIN ride_ratings rr ON rr.rated_user_id = b.passenger_id
+       WHERE b.trip_id = $1
+         AND b.status IN ('confirmed', 'pending')
+         AND ($2::uuid IS NULL OR b.passenger_id != $2)
+       GROUP BY b.passenger_id, u.name, b.seat_numbers, b.status
+       LIMIT 100`,
+      [id, selfId]
+    );
+    coPassengers = cpResult.rows.map(r => {
+      const rawSeats = Array.isArray(r.seat_numbers) ? r.seat_numbers : [];
+      const seats = rawSeats
+        .map(s => typeof s === 'number' ? s : parseInt(s, 10))
+        .filter(n => Number.isInteger(n) && n >= 1)
+        .sort((a, b) => a - b);
+      const avg = parseFloat(r.average_rating);
+      return {
+        id: r.id,
+        name: (r.name || '').trim() || 'Passenger',
+        total_ratings: parseInt(r.total_ratings, 10) || 0,
+        average_rating: Number.isFinite(avg) ? avg : 0,
+        seat_numbers: seats,
+        status: r.status || 'confirmed',
+      };
+    });
   } catch (e) {
-    _cpDebug.error = `${e.code}: ${e.message}`;
     logger.warn('Co-passengers fetch failed:', e.code, e.message);
   }
 
@@ -557,7 +522,6 @@ const getTripDetails = asyncHandler(async (req, res) => {
       pending_seats: [...pendingSet].sort((a, b) => a - b),
       user_booking_status: userBookingStatus,
       co_passengers: coPassengers,
-      _cp_debug: _cpDebug,
     },
     'Trip details'
   ).send(res);
