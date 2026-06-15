@@ -453,14 +453,22 @@ const getTripDetails = asyncHandler(async (req, res) => {
 
   const contactVisible = isDriver || userBookingStatus === 'confirmed' || userBookingStatus === 'completed';
 
-  // Co-passengers: confirmed/pending passengers with avg rating (exclude self, no contact info)
+  // Co-passengers: confirmed/pending passengers with avg rating + seat numbers (exclude self, no contact info)
   let coPassengers = [];
   try {
-    const passengerIds = bookingsResult.rows
-      .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== req.user.id)
-      .map(r => r.passenger_id);
+    const cpBookings = bookingsResult.rows
+      .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== req.user.id);
+
+    const passengerIds = cpBookings.map(r => r.passenger_id);
 
     if (passengerIds.length > 0) {
+      const seatMap = {};
+      const statusMap = {};
+      for (const b of cpBookings) {
+        seatMap[b.passenger_id] = b.seat_numbers || [];
+        statusMap[b.passenger_id] = b.status;
+      }
+
       const cpResult = await pool.query(
         `SELECT
            u.id, u.name,
@@ -477,6 +485,8 @@ const getTripDetails = asyncHandler(async (req, res) => {
         name: r.name || 'Passenger',
         total_ratings: parseInt(r.total_ratings, 10) || 0,
         average_rating: parseFloat(r.average_rating) || 0,
+        seat_numbers: seatMap[r.id] || [],
+        status: statusMap[r.id] || 'confirmed',
       }));
     }
   } catch (e) {

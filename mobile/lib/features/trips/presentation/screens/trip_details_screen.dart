@@ -13,7 +13,6 @@ import '../../../../utils/launch_whatsapp.dart';
 import '../../../../utils/phone_call_helper.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../profile/presentation/screens/edit_profile_screen.dart';
-import '../../../profile/presentation/screens/user_reviews_screen.dart';
 import 'seat_selection_screen.dart';
 
 class TripDetailsScreen extends StatefulWidget {
@@ -370,7 +369,7 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Driver Card – tap avatar/name to see ratings; Message via WhatsApp (no number shown)
+          // Driver Card
           if (_displayTrip!.driver != null)
             Card(
               elevation: 2,
@@ -387,63 +386,37 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
                           fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
-                    InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => UserReviewsScreen(
-                              userId: _displayTrip!.driver!.id,
-                              displayName: _displayTrip!.driver!.name,
-                            ),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.green,
+                          child: Text(
+                            _displayTrip!.driver!.name.isNotEmpty
+                                ? _displayTrip!.driver!.name[0].toUpperCase()
+                                : 'D',
+                            style: const TextStyle(color: Colors.white),
                           ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(12),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.green,
-                            child: Text(
-                              _displayTrip!.driver!.name.isNotEmpty
-                                  ? _displayTrip!.driver!.name[0].toUpperCase()
-                                  : 'D',
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      _displayTrip!.driver!.name,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    if (_displayTrip!.driver!.isVerified) ...[
-                                      const SizedBox(width: 6),
-                                      Icon(Icons.verified,
-                                          color: Colors.blue[700], size: 20),
-                                    ],
-                                  ],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Text(
+                                _displayTrip!.driver!.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Tap to see ratings & reviews',
-                                  style: TextStyle(
-                                      fontSize: 12, color: Colors.grey[600]),
-                                ),
+                              ),
+                              if (_displayTrip!.driver!.isVerified) ...[
+                                const SizedBox(width: 6),
+                                Icon(Icons.verified,
+                                    color: Colors.blue[700], size: 20),
                               ],
-                            ),
+                            ],
                           ),
-                          Icon(Icons.chevron_right, color: Colors.grey[600]),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
                     _DriverRatingRow(
@@ -749,19 +722,6 @@ class _DriverRatingRowState extends State<_DriverRatingRow> {
             else
               Text(loc.t('trip.details.no_ratings'),
                   style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-            const SizedBox(width: 12),
-            TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => UserReviewsScreen(
-                        userId: widget.driverId, displayName: widget.driverName),
-                  ),
-                );
-              },
-              child: Text(loc.t('trip.details.see_reviews')),
-            ),
           ],
         );
       },
@@ -806,6 +766,11 @@ class _CoPassengersCard extends StatelessWidget {
     final name = p['name']?.toString() ?? 'Passenger';
     final totalRatings = (p['total_ratings'] as num?)?.toInt() ?? 0;
     final avgRating = (p['average_rating'] as num?)?.toDouble() ?? 0;
+    final seatNumbers = (p['seat_numbers'] as List?)
+        ?.map((s) => s.toString())
+        .toList() ?? [];
+    final status = p['status']?.toString() ?? '';
+    final isPending = status == 'pending';
 
     return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -813,11 +778,11 @@ class _CoPassengersCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: Colors.blue[100],
+              backgroundColor: isPending ? Colors.orange[100] : Colors.blue[100],
               child: Text(
                 name.isNotEmpty ? name[0].toUpperCase() : 'P',
                 style: TextStyle(
-                  color: Colors.blue[800],
+                  color: isPending ? Colors.orange[800] : Colors.blue[800],
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
@@ -825,10 +790,33 @@ class _CoPassengersCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                name,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      if (seatNumbers.isNotEmpty)
+                        Text(
+                          'Seat ${seatNumbers.join(', ')}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      if (isPending) ...[
+                        if (seatNumbers.isNotEmpty)
+                          Text(' · ', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+                        Text(
+                          'Pending',
+                          style: TextStyle(fontSize: 12, color: Colors.orange[700], fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
               ),
             ),
             if (totalRatings > 0)

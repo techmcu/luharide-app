@@ -17,7 +17,6 @@ import '../../../../widgets/location_picker_screen.dart';
 import '../../../../widgets/shimmer_trip_card.dart';
 import '../../../auth/presentation/screens/simple_login_screen.dart';
 import '../../../../widgets/brand_app_bar_title.dart';
-import '../../../profile/presentation/screens/user_reviews_screen.dart';
 import 'trip_details_screen.dart';
 
 // ── Palette constants ────────────────────────────────────────────────────────
@@ -914,45 +913,29 @@ class _DriverRatingChipState extends State<_DriverRatingChip> {
     final total = (_data?['total_ratings'] as num?)?.toInt() ?? 0;
     final avg = (_data?['average_rating'] as num?)?.toDouble() ?? 0.0;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => UserReviewsScreen(
-              userId: widget.driverId,
-              displayName: widget.driverName,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.amber[50],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.amber[200]!),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.star, color: Colors.amber[700], size: 18),
+          const SizedBox(width: 6),
+          Text(
+            total > 0
+                ? '${avg.toStringAsFixed(1)} ($total reviews)'
+                : 'No ratings yet',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: total > 0 ? Colors.amber[900] : Colors.grey[600],
             ),
           ),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.amber[50],
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.amber[200]!),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.star, color: Colors.amber[700], size: 18),
-            const SizedBox(width: 6),
-            Text(
-              total > 0
-                  ? '${avg.toStringAsFixed(1)} ($total reviews)'
-                  : 'No ratings yet',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: total > 0 ? Colors.amber[900] : Colors.grey[600],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Icon(Icons.chevron_right, size: 16, color: Colors.grey[500]),
-          ],
-        ),
+        ],
       ),
     );
   }
