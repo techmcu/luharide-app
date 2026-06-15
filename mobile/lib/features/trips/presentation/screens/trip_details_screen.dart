@@ -523,11 +523,12 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
             ),
           const SizedBox(height: 16),
 
-          // Co-passengers Card
-          if (_coPassengers.isNotEmpty)
+          // Fellow Travelers — only on active trips
+          if (_coPassengers.isNotEmpty &&
+              (_displayTrip?.status == 'scheduled' || _displayTrip?.status == 'in_progress'))
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: _CoPassengersCard(passengers: _coPassengers),
+              child: _FellowTravelersCard(passengers: _coPassengers),
             ),
 
           // Fare Card
@@ -769,10 +770,10 @@ class _DriverRatingRowState extends State<_DriverRatingRow> {
   }
 }
 
-class _CoPassengersCard extends StatelessWidget {
+class _FellowTravelersCard extends StatelessWidget {
   final List<Map<String, dynamic>> passengers;
 
-  const _CoPassengersCard({required this.passengers});
+  const _FellowTravelersCard({required this.passengers});
 
   @override
   Widget build(BuildContext context) {
@@ -788,11 +789,20 @@ class _CoPassengersCard extends StatelessWidget {
               children: [
                 Icon(Icons.people_outline, size: 22, color: Colors.blue[700]),
                 const SizedBox(width: 8),
-                Text(
-                  'Co-passengers (${passengers.length})',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Text(
+                    'Fellow Travelers (${passengers.length})',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Tap to see their ratings',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              ),
             ),
             const SizedBox(height: 12),
             ...passengers.map((p) => _buildPassengerTile(context, p)),
@@ -803,6 +813,7 @@ class _CoPassengersCard extends StatelessWidget {
   }
 
   Widget _buildPassengerTile(BuildContext context, Map<String, dynamic> p) {
+    final id = p['id']?.toString() ?? '';
     final name = p['name']?.toString() ?? 'Passenger';
     final totalRatings = (p['total_ratings'] as num?)?.toInt() ?? 0;
     final avgRating = (p['average_rating'] as num?)?.toDouble() ?? 0;
@@ -812,8 +823,18 @@ class _CoPassengersCard extends StatelessWidget {
     final status = p['status']?.toString() ?? '';
     final isPending = status == 'pending';
 
-    return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+    return InkWell(
+      onTap: id.isNotEmpty
+          ? () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => UserReviewsScreen(userId: id, displayName: name),
+                ),
+              )
+          : null,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         child: Row(
           children: [
             CircleAvatar(
@@ -888,8 +909,11 @@ class _CoPassengersCard extends StatelessWidget {
                 'New',
                 style: TextStyle(fontSize: 12, color: Colors.grey[500]),
               ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 18, color: Colors.grey[400]),
           ],
         ),
+      ),
     );
   }
 }
