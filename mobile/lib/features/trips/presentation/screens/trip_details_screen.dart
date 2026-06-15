@@ -523,12 +523,41 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
             ),
           const SizedBox(height: 16),
 
-          // Fellow Travelers — hide only on completed/cancelled trips
-          if (_coPassengers.isNotEmpty &&
-              _displayTrip?.status != 'completed' && _displayTrip?.status != 'cancelled')
+          // Fellow Travelers — always visible on active trips
+          if (_displayTrip?.status != 'completed' && _displayTrip?.status != 'cancelled')
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: _FellowTravelersCard(passengers: _coPassengers),
+              child: _coPassengers.isNotEmpty
+                  ? _FellowTravelersCard(passengers: _coPassengers)
+                  : Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(Icons.people_outline, size: 22, color: Colors.blue[700]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Fellow Travelers',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'No other passengers yet — you\'ll be the first!',
+                                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
             ),
 
           // Fare Card
