@@ -465,8 +465,19 @@ const getTripDetails = asyncHandler(async (req, res) => {
       const seatMap = {};
       const statusMap = {};
       for (const b of cpBookings) {
-        seatMap[b.passenger_id] = b.seat_numbers || [];
-        statusMap[b.passenger_id] = b.status;
+        const seats = (b.seat_numbers || [])
+          .map(s => typeof s === 'number' ? s : parseInt(s, 10))
+          .filter(n => Number.isInteger(n) && n >= 1);
+        if (seatMap[b.passenger_id]) {
+          const merged = new Set([...seatMap[b.passenger_id], ...seats]);
+          seatMap[b.passenger_id] = [...merged].sort((a, b) => a - b);
+        } else {
+          seatMap[b.passenger_id] = seats.sort((a, b) => a - b);
+        }
+        const prev = statusMap[b.passenger_id];
+        if (!prev || (prev === 'pending' && b.status === 'confirmed')) {
+          statusMap[b.passenger_id] = b.status;
+        }
       }
 
       const cpResult = await pool.query(

@@ -10,7 +10,23 @@ const rideRatingsRepository = require('../repositories/rideRatingsRepository');
 const bookingRepository = require('../repositories/bookingRepository');
 const { pool } = require('../config/database');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
+const { isRedisEnabled, getRedisClient } = require('../config/redis');
 const logger = require('../config/logger');
+
+async function invalidateReviewCacheForUser(userId) {
+  if (!isRedisEnabled()) return;
+  const client = getRedisClient();
+  if (!client) return;
+  try {
+    await client.del(
+      `luha:cache:/api/reviews/user/${userId}/summary`,
+      `luha:cache:/api/reviews/summary/${userId}`,
+      `luha:cache:/api/reviews/user/${userId}/bundle`,
+    );
+  } catch (e) {
+    logger.warn('Redis review cache invalidation failed:', e.message);
+  }
+}
 
 function buildTripContext(booking) {
   const from = (booking.from_location || '').trim();
@@ -149,6 +165,8 @@ async function submitRating(bookingId, userId, { rating, comment }) {
   } catch (e) {
     if (e.code !== '42P01') logger.warn('Rating threshold check failed:', e.message);
   }
+
+  await invalidateReviewCacheForUser(ratedUserId);
 
   return { message: 'Rating submitted', rated_user_id: ratedUserId };
 }
@@ -347,7 +365,10 @@ async function getRatingContext(bookingId, userId) {
   const targetName = fromRole === ROLES.PASSENGER ? bk.driver_name : bk.passenger_name;
   const rawPhoto = fromRole === ROLES.PASSENGER ? bk.driver_photo : bk.passenger_photo;
   const targetPhoto = rawPhoto && !rawPhoto.startsWith('data:') ? rawPhoto : null;
-  const seats = Array.isArray(bk.seat_numbers) ? bk.seat_numbers : [];
+  const seats = (Array.isArray(bk.seat_numbers) ? bk.seat_numbers : [])
+    .map(s => typeof s === 'number' ? s : parseInt(s, 10))
+    .filter(n => Number.isInteger(n) && n >= 1)
+    .sort((a, b) => a - b);
   const route = [bk.from_location, bk.to_location].filter(Boolean).join(' → ') || '';
 
   return {

@@ -8,6 +8,8 @@ class ReviewCacheStore {
 
   static const _bundlePrefix = 'lr_bundle_v1_';
   static const _fpPrefix = 'lr_summary_fp_v1_';
+  static const _indexKey = 'lr_bundle_index_v1';
+  static const _maxBundles = 30;
 
   static String _bundleKey(String userId) => '$_bundlePrefix$userId';
   static String _fpKey(String userId) => '$_fpPrefix$userId';
@@ -37,6 +39,7 @@ class ReviewCacheStore {
     if (userId.isEmpty) return;
     final p = await SharedPreferences.getInstance();
     await p.setString(_bundleKey(userId), jsonEncode(data));
+    await _trackAndEvict(userId, p);
   }
 
   static Future<void> clearBundle(String userId) async {
@@ -44,6 +47,10 @@ class ReviewCacheStore {
     final p = await SharedPreferences.getInstance();
     await p.remove(_bundleKey(userId));
     await p.remove(_fpKey(userId));
+    final index = p.getStringList(_indexKey) ?? [];
+    if (index.remove(userId)) {
+      await p.setStringList(_indexKey, index);
+    }
   }
 
   static Future<String?> readFingerprint(String userId) async {
@@ -56,5 +63,18 @@ class ReviewCacheStore {
     if (userId.isEmpty) return;
     final p = await SharedPreferences.getInstance();
     await p.setString(_fpKey(userId), fp);
+  }
+
+  /// LRU tracker — keeps most recent [_maxBundles] bundles, evicts oldest.
+  static Future<void> _trackAndEvict(String userId, SharedPreferences p) async {
+    final index = p.getStringList(_indexKey) ?? [];
+    index.remove(userId);
+    index.add(userId);
+    while (index.length > _maxBundles) {
+      final oldest = index.removeAt(0);
+      await p.remove(_bundleKey(oldest));
+      await p.remove(_fpKey(oldest));
+    }
+    await p.setStringList(_indexKey, index);
   }
 }

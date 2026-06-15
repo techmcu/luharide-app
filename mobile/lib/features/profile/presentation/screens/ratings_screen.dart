@@ -72,7 +72,7 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
       setState(() {
         _isLoading = false;
         _refreshing = false;
-        _loadError = 'Could not load ratings';
+        _loadError = result['error'] as String? ?? 'Could not load ratings';
       });
     } else {
       setState(() => _refreshing = false);
@@ -130,7 +130,22 @@ class _RatingsScreenState extends State<RatingsScreen> with SingleTickerProvider
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _loadError != null
-              ? Center(child: Text(_loadError!, style: TextStyle(color: Colors.grey[700])))
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[300]),
+                      const SizedBox(height: 12),
+                      Text(_loadError!, style: TextStyle(color: Colors.grey[700])),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: _loadCacheThenRefresh,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
               : _ratings.isEmpty && _total == 0
                   ? _buildEmptyState()
                   : TabBarView(

@@ -116,7 +116,11 @@ class ReviewService {
         'page': page,
       };
     } catch (e) {
-      return {'success': false, 'reviews': <dynamic>[], 'total': 0, 'has_more': false};
+      return {
+        'success': false,
+        'error': e is DioException ? userMessageFromDio(e) : 'Failed to load reviews',
+        'reviews': <dynamic>[], 'total': 0, 'has_more': false,
+      };
     }
   }
 
@@ -136,7 +140,11 @@ class ReviewService {
         'page': page,
       };
     } catch (e) {
-      return {'success': false, 'reviews': <dynamic>[], 'total': 0, 'has_more': false};
+      return {
+        'success': false,
+        'error': e is DioException ? userMessageFromDio(e) : 'Failed to load reviews',
+        'reviews': <dynamic>[], 'total': 0, 'has_more': false,
+      };
     }
   }
 
@@ -166,7 +174,11 @@ class ReviewService {
         'from_cache': false,
       };
     } catch (e) {
-      return {'success': false, 'reviews': <dynamic>[], 'total': 0, 'has_more': false};
+      return {
+        'success': false,
+        'error': e is DioException ? userMessageFromDio(e) : 'Failed to load reviews',
+        'reviews': <dynamic>[], 'total': 0, 'has_more': false,
+      };
     }
   }
 
@@ -229,7 +241,11 @@ class ReviewService {
       _ratingCache[userId] = _CachedRating(data: result, at: DateTime.now());
       return result;
     } catch (e) {
-      return {'success': false, 'total_ratings': 0, 'average_rating': 0.0, 'reviews_window_max': 50};
+      return {
+        'success': false,
+        'error': e is DioException ? userMessageFromDio(e) : 'Failed to load rating',
+        'total_ratings': 0, 'average_rating': 0.0, 'reviews_window_max': 50,
+      };
     }
   }
 }

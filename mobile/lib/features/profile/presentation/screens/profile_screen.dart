@@ -892,10 +892,16 @@ class _RatingSummaryChip extends StatelessWidget {
     return FutureBuilder<Map<String, dynamic>>(
       future: ReviewService().getUserRatingSummary(userId!),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return _chip(icon: Icons.star_outline, label: loc.t('profile.rating_chip.no_ratings'));
+        }
         if (!snapshot.hasData) {
           return _chip(icon: Icons.star_outline, label: '…');
         }
         final d = snapshot.data!;
+        if (d['success'] != true) {
+          return _chip(icon: Icons.star_outline, label: loc.t('profile.rating_chip.no_ratings'));
+        }
         final total = (d['total_ratings'] as num?)?.toInt() ?? 0;
         final avg = (d['average_rating'] as num?)?.toDouble();
         if (total == 0) {

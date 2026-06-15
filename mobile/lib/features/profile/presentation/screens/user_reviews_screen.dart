@@ -25,6 +25,7 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
   int _windowMax = 50;
   bool _fromCache = false;
   bool _refreshing = false;
+  String? _loadError;
 
   @override
   void initState() {
@@ -48,6 +49,7 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
       setState(() {
         _isLoading = false;
         _refreshing = false;
+        _loadError = result['error'] as String? ?? 'Could not load ratings';
       });
     } else {
       setState(() => _refreshing = false);
@@ -89,50 +91,78 @@ class _UserReviewsScreenState extends State<UserReviewsScreen> {
       ),
       body: _isLoading && _reviews.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : _reviews.isEmpty && _total == 0
-              ? _buildEmptyState()
+          : _loadError != null && _reviews.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off_rounded, size: 48, color: Colors.grey[300]),
+                      const SizedBox(height: 12),
+                      Text(_loadError!, style: TextStyle(color: Colors.grey[700])),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: () {
+                          setState(() { _loadError = null; _isLoading = true; });
+                          _loadCacheThenRefresh();
+                        },
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : _reviews.isEmpty && _total == 0
+                  ? _buildEmptyState()
               : RefreshIndicator(
                   onRefresh: _onRefresh,
-                  child: ListView(
+                  child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    children: [
-                      if (_summaryLoaded) _buildSummaryChip(),
-                      if (_refreshing)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Row(
-                            children: [
-                              const SizedBox(
-                                width: 14, height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                    itemCount: _reviews.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_summaryLoaded) _buildSummaryChip(),
+                            if (_refreshing)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Row(
+                                  children: [
+                                    const SizedBox(
+                                      width: 14, height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Updating...',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Updating...',
-                                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            if (_hasMore)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8, bottom: 8),
+                                child: Text(
+                                  'Showing latest $_windowMax of $_total reviews.',
+                                  style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
+                                ),
                               ),
-                            ],
-                          ),
-                        ),
-                      if (_hasMore)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8, bottom: 8),
-                          child: Text(
-                            'Showing latest $_windowMax of $_total reviews.',
-                            style: TextStyle(fontSize: 12.5, color: Colors.grey[700], height: 1.35),
-                          ),
-                        ),
-                      if (_fromCache && !_refreshing)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            'Cached — pull to refresh.',
-                            style: TextStyle(fontSize: 12, color: Colors.orange[800]),
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                      ..._reviews.map((r) => _buildRatingCard(r)),
-                    ],
+                            if (_fromCache && !_refreshing)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                child: Text(
+                                  'Cached — pull to refresh.',
+                                  style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+                                ),
+                              ),
+                            const SizedBox(height: 8),
+                          ],
+                        );
+                      }
+                      return _buildRatingCard(_reviews[index - 1]);
+                    },
                   ),
                 ),
     );

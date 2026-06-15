@@ -892,6 +892,7 @@ class _DriverRatingChip extends StatefulWidget {
 class _DriverRatingChipState extends State<_DriverRatingChip> {
   Map<String, dynamic>? _data;
   bool _loaded = false;
+  bool _hadError = false;
 
   @override
   void initState() {
@@ -905,12 +906,13 @@ class _DriverRatingChipState extends State<_DriverRatingChip> {
     setState(() {
       _data = result;
       _loaded = true;
+      _hadError = result['success'] != true && result['error'] != null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_loaded) return const SizedBox.shrink();
+    if (!_loaded || _hadError) return const SizedBox.shrink();
     final total = (_data?['total_ratings'] as num?)?.toInt() ?? 0;
     final avg = (_data?['average_rating'] as num?)?.toDouble() ?? 0.0;
 
