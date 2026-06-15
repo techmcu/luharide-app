@@ -456,10 +456,19 @@ const getTripDetails = asyncHandler(async (req, res) => {
   // Co-passengers: confirmed/pending passengers with avg rating + seat numbers (exclude self, no contact info)
   const MAX_CO_PASSENGERS = 100;
   let coPassengers = [];
+  let _cpDebug = {};
   try {
     const selfId = req.user?.id;
-    const cpBookings = bookingsResult.rows
+    const allBookings = bookingsResult.rows;
+    const cpBookings = allBookings
       .filter(r => ['confirmed', 'pending'].includes(r.status) && r.passenger_id && r.passenger_id !== selfId);
+
+    _cpDebug = {
+      selfId: selfId || null,
+      totalBookingRows: allBookings.length,
+      statuses: allBookings.map(r => ({ pid: r.passenger_id?.slice(0, 8), status: r.status })),
+      afterFilter: cpBookings.length,
+    };
 
     const uniqueIds = [...new Set(cpBookings.map(r => r.passenger_id))].slice(0, MAX_CO_PASSENGERS);
 
@@ -511,7 +520,10 @@ const getTripDetails = asyncHandler(async (req, res) => {
           };
         });
     }
+    _cpDebug.uniqueIds = uniqueIds.length;
+    _cpDebug.finalCount = coPassengers.length;
   } catch (e) {
+    _cpDebug.error = `${e.code}: ${e.message}`;
     logger.warn('Co-passengers fetch failed:', e.code, e.message);
   }
 
@@ -545,6 +557,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
       pending_seats: [...pendingSet].sort((a, b) => a - b),
       user_booking_status: userBookingStatus,
       co_passengers: coPassengers,
+      _cp_debug: _cpDebug,
     },
     'Trip details'
   ).send(res);
