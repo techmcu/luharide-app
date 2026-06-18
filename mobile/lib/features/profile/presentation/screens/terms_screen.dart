@@ -262,6 +262,15 @@ final List<({String title, String body})> _termsEn = [
         'policies referenced here) are the entire agreement between you and us regarding the Service and '
         'replace earlier understandings, except for rights that mandatory law gives you.',
   ),
+  (
+    title: '26. Grievance officer',
+    body:
+        'In line with applicable Indian law, our Grievance Officer is Rahul Panwar. You can raise any '
+        'grievance, complaint, or concern about the Service, content, or your data through Help in the app or '
+        'by writing to ${BrandConfig.grievContactEmail}. We will acknowledge your grievance and aim to resolve '
+        'it within 10 to 20 days at most; urgent safety matters are prioritised. Please include enough detail '
+        '(your contact, the issue, and any ride or booking reference) so we can assist you quickly.',
+  ),
 ];
 
 final List<({String title, String body})> _termsHi = [
@@ -494,6 +503,15 @@ final List<({String title, String body})> _termsHi = [
         'लागू करने में देरी उसका त्याग नहीं है। ये नियम (यहाँ संदर्भित गोपनीयता नोटिस व इन-ऐप नीतियों सहित) '
         'सेवा के संबंध में आपके और हमारे बीच सम्पूर्ण अनुबंध हैं और पूर्व समझ को प्रतिस्थापित करते हैं, सिवाय '
         'उन अधिकारों के जो अनिवार्य कानून आपको देता है।',
+  ),
+  (
+    title: '26. शिकायत अधिकारी (Grievance Officer)',
+    body:
+        'लागू भारतीय कानून के अनुसार, हमारे शिकायत अधिकारी राहुल पंवार हैं। सेवा, सामग्री या अपने डेटा से जुड़ी '
+        'कोई भी शिकायत या चिंता आप ऐप में सहायता के ज़रिए या ${BrandConfig.grievContactEmail} पर लिखकर दर्ज कर '
+        'सकते हैं। हम आपकी शिकायत प्राप्ति की पुष्टि करेंगे और अधिकतम 10 से 20 दिनों में उसका समाधान करने का '
+        'प्रयास करेंगे; आपात/सुरक्षा मामलों को प्राथमिकता दी जाती है। कृपया पर्याप्त विवरण दें (आपका संपर्क, '
+        'समस्या, और कोई सवारी/बुकिंग संदर्भ) ताकि हम जल्दी मदद कर सकें।',
   ),
 ];
 
