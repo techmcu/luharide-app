@@ -138,6 +138,78 @@ final List<({String title, String body})> _termsEn = [
         'rank, display, limit, suspend, or remove accounts, but we do not guarantee its accuracy and accept no '
         'liability for decisions you make based on it.',
   ),
+  (
+    title: '13. Assumption of risk — accidents, injury, illness or death',
+    body:
+        'Road travel carries inherent risks. By using the Service to find or share a ride, you knowingly and '
+        'voluntarily assume all such risks. To the fullest extent permitted by law, ${BrandConfig.parentBrand} '
+        'and ${BrandConfig.appName} are NOT liable for any accident, collision, injury, disability, illness, '
+        'death, medical emergency, or loss of or damage to property suffered by any person before, during, or '
+        'after a ride arranged through the Service — whether a passenger, driver, co-passenger, or third party. '
+        'The driver and/or vehicle owner is solely responsible for the vehicle, its road-worthiness, valid '
+        'insurance, safe driving, and the consequences of the journey. We do not provide ride, accident, or '
+        'life insurance, and arranging adequate insurance is the driver\'s responsibility. In an emergency, '
+        'contact local emergency services (e.g. 112) directly.',
+  ),
+  (
+    title: '14. Crime, fraud and safety',
+    body:
+        'We are not responsible for, and accept no liability for, any fraud, theft, cheating, harassment, '
+        'assault, misconduct, impersonation, or other unlawful or criminal act committed by any user against '
+        'another. Such matters are between the persons involved and the authorities. Report crimes to the '
+        'police and serious safety or abuse issues to us via Help. We may, in good faith and as permitted by '
+        'law, cooperate with and share information with law-enforcement or other authorities. Always use your '
+        'own judgement, verify the person and vehicle, and prioritise your safety.',
+  ),
+  (
+    title: '15. Verification limits & service "as is"',
+    body:
+        'We verify drivers and unions on a best-effort basis (for example through submitted documents and KYC) '
+        'before listing them, and we genuinely try our best. However, no verification can be perfect or '
+        'guaranteed, identities and documents can be misused, and circumstances can change after verification '
+        '— so we do NOT and cannot guarantee the identity, conduct, credentials, or safety of any driver, '
+        'union, or vehicle 100%. Passengers are not subject to the same document verification, and full '
+        'verification of every user may never be 100% achievable. The Service is provided on an "as is" and '
+        '"as available" basis without warranties of any kind, to the fullest extent permitted by law. You are '
+        'responsible for exercising reasonable caution before and during any ride.',
+  ),
+  (
+    title: '16. Limitation of liability & indemnity',
+    body:
+        'To the fullest extent permitted by applicable law, ${BrandConfig.parentBrand}, ${BrandConfig.appName} '
+        'and their team shall not be liable for any indirect, incidental, special, consequential, or punitive '
+        'loss, or any loss of profit, data, or goodwill, arising from the Service or any ride; and our total '
+        'aggregate liability, where liability cannot be excluded, shall be limited to the maximum extent the '
+        'law allows. You agree to indemnify and hold us harmless from claims, damages, losses, or expenses '
+        'arising out of your use of the Service, your rides, or your breach of these terms — subject to the '
+        'mandatory rights you have under applicable law that cannot be waived.',
+  ),
+  (
+    title: '17. Periodic rating review & action',
+    body:
+        'To keep the community safe and reliable, we may review user ratings and conduct on a periodic basis '
+        '(for example monthly or every six months). Users — including drivers, unions, and passengers — with '
+        'persistently low ratings, repeated complaints, no-shows, or policy breaches may be warned, '
+        'temporarily restricted, suspended, de-listed, or removed from the Service, at our reasonable '
+        'discretion and subject to applicable law. We aim to act fairly but do not guarantee any particular '
+        'outcome.',
+  ),
+  (
+    title: '18. Force majeure',
+    body:
+        'We are not responsible for any failure or delay caused by events beyond our reasonable control, '
+        'including natural disasters, weather, landslides, strikes, network or power outages, government '
+        'action, or other force-majeure events.',
+  ),
+  (
+    title: '19. Intermediary status & not legal advice',
+    body:
+        '${BrandConfig.appName} acts only as an intermediary / technology marketplace that connects users; it '
+        'is not the provider of the transport service and is not a party to the agreement between passenger '
+        'and driver. These terms are a plain-language summary for users and are not legal advice; where they '
+        'conflict with mandatory Indian law (including consumer-protection and intermediary rules), the law '
+        'prevails. For grievances, contact us via Help / ${BrandConfig.grievContactEmail}.',
+  ),
 ];
 
 final List<({String title, String body})> _termsHi = [
@@ -256,6 +328,71 @@ final List<({String title, String body})> _termsHi = [
         'उपयोगकर्ता समीक्षाओं व रेटिंग के आधार पर रेट किया जाता है। हम इस फ़ीडबैक का उपयोग खातों को रैंक करने, '
         'दिखाने, सीमित करने, निलंबित या हटाने के लिए कर सकते हैं, पर इसकी सटीकता की गारंटी नहीं देते और इसके आधार '
         'पर आपके निर्णयों के लिए ज़िम्मेदार नहीं हैं।',
+  ),
+  (
+    title: '13. जोखिम की स्वीकृति — दुर्घटना, चोट, बीमारी या मृत्यु',
+    body:
+        'सड़क यात्रा में स्वाभाविक जोखिम होते हैं। सेवा का उपयोग कर सवारी ढूँढने या साझा करने पर आप ये सभी जोखिम '
+        'जानबूझकर और स्वेच्छा से स्वीकार करते हैं। कानून द्वारा अनुमत पूर्ण सीमा तक, ${BrandConfig.parentBrand} '
+        'और ${BrandConfig.appName} सेवा के माध्यम से तय की गई किसी भी सवारी से पहले, दौरान या बाद में किसी भी '
+        'व्यक्ति (यात्री, ड्राइवर, सह-यात्री या तृतीय पक्ष) को हुई दुर्घटना, टक्कर, चोट, विकलांगता, बीमारी, '
+        'मृत्यु, चिकित्सा आपात या संपत्ति की हानि के लिए ज़िम्मेदार नहीं हैं। वाहन, उसकी स्थिति, वैध बीमा, '
+        'सुरक्षित ड्राइविंग और यात्रा के परिणामों की पूरी ज़िम्मेदारी ड्राइवर और/या वाहन मालिक की है। हम सवारी, '
+        'दुर्घटना या जीवन बीमा नहीं देते; पर्याप्त बीमा की व्यवस्था ड्राइवर की ज़िम्मेदारी है। आपात स्थिति में '
+        'सीधे आपातकालीन सेवाओं (जैसे 112) से संपर्क करें।',
+  ),
+  (
+    title: '14. अपराध, धोखाधड़ी और सुरक्षा',
+    body:
+        'किसी उपयोगकर्ता द्वारा दूसरे के साथ की गई धोखाधड़ी, चोरी, ठगी, उत्पीड़न, हमला, दुर्व्यवहार, पहचान का '
+        'गलत इस्तेमाल या किसी अन्य गैरकानूनी/आपराधिक कृत्य के लिए हम ज़िम्मेदार नहीं हैं और कोई दायित्व स्वीकार '
+        'नहीं करते। ऐसे मामले संबंधित व्यक्तियों और अधिकारियों के बीच हैं। अपराध की रिपोर्ट पुलिस को और गंभीर '
+        'सुरक्षा/दुरुपयोग की रिपोर्ट हमें सहायता के ज़रिए करें। हम सद्भावपूर्वक और कानून के अनुसार कानून-प्रवर्तन '
+        'या अन्य अधिकारियों के साथ सहयोग व जानकारी साझा कर सकते हैं। हमेशा अपनी समझ से काम लें, व्यक्ति व वाहन '
+        'जाँचें और अपनी सुरक्षा को प्राथमिकता दें।',
+  ),
+  (
+    title: '15. सत्यापन की सीमाएँ और सेवा "जैसी है"',
+    body:
+        'हम ड्राइवर और यूनियन को सूचीबद्ध करने से पहले यथासंभव (जैसे दस्तावेज़ और केवाईसी से) सत्यापित करते हैं '
+        'और पूरी कोशिश करते हैं। पर कोई सत्यापन पूर्ण या गारंटीशुदा नहीं हो सकता, पहचान/दस्तावेज़ों का दुरुपयोग '
+        'हो सकता है और सत्यापन के बाद परिस्थितियाँ बदल सकती हैं—इसलिए हम किसी ड्राइवर, यूनियन या वाहन की पहचान, '
+        'आचरण या सुरक्षा की 100% गारंटी नहीं देते और न दे सकते हैं। यात्रियों का वैसा दस्तावेज़ सत्यापन नहीं होता, '
+        'और हर उपयोगकर्ता का पूर्ण सत्यापन कभी भी 100% संभव नहीं हो सकता। सेवा कानून द्वारा अनुमत सीमा तक '
+        '"जैसी है" और "जैसी उपलब्ध है" आधार पर, बिना किसी वारंटी के दी जाती है। किसी भी सवारी से पहले और दौरान '
+        'उचित सावधानी रखना आपकी ज़िम्मेदारी है।',
+  ),
+  (
+    title: '16. दायित्व की सीमा और क्षतिपूर्ति',
+    body:
+        'लागू कानून द्वारा अनुमत पूर्ण सीमा तक, ${BrandConfig.parentBrand}, ${BrandConfig.appName} और उनकी टीम '
+        'किसी अप्रत्यक्ष, आकस्मिक, विशेष या परिणामी हानि, या लाभ/डेटा/साख की हानि के लिए ज़िम्मेदार नहीं होंगे; '
+        'और जहाँ दायित्व बाहर नहीं किया जा सकता, हमारा कुल दायित्व कानून द्वारा अनुमत अधिकतम सीमा तक ही सीमित '
+        'रहेगा। सेवा के उपयोग, आपकी सवारियों, या इन नियमों के उल्लंघन से उत्पन्न दावों/हानि/खर्च से आप हमें '
+        'क्षतिपूर्ति देने और सुरक्षित रखने को सहमत हैं—उन अनिवार्य अधिकारों के अधीन जो कानूनन छोड़े नहीं जा सकते।',
+  ),
+  (
+    title: '17. आवधिक रेटिंग समीक्षा और कार्रवाई',
+    body:
+        'समुदाय को सुरक्षित व भरोसेमंद रखने के लिए हम समय-समय पर (जैसे मासिक या हर छह माह) उपयोगकर्ताओं की '
+        'रेटिंग और आचरण की समीक्षा कर सकते हैं। लगातार कम रेटिंग, बार-बार शिकायत, न आने या नियम-उल्लंघन वाले '
+        'उपयोगकर्ता—ड्राइवर, यूनियन या यात्री—को हमारे उचित विवेक पर और कानून के अधीन चेतावनी, अस्थायी रोक, '
+        'निलंबन, सूची से हटाना या सेवा से हटाया जा सकता है। हम निष्पक्ष रहने का प्रयास करते हैं पर किसी विशेष '
+        'परिणाम की गारंटी नहीं देते।',
+  ),
+  (
+    title: '18. अप्रत्याशित घटनाएँ (Force Majeure)',
+    body:
+        'हमारे उचित नियंत्रण से बाहर की घटनाओं—प्राकृतिक आपदा, मौसम, भूस्खलन, हड़ताल, नेटवर्क/बिजली बाधा, '
+        'सरकारी कार्रवाई आदि—से हुई विफलता या देरी के लिए हम ज़िम्मेदार नहीं हैं।',
+  ),
+  (
+    title: '19. मध्यस्थ भूमिका और कानूनी सलाह नहीं',
+    body:
+        '${BrandConfig.appName} केवल एक मध्यस्थ / तकनीकी मंच है जो उपयोगकर्ताओं को जोड़ता है; यह परिवहन सेवा का '
+        'प्रदाता नहीं है और यात्री-ड्राइवर के बीच समझौते का पक्ष नहीं है। ये नियम उपयोगकर्ताओं के लिए सरल भाषा '
+        'का सारांश हैं, कानूनी सलाह नहीं; जहाँ ये अनिवार्य भारतीय कानून (उपभोक्ता-संरक्षण व मध्यस्थ नियमों सहित) '
+        'से टकराएँ, वहाँ कानून मान्य होगा। शिकायत के लिए सहायता / ${BrandConfig.grievContactEmail} पर संपर्क करें।',
   ),
 ];
 
