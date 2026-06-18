@@ -17,28 +17,45 @@ function hmacOTP(otp) {
   return crypto.createHmac('sha256', OTP_HMAC_KEY).update(String(otp)).digest('hex');
 }
 
+// Single source of truth for how an email/phone is keyed. The INSERT, DELETE and
+// verify queries MUST use the same normalized value — a past mismatch (DELETE on
+// the raw email, INSERT on the lowercased one) left stale OTP rows behind and
+// produced false "OTP expired" errors.
+function normalizeEmail(email) {
+  return String(email || '').toLowerCase().trim();
+}
+function normalizePhone(phone) {
+  return String(phone || '').trim();
+}
+
+// Tunable without a redeploy via env. Expiry is always computed and compared on
+// the DATABASE clock (NOW()), never Node's, so there is no app/DB clock skew or
+// timezone drift regardless of whether the column is timestamp or timestamptz.
+const OTP_TTL_MINUTES = Math.max(1, parseInt(process.env.OTP_TTL_MINUTES || '10', 10) || 10);
+const OTP_MAX_ATTEMPTS = Math.max(1, parseInt(process.env.OTP_MAX_ATTEMPTS || '5', 10) || 5);
+
 /**
  * Create and store OTP in database (phone)
  */
 const createOTP = async (phone, purpose = 'login') => {
+  const phoneNorm = normalizePhone(phone);
   try {
     const otp = generateOTP();
     const otpHash = hmacOTP(otp);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await pool.query(
       'DELETE FROM otp_verifications WHERE phone = $1 AND is_verified = FALSE',
-      [phone]
+      [phoneNorm]
     );
 
     const result = await pool.query(
       `INSERT INTO otp_verifications (phone, otp, purpose, expires_at)
-       VALUES ($1, $2, $3, $4)
+       VALUES ($1, $2, $3, NOW() + make_interval(mins => $4::int))
        RETURNING id, phone, purpose, expires_at`,
-      [phone, otpHash, purpose, expiresAt]
+      [phoneNorm, otpHash, purpose, OTP_TTL_MINUTES]
     );
 
-    logger.info(`OTP created for phone: ${phone}, purpose: ${purpose}`);
+    logger.info(`OTP created for phone: ${phoneNorm}, purpose: ${purpose}`);
 
     return {
       id: result.rows[0].id,
@@ -56,24 +73,26 @@ const createOTP = async (phone, purpose = 'login') => {
  * Create and store OTP for email (email OTP flow)
  */
 const createOTPByEmail = async (email, purpose = 'login') => {
+  const emailNorm = normalizeEmail(email);
   try {
     const otp = generateOTP();
     const otpHash = hmacOTP(otp);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+    // DELETE uses the SAME normalized key as the INSERT/verify — this is the fix
+    // for stale rows that caused false "OTP expired" errors on a fresh code.
     await pool.query(
       'DELETE FROM otp_verifications WHERE email = $1 AND is_verified = FALSE',
-      [email]
+      [emailNorm]
     );
 
     const result = await pool.query(
       `INSERT INTO otp_verifications (phone, email, otp, purpose, expires_at)
-       VALUES (NULL, $1, $2, $3, $4)
+       VALUES (NULL, $1, $2, $3, NOW() + make_interval(mins => $4::int))
        RETURNING id, email, purpose, expires_at`,
-      [email.toLowerCase().trim(), otpHash, purpose, expiresAt]
+      [emailNorm, otpHash, purpose, OTP_TTL_MINUTES]
     );
 
-    logger.info(`OTP created for email: ${email}, purpose: ${purpose}`);
+    logger.info(`OTP created for email: ${emailNorm}, purpose: ${purpose}`);
 
     return {
       id: result.rows[0].id,
@@ -91,32 +110,34 @@ const createOTPByEmail = async (email, purpose = 'login') => {
  * Verify OTP (phone)
  */
 const verifyOTP = async (phone, otp) => {
+  const phoneNorm = normalizePhone(phone);
   const otpHash = hmacOTP(otp);
 
   const result = await pool.query(
     `UPDATE otp_verifications
-     SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP
+     SET is_verified = TRUE, verified_at = NOW()
      WHERE id = (
        SELECT id FROM otp_verifications
        WHERE phone = $1 AND otp = $2 AND is_verified = FALSE
-         AND expires_at > NOW() AND attempts < 5
+         AND expires_at > NOW() AND attempts < $3
        ORDER BY created_at DESC LIMIT 1
        FOR UPDATE SKIP LOCKED
      )
      RETURNING id, phone, purpose`,
-    [phone, otpHash]
+    [phoneNorm, otpHash, OTP_MAX_ATTEMPTS]
   );
 
   if (result.rows.length > 0) {
-    logger.info(`OTP verified for phone: ${phone}`);
-    return { verified: true, phone, purpose: result.rows[0].purpose };
+    logger.info(`OTP verified for phone: ${phoneNorm}`);
+    return { verified: true, phone: phoneNorm, purpose: result.rows[0].purpose };
   }
 
+  // Expiry decided by the DB clock (is_expired), not Node — TZ/skew safe.
   const check = await pool.query(
-    `SELECT id, expires_at, attempts FROM otp_verifications
+    `SELECT id, attempts, (expires_at <= NOW()) AS is_expired FROM otp_verifications
      WHERE phone = $1 AND is_verified = FALSE
      ORDER BY created_at DESC LIMIT 1`,
-    [phone]
+    [phoneNorm]
   );
 
   if (check.rows.length === 0) {
@@ -129,10 +150,10 @@ const verifyOTP = async (phone, otp) => {
     [rec.id]
   );
 
-  if (rec.attempts >= 5) {
+  if (rec.attempts >= OTP_MAX_ATTEMPTS) {
     throw ApiError.tooManyRequests('Too many failed attempts. Please request a new OTP');
   }
-  if (new Date() > new Date(rec.expires_at)) {
+  if (rec.is_expired) {
     throw ApiError.badRequest('OTP has expired');
   }
   throw ApiError.badRequest('Invalid OTP');
@@ -142,21 +163,21 @@ const verifyOTP = async (phone, otp) => {
  * Verify OTP (email)
  */
 const verifyOTPByEmail = async (email, otp) => {
-  const emailNorm = email.toLowerCase().trim();
+  const emailNorm = normalizeEmail(email);
   const otpHash = hmacOTP(otp);
 
   const result = await pool.query(
     `UPDATE otp_verifications
-     SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP
+     SET is_verified = TRUE, verified_at = NOW()
      WHERE id = (
        SELECT id FROM otp_verifications
        WHERE email = $1 AND otp = $2 AND is_verified = FALSE
-         AND expires_at > NOW() AND attempts < 5
+         AND expires_at > NOW() AND attempts < $3
        ORDER BY created_at DESC LIMIT 1
        FOR UPDATE SKIP LOCKED
      )
      RETURNING id, email, purpose`,
-    [emailNorm, otpHash]
+    [emailNorm, otpHash, OTP_MAX_ATTEMPTS]
   );
 
   if (result.rows.length > 0) {
@@ -164,8 +185,9 @@ const verifyOTPByEmail = async (email, otp) => {
     return { verified: true, email: result.rows[0].email, purpose: result.rows[0].purpose };
   }
 
+  // Expiry decided by the DB clock (is_expired), not Node — TZ/skew safe.
   const check = await pool.query(
-    `SELECT id, expires_at, attempts FROM otp_verifications
+    `SELECT id, attempts, (expires_at <= NOW()) AS is_expired FROM otp_verifications
      WHERE email = $1 AND is_verified = FALSE
      ORDER BY created_at DESC LIMIT 1`,
     [emailNorm]
@@ -181,10 +203,10 @@ const verifyOTPByEmail = async (email, otp) => {
     [rec.id]
   );
 
-  if (rec.attempts >= 5) {
+  if (rec.attempts >= OTP_MAX_ATTEMPTS) {
     throw ApiError.tooManyRequests('Too many failed attempts. Please request a new OTP');
   }
-  if (new Date() > new Date(rec.expires_at)) {
+  if (rec.is_expired) {
     throw ApiError.badRequest('OTP has expired');
   }
   throw ApiError.badRequest('Invalid OTP');

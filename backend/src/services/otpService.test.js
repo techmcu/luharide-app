@@ -99,12 +99,15 @@ describe('createOTPByEmail', () => {
       .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // DELETE
       .mockResolvedValueOnce({ rows: [fakeRow] }); // INSERT
 
-    const result = await createOTPByEmail('Test@Example.COM');
+    const result = await createOTPByEmail('  Test@Example.COM  ');
 
     expect(result.otp).toMatch(/^\d{6}$/);
     expect(result.email).toBe(EMAIL);
 
-    // Check email is lowercased in the INSERT
+    // DELETE and INSERT must use the SAME normalized email (the bug was DELETE on
+    // the raw email + INSERT on the lowercased one → stale rows → false expiry).
+    const deleteCall = pool.query.mock.calls[0];
+    expect(deleteCall[1][0]).toBe('test@example.com');
     const insertCall = pool.query.mock.calls[1];
     expect(insertCall[1][0]).toBe('test@example.com');
   });
@@ -135,18 +138,18 @@ describe('verifyOTP', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [] }) // UPDATE found nothing
       .mockResolvedValueOnce({
-        rows: [{ id: 10, expires_at: new Date(Date.now() + 600000), attempts: 5 }],
-      }) // check
+        rows: [{ id: 10, attempts: 5, is_expired: false }],
+      }) // check (expiry decided DB-side via is_expired)
       .mockResolvedValueOnce({ rowCount: 1 }); // increment attempts
 
     await expect(verifyOTP(PHONE, '000000')).rejects.toThrow('Too many failed attempts');
   });
 
-  it('throws "OTP has expired" when expired', async () => {
+  it('throws "OTP has expired" when DB reports is_expired', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
-        rows: [{ id: 10, expires_at: new Date(Date.now() - 60000), attempts: 0 }],
+        rows: [{ id: 10, attempts: 0, is_expired: true }],
       })
       .mockResolvedValueOnce({ rowCount: 1 });
 
@@ -176,6 +179,15 @@ describe('verifyOTPByEmail', () => {
 
     const queryCall = pool.query.mock.calls[0];
     expect(queryCall[1][0]).toBe('test@example.com');
+  });
+
+  it('throws "OTP has expired" when DB reports is_expired', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE found nothing
+      .mockResolvedValueOnce({ rows: [{ id: 7, attempts: 0, is_expired: true }] }) // check
+      .mockResolvedValueOnce({ rowCount: 1 }); // increment
+
+    await expect(verifyOTPByEmail(EMAIL, '000000')).rejects.toThrow('OTP has expired');
   });
 });
 
