@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/platform_admin_service.dart';
 import '../../../../services/admin_service.dart';
@@ -16,7 +17,7 @@ class _AdminMoreTabState extends State<AdminMoreTab> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -38,6 +39,7 @@ class _AdminMoreTabState extends State<AdminMoreTab> with TickerProviderStateMix
           tabs: const [
             Tab(icon: Icon(Icons.campaign, size: 20), text: 'Notify'),
             Tab(icon: Icon(Icons.notifications_active, size: 20), text: 'Ride FCM'),
+            Tab(icon: Icon(Icons.tune, size: 20), text: 'Ride Limit'),
             Tab(icon: Icon(Icons.support_agent, size: 20), text: 'Complaints'),
             Tab(icon: Icon(Icons.verified_user, size: 20), text: 'KYC'),
           ],
@@ -48,8 +50,226 @@ class _AdminMoreTabState extends State<AdminMoreTab> with TickerProviderStateMix
         children: const [
           _NotificationsSection(),
           _UnionFcmSection(),
+          _RideLimitSection(),
           _ComplaintsSection(),
           _KycSection(),
+        ],
+      ),
+    );
+  }
+}
+
+// --------------- Ride Limit Section ---------------
+class _RideLimitSection extends StatefulWidget {
+  const _RideLimitSection();
+  @override
+  State<_RideLimitSection> createState() => _RideLimitSectionState();
+}
+
+class _RideLimitSectionState extends State<_RideLimitSection>
+    with AutomaticKeepAliveClientMixin {
+  final _service = PlatformAdminService();
+  final _dailyCtrl = TextEditingController();
+  final _weeklyCtrl = TextEditingController();
+
+  // Mirror of backend rideLimitSettings (0..100, 0 = kill switch).
+  static const int _min = 0;
+  static const int _max = 100;
+
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _dailyCtrl.dispose();
+    _weeklyCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    final res = await _service.getAppConfig();
+    if (!mounted) return;
+    if (res['success'] != true) {
+      setState(() { _error = res['message']?.toString() ?? 'Failed to load'; _loading = false; });
+      return;
+    }
+    final cfg = (res['config'] as Map?) ?? {};
+    _dailyCtrl.text = (cfg['independent_daily_ride_limit'] ?? '4').toString();
+    _weeklyCtrl.text = (cfg['independent_weekly_ride_limit'] ?? '28').toString();
+    setState(() => _loading = false);
+  }
+
+  int? _parse(String raw, String label) {
+    final s = raw.trim();
+    if (s.isEmpty) {
+      AppFeedback.show(context, '$label cannot be empty', kind: AppFeedbackKind.warning);
+      return null;
+    }
+    final n = int.tryParse(s);
+    if (n == null || n < _min || n > _max) {
+      AppFeedback.show(context, '$label must be a whole number between $_min and $_max',
+          kind: AppFeedbackKind.error);
+      return null;
+    }
+    return n;
+  }
+
+  Future<void> _save() async {
+    final daily = _parse(_dailyCtrl.text, 'Daily limit');
+    if (daily == null) return;
+    final weekly = _parse(_weeklyCtrl.text, 'Weekly limit');
+    if (weekly == null) return;
+
+    if (weekly < daily) {
+      AppFeedback.show(context, 'Weekly limit should be at least the daily limit',
+          kind: AppFeedbackKind.warning);
+      return;
+    }
+
+    setState(() => _saving = true);
+    final res = await _service.updateRideLimits(daily: daily, weekly: weekly);
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (res['success'] == true) {
+      AppFeedback.show(context, 'Ride limits saved', kind: AppFeedbackKind.success);
+    } else {
+      AppFeedback.show(context, res['message'] ?? 'Failed to save', kind: AppFeedbackKind.error);
+    }
+  }
+
+  Widget _numberField({
+    required TextEditingController ctrl,
+    required String label,
+    required String helper,
+    required IconData icon,
+  }) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: TextInputType.number,
+      // Only digits reach the field — no '.', '-', emoji or text.
+      inputFormatters: [
+        FilteringTextInputFormatter.digitsOnly,
+        LengthLimitingTextInputFormatter(3),
+      ],
+      onChanged: (_) => setState(() {}),
+      decoration: InputDecoration(
+        labelText: label,
+        helperText: helper,
+        helperMaxLines: 2,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    if (_loading) return const Center(child: CircularProgressIndicator());
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+              const SizedBox(height: 12),
+              Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700)),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final killSwitch = (int.tryParse(_dailyCtrl.text.trim()) ?? 1) == 0 ||
+        (int.tryParse(_weeklyCtrl.text.trim()) ?? 1) == 0;
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            elevation: 0,
+            color: Colors.blue.shade50,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Icon(Icons.directions_car, color: Colors.blue.shade700, size: 26),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Max rides an independent driver can create. '
+                      'Set 0 to fully disable independent rides (kill switch).',
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _numberField(
+            ctrl: _dailyCtrl,
+            label: 'Daily limit (per driver)',
+            helper: 'Rides creatable in one day. 0 = disabled.',
+            icon: Icons.today,
+          ),
+          const SizedBox(height: 16),
+          _numberField(
+            ctrl: _weeklyCtrl,
+            label: 'Weekly limit (per driver)',
+            helper: 'Rides creatable in one week. 0 = disabled.',
+            icon: Icons.date_range,
+          ),
+          if (killSwitch)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.red.shade600, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Kill switch active: independent drivers cannot create rides.',
+                      style: TextStyle(fontSize: 12.5, color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 24),
+          SizedBox(
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.save),
+              label: Text(_saving ? 'Saving…' : 'Save limits'),
+            ),
+          ),
         ],
       ),
     );

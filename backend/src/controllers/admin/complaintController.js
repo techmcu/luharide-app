@@ -3,6 +3,13 @@ const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
+const {
+  invalidateRideLimitsCache,
+  DAILY_KEY: RIDE_DAILY_KEY,
+  WEEKLY_KEY: RIDE_WEEKLY_KEY,
+  MIN_LIMIT: RIDE_MIN_LIMIT,
+  MAX_LIMIT: RIDE_MAX_LIMIT,
+} = require('../../services/rideLimitSettings');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -153,7 +160,8 @@ const getAppConfig = asyncHandler(async (req, res) => {
 
   const result = await queryRead(
     `SELECT key, value, description FROM settings
-     WHERE key IN ('platform_commission_driver','platform_commission_passenger')`
+     WHERE key IN ('platform_commission_driver','platform_commission_passenger',
+                   '${RIDE_DAILY_KEY}','${RIDE_WEEKLY_KEY}')`
   );
 
   const config = {};
@@ -173,9 +181,13 @@ const updateAppConfig = asyncHandler(async (req, res) => {
 
   const allowedKeys = [
     'platform_commission_driver', 'platform_commission_passenger',
+    RIDE_DAILY_KEY, RIDE_WEEKLY_KEY,
   ];
 
-  const applied = [];
+  // Pass 1 — validate EVERYTHING first. Nothing is written unless all values
+  // are valid, so a bad value can never leave a half-applied config.
+  const pending = [];
+  let rideLimitChanged = false;
   for (const [key, value] of Object.entries(updates)) {
     if (!allowedKeys.includes(key)) continue;
     const strVal = String(value).trim();
@@ -186,6 +198,29 @@ const updateAppConfig = asyncHandler(async (req, res) => {
         throw ApiError.badRequest(`${key} must be a number between 0 and 100`);
       }
     }
+
+    if (key === RIDE_DAILY_KEY || key === RIDE_WEEKLY_KEY) {
+      // Whole numbers only — reject floats, text, emojis, negatives, blanks.
+      if (!/^\d+$/.test(strVal)) {
+        throw ApiError.badRequest(
+          `${key} must be a whole number between ${RIDE_MIN_LIMIT} and ${RIDE_MAX_LIMIT} (0 disables independent rides)`
+        );
+      }
+      const num = Number(strVal);
+      if (!Number.isInteger(num) || num < RIDE_MIN_LIMIT || num > RIDE_MAX_LIMIT) {
+        throw ApiError.badRequest(
+          `${key} must be a whole number between ${RIDE_MIN_LIMIT} and ${RIDE_MAX_LIMIT}`
+        );
+      }
+      rideLimitChanged = true;
+    }
+
+    pending.push({ key, strVal });
+  }
+
+  // Pass 2 — all valid, now persist.
+  const applied = [];
+  for (const { key, strVal } of pending) {
     await pool.query(
       `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW())
        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
@@ -193,6 +228,8 @@ const updateAppConfig = asyncHandler(async (req, res) => {
     );
     applied.push(key);
   }
+
+  if (rideLimitChanged) invalidateRideLimitsCache();
 
   logger.info(`Platform admin ${req.user.id} updated config: ${applied.join(', ')}`);
   ApiResponse.success({ updated: applied }, 'Config updated').send(res);

@@ -46,6 +46,11 @@ function buildRedisOptions() {
     maxRetriesPerRequest: 3,
     connectTimeout: 5000,
     lazyConnect: false,
+    // While Redis is unreachable, fail commands immediately instead of buffering
+    // them in memory. Under load an outage would otherwise grow an unbounded
+    // offline queue and OOM the Node process. Pub/sub subscriptions are tracked
+    // by ioredis and auto-restored on reconnect, so this is safe for Socket.IO.
+    enableOfflineQueue: false,
     retryStrategy(times) {
       return Math.min(times * 500, 30000);
     },

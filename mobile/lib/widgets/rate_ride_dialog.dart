@@ -42,6 +42,11 @@ class _RateRideDialogState extends State<RateRideDialog> {
   String? _targetPhoto;
   List<int> _seatNumbers = [];
   String _tripRoute = '';
+  String _fromRole = '';
+
+  // Passenger rating the driver → keep it generic (no route / no target box).
+  // Driver rating the passenger → keep full context so they know whom they rate.
+  bool get _isPassengerRating => _fromRole == 'passenger';
 
   @override
   void initState() {
@@ -67,6 +72,7 @@ class _RateRideDialogState extends State<RateRideDialog> {
           _seatNumbers = seats.map<int>((e) => (e as num).toInt()).toList();
         }
         _tripRoute = ctx['trip_route'] ?? _tripRoute;
+        _fromRole = ctx['from_role']?.toString() ?? _fromRole;
         _alreadyRated = ctx['already_rated'] == true;
       }
     });
@@ -136,6 +142,8 @@ class _RateRideDialogState extends State<RateRideDialog> {
   }
 
   Widget _buildTargetInfo() {
+    // Passenger view stays generic — no driver name / route / "From → To".
+    if (_isPassengerRating) return const SizedBox.shrink();
     if (_targetName.isEmpty && _seatNumbers.isEmpty) return const SizedBox.shrink();
 
     ImageProvider? photoProvider;
@@ -255,7 +263,7 @@ class _RateRideDialogState extends State<RateRideDialog> {
           children: [
             _buildTargetInfo(),
             Text(
-              loc.t('rating.info'),
+              loc.t(_isPassengerRating ? 'rating.info_generic' : 'rating.info'),
               style: TextStyle(fontSize: 12, color: Colors.grey[600], fontStyle: FontStyle.italic),
             ),
             const SizedBox(height: 12),

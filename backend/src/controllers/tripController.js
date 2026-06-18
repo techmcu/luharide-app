@@ -4,6 +4,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const toTitleCase = require('../utils/titleCase');
+const { getIndependentRideLimits } = require('../services/rideLimitSettings');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function requireUuid(id) {
@@ -160,23 +161,46 @@ const createTrip = asyncHandler(async (req, res) => {
     );
   }
 
-  const DAILY_RIDE_LIMIT = 4;
+  // Independent-driver ride caps — admin-controlled (cached, see rideLimitSettings).
+  // daily/weekly = max rides creatable in that window; 0 = kill switch (blocked).
   try {
-    const dailyCount = await pool.query(
-      `SELECT COUNT(*)::int AS cnt FROM trips
-       WHERE driver_id = $1 AND created_source = 'independent_driver'
-         AND created_at >= CURRENT_DATE::timestamp
-         AND created_at < (CURRENT_DATE + 1)::timestamp`,
+    const limits = await getIndependentRideLimits();
+
+    if (limits.daily <= 0 || limits.weekly <= 0) {
+      throw ApiError.badRequest(
+        'New ride creation is temporarily unavailable. Please try again later.'
+      );
+    }
+
+    const counts = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (
+           WHERE created_at >= CURRENT_DATE::timestamp
+             AND created_at < (CURRENT_DATE + 1)::timestamp
+         )::int AS daily_cnt,
+         COUNT(*) FILTER (
+           WHERE created_at >= date_trunc('week', CURRENT_DATE)::timestamp
+         )::int AS weekly_cnt
+       FROM trips
+       WHERE driver_id = $1 AND created_source = 'independent_driver'`,
       [driverId]
     );
-    if ((dailyCount.rows[0]?.cnt || 0) >= DAILY_RIDE_LIMIT) {
+    const dailyCnt = counts.rows[0]?.daily_cnt || 0;
+    const weeklyCnt = counts.rows[0]?.weekly_cnt || 0;
+
+    if (dailyCnt >= limits.daily) {
       throw ApiError.badRequest(
-        `You can create a maximum of ${DAILY_RIDE_LIMIT} rides per day. Please try again tomorrow.`
+        `You can create up to ${limits.daily} ride(s) per day. Please try again tomorrow.`
+      );
+    }
+    if (weeklyCnt >= limits.weekly) {
+      throw ApiError.badRequest(
+        `You can create up to ${limits.weekly} ride(s) per week. Please try again next week.`
       );
     }
   } catch (e) {
     if (e.statusCode) throw e;
-    logger.warn('Daily ride limit check failed:', e.message);
+    logger.warn('Independent ride limit check failed:', e.message);
   }
 
   const MAX_FARE_PER_SEAT = 10000;

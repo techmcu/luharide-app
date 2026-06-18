@@ -241,6 +241,44 @@ class PlatformAdminService {
     }
   }
 
+  // ---- App config: independent-driver ride limits ----
+
+  Future<Map<String, dynamic>> getAppConfig() async {
+    try {
+      final res = await _api.get(ApiConstants.platformConfig);
+      final d = _unwrap(res.data);
+      final cfg = d['config'];
+      return {
+        'success': true,
+        'config': cfg is Map ? Map<String, dynamic>.from(cfg) : <String, dynamic>{},
+      };
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed to load config'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  Future<Map<String, dynamic>> updateRideLimits({
+    required int daily,
+    required int weekly,
+  }) async {
+    try {
+      final res = await _api.patch(
+        ApiConstants.platformConfig,
+        data: {
+          'independent_daily_ride_limit': daily.toString(),
+          'independent_weekly_ride_limit': weekly.toString(),
+        },
+      );
+      return {'success': true, ..._unwrap(res.data)};
+    } on DioException catch (e) {
+      return {'success': false, 'message': dioResponseMessage(e) ?? 'Failed to save'};
+    } catch (_) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
   // ---- Phase 3: Union FCM Management ----
 
   Future<Map<String, dynamic>> getUnionFcmSettings() async {

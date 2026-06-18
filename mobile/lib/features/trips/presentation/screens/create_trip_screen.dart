@@ -22,6 +22,10 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
+  // Own the Autocomplete field controllers/focus nodes so the typed text
+  // survives rebuilds (the internal controller resets on validation/setState).
+  final _fromFocusNode = FocusNode();
+  final _toFocusNode = FocusNode();
   final _vehicleNumberController = TextEditingController();
   final _fareController = TextEditingController();
   final _luggageController = TextEditingController();
@@ -68,6 +72,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   void dispose() {
     _fromController.dispose();
     _toController.dispose();
+    _fromFocusNode.dispose();
+    _toFocusNode.dispose();
     _vehicleNumberController.dispose();
     _fareController.dispose();
     _luggageController.dispose();
@@ -212,6 +218,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           children: [
             // From Location
             Autocomplete<String>(
+              textEditingController: _fromController,
+              focusNode: _fromFocusNode,
               optionsBuilder: (TextEditingValue textEditingValue) {
                 if (textEditingValue.text.isEmpty) {
                   return const Iterable<String>.empty();
@@ -219,11 +227,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 _loadFromSuggestions(textEditingValue.text);
                 return _fromSuggestions;
               },
-              onSelected: (String selection) {
-                _fromController.text = selection;
-              },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                _fromController.text = controller.text;
                 return TextFormField(
                   controller: controller,
                   focusNode: focusNode,
@@ -249,6 +253,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
             // To Location
             Autocomplete<String>(
+              textEditingController: _toController,
+              focusNode: _toFocusNode,
               optionsBuilder: (TextEditingValue textEditingValue) {
                 if (textEditingValue.text.isEmpty) {
                   return const Iterable<String>.empty();
@@ -256,11 +262,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 _loadToSuggestions(textEditingValue.text);
                 return _toSuggestions;
               },
-              onSelected: (String selection) {
-                _toController.text = selection;
-              },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                _toController.text = controller.text;
                 return TextFormField(
                   controller: controller,
                   focusNode: focusNode,

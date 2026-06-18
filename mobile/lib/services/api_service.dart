@@ -230,9 +230,21 @@ class ApiService {
       }
 
       final req = error.requestOptions;
+      // Retry with the FRESH token. req.headers still carry the expired
+      // Authorization that triggered this 401 — overwrite it, else the retry
+      // resends the stale token and fails again (the original "token expired"
+      // bug: refresh succeeded but the retry kept using the old token).
+      final retryHeaders = Map<String, dynamic>.from(req.headers);
+      retryHeaders['Authorization'] = _dio.options.headers['Authorization'];
+
+      // FormData streams are consumed on first send and cannot be re-read;
+      // clone so the retry carries the full body (e.g. document uploads).
+      final retryData =
+          req.data is FormData ? (req.data as FormData).clone() : req.data;
+
       final opts = Options(
         method: req.method,
-        headers: req.headers,
+        headers: retryHeaders,
         responseType: req.responseType,
         contentType: req.contentType,
         followRedirects: req.followRedirects,
@@ -243,15 +255,16 @@ class ApiService {
 
       final cloneResponse = await _dio.request<dynamic>(
         req.uri.toString(),
-        data: req.data,
+        data: retryData,
         queryParameters: req.queryParameters,
         options: opts,
       );
       return handler.resolve(cloneResponse);
     } catch (_) {
-      clearAuthToken();
-      unawaited(SecureTokenStorage.instance.clearTokens());
-      _authSessionLost.add(null);
+      // Refresh DID succeed but the retried request itself failed (network,
+      // 5xx, etc.). The new tokens are valid — do NOT destroy the session
+      // here. Genuine session death (refresh failed) is already handled by the
+      // `if (!refreshed)` branch above.
       return handler.next(error);
     }
   }

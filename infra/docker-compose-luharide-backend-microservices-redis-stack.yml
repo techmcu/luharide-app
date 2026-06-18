@@ -10,9 +10,19 @@
 services:
   redis:
     image: redis:7-alpine
+    # Auto-restart on crash; cap memory + LRU eviction so Redis can never OOM-kill
+    # the host. Rate-limit / socket keys carry TTLs, so LRU eviction is safe.
+    restart: unless-stopped
     expose:
       - "6379"
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--maxmemory"
+      - "128mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
     volumes:
       - luharide_redis_data_volume:/data
 

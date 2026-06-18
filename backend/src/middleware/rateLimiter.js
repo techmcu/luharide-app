@@ -8,7 +8,10 @@ const { parseLimitEnv } = require('./parseLimitEnv');
 /** Optional Redis-backed store (multi-process / multi-node); else in-memory */
 function withStore(name, opts) {
   const store = createRateLimitRedisStore(name);
-  return store ? { ...opts, store } : opts;
+  // passOnStoreError: if Redis errors mid-request, allow the request through
+  // (fail-open) instead of returning 500 — a rate-limit outage must never take
+  // the API down. The in-memory fallback still applies when Redis is disabled.
+  return store ? { ...opts, store, passOnStoreError: true } : opts;
 }
 
 /**

@@ -66,8 +66,8 @@ async function run() {
           const dn = await client.query(
             `INSERT INTO notifications (user_id, type, title, body, data)
              VALUES ($1, 'trip_auto_started',
-               'Your ride has started!',
-               'Your scheduled ride has auto-started as departure time has arrived. Have a safe ride!',
+               'Time to start your ride',
+               'Your ride departure time has arrived. Please start the trip on time. Repeated delays or passenger complaints may lead to account suspension.',
                $2::jsonb)
              RETURNING id, user_id, type, title, body, data, created_at, is_read`,
             [trip.driver_id, JSON.stringify({ trip_id: trip.id })]

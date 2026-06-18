@@ -799,6 +799,10 @@ class AppLocalizations {
       'en': 'You can rate after your ride is completed. If cancelled, only the affected party can rate.',
       'hi': 'राइड पूरी होने के बाद आप रेटिंग दे सकते हैं। रद्द होने पर सिर्फ प्रभावित पक्ष रेट कर सकता है।',
     },
+    'rating.info_generic': {
+      'en': 'Please rate us — how was your experience? Share your thoughts.',
+      'hi': 'कृपया हमें रेट करें — आपका अनुभव कैसा रहा? अपने विचार साझा करें।',
+    },
     'rating.submit': {
       'en': 'Submit',
       'hi': 'जमा करें',
