@@ -52,10 +52,17 @@ final List<({String title, String body})> _termsEn = [
         'seating capacity. Drive safely. Do not misrepresent routes, fares, or vehicle data shown in the app.',
   ),
   (
-    title: '5. Bookings & cancellations',
+    title: '5. Bookings, cancellations & no-shows',
     body:
-        'Trips may be cancelled by either party in genuine situations. We may send in-app notifications where '
-        'technically possible. Frequent misuse, fraud, or safety concerns may result in suspension.',
+        'Either party may cancel a trip in genuine situations. A driver may also fail to start, arrive, or '
+        'complete a ride after creating or accepting it, and a passenger may not show up. ${BrandConfig.appName} '
+        'is only a connection layer: it does not operate rides and does not guarantee that any trip will take '
+        'place, start or run on time, or be completed. To the fullest extent permitted by law, we are not '
+        'responsible for losses, missed connections, extra costs, waiting, or inconvenience caused by a '
+        'cancellation, no-show, late arrival, or a driver not taking you, and we do not pay any compensation or '
+        'refund. Resolve such matters directly with the other party. We may send in-app notifications where '
+        'technically possible, and we may warn, restrict, or suspend accounts for repeated cancellations, '
+        'no-shows, misuse, fraud, or safety concerns.',
   ),
   (
     title: '6. Payments — no money handled by the platform',
@@ -121,6 +128,16 @@ final List<({String title, String body})> _termsEn = [
         'These terms are governed by the laws of India. Courts at Dehradun, Uttarakhand (or as required by '
         'law) shall have exclusive jurisdiction, subject to mandatory consumer protections.',
   ),
+  (
+    title: '12. Ratings & reviews',
+    body:
+        'Ratings and reviews shown in the app are generated from feedback submitted by users (passengers and '
+        'drivers) after rides. They reflect user opinions only and are not an endorsement, certification, or '
+        'guarantee by ${BrandConfig.parentBrand} or ${BrandConfig.appName} of any driver, passenger, vehicle, '
+        'or ride. A driver is rated on the basis of these user reviews and ratings. We may use this feedback to '
+        'rank, display, limit, suspend, or remove accounts, but we do not guarantee its accuracy and accept no '
+        'liability for decisions you make based on it.',
+  ),
 ];
 
 final List<({String title, String body})> _termsHi = [
@@ -160,10 +177,15 @@ final List<({String title, String body})> _termsHi = [
         'यात्री न लें। सुरक्षित चलाएँ। ऐप में दिखाए गए मार्ग, किराया या वाहन डेटा गलत न बताएँ।',
   ),
   (
-    title: '5. बुकिंग और रद्दीकरण',
+    title: '5. बुकिंग, रद्दीकरण और न आना',
     body:
-        'वास्तविक स्थिति में कोई भी पक्ष यात्रा रद्द कर सकता है। जहाँ तक संभव हो सूचनाएँ ऐप के माध्यम से भेजी '
-        'जा सकती हैं। बार-बार दुरुपयोग, धोखाधड़ी या सुरक्षा चिंता पर निलंबन हो सकता है।',
+        'वास्तविक स्थिति में कोई भी पक्ष यात्रा रद्द कर सकता है। ड्राइवर यात्रा बनाने या स्वीकार करने के बाद उसे '
+        'शुरू न करे, न पहुँचे या पूरा न करे, और यात्री भी न आए—ऐसा हो सकता है। ${BrandConfig.appName} केवल जोड़ने '
+        'का माध्यम है: यह सवारी संचालित नहीं करता और गारंटी नहीं देता कि कोई यात्रा होगी, समय पर शुरू/चलेगी या '
+        'पूरी होगी। कानून द्वारा अनुमत पूर्ण सीमा तक, रद्दीकरण, न आने, देरी, या ड्राइवर के न ले जाने से हुई हानि, '
+        'छूटे संपर्क, अतिरिक्त खर्च, प्रतीक्षा या असुविधा के लिए हम ज़िम्मेदार नहीं हैं, और हम कोई मुआवज़ा या रिफ़ंड '
+        'नहीं देते। ऐसे मामले सीधे दूसरे पक्ष से सुलझाएँ। जहाँ तक संभव हो ऐप में सूचनाएँ भेजी जा सकती हैं, और '
+        'बार-बार रद्द करने, न आने, दुरुपयोग, धोखाधड़ी या सुरक्षा चिंता पर हम खाते को चेतावनी, सीमित या निलंबित कर सकते हैं।',
   ),
   (
     title: '6. भुगतान — प्लेटफ़ॉर्म पैसा नहीं रखता',
@@ -224,6 +246,16 @@ final List<({String title, String body})> _termsHi = [
     body:
         'ये नियम भारत के कानूनों के अधीन हैं। देहरादून, उत्तराखंड की अदालतों को विशेष अधिकार क्षेत्र प्राप्त है '
         '(कानून द्वारा आवश्यक उपभोक्ता सुरक्षा के अधीन)।',
+  ),
+  (
+    title: '12. रेटिंग और समीक्षाएँ',
+    body:
+        'ऐप में दिखाई गई रेटिंग और समीक्षाएँ उपयोगकर्ताओं (यात्री व ड्राइवर) द्वारा यात्रा के बाद दिए गए फ़ीडबैक से '
+        'बनती हैं। ये केवल उपयोगकर्ताओं की राय दर्शाती हैं और ${BrandConfig.parentBrand} या ${BrandConfig.appName} '
+        'द्वारा किसी ड्राइवर, यात्री, वाहन या सवारी का समर्थन, प्रमाणन या गारंटी नहीं हैं। ड्राइवर को इन्हीं '
+        'उपयोगकर्ता समीक्षाओं व रेटिंग के आधार पर रेट किया जाता है। हम इस फ़ीडबैक का उपयोग खातों को रैंक करने, '
+        'दिखाने, सीमित करने, निलंबित या हटाने के लिए कर सकते हैं, पर इसकी सटीकता की गारंटी नहीं देते और इसके आधार '
+        'पर आपके निर्णयों के लिए ज़िम्मेदार नहीं हैं।',
   ),
 ];
 
