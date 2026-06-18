@@ -210,6 +210,58 @@ final List<({String title, String body})> _termsEn = [
         'conflict with mandatory Indian law (including consumer-protection and intermediary rules), the law '
         'prevails. For grievances, contact us via Help / ${BrandConfig.grievContactEmail}.',
   ),
+  (
+    title: '20. Eligibility & capacity',
+    body:
+        'You must be at least 18 years old and legally competent to enter into a contract under the Indian '
+        'Contract Act, 1872 to use the Service. By using it you confirm that you meet these requirements and '
+        'that the information you provide is true. Accounts found to belong to minors or created with false '
+        'information may be suspended or removed.',
+  ),
+  (
+    title: '21. No employment or agency relationship',
+    body:
+        'Drivers, vehicle owners, and unions are independent third parties. Nothing in these terms creates any '
+        'employment, agency, partnership, joint venture, or principal–agent relationship between them and '
+        '${BrandConfig.parentBrand} or ${BrandConfig.appName}. They are not our employees or agents, they act '
+        'on their own account, and we do not control how they provide rides. We are therefore not vicariously '
+        'liable for their acts or omissions, to the fullest extent permitted by law.',
+  ),
+  (
+    title: '22. Prohibited use & conduct',
+    body:
+        'You must not use the Service to: carry or transport illegal goods, weapons, drugs, or anything banned '
+        'by law; transport persons against their will or for trafficking; harass, threaten, stalk, or abuse '
+        'anyone; impersonate others or use fake identity, documents, or vehicle details; overload beyond legal '
+        'seating capacity; or break any traffic, transport, or other law. Violation may lead to immediate '
+        'suspension or removal and may be reported to the authorities.',
+  ),
+  (
+    title: '23. Taxes & legal compliance',
+    body:
+        'Each user is responsible for their own taxes, levies, permits, and legal compliance arising from '
+        'their use of the Service or any ride (for example a driver\'s own income tax, GST if applicable, and '
+        'transport permits). ${BrandConfig.parentBrand} and ${BrandConfig.appName} do not collect or remit '
+        'taxes on behalf of users and give no tax advice.',
+  ),
+  (
+    title: '24. Your data rights (DPDP Act 2023)',
+    body:
+        'We process your personal data in line with the Digital Personal Data Protection Act, 2023 and other '
+        'applicable Indian law. We use your data only for operating and supporting the Service, on the basis '
+        'of your consent or as the law permits. Subject to law, you may request access, correction, or '
+        'erasure of your personal data, and you may withdraw consent, by contacting us via Help / '
+        '${BrandConfig.grievContactEmail}. We apply reasonable security safeguards and a separate privacy '
+        'notice may give further detail.',
+  ),
+  (
+    title: '25. Severability & entire agreement',
+    body:
+        'If any part of these terms is held invalid or unenforceable, the rest continues in full force. A '
+        'delay in enforcing any right is not a waiver of it. These terms (with any privacy notice and in-app '
+        'policies referenced here) are the entire agreement between you and us regarding the Service and '
+        'replace earlier understandings, except for rights that mandatory law gives you.',
+  ),
 ];
 
 final List<({String title, String body})> _termsHi = [
@@ -393,6 +445,55 @@ final List<({String title, String body})> _termsHi = [
         'प्रदाता नहीं है और यात्री-ड्राइवर के बीच समझौते का पक्ष नहीं है। ये नियम उपयोगकर्ताओं के लिए सरल भाषा '
         'का सारांश हैं, कानूनी सलाह नहीं; जहाँ ये अनिवार्य भारतीय कानून (उपभोक्ता-संरक्षण व मध्यस्थ नियमों सहित) '
         'से टकराएँ, वहाँ कानून मान्य होगा। शिकायत के लिए सहायता / ${BrandConfig.grievContactEmail} पर संपर्क करें।',
+  ),
+  (
+    title: '20. पात्रता और क्षमता',
+    body:
+        'सेवा का उपयोग करने के लिए आपकी आयु कम से कम 18 वर्ष होनी चाहिए और आप भारतीय अनुबंध अधिनियम, 1872 के '
+        'तहत अनुबंध करने योग्य होने चाहिए। उपयोग करके आप पुष्टि करते हैं कि आप ये शर्तें पूरी करते हैं और दी गई '
+        'जानकारी सही है। नाबालिग के या गलत जानकारी से बने खाते निलंबित या हटाए जा सकते हैं।',
+  ),
+  (
+    title: '21. कोई नौकरी या एजेंसी संबंध नहीं',
+    body:
+        'ड्राइवर, वाहन मालिक और यूनियन स्वतंत्र तृतीय पक्ष हैं। इन नियमों से उनके और ${BrandConfig.parentBrand} '
+        'या ${BrandConfig.appName} के बीच कोई नौकरी, एजेंसी, साझेदारी, संयुक्त उद्यम या प्रिंसिपल–एजेंट संबंध '
+        'नहीं बनता। वे हमारे कर्मचारी या एजेंट नहीं हैं, अपने हिसाब से काम करते हैं, और हम यह नियंत्रित नहीं '
+        'करते कि वे सवारी कैसे देते हैं। इसलिए कानून द्वारा अनुमत पूर्ण सीमा तक उनके कृत्यों/चूक के लिए हम '
+        'परोक्ष रूप से (vicariously) ज़िम्मेदार नहीं हैं।',
+  ),
+  (
+    title: '22. वर्जित उपयोग और आचरण',
+    body:
+        'आप सेवा का उपयोग इनके लिए नहीं करेंगे: अवैध सामान, हथियार, नशीले पदार्थ या कानून द्वारा प्रतिबंधित कुछ '
+        'भी ले जाना; किसी को उसकी मर्ज़ी के विरुद्ध या तस्करी के लिए ले जाना; किसी को परेशान, धमकाना, पीछा करना '
+        'या दुर्व्यवहार करना; किसी की झूठी पहचान/दस्तावेज़/वाहन विवरण का इस्तेमाल; कानूनी बैठक क्षमता से अधिक '
+        'भरना; या किसी यातायात/परिवहन/अन्य कानून का उल्लंघन। उल्लंघन पर तुरंत निलंबन या हटाया जाना हो सकता है '
+        'और अधिकारियों को सूचित किया जा सकता है।',
+  ),
+  (
+    title: '23. कर और कानूनी अनुपालन',
+    body:
+        'सेवा या किसी सवारी से उत्पन्न अपने करों, शुल्कों, परमिट और कानूनी अनुपालन के लिए हर उपयोगकर्ता स्वयं '
+        'ज़िम्मेदार है (जैसे ड्राइवर का अपना आयकर, लागू हो तो जीएसटी, और परिवहन परमिट)। ${BrandConfig.parentBrand} '
+        'और ${BrandConfig.appName} उपयोगकर्ताओं की ओर से कर एकत्र या जमा नहीं करते और कोई कर-सलाह नहीं देते।',
+  ),
+  (
+    title: '24. आपके डेटा अधिकार (DPDP अधिनियम 2023)',
+    body:
+        'हम आपके व्यक्तिगत डेटा को डिजिटल पर्सनल डेटा प्रोटेक्शन अधिनियम, 2023 और अन्य लागू भारतीय कानून के '
+        'अनुसार संसाधित करते हैं। डेटा का उपयोग केवल सेवा चलाने व सहायता के लिए, आपकी सहमति या कानून की अनुमति '
+        'के आधार पर करते हैं। कानून के अधीन, आप अपने डेटा तक पहुँच, सुधार या मिटाने का अनुरोध कर सकते हैं और '
+        'सहमति वापस ले सकते हैं—सहायता / ${BrandConfig.grievContactEmail} पर संपर्क करके। हम उचित सुरक्षा उपाय '
+        'अपनाते हैं और अलग गोपनीयता नोटिस में अधिक विवरण हो सकता है।',
+  ),
+  (
+    title: '25. पृथक्करणीयता और सम्पूर्ण अनुबंध',
+    body:
+        'यदि इन नियमों का कोई भाग अमान्य या अप्रवर्तनीय पाया जाए, तो शेष पूरी तरह लागू रहेगा। किसी अधिकार को '
+        'लागू करने में देरी उसका त्याग नहीं है। ये नियम (यहाँ संदर्भित गोपनीयता नोटिस व इन-ऐप नीतियों सहित) '
+        'सेवा के संबंध में आपके और हमारे बीच सम्पूर्ण अनुबंध हैं और पूर्व समझ को प्रतिस्थापित करते हैं, सिवाय '
+        'उन अधिकारों के जो अनिवार्य कानून आपको देता है।',
   ),
 ];
 
