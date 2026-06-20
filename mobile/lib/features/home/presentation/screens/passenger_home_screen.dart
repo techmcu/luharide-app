@@ -259,7 +259,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ProfileScreen(userRole: 'passenger'),
+                  builder: (context) => const ProfileScreen(userRole: 'passenger'),
                 ),
               );
             },
@@ -376,7 +376,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                         child: Row(
                           children: [
-                            Icon(Icons.calendar_today_rounded, color: const Color(0xFF2563EB), size: 18),
+                            const Icon(Icons.calendar_today_rounded, color: Color(0xFF2563EB), size: 18),
                             const SizedBox(width: 14),
                             Text(
                               DateFormat('EEE, dd MMM yyyy').format(_selectedDate),
@@ -885,7 +885,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                   children: [
                     const Icon(Icons.currency_rupee, size: 20, color: Colors.blue),
                     Text(
-                      '${trip.farePerSeat.toStringAsFixed(0)}',
+                      trip.farePerSeat.toStringAsFixed(0),
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

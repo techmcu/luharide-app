@@ -876,7 +876,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
           else
             ..._currentSchedules
                 .map((s) => _buildScheduleCard(s as Map<String, dynamic>, true))
-                .toList(),
+                ,
 
           const SizedBox(height: 20),
         ],
@@ -970,7 +970,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     if (dtRaw != null) dt = DateTime.tryParse(dtRaw.toString());
 
     final dateStr = dt != null
-        ? '${_fmtDt(dt)}'
+        ? _fmtDt(dt)
         : '—';
 
     // Status color

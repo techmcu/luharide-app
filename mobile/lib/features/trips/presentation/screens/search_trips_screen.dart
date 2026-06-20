@@ -225,10 +225,10 @@ class _TripCard extends StatelessWidget {
               color: _kBlue.withValues(alpha: 0.08),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
-            child: Row(
+            child: const Row(
               children: [
                 Icon(Icons.directions_car_filled_rounded, size: 18, color: _kBlue),
-                const SizedBox(width: 8),
+                SizedBox(width: 8),
                 Text('Independent driver • Book on app', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kBlue)),
               ],
             ),
@@ -749,11 +749,11 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       );
     }
     if (_loading) {
-      return CustomScrollView(
+      return const CustomScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 32),
             sliver: SliverToBoxAdapter(child: ShimmerTripCards(count: 3)),
           ),
         ],

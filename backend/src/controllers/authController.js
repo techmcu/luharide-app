@@ -7,6 +7,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const bcrypt = require('bcryptjs');
+const { BCRYPT_ROUNDS } = require('../config/security');
 const userCache = require('../utils/userCache');
 
 /**
@@ -147,7 +148,7 @@ const verifyOTPController = asyncHandler(async (req, res) => {
     }
     const phoneVal = byPhone ? value : null;
     const emailVal = byPhone ? null : value;
-    const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, 12) : null;
+    const passwordHash = (!byPhone && password) ? await bcrypt.hash(password, BCRYPT_ROUNDS) : null;
     hasPassword = !!passwordHash;
 
     try {

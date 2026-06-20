@@ -316,126 +316,126 @@ class VehicleCatalog {
   }
 
   static VehicleBrandConfig _tata() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'tata',
       name: 'Tata',
       models: [
-        const VehicleModelConfig(id: 'tata_punch', name: 'Punch', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'tata_tiago', name: 'Tiago', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'tata_altroz', name: 'Altroz', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'tata_tigor', name: 'Tigor', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'tata_nexon', name: 'Nexon', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'tata_harrier', name: 'Harrier', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'tata_safari', name: 'Safari', bodyType: 'SUV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'tata_sumo', name: 'Sumo', bodyType: 'SUV', capacity: 9, layout: _layout9Sumo),
-        const VehicleModelConfig(id: 'tata_indica', name: 'Indica', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'tata_punch', name: 'Punch', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'tata_tiago', name: 'Tiago', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'tata_altroz', name: 'Altroz', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'tata_tigor', name: 'Tigor', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'tata_nexon', name: 'Nexon', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'tata_harrier', name: 'Harrier', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'tata_safari', name: 'Safari', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'tata_sumo', name: 'Sumo', bodyType: 'SUV', capacity: 9, layout: _layout9Sumo),
+        VehicleModelConfig(id: 'tata_indica', name: 'Indica', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
       ],
     );
   }
 
   static VehicleBrandConfig _mahindra() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'mahindra',
       name: 'Mahindra',
       models: [
-        const VehicleModelConfig(
+        VehicleModelConfig(
           id: 'mahindra_bolero_jeep',
           name: 'Bolero Jeep · 10 seat (Hill)',
           bodyType: 'Jeep',
           capacity: 10,
           layout: _layoutJeep10,
         ),
-        const VehicleModelConfig(id: 'mahindra_bolero_suv', name: 'Bolero 7-Seater', bodyType: 'SUV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'mahindra_bolero_ne', name: 'Bolero Neo', bodyType: 'SUV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'mahindra_thar', name: 'Thar', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'mahindra_xuv300', name: 'XUV300', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'mahindra_xuv700', name: 'XUV700', bodyType: 'SUV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'mahindra_scorpio', name: 'Scorpio', bodyType: 'SUV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'mahindra_scorpio_n', name: 'Scorpio N', bodyType: 'SUV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'mahindra_marazzo', name: 'Marazzo', bodyType: 'MPV', capacity: 8, layout: _layout8),
+        VehicleModelConfig(id: 'mahindra_bolero_suv', name: 'Bolero 7-Seater', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'mahindra_bolero_ne', name: 'Bolero Neo', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'mahindra_thar', name: 'Thar', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'mahindra_xuv300', name: 'XUV300', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'mahindra_xuv700', name: 'XUV700', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'mahindra_scorpio', name: 'Scorpio', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'mahindra_scorpio_n', name: 'Scorpio N', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'mahindra_marazzo', name: 'Marazzo', bodyType: 'MPV', capacity: 8, layout: _layout8),
       ],
     );
   }
 
   static VehicleBrandConfig _marutiSuzuki() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'maruti',
       name: 'Maruti Suzuki',
       models: [
-        const VehicleModelConfig(id: 'maruti_alto', name: 'Alto', bodyType: 'Hatchback', capacity: 4, layout: _layout4),
-        const VehicleModelConfig(id: 'maruti_alto_k10', name: 'Alto K10', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_wagon_r', name: 'Wagon R', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_swift', name: 'Swift', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_baleno', name: 'Baleno', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_celerio', name: 'Celerio', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_s_presso', name: 'S-Presso', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_dzire', name: 'Dzire', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_swift_dzire', name: 'Swift Dzire', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_ciaz', name: 'Ciaz', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_brezza', name: 'Brezza', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'maruti_ertiga', name: 'Ertiga', bodyType: 'MPV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'maruti_ertiga_tour', name: 'Ertiga Tour', bodyType: 'MPV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'maruti_xl6', name: 'XL6', bodyType: 'MPV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'maruti_eeco', name: 'Eeco', bodyType: 'Van', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'maruti_eeco_8', name: 'Eeco (8-seater)', bodyType: 'Van', capacity: 8, layout: _layout8),
-        const VehicleModelConfig(id: 'maruti_omni', name: 'Omni', bodyType: 'Van', capacity: 8, layout: _layout8),
+        VehicleModelConfig(id: 'maruti_alto', name: 'Alto', bodyType: 'Hatchback', capacity: 4, layout: _layout4),
+        VehicleModelConfig(id: 'maruti_alto_k10', name: 'Alto K10', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_wagon_r', name: 'Wagon R', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_swift', name: 'Swift', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_baleno', name: 'Baleno', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_celerio', name: 'Celerio', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_s_presso', name: 'S-Presso', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_dzire', name: 'Dzire', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_swift_dzire', name: 'Swift Dzire', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_ciaz', name: 'Ciaz', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_brezza', name: 'Brezza', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'maruti_ertiga', name: 'Ertiga', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'maruti_ertiga_tour', name: 'Ertiga Tour', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'maruti_xl6', name: 'XL6', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'maruti_eeco', name: 'Eeco', bodyType: 'Van', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'maruti_eeco_8', name: 'Eeco (8-seater)', bodyType: 'Van', capacity: 8, layout: _layout8),
+        VehicleModelConfig(id: 'maruti_omni', name: 'Omni', bodyType: 'Van', capacity: 8, layout: _layout8),
       ],
     );
   }
 
   static VehicleBrandConfig _toyota() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'toyota',
       name: 'Toyota',
       models: [
-        const VehicleModelConfig(id: 'toyota_glanza', name: 'Glanza', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'toyota_etios', name: 'Etios', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'toyota_urban_cruiser', name: 'Urban Cruiser', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'toyota_innova_crysta', name: 'Innova Crysta', bodyType: 'MPV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'toyota_innova_hycross', name: 'Innova Hycross', bodyType: 'MPV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'toyota_innova_touring', name: 'Innova Touring Sport', bodyType: 'MPV', capacity: 8, layout: _layout8),
-        const VehicleModelConfig(id: 'toyota_fortuner', name: 'Fortuner', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'toyota_glanza', name: 'Glanza', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'toyota_etios', name: 'Etios', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'toyota_urban_cruiser', name: 'Urban Cruiser', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'toyota_innova_crysta', name: 'Innova Crysta', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'toyota_innova_hycross', name: 'Innova Hycross', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'toyota_innova_touring', name: 'Innova Touring Sport', bodyType: 'MPV', capacity: 8, layout: _layout8),
+        VehicleModelConfig(id: 'toyota_fortuner', name: 'Fortuner', bodyType: 'SUV', capacity: 7, layout: _layout7),
       ],
     );
   }
 
   static VehicleBrandConfig _kia() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'kia',
       name: 'Kia',
       models: [
-        const VehicleModelConfig(id: 'kia_seltos', name: 'Seltos', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'kia_sonet', name: 'Sonet', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'kia_carens', name: 'Carens', bodyType: 'MPV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(id: 'kia_carnival', name: 'Carnival', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'kia_seltos', name: 'Seltos', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'kia_sonet', name: 'Sonet', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'kia_carens', name: 'Carens', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'kia_carnival', name: 'Carnival', bodyType: 'MPV', capacity: 7, layout: _layout7),
       ],
     );
   }
 
   static VehicleBrandConfig _hyundai() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'hyundai',
       name: 'Hyundai',
       models: [
-        const VehicleModelConfig(id: 'hyundai_i10', name: 'Grand i10', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'hyundai_i20', name: 'i20', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'hyundai_exter', name: 'Exter', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'hyundai_venue', name: 'Venue', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'hyundai_creta', name: 'Creta', bodyType: 'SUV', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'hyundai_aura', name: 'Aura', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'hyundai_verna', name: 'Verna', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'hyundai_alcazar', name: 'Alcazar', bodyType: 'SUV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'hyundai_i10', name: 'Grand i10', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'hyundai_i20', name: 'i20', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'hyundai_exter', name: 'Exter', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'hyundai_venue', name: 'Venue', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'hyundai_creta', name: 'Creta', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'hyundai_aura', name: 'Aura', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'hyundai_verna', name: 'Verna', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'hyundai_alcazar', name: 'Alcazar', bodyType: 'SUV', capacity: 7, layout: _layout7),
       ],
     );
   }
 
   static VehicleBrandConfig _honda() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'honda',
       name: 'Honda',
       models: [
-        const VehicleModelConfig(id: 'honda_amaze', name: 'Amaze', bodyType: 'Sedan', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'honda_city', name: 'City', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'honda_amaze', name: 'Amaze', bodyType: 'Sedan', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'honda_city', name: 'City', bodyType: 'Sedan', capacity: 5, layout: _layout5),
       ],
     );
   }
@@ -493,12 +493,12 @@ class VehicleCatalog {
   }
 
   static VehicleBrandConfig _renault() {
-    return VehicleBrandConfig(
+    return const VehicleBrandConfig(
       id: 'renault',
       name: 'Renault',
       models: [
-        const VehicleModelConfig(id: 'renault_kwid', name: 'Kwid', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
-        const VehicleModelConfig(id: 'renault_kiger', name: 'Kiger', bodyType: 'SUV', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'renault_kwid', name: 'Kwid', bodyType: 'Hatchback', capacity: 5, layout: _layout5),
+        VehicleModelConfig(id: 'renault_kiger', name: 'Kiger', bodyType: 'SUV', capacity: 5, layout: _layout5),
       ],
     );
   }
@@ -506,7 +506,7 @@ class VehicleCatalog {
   /// Tempo Traveller / bus options (RTO-style seat counts)
   static List<VehicleDropdownOption> _tempoOptions() {
     return [
-      VehicleDropdownOption(id: 'tempo_10', displayName: 'Tempo 10 seat', capacity: 10, layout: _layoutJeep10),
+      const VehicleDropdownOption(id: 'tempo_10', displayName: 'Tempo 10 seat', capacity: 10, layout: _layoutJeep10),
       VehicleDropdownOption(id: 'tempo_12', displayName: 'Tempo 12 seat', capacity: 12, layout: _layoutTempo12),
       VehicleDropdownOption(id: 'tempo_16', displayName: 'Tempo 16 seat', capacity: 16, layout: _layoutTempo16),
       VehicleDropdownOption(id: 'tempo_18', displayName: 'Tempo 18 seat', capacity: 18, layout: _layoutTempo18),

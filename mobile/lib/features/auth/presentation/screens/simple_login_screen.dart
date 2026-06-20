@@ -173,7 +173,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
     final topPadding = MediaQuery.of(context).padding.top;
     final screenHeight = MediaQuery.of(context).size.height;
     final isSmallScreen = screenHeight < 600;
-    final horizontalPadding = 24.0;
+    const horizontalPadding = 24.0;
     final spacing = isSmallScreen ? 16.0 : 24.0;
 
     return Scaffold(
@@ -193,7 +193,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
         child: SafeArea(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+            padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 minHeight: screenHeight - topPadding - MediaQuery.of(context).padding.bottom,
@@ -405,7 +405,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Center(
                       child: TextButton.icon(
                         onPressed: () => Navigator.pop(context),
@@ -416,7 +416,7 @@ class _SimpleLoginScreenState extends State<SimpleLoginScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),

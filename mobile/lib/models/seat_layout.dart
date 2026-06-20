@@ -64,7 +64,7 @@ class SeatLayoutView extends StatelessWidget {
               orElse: () => const SeatPosition(id: '', row: -1, col: -1, type: 'empty'),
             );
             if (seat.row == -1) {
-              return SizedBox(width: _kCellSize + _kCellMargin * 2, height: _kCellSize + _kCellMargin * 2);
+              return const SizedBox(width: _kCellSize + _kCellMargin * 2, height: _kCellSize + _kCellMargin * 2);
             }
             return _buildSeatCell(seat);
           }),

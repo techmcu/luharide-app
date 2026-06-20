@@ -334,7 +334,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 iconColor: Colors.green[700]!,
                 bgColor: Colors.green[50]!,
                 isHighlight: true,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userRole: 'driver'))),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen(userRole: 'driver'))),
               ),
             ),
           ],

@@ -286,7 +286,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
                                     child: _buildDriverCard(d as Map<String, dynamic>),
                                   ))
-                              .toList(),
+                              ,
                         const SizedBox(height: 8),
                       ] else ...[
                         Padding(
@@ -876,7 +876,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             colors: [_orangeLight, Colors.white],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -1285,7 +1285,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                 ),
                 child: Text(
                   hasHeader ? 'Edit' : 'Set Up',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: _purple,
@@ -1465,7 +1465,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       ctrl.selection = TextSelection.collapsed(offset: ctrl.text.length);
                     },
                     backgroundColor: _purple.withValues(alpha: 0.08),
-                    labelStyle: TextStyle(color: _purple),
+                    labelStyle: const TextStyle(color: _purple),
                   )).toList(),
                 ),
                 const SizedBox(height: 14),
@@ -1490,7 +1490,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _purple, width: 1.5),
+                      borderSide: const BorderSide(color: _purple, width: 1.5),
                     ),
                   ),
                 ),
@@ -1516,7 +1516,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: _purple, width: 1.5),
+                      borderSide: const BorderSide(color: _purple, width: 1.5),
                     ),
                   ),
                 ),

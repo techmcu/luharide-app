@@ -17,6 +17,22 @@ const saveFcmToken = asyncHandler(async (req, res) => {
     [userId, token, platform || 'android']
   );
 
+  // Keep only this user's 3 most-recent tokens. App reinstalls / FCM token
+  // rotation leave dead rows behind; those make the same phone receive the
+  // notification multiple times. Pruning bounds it while still supporting a few
+  // real devices per user.
+  await pool.query(
+    `DELETE FROM fcm_tokens
+     WHERE user_id = $1
+       AND token NOT IN (
+         SELECT token FROM fcm_tokens
+         WHERE user_id = $1
+         ORDER BY updated_at DESC
+         LIMIT 3
+       )`,
+    [userId]
+  );
+
   ApiResponse.success(null, 'FCM token saved').send(res);
 });
 

@@ -378,7 +378,7 @@ class _LandingScreenState extends State<LandingScreen> {
                                 ),
                                 child: _isSearching
                                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                    : Text(loc.t('landing.search.cta'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.3)),
+                                    : Text(loc.t('landing.search.cta'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.3)),
                               ),
                             ),
                           ),

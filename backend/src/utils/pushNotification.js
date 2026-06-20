@@ -32,8 +32,11 @@ async function sendPushToUser(userId, title, body, data = {}) {
     return;
   }
 
+  // DISTINCT: a user may have the same token stored more than once (rotation /
+  // reinstall races). Without it the same device receives duplicate pushes.
+  // Kept in parity with sendPushToMultipleUsers below.
   const result = await pool.query(
-    'SELECT token FROM fcm_tokens WHERE user_id = $1',
+    'SELECT DISTINCT token FROM fcm_tokens WHERE user_id = $1',
     [userId]
   );
   if (result.rows.length === 0) {

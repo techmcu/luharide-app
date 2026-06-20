@@ -6,6 +6,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const bcrypt = require('bcryptjs');
+const { BCRYPT_ROUNDS } = require('../config/security');
 
 /**
  * Simple Signup - No OTP
@@ -18,7 +19,7 @@ const signup = asyncHandler(async (req, res) => {
   const isAppAdmin = adminEmail && emailNorm === adminEmail;
   const effectiveRole = isAppAdmin ? 'union_admin' : role;
 
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
   let user;
   try {
@@ -252,7 +253,7 @@ const changePassword = asyncHandler(async (req, res) => {
     }
   }
 
-  const newHash = await bcrypt.hash(newPassword, 12);
+  const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
   await pool.query(
     'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
     [newHash, userId]
@@ -347,7 +348,7 @@ const resetPassword = asyncHandler(async (req, res) => {
   }
 
   const userId = result.rows[0].id;
-  const newHash = await bcrypt.hash(newPassword, 12);
+  const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
 
   await pool.query(
     'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',

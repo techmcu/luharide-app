@@ -29,10 +29,19 @@ String dioRelativePath(String path) {
   return path.startsWith('/') ? path.substring(1) : path;
 }
 
+/// Outcome of a token refresh attempt.
+/// - [success]: new tokens saved, retry the original request.
+/// - [invalid]: server DEFINITIVELY rejected the refresh (401/403) or no refresh
+///   token exists — the session is genuinely over, log the user out.
+/// - [transient]: could not confirm (network/timeout/5xx). Do NOT log out — keep
+///   the session and let the next request retry. This is what stops the app from
+///   logging users out on a momentary blip or a server 502.
+enum _RefreshOutcome { success, invalid, transient }
+
 class ApiService {
   static final ApiService _instance = ApiService._internal();
   late final Dio _dio;
-  Completer<bool>? _refreshCompleter;
+  Completer<_RefreshOutcome>? _refreshCompleter;
 
   final _tokenRefreshed = StreamController<void>.broadcast();
   final _authSessionLost = StreamController<void>.broadcast();
@@ -206,26 +215,37 @@ class ApiService {
   // Uses _refreshCompleter as mutex so concurrent 401s share a single refresh.
   Future<void> _handleUnauthorized(DioException error, ErrorInterceptorHandler handler) async {
     try {
-      bool refreshed;
+      _RefreshOutcome outcome;
       if (_refreshCompleter != null) {
-        refreshed = await _refreshCompleter!.future;
+        outcome = await _refreshCompleter!.future;
       } else {
-        _refreshCompleter = Completer<bool>();
+        _refreshCompleter = Completer<_RefreshOutcome>();
         try {
-          refreshed = await _refreshAccessToken();
-          _refreshCompleter!.complete(refreshed);
+          outcome = await _refreshAccessToken();
+          _refreshCompleter!.complete(outcome);
         } catch (e) {
-          _refreshCompleter!.complete(false);
-          refreshed = false;
+          // Unknown failure while refreshing — treat as transient so we never
+          // log the user out on something we couldn't classify.
+          _refreshCompleter!.complete(_RefreshOutcome.transient);
+          outcome = _RefreshOutcome.transient;
         } finally {
           _refreshCompleter = null;
         }
       }
 
-      if (!refreshed) {
+      if (outcome == _RefreshOutcome.invalid) {
+        // Server explicitly rejected the refresh token (or none exists) — the
+        // session is truly over. This is the ONLY path that logs the user out.
         clearAuthToken();
         unawaited(SecureTokenStorage.instance.clearTokens());
         _authSessionLost.add(null);
+        return handler.next(error);
+      }
+
+      if (outcome == _RefreshOutcome.transient) {
+        // Network / timeout / 5xx during refresh. Keep the session intact and
+        // surface the original error; the next request will retry the refresh.
+        // This prevents spurious auto-logouts on a blip or server overload (502).
         return handler.next(error);
       }
 
@@ -263,18 +283,19 @@ class ApiService {
     } catch (_) {
       // Refresh DID succeed but the retried request itself failed (network,
       // 5xx, etc.). The new tokens are valid — do NOT destroy the session
-      // here. Genuine session death (refresh failed) is already handled by the
-      // `if (!refreshed)` branch above.
+      // here. Genuine session death is only handled by the
+      // `outcome == _RefreshOutcome.invalid` branch above.
       return handler.next(error);
     }
   }
 
-  Future<bool> _refreshAccessToken() async {
+  Future<_RefreshOutcome> _refreshAccessToken() async {
     try {
       final storage = SecureTokenStorage.instance;
       final refreshToken = await storage.getRefreshToken();
       if (refreshToken == null || refreshToken.isEmpty) {
-        return false;
+        // Nothing to refresh with — the user must log in again.
+        return _RefreshOutcome.invalid;
       }
 
       final response = await _dio.post(
@@ -293,7 +314,7 @@ class ApiService {
         final tokens = data['tokens'] as Map<String, dynamic>? ?? {};
         final access = tokens['accessToken']?.toString();
         final refresh = tokens['refreshToken']?.toString();
-        if (access == null || access.isEmpty) return false;
+        if (access == null || access.isEmpty) return _RefreshOutcome.invalid;
 
         await storage.updateAccessToken(access);
         if (refresh != null && refresh.isNotEmpty) {
@@ -306,19 +327,31 @@ class ApiService {
           // ignore: avoid_print
           print('🔄 Token refreshed via interceptor');
         }
-        return true;
+        return _RefreshOutcome.success;
       }
-      return false;
+      // Got a response but not a success body — treat as a genuine rejection.
+      return _RefreshOutcome.invalid;
     } on DioException catch (e) {
+      final sc = e.response?.statusCode;
+      // ONLY a definitive auth rejection ends the session. Everything else
+      // (timeout, connection error, 5xx like the gateway's 502) is transient —
+      // we keep the user logged in and retry later.
+      if (sc == 401 || sc == 403) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print('⚠️  Refresh rejected ($sc) — session ended');
+        }
+        return _RefreshOutcome.invalid;
+      }
       if (kDebugMode) {
         // ignore: avoid_print
-        print('⚠️  Refresh token failed: ${e.message}');
+        print('⚠️  Refresh transient failure (${sc ?? e.type}) — keeping session');
       }
-      return false;
+      return _RefreshOutcome.transient;
     } on TimeoutException {
-      return false;
+      return _RefreshOutcome.transient;
     } catch (_) {
-      return false;
+      return _RefreshOutcome.transient;
     }
   }
 
