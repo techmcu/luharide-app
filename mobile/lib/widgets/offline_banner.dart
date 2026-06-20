@@ -30,7 +30,7 @@ class OfflineBanner extends StatelessWidget {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => NetworkStatusService.instance.check(),
+                    onTap: () => NetworkStatusService.instance.forceRecheck(),
                     child: const Text(
                       'Retry',
                       style: TextStyle(
