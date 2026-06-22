@@ -565,12 +565,17 @@ class TripService {
 
   /// Location suggestions WITH coordinates (Ola Maps `places`). Falls back to
   /// name-only entries when the backend can't resolve coordinates. Never throws.
-  Future<List<PickedLocation>> getLocationPlaces(String query) async {
+  Future<List<PickedLocation>> getLocationPlaces(String query, {double? nearLat, double? nearLng}) async {
     try {
       if (query.length < 2) return [];
+      final params = <String, dynamic>{'q': query};
+      if (nearLat != null && nearLng != null) {
+        params['near_lat'] = nearLat;
+        params['near_lng'] = nearLng;
+      }
       final response = await _apiService.get(
         ApiConstants.locationSuggestions,
-        queryParameters: {'q': query},
+        queryParameters: params,
       );
       final data = response.data['data'] ?? {};
       final List<dynamic> placesJson = data['places'] ?? [];

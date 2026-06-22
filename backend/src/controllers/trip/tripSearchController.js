@@ -852,9 +852,14 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
   // Enrich with Ola Maps autocomplete so the app can get coordinates for each
   // place (needed for distance/fare/proximity). Best-effort: if Ola is disabled
   // or fails it returns [] and we fall back to coordinate-less suggestions.
+  // Optional user location → rank nearest same-named places first.
+  const nLat = parseFloat(req.query.near_lat);
+  const nLng = parseFloat(req.query.near_lng);
+  const near = olaMaps.isValidLatLng(nLat, nLng) ? { lat: nLat, lng: nLng } : undefined;
+
   let olaPlaces = [];
   try {
-    olaPlaces = await olaMaps.autocomplete(qLower);
+    olaPlaces = await olaMaps.autocomplete(qLower, near);
   } catch (_) { /* never blocks suggestions */ }
 
   // `places` = unified list with coords where available. Ola entries (with

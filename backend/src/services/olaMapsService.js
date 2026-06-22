@@ -199,20 +199,31 @@ function _pointToSegmentKm(plat, plng, alat, alng, blat, blng) {
 
 /**
  * Place autocomplete suggestions for a typed query.
- * @returns {Promise<Array<{description,placeId,lat,lng}>>} always an array.
+ * @param {string} input typed text
+ * @param {{lat:number,lng:number}} [near] user location to rank nearest places
+ *   first (so the same-named place closest to the user surfaces on top, and the
+ *   ride creator + searcher pick the SAME place → coords match → ride is found).
+ *   Falls back to the configured region center when not provided.
+ * @returns {Promise<Array<{description,secondary,fullText,placeId,lat,lng}>>}
  */
-async function autocomplete(input) {
+async function autocomplete(input, near) {
   const q = String(input || '').trim();
   if (!isEnabled() || q.length < 2) return [];
 
-  const key = `ac:${q.toLowerCase()}`;
+  const hasNear = near && isValidLatLng(near.lat, near.lng);
+  const bLat = hasNear ? near.lat : biasLat;
+  const bLng = hasNear ? near.lng : biasLng;
+  // Cache per query + coarse location bucket (~11km) so nearby users share cache.
+  const nearKey = hasNear ? `${near.lat.toFixed(1)},${near.lng.toFixed(1)}` : 'region';
+  const key = `ac:${q.toLowerCase()}|${nearKey}`;
   const cached = cacheGet(key);
   if (cached) return cached;
 
   try {
     const res = await http.get('/places/v1/autocomplete', {
-      // location/radius bias → same-named places in our region rank first.
-      params: { input: q, api_key: apiKey, location: `${biasLat},${biasLng}`, radius: biasRadiusM },
+      // location/radius bias → nearest same-named place ranks first (user loc if
+      // provided, else region center).
+      params: { input: q, api_key: apiKey, location: `${bLat},${bLng}`, radius: biasRadiusM },
     });
     if (res.status !== 200 || !res.data) return [];
     const predictions = Array.isArray(res.data.predictions) ? res.data.predictions : [];

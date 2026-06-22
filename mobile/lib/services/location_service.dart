@@ -13,6 +13,22 @@ class LocationResult {
 /// Handles the service-enabled check + permission flow and returns a friendly
 /// error string instead of throwing, so the UI stays simple.
 class LocationService {
+  /// Fast, silent last-known location (no permission prompt, no GPS fix).
+  /// Used only to bias suggestions toward the user. Returns null if unavailable.
+  Future<LocationResult> getLastKnownQuiet() async {
+    try {
+      final perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+        return const LocationResult(error: 'no-permission');
+      }
+      final pos = await Geolocator.getLastKnownPosition();
+      if (pos == null) return const LocationResult(error: 'no-fix');
+      return LocationResult(lat: pos.latitude, lng: pos.longitude);
+    } catch (_) {
+      return const LocationResult(error: 'error');
+    }
+  }
+
   Future<LocationResult> getCurrentLocation() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();

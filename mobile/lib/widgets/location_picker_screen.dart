@@ -31,6 +31,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   bool _isLoading = false;
   bool _hasFetched = false;
   bool _gettingLocation = false;
+  // User location (last-known, silent) to rank nearest places first.
+  double? _nearLat, _nearLng;
 
   static const _kBlue = Color(0xFF2563EB);
   static const _recentKey = 'luha_recent_locations';
@@ -51,9 +53,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       );
     }
     _loadRecentLocations();
+    _loadNearLocation();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
+  }
+
+  /// Silently grab last-known location (no prompt) to bias suggestions to nearby.
+  Future<void> _loadNearLocation() async {
+    final res = await _locationService.getLastKnownQuiet();
+    if (mounted && res.ok) setState(() { _nearLat = res.lat; _nearLng = res.lng; });
   }
 
   @override
@@ -129,7 +138,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     if (query.length < 2) return;
     if (mounted) setState(() => _isLoading = true);
     try {
-      final results = await widget.tripService.getLocationPlaces(query);
+      final results = await widget.tripService.getLocationPlaces(query, nearLat: _nearLat, nearLng: _nearLng);
       if (!mounted) return;
       setState(() {
         _apiPlaces = results;
