@@ -862,16 +862,16 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
   const seen = new Set();
   const places = [];
   for (const p of olaPlaces) {
-    const k = p.description.toLowerCase();
+    const k = (p.description + '|' + (p.secondary || '')).toLowerCase();
     if (seen.has(k)) continue;
     seen.add(k);
-    places.push({ description: p.description, lat: p.lat ?? null, lng: p.lng ?? null });
+    places.push({ description: p.description, secondary: p.secondary || '', lat: p.lat ?? null, lng: p.lng ?? null });
   }
   for (const s of suggestions) {
-    const k = s.toLowerCase();
+    const k = (s + '|').toLowerCase();
     if (seen.has(k)) continue;
     seen.add(k);
-    places.push({ description: s, lat: null, lng: null });
+    places.push({ description: s, secondary: 'Uttarakhand', lat: null, lng: null });
   }
 
   // Rank: exact → starts-with → word-starts → contains; then SHORTEST/simplest

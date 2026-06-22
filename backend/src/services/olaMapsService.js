@@ -220,8 +220,12 @@ async function autocomplete(input) {
       // Prefer the short main name (e.g. "Bigsi") over the long full address
       // ("Bigsi 1323, post office naugaon, p249171, ...") for a clean suggestion.
       const shortName = p.structured_formatting?.main_text || p.description || '';
+      // Secondary = district/state context (e.g. "Uttarkashi, Uttarakhand") so the
+      // user can tell apart same-named places (Barkot UP vs Barkot Uttarakhand).
+      const secondary = p.structured_formatting?.secondary_text || '';
       return {
         description: shortName,
+        secondary,
         fullText: p.description || shortName,
         placeId: p.place_id || null,
         lat: Number.isFinite(loc.lat) ? loc.lat : null,

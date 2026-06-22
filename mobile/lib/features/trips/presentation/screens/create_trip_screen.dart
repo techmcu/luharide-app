@@ -8,6 +8,7 @@ import '../../../../services/driver_verification_service.dart';
 import '../../../../core/constants/input_limits.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../models/picked_location.dart';
+import '../../../../widgets/location_picker_screen.dart';
 
 class CreateTripScreen extends StatefulWidget {
   const CreateTripScreen({super.key});
@@ -23,10 +24,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
-  // Own the Autocomplete field controllers/focus nodes so the typed text
-  // survives rebuilds (the internal controller resets on validation/setState).
-  final _fromFocusNode = FocusNode();
-  final _toFocusNode = FocusNode();
   final _vehicleNumberController = TextEditingController();
   final _fareController = TextEditingController();
   final _luggageController = TextEditingController();
@@ -37,10 +34,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   double? _estimatedDistanceKm;
   bool _estimating = false;
 
-  List<PickedLocation> _fromSuggestions = [];
-  List<PickedLocation> _toSuggestions = [];
-  // Coordinates of the explicitly selected place (null if user typed freely).
-  // Cleared on every keystroke, set only on selection → never stale.
+  // Coordinates of the selected place (null until picked from the picker).
   double? _fromLat, _fromLng, _toLat, _toLng;
   bool _isLoading = false;
   bool _requireApproval = false;
@@ -78,8 +72,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   void dispose() {
     _fromController.dispose();
     _toController.dispose();
-    _fromFocusNode.dispose();
-    _toFocusNode.dispose();
     _vehicleNumberController.dispose();
     _fareController.dispose();
     _luggageController.dispose();
@@ -112,27 +104,64 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     }
   }
 
-  Future<void> _loadFromSuggestions(String query) async {
-    // Typing invalidates any previously selected coordinates.
-    _fromLat = null;
-    _fromLng = null;
-    if (query.length < 2) {
-      setState(() => _fromSuggestions = []);
-      return;
+  /// Open the full-page location picker and capture name + coordinates.
+  Future<void> _pickLocation({
+    required TextEditingController controller,
+    required bool isFrom,
+    required String label,
+  }) async {
+    final result = await Navigator.push<PickedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(
+          title: label,
+          initialValue: controller.text,
+          tripService: _tripService,
+        ),
+      ),
+    );
+    if (result == null) return;
+    controller.text = result.name;
+    if (isFrom) {
+      _fromLat = result.lat;
+      _fromLng = result.lng;
+    } else {
+      _toLat = result.lat;
+      _toLng = result.lng;
     }
-    final suggestions = await _tripService.getLocationPlaces(query);
-    if (mounted) setState(() => _fromSuggestions = suggestions);
+    setState(() {});
+    _recalcEstimate();
   }
 
-  Future<void> _loadToSuggestions(String query) async {
-    _toLat = null;
-    _toLng = null;
-    if (query.length < 2) {
-      setState(() => _toSuggestions = []);
-      return;
-    }
-    final suggestions = await _tripService.getLocationPlaces(query);
-    if (mounted) setState(() => _toSuggestions = suggestions);
+  Widget _buildPickerField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required Color iconColor,
+    required bool isFrom,
+  }) {
+    return GestureDetector(
+      onTap: () => _pickLocation(controller: controller, isFrom: isFrom, label: label),
+      child: AbsorbPointer(
+        child: TextFormField(
+          controller: controller,
+          readOnly: true,
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: 'Tap to search',
+            prefixIcon: Icon(icon, color: iconColor),
+            suffixIcon: const Icon(Icons.arrow_drop_down_rounded),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          validator: (value) {
+            final v = value?.trim() ?? '';
+            if (v.isEmpty) return 'Please select $label';
+            if (v.length < 2) return 'Enter at least 2 characters';
+            return null;
+          },
+        ),
+      ),
+    );
   }
 
   /// Auto-calculate distance + travel time once both endpoints have coordinates.
@@ -251,85 +280,24 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // From Location
-            Autocomplete<PickedLocation>(
-              textEditingController: _fromController,
-              focusNode: _fromFocusNode,
-              displayStringForOption: (p) => p.name,
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return const Iterable<PickedLocation>.empty();
-                }
-                _loadFromSuggestions(textEditingValue.text);
-                return _fromSuggestions;
-              },
-              onSelected: (p) {
-                _fromLat = p.lat;
-                _fromLng = p.lng;
-                _recalcEstimate();
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  maxLength: InputLimits.location,
-                  decoration: InputDecoration(
-                    counterText: '',
-                    labelText: 'From Location',
-                    prefixIcon: const Icon(Icons.location_on, color: Colors.green),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.isEmpty) return 'Please enter starting location';
-                    if (v.length < 2) return 'Enter at least 2 characters';
-                    return null;
-                  },
-                );
-              },
+            // From Location — opens a full-page picker (search, current location,
+            // names with district/state context, coordinates for accurate matching).
+            _buildPickerField(
+              controller: _fromController,
+              label: 'From Location',
+              icon: Icons.trip_origin,
+              iconColor: Colors.green,
+              isFrom: true,
             ),
             const SizedBox(height: 16),
 
             // To Location
-            Autocomplete<PickedLocation>(
-              textEditingController: _toController,
-              focusNode: _toFocusNode,
-              displayStringForOption: (p) => p.name,
-              optionsBuilder: (TextEditingValue textEditingValue) {
-                if (textEditingValue.text.isEmpty) {
-                  return const Iterable<PickedLocation>.empty();
-                }
-                _loadToSuggestions(textEditingValue.text);
-                return _toSuggestions;
-              },
-              onSelected: (p) {
-                _toLat = p.lat;
-                _toLng = p.lng;
-                _recalcEstimate();
-              },
-              fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                return TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  maxLength: InputLimits.location,
-                  decoration: InputDecoration(
-                    counterText: '',
-                    labelText: 'To Location',
-                    prefixIcon: const Icon(Icons.location_on, color: Colors.red),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (value) {
-                    final v = value?.trim() ?? '';
-                    if (v.isEmpty) return 'Please enter destination';
-                    if (v.length < 2) return 'Enter at least 2 characters';
-                    return null;
-                  },
-                );
-              },
+            _buildPickerField(
+              controller: _toController,
+              label: 'To Location',
+              icon: Icons.location_on,
+              iconColor: Colors.red,
+              isFrom: false,
             ),
             const SizedBox(height: 16),
 

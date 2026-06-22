@@ -356,6 +356,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               final place = displayList[index];
               return _LocationTile(
                 location: place.name,
+                subtitle: place.secondary,
                 icon: Icons.location_on_outlined,
                 iconBgColor: _kBlue.withValues(alpha: 0.08),
                 iconColor: _kBlue,
@@ -413,10 +414,12 @@ class _LocationTile extends StatelessWidget {
     required this.iconBgColor,
     required this.iconColor,
     required this.onTap,
+    this.subtitle,
     this.highlightQuery,
     this.onRemove,
   });
   final String location;
+  final String? subtitle;
   final IconData icon;
   final Color iconBgColor;
   final Color iconColor;
@@ -437,7 +440,12 @@ class _LocationTile extends StatelessWidget {
       title: highlightQuery != null
           ? _buildHighlightedText(location, highlightQuery!)
           : Text(location, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
-      subtitle: Text('Uttarakhand', style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+      subtitle: Text(
+        (subtitle != null && subtitle!.trim().isNotEmpty) ? subtitle! : 'Uttarakhand',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+      ),
       trailing: onRemove != null
           ? GestureDetector(
               onTap: onRemove,
