@@ -36,13 +36,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   static const _recentKey = 'luha_recent_locations';
   static const _maxRecent = 5;
 
-  static const _popularLocations = [
-    'Dehradun', 'Haridwar', 'Rishikesh', 'Mussoorie', 'Nainital',
-    'Haldwani', 'Roorkee', 'Rudrapur', 'Kashipur', 'Kotdwar',
-    'Almora', 'Pithoragarh', 'Uttarkashi', 'Tehri', 'Pauri',
-    'Srinagar Garhwal', 'Ranikhet', 'Bhimtal', 'Joshimath', 'Ramnagar',
-    'Purola', 'Vikasnagar', 'Herbertpur', 'Laksar', 'Doiwala',
-  ];
+  // Hardcoded town list removed — suggestions now come only from real Ola Maps
+  // places (with coordinates) + the user's recent searches.
+  static const _popularLocations = <String>[];
 
   @override
   void initState() {
@@ -284,18 +280,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               )),
           Divider(height: 24, indent: 16, endIndent: 16, color: Colors.grey[100]),
         ],
-        _SectionHeader(
-          icon: Icons.place_outlined,
-          iconColor: Colors.blue[400]!,
-          label: 'Popular Locations',
-        ),
-        ..._popularLocations.map((loc) => _LocationTile(
-              location: loc,
-              icon: Icons.place_outlined,
-              iconBgColor: Colors.blue.withValues(alpha: 0.08),
-              iconColor: Colors.blue[400]!,
-              onTap: () => _selectPicked(PickedLocation.nameOnly(loc)),
-            )),
+        if (_recentLocations.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            child: Text(
+              'Type a place name to search, or use your current location.',
+              style: TextStyle(fontSize: 13.5, color: Colors.grey[500]),
+            ),
+          ),
       ],
     );
   }

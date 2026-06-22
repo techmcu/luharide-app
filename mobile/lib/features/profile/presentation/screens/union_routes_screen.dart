@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/constants/input_limits.dart';
 import '../../../../services/union_service.dart';
+import '../../../../services/trip_service.dart';
+import '../../../../models/picked_location.dart';
+import '../../../../widgets/location_picker_screen.dart';
 
 class UnionRoutesScreen extends StatefulWidget {
   const UnionRoutesScreen({super.key});
@@ -440,8 +443,24 @@ class _AddRouteSheet extends StatefulWidget {
 
 class _AddRouteSheetState extends State<_AddRouteSheet> {
   bool _submitting = false;
+  final _tripService = TripService();
   static const _orange = Color(0xFFFF6B00);
   static const _blue   = Color(0xFF1E88E5);
+
+  /// Open the Ola-backed location picker and fill the field with the chosen name.
+  Future<void> _pickRoutePoint(TextEditingController controller, String label) async {
+    final result = await Navigator.push<PickedLocation>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(
+          title: label,
+          initialValue: controller.text,
+          tripService: _tripService,
+        ),
+      ),
+    );
+    if (result != null) setState(() => controller.text = result.name);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -496,9 +515,11 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
               ],
             ),
             const SizedBox(height: 24),
-            // FROM field
+            // FROM field — opens Ola location picker
             TextFormField(
               controller: widget.fromCtrl,
+              readOnly: true,
+              onTap: () => _pickRoutePoint(widget.fromCtrl, 'From (e.g. Purola)'),
               textCapitalization: TextCapitalization.words,
               maxLength: InputLimits.unionLocation,
               decoration: InputDecoration(
@@ -550,9 +571,11 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
                 ],
               ),
             ),
-            // TO field
+            // TO field — opens Ola location picker
             TextFormField(
               controller: widget.toCtrl,
+              readOnly: true,
+              onTap: () => _pickRoutePoint(widget.toCtrl, 'To (e.g. Dehradun)'),
               textCapitalization: TextCapitalization.words,
               maxLength: InputLimits.unionLocation,
               decoration: InputDecoration(

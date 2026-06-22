@@ -47,11 +47,13 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   const tLng = parseFloat(q.to_lng);
   const hasDest = olaMaps.isValidLatLng(tLat, tLng);
 
-  // Auto radius: ~35% of straight-line route length, clamped 8–60 km.
-  let radius = 25;
+  // Auto radius: ~35% of straight-line route length, with a generous floor so
+  // same-area variants always match (e.g. "Dehradun" vs "Dehradun Clock Tower").
+  // With a destination: 15–60 km. Origin-only search: a wide 50 km sweep.
+  let radius = 50;
   if (hasDest) {
     const routeKm = olaMaps.haversineKm(fLat, fLng, tLat, tLng);
-    if (Number.isFinite(routeKm)) radius = Math.min(60, Math.max(8, Math.round(routeKm * 0.35)));
+    if (Number.isFinite(routeKm)) radius = Math.min(60, Math.max(15, Math.round(routeKm * 0.35)));
   }
   const bb = geoBoundingBox(fLat, fLng, radius);
 
@@ -823,13 +825,11 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
     }
   }
 
+  // Suggestions come ONLY from real data: places already used in rides (DB) +
+  // Ola Maps autocomplete (added below). Hardcoded town list removed so users
+  // see real, coordinate-backed places instead of a static guess.
   const dbLocations = result.rows.map(row => row.location);
-  const matchingDefaults = UTTARAKHAND_LOCATIONS
-    .filter(loc => loc.toLowerCase().includes(qLower))
-    .filter(loc => !dbLocations.some(db => db.toLowerCase() === loc.toLowerCase()));
-
-  const merged = [...dbLocations, ...matchingDefaults];
-  const unique = [...new Map(merged.map(l => [l.toLowerCase(), l])).values()];
+  const unique = [...new Map(dbLocations.map(l => [l.toLowerCase(), l])).values()];
 
   // Smart ranking: exact → starts-with → word-boundary → contains
   unique.sort((a, b) => {
