@@ -439,12 +439,13 @@ class _LocationTile extends StatelessWidget {
       ),
       title: highlightQuery != null
           ? _buildHighlightedText(location, highlightQuery!)
-          : Text(location, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+          : Text(location,
+              style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: Colors.grey[900])),
       subtitle: Text(
         (subtitle != null && subtitle!.trim().isNotEmpty) ? subtitle! : 'Uttarakhand',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+        style: TextStyle(fontSize: 12.5, color: Colors.grey[500]),
       ),
       trailing: onRemove != null
           ? GestureDetector(
@@ -460,16 +461,19 @@ class _LocationTile extends StatelessWidget {
   Widget _buildHighlightedText(String text, String query) {
     final idx = text.toLowerCase().indexOf(query);
     if (idx < 0) {
-      return Text(text, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500));
+      return Text(text,
+          style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: Colors.grey[900]));
     }
     return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       text: TextSpan(
-        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.grey[800]),
+        style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: Colors.grey[900]),
         children: [
           if (idx > 0) TextSpan(text: text.substring(0, idx)),
           TextSpan(
             text: text.substring(idx, idx + query.length),
-            style: const TextStyle(fontWeight: FontWeight.w700, color: _kBlue),
+            style: const TextStyle(fontWeight: FontWeight.w800, color: _kBlue),
           ),
           if (idx + query.length < text.length) TextSpan(text: text.substring(idx + query.length)),
         ],
