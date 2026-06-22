@@ -47,31 +47,34 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   const tLng = parseFloat(q.to_lng);
   const hasDest = olaMaps.isValidLatLng(tLat, tLng);
 
-  // Auto radius: ~35% of straight-line route length, with a generous floor so
-  // same-area variants always match (e.g. "Dehradun" vs "Dehradun Clock Tower").
-  // With a destination: 15–60 km. Origin-only search: a wide 50 km sweep.
-  let radius = 50;
+  // Auto radius — scales with trip length so SHORT rides stay tight (not loose)
+  // and LONG rides reach far enough. ~25% of route, clamped 3–50 km.
+  //   20km→5km · 50km→13km · 150km→38km · 250km→50km(cap)
+  // Origin-only search (no destination): a moderate 30 km sweep.
+  let radius = 30;
   if (hasDest) {
     const routeKm = olaMaps.haversineKm(fLat, fLng, tLat, tLng);
-    if (Number.isFinite(routeKm)) radius = Math.min(60, Math.max(15, Math.round(routeKm * 0.35)));
+    if (Number.isFinite(routeKm)) radius = Math.min(50, Math.max(3, Math.round(routeKm * 0.25)));
   }
+  // Destination tolerance: slightly wider than origin, hard-capped at 50 km so it
+  // can never exceed a sane bound (no "tolerance bigger than the trip" on short rides).
+  const destRadius = Math.min(50, Math.max(3, Math.round(radius * 1.3)));
   const bb = geoBoundingBox(fLat, fLng, radius);
 
   const graceMin = retentionConfig.tripSearchGraceMinutesAfterDeparture;
   const CAND_LIMIT = 200; // bound work on a small VPS; we score+sort in JS
   const RATING_DEFAULT = 3.0; // neutral baseline for unrated drivers (not buried, not boosted)
-  const DEST_SLACK = 1.5; // a ride's destination may be up to radius·1.5 from yours
 
   const limit = Math.min(80, Math.max(1, parseInt(q.limit, 10) || 40));
   const offset = Math.min(400, Math.max(0, parseInt(q.offset, 10) || 0));
 
   // Corridor ("along-route") tolerance: a ride matches if BOTH your points sit
   // within corridorKm of its route line, in travel order — the precise BlaBlaCar
-  // "passing through" match. Padding (degrees) for the indexed bbox pre-filter.
-  const corridorKm = Math.min(12, Math.max(3, Math.round(radius * 0.2)));
+  // "passing through" match. Small fixed-ish band (2–10 km off the route).
+  const corridorKm = Math.min(10, Math.max(2, Math.round(radius * 0.4)));
   const padLat = corridorKm / 111;
   const padLng = corridorKm / (111 * Math.max(0.1, Math.cos((fLat * Math.PI) / 180)));
-  const maxRef = radius + (hasDest ? radius * DEST_SLACK : 0) || radius;
+  const maxRef = radius + (hasDest ? destRadius : 0) || radius;
 
   // Text fallback: ALSO match rides by from/to text so a ride is findable even
   // if it has no coordinates yet (created via text, or before migration). This
@@ -188,7 +191,7 @@ async function proximitySearch(req, res, q, fLat, fLng) {
         let ok = true;
         if (hasDest && t.to_lat != null && t.to_lng != null) {
           dDist = olaMaps.haversineKm(tLat, tLng, Number(t.to_lat), Number(t.to_lng));
-          if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) ok = false; // wrong direction
+          if (Number.isFinite(dDist) && dDist > destRadius) ok = false; // dest too far
           else exactDest = dDist <= 3;
         }
         if (ok) {
@@ -341,7 +344,7 @@ async function proximitySearch(req, res, q, fLat, fLng) {
         let ok = true;
         if (hasDest && s.to_lat != null && s.to_lng != null) {
           const dDist = olaMaps.haversineKm(tLat, tLng, Number(s.to_lat), Number(s.to_lng));
-          if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) ok = false;
+          if (Number.isFinite(dDist) && dDist > destRadius) ok = false;
           else exactDest = dDist <= 3;
         }
         if (ok) { matchType = 'endpoint'; geoDist = oDist; displayDist = oDist; }
