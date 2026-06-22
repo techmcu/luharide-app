@@ -23,7 +23,7 @@ const axios = require('axios');
 const { config } = require('../config/env');
 const logger = require('../config/logger');
 
-const { apiKey, baseUrl, timeoutMs } = config.olaMaps;
+const { apiKey, baseUrl, timeoutMs, biasLat, biasLng, biasRadiusM } = config.olaMaps;
 
 // ---- HTTP client -----------------------------------------------------------
 const http = axios.create({
@@ -211,7 +211,8 @@ async function autocomplete(input) {
 
   try {
     const res = await http.get('/places/v1/autocomplete', {
-      params: { input: q, api_key: apiKey },
+      // location/radius bias → same-named places in our region rank first.
+      params: { input: q, api_key: apiKey, location: `${biasLat},${biasLng}`, radius: biasRadiusM },
     });
     if (res.status !== 200 || !res.data) return [];
     const predictions = Array.isArray(res.data.predictions) ? res.data.predictions : [];

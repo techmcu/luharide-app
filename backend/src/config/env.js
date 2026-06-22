@@ -43,6 +43,11 @@ const config = {
     baseUrl: getEnv('OLA_MAPS_BASE_URL', 'https://api.olamaps.io'),
     enabled: !!getEnv('OLA_MAPS_API_KEY', ''),
     timeoutMs: parseInt(getEnv('OLA_MAPS_TIMEOUT_MS', '6000'), 10) || 6000,
+    // Bias autocomplete toward our service region (Uttarakhand) so same-named
+    // places resolve locally first (e.g. Purola/Chandeli in Uttarakhand, not MP/UP).
+    biasLat: parseFloat(getEnv('OLA_MAPS_BIAS_LAT', '30.0668')) || 30.0668,
+    biasLng: parseFloat(getEnv('OLA_MAPS_BIAS_LNG', '79.0193')) || 79.0193,
+    biasRadiusM: parseInt(getEnv('OLA_MAPS_BIAS_RADIUS_M', '200000'), 10) || 200000,
   },
   // Distance-based fare ceiling for SHARED rides (per seat, INR).
   // Calibrated to real Uttarakhand shared fares (Purola↔Dehradun ≈145km ≈ ₹450).
