@@ -275,11 +275,15 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         return;
       }
 
+      // Reuse the exact coordinates saved on the route (no geocoding guess).
+      double? _d(dynamic v) => v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
       final res = await _service.createSchedulesBulk(
         fromLocation: from,
         toLocation: to,
         departureTime: dt,
         unionDriverIds: [id],
+        fromLat: _d(route['from_lat']), fromLng: _d(route['from_lng']),
+        toLat: _d(route['to_lat']), toLng: _d(route['to_lng']),
       );
       if (res['success'] == true) {
         final schedules = res['schedules'] as List<dynamic>? ?? [];

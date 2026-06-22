@@ -19,13 +19,26 @@ const getUnionRoutes = asyncHandler(async (req, res) => {
   }
 
   const unionId = resUnion.rows[0].union_id;
-  const routesRes = await pool.query(
-    `SELECT id, from_location, to_location, is_active, created_at
-     FROM union_routes
-     WHERE union_id = $1 AND is_active = TRUE
-     ORDER BY from_location, to_location`,
-    [unionId]
-  );
+  let routesRes;
+  try {
+    routesRes = await pool.query(
+      `SELECT id, from_location, to_location, from_lat, from_lng, to_lat, to_lng, is_active, created_at
+       FROM union_routes
+       WHERE union_id = $1 AND is_active = TRUE
+       ORDER BY from_location, to_location`,
+      [unionId]
+    );
+  } catch (e) {
+    // Pre-migration DB without coord columns — fall back to base columns.
+    if (e.code !== '42703') throw e;
+    routesRes = await pool.query(
+      `SELECT id, from_location, to_location, is_active, created_at
+       FROM union_routes
+       WHERE union_id = $1 AND is_active = TRUE
+       ORDER BY from_location, to_location`,
+      [unionId]
+    );
+  }
 
   ApiResponse.success(
     { routes: routesRes.rows, count: routesRes.rows.length },
@@ -34,7 +47,7 @@ const getUnionRoutes = asyncHandler(async (req, res) => {
 });
 
 const addUnionRoute = asyncHandler(async (req, res) => {
-  const { from_location, to_location } = req.body;
+  const { from_location, to_location, from_lat, from_lng, to_lat, to_lng } = req.body;
 
   const resUnion = await pool.query(
     `SELECT ua.union_id
@@ -49,12 +62,32 @@ const addUnionRoute = asyncHandler(async (req, res) => {
   }
 
   const unionId = resUnion.rows[0].union_id;
-  const insertRes = await pool.query(
-    `INSERT INTO union_routes (union_id, from_location, to_location, is_active)
-     VALUES ($1, $2, $3, TRUE)
-     RETURNING *`,
-    [unionId, toTitleCase(from_location), toTitleCase(to_location)]
-  );
+  const validCoord = (la, ln) =>
+    Number.isFinite(la) && Number.isFinite(ln) && la >= -90 && la <= 90 && ln >= -180 && ln <= 180;
+  const fLat = parseFloat(from_lat), fLng = parseFloat(from_lng);
+  const tLat = parseFloat(to_lat), tLng = parseFloat(to_lng);
+  const haveFrom = validCoord(fLat, fLng);
+  const haveTo = validCoord(tLat, tLng);
+
+  let insertRes;
+  try {
+    insertRes = await pool.query(
+      `INSERT INTO union_routes (union_id, from_location, to_location, from_lat, from_lng, to_lat, to_lng, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+       RETURNING *`,
+      [unionId, toTitleCase(from_location), toTitleCase(to_location),
+       haveFrom ? fLat : null, haveFrom ? fLng : null, haveTo ? tLat : null, haveTo ? tLng : null]
+    );
+  } catch (e) {
+    // Pre-migration DB without coord columns — store text only.
+    if (e.code !== '42703') throw e;
+    insertRes = await pool.query(
+      `INSERT INTO union_routes (union_id, from_location, to_location, is_active)
+       VALUES ($1, $2, $3, TRUE)
+       RETURNING *`,
+      [unionId, toTitleCase(from_location), toTitleCase(to_location)]
+    );
+  }
 
   const route = insertRes.rows[0];
   logger.info(`Union route added ${route.id} for union ${unionId} by admin ${req.user.id}`);

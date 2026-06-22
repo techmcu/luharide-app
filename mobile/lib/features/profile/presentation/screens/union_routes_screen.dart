@@ -54,6 +54,8 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
     final fromCtrl = TextEditingController();
     final toCtrl   = TextEditingController();
     final formKey  = GlobalKey<FormState>();
+    // Exact coordinates picked from the Ola picker (permanent, no geocoding guess).
+    final coords = <String, double?>{'fromLat': null, 'fromLng': null, 'toLat': null, 'toLng': null};
 
     await showModalBottomSheet<void>(
       context: context,
@@ -63,12 +65,16 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
         formKey: formKey,
         fromCtrl: fromCtrl,
         toCtrl: toCtrl,
+        onFromPicked: (p) { coords['fromLat'] = p.lat; coords['fromLng'] = p.lng; },
+        onToPicked: (p) { coords['toLat'] = p.lat; coords['toLng'] = p.lng; },
         onSave: (submitting) async {
           if (!formKey.currentState!.validate()) return;
           submitting(true);
           final res = await _service.addRoute(
             fromLocation: fromCtrl.text.trim(),
             toLocation: toCtrl.text.trim(),
+            fromLat: coords['fromLat'], fromLng: coords['fromLng'],
+            toLat: coords['toLat'], toLng: coords['toLng'],
           );
           submitting(false);
           if (!context.mounted) return;
@@ -429,12 +435,16 @@ class _AddRouteSheet extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController fromCtrl, toCtrl;
   final void Function(Future<void> Function(bool)) onSave;
+  final ValueChanged<PickedLocation> onFromPicked;
+  final ValueChanged<PickedLocation> onToPicked;
 
   const _AddRouteSheet({
     required this.formKey,
     required this.fromCtrl,
     required this.toCtrl,
     required this.onSave,
+    required this.onFromPicked,
+    required this.onToPicked,
   });
 
   @override
@@ -447,8 +457,8 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
   static const _orange = Color(0xFFFF6B00);
   static const _blue   = Color(0xFF1E88E5);
 
-  /// Open the Ola-backed location picker and fill the field with the chosen name.
-  Future<void> _pickRoutePoint(TextEditingController controller, String label) async {
+  /// Open the Ola-backed location picker; capture name + exact coordinates.
+  Future<void> _pickRoutePoint(TextEditingController controller, String label, bool isFrom) async {
     final result = await Navigator.push<PickedLocation>(
       context,
       MaterialPageRoute(
@@ -459,7 +469,13 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
         ),
       ),
     );
-    if (result != null) setState(() => controller.text = result.name);
+    if (result == null) return;
+    setState(() => controller.text = result.name);
+    if (isFrom) {
+      widget.onFromPicked(result);
+    } else {
+      widget.onToPicked(result);
+    }
   }
 
   @override
@@ -519,7 +535,7 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
             TextFormField(
               controller: widget.fromCtrl,
               readOnly: true,
-              onTap: () => _pickRoutePoint(widget.fromCtrl, 'From (e.g. Purola)'),
+              onTap: () => _pickRoutePoint(widget.fromCtrl, 'From (e.g. Purola)', true),
               textCapitalization: TextCapitalization.words,
               maxLength: InputLimits.unionLocation,
               decoration: InputDecoration(
@@ -575,7 +591,7 @@ class _AddRouteSheetState extends State<_AddRouteSheet> {
             TextFormField(
               controller: widget.toCtrl,
               readOnly: true,
-              onTap: () => _pickRoutePoint(widget.toCtrl, 'To (e.g. Dehradun)'),
+              onTap: () => _pickRoutePoint(widget.toCtrl, 'To (e.g. Dehradun)', false),
               textCapitalization: TextCapitalization.words,
               maxLength: InputLimits.unionLocation,
               decoration: InputDecoration(

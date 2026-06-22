@@ -110,6 +110,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     required bool isFrom,
     required String label,
   }) async {
+    // Destination suggestions bias to the chosen origin (not the user's GPS).
     final result = await Navigator.push<PickedLocation>(
       context,
       MaterialPageRoute(
@@ -117,6 +118,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           title: label,
           initialValue: controller.text,
           tripService: _tripService,
+          biasLat: isFrom ? null : _fromLat,
+          biasLng: isFrom ? null : _fromLng,
         ),
       ),
     );

@@ -9,12 +9,19 @@ class LocationPickerScreen extends StatefulWidget {
   final String title;
   final String initialValue;
   final TripService tripService;
+  // Optional bias point to rank nearby suggestions first. For a DESTINATION field
+  // pass the origin's coords (so far destinations resolve in the right region);
+  // for an ORIGIN field leave null → uses the user's GPS (nearest to them).
+  final double? biasLat;
+  final double? biasLng;
 
   const LocationPickerScreen({
     super.key,
     required this.title,
     this.initialValue = '',
     required this.tripService,
+    this.biasLat,
+    this.biasLng,
   });
 
   @override
@@ -53,7 +60,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       );
     }
     _loadRecentLocations();
-    _loadNearLocation();
+    // Explicit bias (e.g. origin coords for a destination field) wins; otherwise
+    // fall back to the user's GPS for an origin field.
+    if (widget.biasLat != null && widget.biasLng != null) {
+      _nearLat = widget.biasLat;
+      _nearLng = widget.biasLng;
+    } else {
+      _loadNearLocation();
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });

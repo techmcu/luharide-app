@@ -257,15 +257,25 @@ class UnionService {
   Future<Map<String, dynamic>> addRoute({
     required String fromLocation,
     required String toLocation,
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
   }) async {
     try {
-      final response = await _api.post(
-        '/union/routes',
-        data: {
-          'from_location': fromLocation,
-          'to_location': toLocation,
-        },
-      );
+      final data = <String, dynamic>{
+        'from_location': fromLocation,
+        'to_location': toLocation,
+      };
+      if (fromLat != null && fromLng != null) {
+        data['from_lat'] = fromLat;
+        data['from_lng'] = fromLng;
+      }
+      if (toLat != null && toLng != null) {
+        data['to_lat'] = toLat;
+        data['to_lng'] = toLng;
+      }
+      final response = await _api.post('/union/routes', data: data);
       return {
         'success': true,
         'route': response.data['data']?['route'] ?? response.data['data'],
@@ -319,17 +329,27 @@ class UnionService {
     required String toLocation,
     required DateTime departureTime,
     required List<String> unionDriverIds,
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
   }) async {
     try {
-      final response = await _api.post(
-        '/union/schedules/bulk',
-        data: {
-          'from_location': fromLocation,
-          'to_location': toLocation,
-          'departure_time': departureTime.toIso8601String(),
-          'union_driver_ids': unionDriverIds,
-        },
-      );
+      final data = <String, dynamic>{
+        'from_location': fromLocation,
+        'to_location': toLocation,
+        'departure_time': departureTime.toIso8601String(),
+        'union_driver_ids': unionDriverIds,
+      };
+      if (fromLat != null && fromLng != null) {
+        data['from_lat'] = fromLat;
+        data['from_lng'] = fromLng;
+      }
+      if (toLat != null && toLng != null) {
+        data['to_lat'] = toLat;
+        data['to_lng'] = toLng;
+      }
+      final response = await _api.post('/union/schedules/bulk', data: data);
       return {
         'success': true,
         'schedules': response.data['data']?['schedules'] ?? [],

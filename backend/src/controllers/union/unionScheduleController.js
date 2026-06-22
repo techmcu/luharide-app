@@ -10,7 +10,8 @@ const olaMaps = require('../../services/olaMapsService');
 const DAILY_SCHEDULE_LIMIT = 3;
 
 const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
-  const { from_location, to_location, departure_time, union_driver_ids } = req.body;
+  const { from_location, to_location, departure_time, union_driver_ids,
+          from_lat, from_lng, to_lat, to_lng } = req.body;
 
   if (!Array.isArray(union_driver_ids) || union_driver_ids.length === 0) {
     throw ApiError.badRequest('At least one driver must be selected');
@@ -60,22 +61,28 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   const fromTrimmed = toTitleCase(from_location);
   const toTrimmed   = toTitleCase(to_location);
 
-  // Resolve coordinates for this route ONCE, before opening the transaction
-  // (so network calls don't hold a DB connection open). The union form sends
-  // text only, so we geocode it. Best-effort — failures just leave coords null.
+  // Coordinates: PREFER the exact coords the admin picked at route creation
+  // (sent from the app) — accurate, no ambiguity. Only geocode the text as a
+  // fallback for legacy routes that have no coords. Done ONCE, before the txn.
   let fromCoord = null, toCoord = null, routeInfo = null;
+  const validCoord = (la, ln) =>
+    olaMaps.isValidLatLng(typeof la === 'number' ? la : parseFloat(la), typeof ln === 'number' ? ln : parseFloat(ln));
+  if (validCoord(from_lat, from_lng)) fromCoord = { lat: parseFloat(from_lat), lng: parseFloat(from_lng) };
+  if (validCoord(to_lat, to_lng)) toCoord = { lat: parseFloat(to_lat), lng: parseFloat(to_lng) };
   try {
-    const [g1, g2] = await Promise.all([
-      olaMaps.geocode(fromTrimmed),
-      olaMaps.geocode(toTrimmed),
-    ]);
-    if (g1) fromCoord = { lat: g1.lat, lng: g1.lng };
-    if (g2) toCoord = { lat: g2.lat, lng: g2.lng };
+    if (!fromCoord || !toCoord) {
+      const [g1, g2] = await Promise.all([
+        fromCoord ? null : olaMaps.geocode(fromTrimmed),
+        toCoord ? null : olaMaps.geocode(toTrimmed),
+      ]);
+      if (!fromCoord && g1) fromCoord = { lat: g1.lat, lng: g1.lng };
+      if (!toCoord && g2) toCoord = { lat: g2.lat, lng: g2.lng };
+    }
     if (fromCoord && toCoord) {
       routeInfo = await olaMaps.getRouteDistance(fromCoord, toCoord);
     }
   } catch (e) {
-    logger.warn('Union schedule: geocode failed:', e.message);
+    logger.warn('Union schedule: coord resolve failed:', e.message);
   }
 
   const client = await pool.connect();

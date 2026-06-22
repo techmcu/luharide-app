@@ -53,6 +53,10 @@ const addUnionDriverSchema = Joi.object({
 const addUnionRouteSchema = Joi.object({
   from_location: Joi.string().min(2).max(100).required(),
   to_location: Joi.string().min(2).max(100).required(),
+  from_lat: Joi.number().min(-90).max(90).optional(),
+  from_lng: Joi.number().min(-180).max(180).optional(),
+  to_lat: Joi.number().min(-90).max(90).optional(),
+  to_lng: Joi.number().min(-180).max(180).optional(),
 });
 
 const createSchedulesSchema = Joi.object({
@@ -60,6 +64,10 @@ const createSchedulesSchema = Joi.object({
   to_location: Joi.string().min(2).max(100).required(),
   departure_time: Joi.date().iso().required(),
   union_driver_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
+  from_lat: Joi.number().min(-90).max(90).optional(),
+  from_lng: Joi.number().min(-180).max(180).optional(),
+  to_lat: Joi.number().min(-90).max(90).optional(),
+  to_lng: Joi.number().min(-180).max(180).optional(),
 });
 
 const updateBrandingSchema = Joi.object({

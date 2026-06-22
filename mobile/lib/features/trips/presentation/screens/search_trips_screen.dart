@@ -718,7 +718,8 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
               onPicked: (p) => setState(() { _fromLat = p.lat; _fromLng = p.lng; }),
             ),
             const SizedBox(height: 10),
-            // To
+            // To — destination suggestions biased to the origin's region (not the
+            // user's GPS), so far destinations resolve correctly.
             _LocationField(
               controller: _toCtrl,
               label: t.t('ride.to.label'),
@@ -726,6 +727,8 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
               icon: Icons.location_on,
               iconColor: _kRed,
               tripService: _tripService,
+              biasLat: _fromLat,
+              biasLng: _fromLng,
               onPicked: (p) => setState(() { _toLat = p.lat; _toLng = p.lng; }),
             ),
             const SizedBox(height: 10),
@@ -1026,6 +1029,8 @@ class _LocationField extends StatelessWidget {
     required this.iconColor,
     required this.tripService,
     this.onPicked,
+    this.biasLat,
+    this.biasLng,
   });
   final TextEditingController controller;
   final String label;
@@ -1034,6 +1039,8 @@ class _LocationField extends StatelessWidget {
   final Color iconColor;
   final TripService tripService;
   final ValueChanged<PickedLocation>? onPicked;
+  final double? biasLat;
+  final double? biasLng;
 
   @override
   Widget build(BuildContext context) {
@@ -1046,6 +1053,8 @@ class _LocationField extends StatelessWidget {
               title: label,
               initialValue: controller.text,
               tripService: tripService,
+              biasLat: biasLat,
+              biasLng: biasLng,
             ),
           ),
         );
