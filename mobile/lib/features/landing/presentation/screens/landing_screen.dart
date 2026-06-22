@@ -8,6 +8,7 @@ import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/app_language_provider.dart';
 import '../../../../models/trip_model.dart';
+import '../../../../models/picked_location.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/union_service.dart';
@@ -31,6 +32,8 @@ class _LandingScreenState extends State<LandingScreen> {
   final _tripService = TripService();
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
+  // Coordinates captured from autocomplete (null → text search fallback).
+  double? _fromLat, _fromLng, _toLat, _toLng;
   final _scrollController = ScrollController();
   DateTime _selectedDate = DateTime.now();
 
@@ -90,6 +93,8 @@ class _LandingScreenState extends State<LandingScreen> {
       from: _fromController.text.trim(),
       to: _toController.text.trim(),
       date: _selectedDate,
+      fromLat: _fromLat, fromLng: _fromLng,
+      toLat: _toLat, toLng: _toLng,
     );
 
     // Show ALL rides returned by backend — no client-side time filtering.
@@ -312,6 +317,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               icon: Icons.trip_origin_rounded,
                               iconColor: Colors.green[400]!,
                               tripService: _tripService,
+                              onPicked: (p) { _fromLat = p.lat; _fromLng = p.lng; },
                             ),
                             const SizedBox(height: 14),
                             _LocationField(
@@ -320,6 +326,7 @@ class _LandingScreenState extends State<LandingScreen> {
                               icon: Icons.location_on_rounded,
                               iconColor: Colors.red[300]!,
                               tripService: _tripService,
+                              onPicked: (p) { _toLat = p.lat; _toLng = p.lng; },
                             ),
                             Divider(height: 1, color: Colors.grey[100], thickness: 1),
                             InkWell(
@@ -816,6 +823,7 @@ class _LocationField extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final TripService? tripService;
+  final ValueChanged<PickedLocation>? onPicked;
 
   const _LocationField({
     required this.controller,
@@ -823,6 +831,7 @@ class _LocationField extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     this.tripService,
+    this.onPicked,
   });
 
   @override
@@ -830,7 +839,7 @@ class _LocationField extends StatelessWidget {
     return GestureDetector(
       onTap: tripService != null
           ? () async {
-              final result = await Navigator.push<String>(
+              final result = await Navigator.push<PickedLocation>(
                 context,
                 MaterialPageRoute(
                   builder: (_) => LocationPickerScreen(
@@ -841,7 +850,8 @@ class _LocationField extends StatelessWidget {
                 ),
               );
               if (result != null) {
-                controller.text = result;
+                controller.text = result.name;
+                onPicked?.call(result);
               }
             }
           : null,

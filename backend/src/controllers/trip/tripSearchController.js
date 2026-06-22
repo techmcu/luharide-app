@@ -5,6 +5,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const retentionConfig = require('../../config/retentionConfig');
 const toTitleCase = require('../../utils/titleCase');
+const olaMaps = require('../../services/olaMapsService');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function requireUuid(id) {
@@ -19,14 +20,311 @@ const _DRIVER_COLS = `u.name AS driver_name, u.email AS driver_email, u.phone AS
   u.whatsapp_number AS driver_whatsapp, u.driver_verification_status AS driver_verified,
   u.bio AS driver_bio`;
 
+/** Lat/lng bounding box for a radius (km) — used as an indexed SQL pre-filter. */
+function geoBoundingBox(lat, lng, radiusKm) {
+  const dLat = radiusKm / 111; // ~111 km per degree latitude
+  const cos = Math.max(0.1, Math.cos((lat * Math.PI) / 180));
+  const dLng = radiusKm / (111 * cos);
+  return { latMin: lat - dLat, latMax: lat + dLat, lngMin: lng - dLng, lngMax: lng + dLng };
+}
+
+/**
+ * Proximity + rating search — used when the app sends origin coordinates.
+ * Ranks rides by "nearness to you" combined with driver rating, so the closest
+ * well-rated rides surface first (concentric-circle idea). Backward compatible:
+ * exact-text search still runs when no coordinates are provided.
+ *
+ * Ranking: score = 0.7·(distance, normalised) + 0.3·(1 − rating/5)  [lower = better]
+ * Tie-break: KYC-verified driver → more ratings (experience) → earlier departure.
+ * Radius auto-scales with route length (short trip → tight radius, long → wide).
+ */
+async function proximitySearch(req, res, q, fLat, fLng) {
+  const dateStr = (q.date != null ? String(q.date) : '').trim().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    throw ApiError.badRequest('Invalid date. Use YYYY-MM-DD (e.g. 2026-02-23).');
+  }
+  const tLat = parseFloat(q.to_lat);
+  const tLng = parseFloat(q.to_lng);
+  const hasDest = olaMaps.isValidLatLng(tLat, tLng);
+
+  // Auto radius: ~35% of straight-line route length, clamped 8–60 km.
+  let radius = 25;
+  if (hasDest) {
+    const routeKm = olaMaps.haversineKm(fLat, fLng, tLat, tLng);
+    if (Number.isFinite(routeKm)) radius = Math.min(60, Math.max(8, Math.round(routeKm * 0.35)));
+  }
+  const bb = geoBoundingBox(fLat, fLng, radius);
+
+  const graceMin = retentionConfig.tripSearchGraceMinutesAfterDeparture;
+  const CAND_LIMIT = 200; // bound work on a small VPS; we score+sort in JS
+  const RATING_DEFAULT = 3.0; // neutral baseline for unrated drivers (not buried, not boosted)
+  const DEST_SLACK = 1.5; // a ride's destination may be up to radius·1.5 from yours
+
+  const limit = Math.min(80, Math.max(1, parseInt(q.limit, 10) || 40));
+  const offset = Math.min(400, Math.max(0, parseInt(q.offset, 10) || 0));
+
+  // Corridor ("along-route") tolerance: a ride matches if BOTH your points sit
+  // within corridorKm of its route line, in travel order — the precise BlaBlaCar
+  // "passing through" match. Padding (degrees) for the indexed bbox pre-filter.
+  const corridorKm = Math.min(12, Math.max(3, Math.round(radius * 0.2)));
+  const padLat = corridorKm / 111;
+  const padLng = corridorKm / (111 * Math.max(0.1, Math.cos((fLat * Math.PI) / 180)));
+  const maxRef = radius + (hasDest ? radius * DEST_SLACK : 0) || radius;
+
+  const parsePoly = (v) => {
+    if (Array.isArray(v)) return v;
+    if (typeof v === 'string') { try { return JSON.parse(v); } catch { return null; } }
+    return null;
+  };
+
+  const RATING_SUB = `LEFT JOIN (
+      SELECT rated_user_id, AVG(rating)::float AS avg_rating, COUNT(*)::int AS cnt
+      FROM ride_ratings GROUP BY rated_user_id
+    ) rr ON rr.rated_user_id = t.driver_id`;
+  const TRIP_GEO_COLS = `t.from_lat, t.from_lng, t.to_lat, t.to_lng, t.route_polyline,
+      COALESCE(rr.avg_rating, 0) AS driver_rating, COALESCE(rr.cnt, 0) AS driver_rating_count`;
+  const TRIP_TIME_WHERE = `t.departure_time >= ($5::date)::timestamp
+      AND t.departure_time <  ($5::date)::timestamp + interval '1 day'
+      AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+      AND t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
+
+  // ── Independent-driver trips: endpoint-proximity + corridor candidates ──
+  const tripQueries = [
+    // (a) endpoint: ride origin near your origin
+    queryRead(
+      `SELECT ${_TRIP_COLS}, ${_DRIVER_COLS}, ${TRIP_GEO_COLS}
+       FROM trips t LEFT JOIN users u ON t.driver_id = u.id ${RATING_SUB}
+       WHERE t.status = 'scheduled'
+         AND t.from_lat BETWEEN $1 AND $2 AND t.from_lng BETWEEN $3 AND $4
+         AND ${TRIP_TIME_WHERE}
+       LIMIT ${CAND_LIMIT}`,
+      [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr]
+    ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Endpoint trips query failed:', e.message); return { rows: [] }; }),
+  ];
+  // (b) corridor: ride route passes near BOTH your points (needs a destination)
+  if (hasDest) {
+    tripQueries.push(
+      queryRead(
+        `SELECT ${_TRIP_COLS}, ${_DRIVER_COLS}, ${TRIP_GEO_COLS}
+         FROM trips t LEFT JOIN users u ON t.driver_id = u.id ${RATING_SUB}
+         WHERE t.status = 'scheduled' AND t.route_polyline IS NOT NULL
+           AND (t.route_min_lat - $6) <= $7 AND (t.route_max_lat + $6) >= $7
+           AND (t.route_min_lng - $8) <= $9 AND (t.route_max_lng + $8) >= $9
+           AND (t.route_min_lat - $6) <= $10 AND (t.route_max_lat + $6) >= $10
+           AND (t.route_min_lng - $8) <= $11 AND (t.route_max_lng + $8) >= $11
+           AND ${TRIP_TIME_WHERE}
+         LIMIT ${CAND_LIMIT}`,
+        [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr,
+         padLat, fLat, padLng, fLng, tLat, tLng]
+      ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Corridor trips query failed:', e.message); return { rows: [] }; })
+    );
+  }
+  const tripResults = await Promise.all(tripQueries);
+
+  // Merge unique rides; evaluate each as corridor (preferred) or endpoint match.
+  const tripById = new Map();
+  for (const rs of tripResults) for (const row of rs.rows) if (!tripById.has(row.id)) tripById.set(row.id, row);
+
+  const scored = [];
+  for (const t of tripById.values()) {
+    let matchType = null, geoDist = Infinity, displayDist = Infinity, exactDest = false;
+
+    // Corridor: both points close to the route line, origin before destination.
+    if (hasDest) {
+      const poly = parsePoly(t.route_polyline);
+      if (poly && poly.length >= 2) {
+        const o = olaMaps.projectOntoPolyline(fLat, fLng, poly);
+        const d = olaMaps.projectOntoPolyline(tLat, tLng, poly);
+        if (o.distKm <= corridorKm && d.distKm <= corridorKm && o.alongKm < d.alongKm) {
+          matchType = 'corridor';
+          geoDist = o.distKm + d.distKm;
+          displayDist = o.distKm;
+          exactDest = d.distKm <= 3;
+        }
+      }
+    }
+
+    // Endpoint fallback: ride origin within radius (+ destination within slack).
+    if (!matchType) {
+      const oDist = olaMaps.haversineKm(fLat, fLng, Number(t.from_lat), Number(t.from_lng));
+      if (!Number.isFinite(oDist) || oDist > radius) continue;
+      let dDist = null;
+      if (hasDest && t.to_lat != null && t.to_lng != null) {
+        dDist = olaMaps.haversineKm(tLat, tLng, Number(t.to_lat), Number(t.to_lng));
+        if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) continue; // wrong direction
+        exactDest = dDist <= 3;
+      }
+      matchType = 'endpoint';
+      geoDist = oDist + (dDist != null ? dDist : 0);
+      displayDist = oDist;
+    }
+
+    const distNorm = Math.min(1, geoDist / maxRef);
+    const rating = t.driver_rating_count > 0 ? Number(t.driver_rating) : RATING_DEFAULT;
+    const ratingNorm = 1 - Math.min(1, Math.max(0, rating) / 5);
+    // Corridor (true "passing through") gets a small edge over endpoint matches.
+    const score = 0.7 * distNorm + 0.3 * ratingNorm + (matchType === 'endpoint' ? 0.05 : 0);
+    scored.push({ t, displayDist, score, matchType, exactDest });
+  }
+
+  scored.sort((a, b) => {
+    if (a.score !== b.score) return a.score - b.score;
+    const av = a.t.driver_verified === 'approved' ? 0 : 1;
+    const bv = b.t.driver_verified === 'approved' ? 0 : 1;
+    if (av !== bv) return av - bv;
+    if (a.t.driver_rating_count !== b.t.driver_rating_count) {
+      return b.t.driver_rating_count - a.t.driver_rating_count;
+    }
+    return new Date(a.t.departure_time) - new Date(b.t.departure_time);
+  });
+
+  const trips = scored.slice(offset, offset + limit).map(({ t, displayDist, matchType, exactDest }) => ({
+    id: t.id,
+    from_location: t.from_location,
+    to_location: t.to_location,
+    departure_time: t.departure_time,
+    arrival_time: t.arrival_time,
+    fare_per_seat: t.fare_per_seat,
+    available_seats: t.available_seats ?? t.total_capacity ?? 0,
+    total_seats: t.total_capacity ?? 0,
+    vehicle_number: t.vehicle_number,
+    vehicle_model_id: t.vehicle_model_id ?? null,
+    stops: t.stops,
+    status: t.status,
+    distance_from_you_km: Math.round(displayDist * 10) / 10,
+    match_type: matchType, // 'corridor' (along route) | 'endpoint'
+    match_quality: exactDest ? 'green' : 'orange', // green = goes to your destination
+    driver: {
+      id: t.driver_id,
+      name: t.driver_name,
+      phone: null,
+      whatsapp_number: null,
+      isVerified: t.driver_verified === 'approved',
+      bio: t.driver_bio ?? null,
+      average_rating: t.driver_rating_count > 0 ? Math.round(Number(t.driver_rating) * 10) / 10 : 0,
+      total_ratings: t.driver_rating_count,
+      luggage_allowance_per_passenger: t.luggage_allowance_per_passenger ?? null,
+    },
+  }));
+
+  // ── Union rides: endpoint + corridor (union drivers have no per-user ratings) ──
+  const UNION_COLS = `s.id, s.from_location, s.to_location, s.departure_time, s.status,
+      s.from_lat, s.from_lng, s.to_lat, s.to_lng, s.route_polyline,
+      d.name AS driver_name, d.vehicle_number, d.phone, d.whatsapp_number,
+      u.name AS union_name, s.union_driver_id, s.union_id`;
+  const UNION_JOIN = `FROM union_schedules s
+      JOIN union_drivers d ON d.id = s.union_driver_id
+      JOIN unions u ON u.id = s.union_id`;
+  const UNION_TIME_WHERE = `s.departure_time >= ($5::date)::timestamp
+      AND s.departure_time <  ($5::date)::timestamp + interval '1 day'
+      AND s.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
+
+  const unionQueries = [
+    queryRead(
+      `SELECT ${UNION_COLS} ${UNION_JOIN}
+       WHERE s.status = 'scheduled'
+         AND s.from_lat BETWEEN $1 AND $2 AND s.from_lng BETWEEN $3 AND $4
+         AND ${UNION_TIME_WHERE}
+       LIMIT ${CAND_LIMIT}`,
+      [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr]
+    ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Endpoint union query failed:', e.message); return { rows: [] }; }),
+  ];
+  if (hasDest) {
+    unionQueries.push(
+      queryRead(
+        `SELECT ${UNION_COLS} ${UNION_JOIN}
+         WHERE s.status = 'scheduled' AND s.route_polyline IS NOT NULL
+           AND (s.route_min_lat - $6) <= $7 AND (s.route_max_lat + $6) >= $7
+           AND (s.route_min_lng - $8) <= $9 AND (s.route_max_lng + $8) >= $9
+           AND (s.route_min_lat - $6) <= $10 AND (s.route_max_lat + $6) >= $10
+           AND (s.route_min_lng - $8) <= $11 AND (s.route_max_lng + $8) >= $11
+           AND ${UNION_TIME_WHERE}
+         LIMIT ${CAND_LIMIT}`,
+        [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr,
+         padLat, fLat, padLng, fLng, tLat, tLng]
+      ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Corridor union query failed:', e.message); return { rows: [] }; })
+    );
+  }
+  const unionResults = await Promise.all(unionQueries);
+  const unionById = new Map();
+  for (const rs of unionResults) for (const row of rs.rows) if (!unionById.has(row.id)) unionById.set(row.id, row);
+
+  const unionScored = [];
+  for (const s of unionById.values()) {
+    let matchType = null, geoDist = Infinity, displayDist = Infinity, exactDest = false;
+    if (hasDest) {
+      const poly = parsePoly(s.route_polyline);
+      if (poly && poly.length >= 2) {
+        const o = olaMaps.projectOntoPolyline(fLat, fLng, poly);
+        const d = olaMaps.projectOntoPolyline(tLat, tLng, poly);
+        if (o.distKm <= corridorKm && d.distKm <= corridorKm && o.alongKm < d.alongKm) {
+          matchType = 'corridor'; geoDist = o.distKm + d.distKm; displayDist = o.distKm; exactDest = d.distKm <= 3;
+        }
+      }
+    }
+    if (!matchType) {
+      const oDist = olaMaps.haversineKm(fLat, fLng, Number(s.from_lat), Number(s.from_lng));
+      if (!Number.isFinite(oDist) || oDist > radius) continue;
+      if (hasDest && s.to_lat != null && s.to_lng != null) {
+        const dDist = olaMaps.haversineKm(tLat, tLng, Number(s.to_lat), Number(s.to_lng));
+        if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) continue;
+        exactDest = dDist <= 3;
+      }
+      matchType = 'endpoint'; geoDist = oDist; displayDist = oDist;
+    }
+    unionScored.push({ s, displayDist, geoDist, matchType, exactDest });
+  }
+  unionScored.sort((a, b) => a.geoDist - b.geoDist);
+
+  const unionRides = unionScored.slice(offset, offset + limit).map(({ s, displayDist, matchType, exactDest }) => ({
+    id: s.id,
+    from_location: s.from_location,
+    to_location: s.to_location,
+    departure_time: s.departure_time,
+    status: s.status,
+    driver_name: s.driver_name,
+    vehicle_number: s.vehicle_number,
+    phone: s.phone,
+    whatsapp_number: s.whatsapp_number,
+    union_name: s.union_name,
+    union_driver_id: s.union_driver_id,
+    union_id: s.union_id,
+    distance_from_you_km: Math.round(displayDist * 10) / 10,
+    match_type: matchType,
+    match_quality: exactDest ? 'green' : 'orange',
+  }));
+
+  return ApiResponse.success(
+    {
+      trips,
+      count: trips.length,
+      unionRides,
+      union_count: unionRides.length,
+      search_radius_km: radius,
+      mode: 'proximity',
+      pagination: { limit, offset, max_limit: 80, max_offset: 400 },
+    },
+    'Nearby rides found'
+  ).send(res);
+}
+
 /**
  * Search trips
  * GET /api/trips/search?from=Dehradun&to=Purola&date=2026-02-23
  * or GET /api/trips/search?route_id=uuid&date=2026-02-23 (canonical route-based search)
+ * or GET /api/trips/search?from_lat=&from_lng=&to_lat=&to_lng=&date= (proximity + rating)
  * Params from query (GET) or body (POST). Aliases: from_location→from, to_location→to.
  */
 const searchTrips = asyncHandler(async (req, res) => {
   const q = { ...req.query, ...(req.body && typeof req.body === 'object' ? req.body : {}) };
+
+  // Proximity path: when origin coordinates are present, rank by nearness +
+  // rating instead of exact text match.
+  const pfLat = parseFloat(q.from_lat);
+  const pfLng = parseFloat(q.from_lng);
+  if (olaMaps.isValidLatLng(pfLat, pfLng)) {
+    return proximitySearch(req, res, q, pfLat, pfLng);
+  }
   const from = (q.from != null ? String(q.from) : q.from_location != null ? String(q.from_location) : '').trim();
   const to = (q.to != null ? String(q.to) : q.to_location != null ? String(q.to_location) : '').trim();
   const date = (q.date != null ? String(q.date) : '').trim();
@@ -472,9 +770,66 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
     return al.localeCompare(bl);
   });
 
+  const suggestions = unique.slice(0, 15);
+
+  // Enrich with Ola Maps autocomplete so the app can get coordinates for each
+  // place (needed for distance/fare/proximity). Best-effort: if Ola is disabled
+  // or fails it returns [] and we fall back to coordinate-less suggestions.
+  let olaPlaces = [];
+  try {
+    olaPlaces = await olaMaps.autocomplete(qLower);
+  } catch (_) { /* never blocks suggestions */ }
+
+  // `places` = unified list with coords where available. Ola entries (with
+  // lat/lng) first, then any local suggestion not already covered (null coords).
+  const seen = new Set();
+  const places = [];
+  for (const p of olaPlaces) {
+    const k = p.description.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    places.push({ description: p.description, lat: p.lat ?? null, lng: p.lng ?? null });
+  }
+  for (const s of suggestions) {
+    const k = s.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    places.push({ description: s, lat: null, lng: null });
+  }
+
   ApiResponse.success(
-    { suggestions: unique.slice(0, 15) },
+    { suggestions, places: places.slice(0, 15) },
     'Location suggestions'
+  ).send(res);
+});
+
+/**
+ * Estimate road distance + duration for a route (coords required).
+ * GET /api/trips/estimate?from_lat=&from_lng=&to_lat=&to_lng=
+ * Returns distance/time only — fare is computed/enforced server-side at create,
+ * never exposed here (drivers shouldn't see a "suggested" price).
+ */
+const estimateRoute = asyncHandler(async (req, res) => {
+  const fLat = parseFloat(req.query.from_lat);
+  const fLng = parseFloat(req.query.from_lng);
+  const tLat = parseFloat(req.query.to_lat);
+  const tLng = parseFloat(req.query.to_lng);
+  if (!olaMaps.isValidLatLng(fLat, fLng) || !olaMaps.isValidLatLng(tLat, tLng)) {
+    throw ApiError.badRequest('Valid from_lat, from_lng, to_lat, to_lng are required.');
+  }
+
+  const route = await olaMaps.getRouteDistance({ lat: fLat, lng: fLng }, { lat: tLat, lng: tLng });
+  if (!route) {
+    throw ApiError.serviceUnavailable('Could not compute route distance right now.');
+  }
+
+  ApiResponse.success(
+    {
+      distance_km: route.distanceKm,
+      duration_min: route.durationMin,
+      estimated: route.estimated === true, // true = Haversine fallback, not road data
+    },
+    'Route estimate'
   ).send(res);
 });
 
@@ -484,4 +839,5 @@ module.exports = {
   getRecentRoutes,
   saveRecentRoute,
   getLocationSuggestions,
+  estimateRoute,
 };

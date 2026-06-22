@@ -7,6 +7,7 @@ const {
   getTripDetails,
   getMyTrips,
   getLocationSuggestions,
+  estimateRoute,
   getTripBookings,
   getTripBookedSeats,
   getRecentRoutes,
@@ -30,12 +31,19 @@ const createTripSchema = Joi.object({
   total_seats: Joi.number().integer().min(2).max(32).default(7),
   vehicle_number: Joi.string().allow('').max(20).trim().default(''), // backend uses verified vehicle if empty
   stops: Joi.array().items(Joi.string().max(200)).max(20).default([]),
-  require_approval: Joi.boolean().default(false) // false = auto-approve (driver can turn on manually)
+  require_approval: Joi.boolean().default(false), // false = auto-approve (driver can turn on manually)
+  // Optional pickup/drop coordinates (from location autocomplete). When present,
+  // backend computes road distance and enforces the distance-based max fare.
+  from_lat: Joi.number().min(-90).max(90).optional(),
+  from_lng: Joi.number().min(-180).max(180).optional(),
+  to_lat: Joi.number().min(-90).max(90).optional(),
+  to_lng: Joi.number().min(-180).max(180).optional()
 });
 
 // Public routes
 router.get('/search', searchLimiter, redisCache(30), searchTrips);
 router.get('/locations', redisCache(300), getLocationSuggestions);
+router.get('/estimate', searchLimiter, redisCache(300), estimateRoute);
 // IMPORTANT: Specific routes MUST be before /:id (else "my-trips" matches as :id)
 router.get('/my-trips', authenticate, authorize('driver'), getMyTrips);
 router.get('/recent-routes', authenticate, getRecentRoutes);

@@ -35,6 +35,30 @@ const config = {
     defaultPageSize: 20,
     maxPageSize: 50,
   },
+  // Ola Maps (Krutrim) — optional. Powers location autocomplete, geocoding,
+  // road distance for fare estimation. Absent key → maps features degrade
+  // gracefully (text-only search), never crash.
+  olaMaps: {
+    apiKey: getEnv('OLA_MAPS_API_KEY', ''),
+    baseUrl: getEnv('OLA_MAPS_BASE_URL', 'https://api.olamaps.io'),
+    enabled: !!getEnv('OLA_MAPS_API_KEY', ''),
+    timeoutMs: parseInt(getEnv('OLA_MAPS_TIMEOUT_MS', '6000'), 10) || 6000,
+  },
+  // Distance-based fare ceiling for SHARED rides (per seat, INR).
+  // Calibrated to real Uttarakhand shared fares (Purola↔Dehradun ≈145km ≈ ₹450).
+  //   fair (internal) = baseFare + perKm × distanceKm
+  //   maxAllowed      = fair × maxMultiplier   ← the only ENFORCED limit
+  // The driver is NOT shown the fair/suggested price; they just enter a price.
+  // They may go as LOW as they want, but cannot exceed maxAllowed (anti-overcharge).
+  // Every knob is env-overridable — admin re-tunes from .env, no code change:
+  //   FARE_BASE_FARE, FARE_PER_KM, FARE_MAX_MULTIPLIER, FARE_MIN_FARE, FARE_ROUND_TO
+  fare: {
+    baseFare: parseFloat(getEnv('FARE_BASE_FARE', '40')) || 40,          // flat base → makes short rides' effective ₹/km higher (natural decay)
+    perKm: parseFloat(getEnv('FARE_PER_KM', '2.8')) || 2.8,              // marginal per-km rate (145km→₹445)
+    maxMultiplier: parseFloat(getEnv('FARE_MAX_MULTIPLIER', '1.6')) || 1.6, // ceiling = fair × this (₹435→~₹700)
+    minFare: parseFloat(getEnv('FARE_MIN_FARE', '10')) || 10,             // absolute sanity floor
+    roundTo: parseInt(getEnv('FARE_ROUND_TO', '5'), 10) || 5,             // round to nearest N
+  },
 };
 
 /** Known insecure placeholders — must not run in production with these */
@@ -86,6 +110,13 @@ function validateConfig() {
 
   if (!process.env.GOOGLE_CLIENT_ID) {
     console.warn('⚠️  GOOGLE_CLIENT_ID not set — Google Sign-In will be unavailable.');
+  }
+
+  if (!process.env.OLA_MAPS_API_KEY) {
+    console.warn(
+      '⚠️  OLA_MAPS_API_KEY not set — location autocomplete, geocoding and ' +
+      'road-distance fare estimation will fall back to text-only mode.'
+    );
   }
 }
 

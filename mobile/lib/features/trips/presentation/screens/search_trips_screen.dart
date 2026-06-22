@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/trip_model.dart';
+import '../../../../models/picked_location.dart';
 import '../../../../providers/auth_provider.dart';
 import '../../../../services/review_service.dart';
 import '../../../../services/trip_service.dart';
@@ -233,6 +234,25 @@ class _TripCard extends StatelessWidget {
               ],
             ),
           ),
+          // Proximity info (only in nearby/corridor search): match quality + distance
+          if (trip.matchQuality != null || trip.distanceFromYouKm != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  if (trip.matchQuality != null) _MatchBadge(quality: trip.matchQuality!),
+                  if (trip.distanceFromYouKm != null) ...[
+                    const SizedBox(width: 8),
+                    Icon(Icons.near_me_rounded, size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${trip.distanceFromYouKm! < 10 ? trip.distanceFromYouKm!.toStringAsFixed(1) : trip.distanceFromYouKm!.toStringAsFixed(0)} km away',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Colors.grey[600]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           // Fare + seats
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -489,6 +509,36 @@ class _MetaChip extends StatelessWidget {
   }
 }
 
+/// Match-quality pill: green = ride reaches your destination, orange = slight
+/// detour / drops nearby. Mirrors BlaBlaCar's green/orange result markers.
+class _MatchBadge extends StatelessWidget {
+  const _MatchBadge({required this.quality});
+  final String quality;
+
+  @override
+  Widget build(BuildContext context) {
+    final isGreen = quality == 'green';
+    final color = isGreen ? const Color(0xFF16A34A) : const Color(0xFFEA580C);
+    final label = isGreen ? 'Reaches your stop' : 'Slight detour';
+    final icon = isGreen ? Icons.check_circle_rounded : Icons.alt_route_rounded;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(label, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: color)),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Section header ────────────────────────────────────────────────────────────
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel({required this.label, required this.count});
@@ -529,6 +579,9 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
   final _tripService   = TripService();
   final _fromCtrl      = TextEditingController();
   final _toCtrl        = TextEditingController();
+  // Coordinates captured when the user picks from autocomplete. null = the user
+  // typed/picked a place without coords → backend uses plain text search.
+  double? _fromLat, _fromLng, _toLat, _toLng;
   DateTime  _date      = DateTime.now();
   List<TripModel>   _trips      = [];
   List<dynamic>     _unionRides = [];
@@ -590,6 +643,8 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
       final result = await _tripService.searchTrips(
         from: from, to: to, date: _date,
         cancelToken: _searchCancelToken,
+        fromLat: _fromLat, fromLng: _fromLng,
+        toLat: _toLat, toLng: _toLng,
       );
 
       if (!mounted) return;
@@ -660,6 +715,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
               icon: Icons.trip_origin,
               iconColor: _kGreen,
               tripService: _tripService,
+              onPicked: (p) => setState(() { _fromLat = p.lat; _fromLng = p.lng; }),
             ),
             const SizedBox(height: 10),
             // To
@@ -670,6 +726,7 @@ class _SearchTripsScreenState extends State<SearchTripsScreen> {
               icon: Icons.location_on,
               iconColor: _kRed,
               tripService: _tripService,
+              onPicked: (p) => setState(() { _toLat = p.lat; _toLng = p.lng; }),
             ),
             const SizedBox(height: 10),
             // Date row
@@ -968,6 +1025,7 @@ class _LocationField extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.tripService,
+    this.onPicked,
   });
   final TextEditingController controller;
   final String label;
@@ -975,12 +1033,13 @@ class _LocationField extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final TripService tripService;
+  final ValueChanged<PickedLocation>? onPicked;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
-        final result = await Navigator.push<String>(
+        final result = await Navigator.push<PickedLocation>(
           context,
           MaterialPageRoute(
             builder: (_) => LocationPickerScreen(
@@ -991,7 +1050,8 @@ class _LocationField extends StatelessWidget {
           ),
         );
         if (result != null) {
-          controller.text = result;
+          controller.text = result.name;
+          onPicked?.call(result);
         }
       },
       child: AbsorbPointer(

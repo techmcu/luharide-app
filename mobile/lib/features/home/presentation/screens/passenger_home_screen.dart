@@ -9,6 +9,7 @@ import '../../../../widgets/brand_app_bar_title.dart';
 import '../../../../core/brand_config.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../models/trip_model.dart';
+import '../../../../models/picked_location.dart';
 import '../../../../utils/phone_call_helper.dart';
 import '../../../../utils/trip_self_book_guard.dart';
 import '../../../../services/trip_service.dart';
@@ -35,6 +36,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   final _tripService = TripService();
   final _fromController = TextEditingController();
   final _toController = TextEditingController();
+  // Coordinates captured from autocomplete (null → text search fallback).
+  double? _fromLat, _fromLng, _toLat, _toLng;
   final _scrollController = ScrollController();
   DateTime _selectedDate = DateTime.now();
 
@@ -122,6 +125,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
       from: _fromController.text.trim(),
       to: _toController.text.trim(),
       date: _selectedDate,
+      fromLat: _fromLat, fromLng: _fromLng,
+      toLat: _toLat, toLng: _toLng,
     );
 
     if (!mounted) return;
@@ -340,6 +345,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                       iconSize: 10,
                       hint: 'Starting location',
                       label: t.t('ride.from.label'),
+                      onPicked: (p) { _fromLat = p.lat; _fromLng = p.lng; },
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -353,6 +359,7 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                       iconSize: 18,
                       hint: 'Enter destination',
                       label: t.t('ride.to.label'),
+                      onPicked: (p) { _toLat = p.lat; _toLng = p.lng; },
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -554,10 +561,11 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
     required double iconSize,
     required String hint,
     required String label,
+    ValueChanged<PickedLocation>? onPicked,
   }) {
     return GestureDetector(
       onTap: () async {
-        final result = await Navigator.push<String>(
+        final result = await Navigator.push<PickedLocation>(
           context,
           MaterialPageRoute(
             builder: (_) => LocationPickerScreen(
@@ -568,7 +576,8 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
           ),
         );
         if (result != null) {
-          controller.text = result;
+          controller.text = result.name;
+          onPicked?.call(result);
           setState(() {});
         }
       },

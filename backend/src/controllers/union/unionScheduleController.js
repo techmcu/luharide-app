@@ -5,6 +5,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const toTitleCase = require('../../utils/titleCase');
 const { sendPushToMultipleUsers } = require('../../utils/pushNotification');
+const olaMaps = require('../../services/olaMapsService');
 
 const DAILY_SCHEDULE_LIMIT = 3;
 
@@ -56,13 +57,31 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('One or more drivers are invalid for this union');
   }
 
+  const fromTrimmed = toTitleCase(from_location);
+  const toTrimmed   = toTitleCase(to_location);
+
+  // Resolve coordinates for this route ONCE, before opening the transaction
+  // (so network calls don't hold a DB connection open). The union form sends
+  // text only, so we geocode it. Best-effort — failures just leave coords null.
+  let fromCoord = null, toCoord = null, routeInfo = null;
+  try {
+    const [g1, g2] = await Promise.all([
+      olaMaps.geocode(fromTrimmed),
+      olaMaps.geocode(toTrimmed),
+    ]);
+    if (g1) fromCoord = { lat: g1.lat, lng: g1.lng };
+    if (g2) toCoord = { lat: g2.lat, lng: g2.lng };
+    if (fromCoord && toCoord) {
+      routeInfo = await olaMaps.getRouteDistance(fromCoord, toCoord);
+    }
+  } catch (e) {
+    logger.warn('Union schedule: geocode failed:', e.message);
+  }
+
   const client = await pool.connect();
   let created = [];
   try {
     await client.query('BEGIN');
-
-    const fromTrimmed = toTitleCase(from_location);
-    const toTrimmed   = toTitleCase(to_location);
 
     const flatParams = [];
     const placeholders = union_driver_ids.map((driverId, i) => {
@@ -96,6 +115,43 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   logger.info(
     `Union schedules created for union ${unionId} by admin ${req.user.id} count=${created.length}`
   );
+
+  // Persist coordinates + cached route metrics on all created rows (best-effort,
+  // outside the txn). Skipped silently if geo columns don't exist yet.
+  if (fromCoord && toCoord && created.length > 0) {
+    try {
+      await pool.query(
+        `UPDATE union_schedules
+            SET from_lat = $1, from_lng = $2, to_lat = $3, to_lng = $4,
+                route_distance_km = $5, route_duration_min = $6
+          WHERE id = ANY($7::uuid[])`,
+        [
+          fromCoord.lat, fromCoord.lng, toCoord.lat, toCoord.lng,
+          routeInfo?.distanceKm ?? null, routeInfo?.durationMin ?? null,
+          created.map((r) => r.id),
+        ]
+      );
+    } catch (e) {
+      if (e.code !== '42703') logger.warn('Union schedule: geo persist failed:', e.message);
+    }
+
+    // Route polyline + bbox (separate best-effort UPDATE, pre-064 safe).
+    if (routeInfo?.points && routeInfo.bbox) {
+      try {
+        const bb = routeInfo.bbox;
+        await pool.query(
+          `UPDATE union_schedules
+             SET route_polyline = $1::jsonb,
+                 route_min_lat = $2, route_max_lat = $3,
+                 route_min_lng = $4, route_max_lng = $5
+           WHERE id = ANY($6::uuid[])`,
+          [JSON.stringify(routeInfo.points), bb.minLat, bb.maxLat, bb.minLng, bb.maxLng, created.map((r) => r.id)]
+        );
+      } catch (e) {
+        if (e.code !== '42703') logger.warn('Union schedule: polyline persist failed:', e.message);
+      }
+    }
+  }
 
   // FCM: only on first creation of the day
   if (todayCount === 0) {

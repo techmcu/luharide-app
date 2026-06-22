@@ -5,6 +5,19 @@ const asyncHandler = require('../utils/asyncHandler');
 const logger = require('../config/logger');
 const toTitleCase = require('../utils/titleCase');
 const { getIndependentRideLimits } = require('../services/rideLimitSettings');
+const olaMaps = require('../services/olaMapsService');
+const fareService = require('../services/fareService');
+
+/**
+ * Parse an optional coordinate pair from the request body.
+ * Returns {lat,lng} only if both are present and valid, else null — so a ride
+ * created without map data simply skips geo features (fully backward compatible).
+ */
+function parseCoord(latRaw, lngRaw) {
+  const lat = typeof latRaw === 'number' ? latRaw : parseFloat(latRaw);
+  const lng = typeof lngRaw === 'number' ? lngRaw : parseFloat(lngRaw);
+  return olaMaps.isValidLatLng(lat, lng) ? { lat, lng } : null;
+}
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function requireUuid(id) {
@@ -18,6 +31,7 @@ const {
   getRecentRoutes,
   saveRecentRoute,
   getLocationSuggestions,
+  estimateRoute,
 } = require('./trip/tripSearchController');
 
 const {
@@ -41,6 +55,8 @@ const createTrip = asyncHandler(async (req, res) => {
     route_id: rawRouteId,
     luggage_allowance_per_passenger: rawTripLuggage,
     estimated_duration_hours: rawDuration,
+    from_lat: rawFromLat, from_lng: rawFromLng,
+    to_lat: rawToLat, to_lng: rawToLng,
   } = req.body;
 
   const driverId = req.user.id;
@@ -210,6 +226,28 @@ const createTrip = asyncHandler(async (req, res) => {
   }
   if (fare_per_seat > MAX_FARE_PER_SEAT) {
     throw ApiError.badRequest(`Fare per seat cannot exceed ₹${MAX_FARE_PER_SEAT}.`);
+  }
+
+  // ── Geo + distance-based fare ceiling ──────────────────────────────────────
+  // If the app sent coordinates (picked from autocomplete), compute the road
+  // distance and enforce the per-distance MAX fare (anti-overcharge). Drivers
+  // may price as low as they want — only the ceiling is enforced. Without
+  // coordinates, this is skipped entirely (legacy text-only rides still work).
+  const fromCoord = parseCoord(rawFromLat, rawFromLng);
+  const toCoord = parseCoord(rawToLat, rawToLng);
+  let routeInfo = null;
+  if (fromCoord && toCoord) {
+    try {
+      routeInfo = await olaMaps.getRouteDistance(fromCoord, toCoord);
+    } catch (e) {
+      logger.warn('Create trip: route distance lookup failed:', e.message);
+    }
+    if (routeInfo && Number.isFinite(routeInfo.distanceKm)) {
+      const check = fareService.validateFare(fare_per_seat, routeInfo.distanceKm);
+      if (check.status === 'over') {
+        throw ApiError.badRequest(check.message);
+      }
+    }
   }
 
   const departureStr = departureDate.toISOString().slice(0, 19).replace('T', ' ');
@@ -387,6 +425,50 @@ const createTrip = asyncHandler(async (req, res) => {
 
   const trip = result.rows[0];
   logger.info(`Trip created: id=${trip.id} driver=${driverId} from=${trip.from_location} to=${trip.to_location} departure=${trip.departure_time} (verify in DB with this id)`);
+
+  // Persist coordinates + cached route metrics separately so the large INSERT
+  // (with its many schema-fallback variants) stays untouched. Best-effort: if
+  // the geo columns don't exist yet (pre-migration), this is silently skipped
+  // and the trip is still returned successfully.
+  if (fromCoord && toCoord) {
+    try {
+      await pool.query(
+        `UPDATE trips
+           SET from_lat = $1, from_lng = $2, to_lat = $3, to_lng = $4,
+               route_distance_km = $5, route_duration_min = $6
+         WHERE id = $7`,
+        [
+          fromCoord.lat, fromCoord.lng, toCoord.lat, toCoord.lng,
+          routeInfo?.distanceKm ?? null, routeInfo?.durationMin ?? null,
+          trip.id,
+        ]
+      );
+      trip.from_lat = fromCoord.lat; trip.from_lng = fromCoord.lng;
+      trip.to_lat = toCoord.lat; trip.to_lng = toCoord.lng;
+      trip.route_distance_km = routeInfo?.distanceKm ?? null;
+      trip.route_duration_min = routeInfo?.durationMin ?? null;
+    } catch (e) {
+      if (e.code !== '42703') logger.warn('Create trip: geo persist failed:', e.message);
+    }
+
+    // Route polyline + bbox for corridor matching (separate best-effort UPDATE so
+    // coord persistence above still succeeds even if these columns predate 064).
+    if (routeInfo?.points && routeInfo.bbox) {
+      try {
+        const bb = routeInfo.bbox;
+        await pool.query(
+          `UPDATE trips
+             SET route_polyline = $1::jsonb,
+                 route_min_lat = $2, route_max_lat = $3,
+                 route_min_lng = $4, route_max_lng = $5
+           WHERE id = $6`,
+          [JSON.stringify(routeInfo.points), bb.minLat, bb.maxLat, bb.minLng, bb.maxLng, trip.id]
+        );
+      } catch (e) {
+        if (e.code !== '42703') logger.warn('Create trip: polyline persist failed:', e.message);
+      }
+    }
+  }
 
   ApiResponse.created(
     { trip },
@@ -683,6 +765,7 @@ module.exports = {
   getTripBookedSeats,
   getRecentRoutes,
   saveRecentRoute,
+  estimateRoute,
   startTrip,
   completeTrip,
   cancelTrip,

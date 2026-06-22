@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../core/constants/api_constants.dart';
 import '../core/utils/api_error_messages.dart';
 import '../models/trip_model.dart';
+import '../models/picked_location.dart';
 import 'api_service.dart';
 
 /// Safely parse a JSON seat list into `List<int>`. Never throws regardless of
@@ -45,6 +46,12 @@ class TripService {
     List<String> stops = const [],
     bool requireApproval = true,
     String? luggageAllowancePerPassenger,
+    // Optional pickup/drop coordinates (from location autocomplete). When given,
+    // backend computes distance and enforces the distance-based max fare.
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
   }) async {
     try {
       final data = <String, dynamic>{
@@ -58,6 +65,14 @@ class TripService {
         'require_approval': requireApproval,
         'estimated_duration_hours': estimatedDurationHours,
       };
+      if (fromLat != null && fromLng != null) {
+        data['from_lat'] = fromLat;
+        data['from_lng'] = fromLng;
+      }
+      if (toLat != null && toLng != null) {
+        data['to_lat'] = toLat;
+        data['to_lng'] = toLng;
+      }
       final lug = luggageAllowancePerPassenger?.trim();
       if (lug != null && lug.isNotEmpty) {
         data['luggage_allowance_per_passenger'] = lug;
@@ -101,6 +116,12 @@ class TripService {
     int limit = 40,
     int offset = 0,
     CancelToken? cancelToken,
+    // When coordinates are provided, the backend switches to proximity + corridor
+    // (along-route) matching with rating ranking. Otherwise plain text search.
+    double? fromLat,
+    double? fromLng,
+    double? toLat,
+    double? toLng,
   }) async {
     try {
       final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
@@ -113,6 +134,14 @@ class TripService {
         'limit': limit,
         'offset': offset,
       };
+      if (fromLat != null && fromLng != null) {
+        query['from_lat'] = fromLat;
+        query['from_lng'] = fromLng;
+      }
+      if (toLat != null && toLng != null) {
+        query['to_lat'] = toLat;
+        query['to_lng'] = toLng;
+      }
       if (routeId != null && routeId.isNotEmpty) {
         query['route_id'] = routeId;
       }
@@ -531,6 +560,68 @@ class TripService {
       return suggestionsJson.map((s) => s.toString()).toList();
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Location suggestions WITH coordinates (Ola Maps `places`). Falls back to
+  /// name-only entries when the backend can't resolve coordinates. Never throws.
+  Future<List<PickedLocation>> getLocationPlaces(String query) async {
+    try {
+      if (query.length < 2) return [];
+      final response = await _apiService.get(
+        ApiConstants.locationSuggestions,
+        queryParameters: {'q': query},
+      );
+      final data = response.data['data'] ?? {};
+      final List<dynamic> placesJson = data['places'] ?? [];
+      if (placesJson.isNotEmpty) {
+        return placesJson
+            .whereType<Map>()
+            .map((p) => PickedLocation.fromJson(Map<String, dynamic>.from(p)))
+            .where((p) => p.name.isNotEmpty)
+            .toList();
+      }
+      // Older backend without `places` → degrade to name-only suggestions.
+      final List<dynamic> suggestionsJson = data['suggestions'] ?? [];
+      return suggestionsJson
+          .map((s) => PickedLocation.nameOnly(s.toString()))
+          .where((p) => p.name.isNotEmpty)
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Road distance + duration estimate between two coordinates.
+  /// Returns {distanceKm, durationMin} or null on failure. Fare is intentionally
+  /// NOT returned (drivers shouldn't see a suggested price).
+  Future<Map<String, dynamic>?> estimateRoute({
+    required double fromLat,
+    required double fromLng,
+    required double toLat,
+    required double toLng,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        ApiConstants.routeEstimate,
+        queryParameters: {
+          'from_lat': fromLat,
+          'from_lng': fromLng,
+          'to_lat': toLat,
+          'to_lng': toLng,
+        },
+      );
+      final data = response.data['data'];
+      if (data is Map) {
+        return {
+          'distanceKm': (data['distance_km'] as num?)?.toDouble(),
+          'durationMin': (data['duration_min'] as num?)?.toInt(),
+          'estimated': data['estimated'] == true,
+        };
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 }

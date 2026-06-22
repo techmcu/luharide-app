@@ -7,6 +7,7 @@ import '../../../../providers/app_language_provider.dart';
 import '../../../../services/driver_verification_service.dart';
 import '../../../../core/constants/input_limits.dart';
 import '../../../../services/trip_service.dart';
+import '../../../../models/picked_location.dart';
 
 class CreateTripScreen extends StatefulWidget {
   const CreateTripScreen({super.key});
@@ -34,8 +35,11 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   TimeOfDay _selectedTime = TimeOfDay.now();
   double? _estimatedDurationHours;
 
-  List<String> _fromSuggestions = [];
-  List<String> _toSuggestions = [];
+  List<PickedLocation> _fromSuggestions = [];
+  List<PickedLocation> _toSuggestions = [];
+  // Coordinates of the explicitly selected place (null if user typed freely).
+  // Cleared on every keystroke, set only on selection → never stale.
+  double? _fromLat, _fromLng, _toLat, _toLng;
   bool _isLoading = false;
   bool _requireApproval = false;
   /// When driver is approved, vehicle number comes from KYC (same as verification).
@@ -107,21 +111,26 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   }
 
   Future<void> _loadFromSuggestions(String query) async {
+    // Typing invalidates any previously selected coordinates.
+    _fromLat = null;
+    _fromLng = null;
     if (query.length < 2) {
       setState(() => _fromSuggestions = []);
       return;
     }
-    final suggestions = await _tripService.getLocationSuggestions(query);
-    setState(() => _fromSuggestions = suggestions);
+    final suggestions = await _tripService.getLocationPlaces(query);
+    if (mounted) setState(() => _fromSuggestions = suggestions);
   }
 
   Future<void> _loadToSuggestions(String query) async {
+    _toLat = null;
+    _toLng = null;
     if (query.length < 2) {
       setState(() => _toSuggestions = []);
       return;
     }
-    final suggestions = await _tripService.getLocationSuggestions(query);
-    setState(() => _toSuggestions = suggestions);
+    final suggestions = await _tripService.getLocationPlaces(query);
+    if (mounted) setState(() => _toSuggestions = suggestions);
   }
 
   Future<void> _createTrip() async {
@@ -178,6 +187,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       luggageAllowancePerPassenger: _luggageController.text.trim().isEmpty
           ? null
           : _luggageController.text.trim(),
+      fromLat: _fromLat, fromLng: _fromLng,
+      toLat: _toLat, toLng: _toLng,
     );
 
     if (!mounted) return;
@@ -217,15 +228,20 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           padding: const EdgeInsets.all(16),
           children: [
             // From Location
-            Autocomplete<String>(
+            Autocomplete<PickedLocation>(
               textEditingController: _fromController,
               focusNode: _fromFocusNode,
+              displayStringForOption: (p) => p.name,
               optionsBuilder: (TextEditingValue textEditingValue) {
                 if (textEditingValue.text.isEmpty) {
-                  return const Iterable<String>.empty();
+                  return const Iterable<PickedLocation>.empty();
                 }
                 _loadFromSuggestions(textEditingValue.text);
                 return _fromSuggestions;
+              },
+              onSelected: (p) {
+                _fromLat = p.lat;
+                _fromLng = p.lng;
               },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                 return TextFormField(
@@ -252,15 +268,20 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             const SizedBox(height: 16),
 
             // To Location
-            Autocomplete<String>(
+            Autocomplete<PickedLocation>(
               textEditingController: _toController,
               focusNode: _toFocusNode,
+              displayStringForOption: (p) => p.name,
               optionsBuilder: (TextEditingValue textEditingValue) {
                 if (textEditingValue.text.isEmpty) {
-                  return const Iterable<String>.empty();
+                  return const Iterable<PickedLocation>.empty();
                 }
                 _loadToSuggestions(textEditingValue.text);
                 return _toSuggestions;
+              },
+              onSelected: (p) {
+                _toLat = p.lat;
+                _toLng = p.lng;
               },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                 return TextFormField(

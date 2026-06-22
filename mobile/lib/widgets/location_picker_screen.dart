@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/trip_service.dart';
+import '../models/picked_location.dart';
 
 class LocationPickerScreen extends StatefulWidget {
   final String title;
@@ -23,7 +24,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   Timer? _debounce;
-  List<String> _apiSuggestions = [];
+  List<PickedLocation> _apiPlaces = [];
   List<String> _recentLocations = [];
   bool _isLoading = false;
   bool _hasFetched = false;
@@ -98,7 +99,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _debounce?.cancel();
     final query = value.trim();
     if (query.length < 2) {
-      setState(() { _apiSuggestions = []; _hasFetched = false; });
+      setState(() { _apiPlaces = []; _hasFetched = false; });
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 300), _fetchSuggestions);
@@ -129,10 +130,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     if (query.length < 2) return;
     if (mounted) setState(() => _isLoading = true);
     try {
-      final results = await widget.tripService.getLocationSuggestions(query);
+      final results = await widget.tripService.getLocationPlaces(query);
       if (!mounted) return;
       setState(() {
-        _apiSuggestions = results;
+        _apiPlaces = results;
         _isLoading = false;
         _hasFetched = true;
       });
@@ -141,9 +142,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     }
   }
 
-  void _selectLocation(String location) {
-    _saveRecentLocation(location);
-    Navigator.pop(context, location);
+  /// Returns the chosen place (name + optional coordinates) to the caller.
+  void _selectPicked(PickedLocation p) {
+    _saveRecentLocation(p.name);
+    Navigator.pop(context, p);
   }
 
   @override
@@ -181,7 +183,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                         icon: Icon(Icons.clear, color: Colors.white.withValues(alpha: 0.7)),
                         onPressed: () {
                           _controller.clear();
-                          setState(() { _apiSuggestions = []; _hasFetched = false; });
+                          setState(() { _apiPlaces = []; _hasFetched = false; });
                         },
                       )
                     : null,
@@ -234,7 +236,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 icon: Icons.history_rounded,
                 iconBgColor: Colors.grey.withValues(alpha: 0.08),
                 iconColor: Colors.grey[500]!,
-                onTap: () => _selectLocation(loc),
+                onTap: () => _selectPicked(PickedLocation.nameOnly(loc)),
                 onRemove: () => _removeRecentLocation(loc),
               )),
           Divider(height: 24, indent: 16, endIndent: 16, color: Colors.grey[100]),
@@ -249,7 +251,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               icon: Icons.place_outlined,
               iconBgColor: Colors.blue.withValues(alpha: 0.08),
               iconColor: Colors.blue[400]!,
-              onTap: () => _selectLocation(loc),
+              onTap: () => _selectPicked(PickedLocation.nameOnly(loc)),
             )),
       ],
     );
@@ -257,17 +259,18 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   /// Query typed — show API suggestions (or instant local matches while loading)
   Widget _buildSearchResults(String query, String qLower) {
-    List<String> displayList;
+    List<PickedLocation> displayList;
     if (_hasFetched) {
-      displayList = _apiSuggestions;
+      displayList = _apiPlaces;
     } else {
-      displayList = _rankLocations(
+      var names = _rankLocations(
         [..._recentLocations, ..._popularLocations],
         query,
       );
-      // deduplicate
+      // deduplicate, then wrap as name-only (no coords until the API resolves)
       final seen = <String>{};
-      displayList = displayList.where((l) => seen.add(l.toLowerCase())).toList();
+      names = names.where((l) => seen.add(l.toLowerCase())).toList();
+      displayList = names.map(PickedLocation.nameOnly).toList();
     }
 
     if (displayList.isEmpty && !_isLoading) {
@@ -307,13 +310,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             itemCount: displayList.length,
             separatorBuilder: (_, __) => Divider(height: 1, indent: 56, color: Colors.grey[100]),
             itemBuilder: (context, index) {
-              final loc = displayList[index];
+              final place = displayList[index];
               return _LocationTile(
-                location: loc,
+                location: place.name,
                 icon: Icons.location_on_outlined,
                 iconBgColor: _kBlue.withValues(alpha: 0.08),
                 iconColor: _kBlue,
-                onTap: () => _selectLocation(loc),
+                onTap: () => _selectPicked(place),
                 highlightQuery: qLower,
               );
             },

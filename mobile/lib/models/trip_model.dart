@@ -24,6 +24,10 @@ class TripModel {
   final String? createdSource;
   final DriverInfo? driver;
   final int pendingRequestsCount; // For driver: how many need approval
+  // Proximity search extras (null outside proximity mode):
+  final double? distanceFromYouKm;   // how far the pickup is from the searcher
+  final String? matchType;           // 'corridor' (along route) | 'endpoint'
+  final String? matchQuality;        // 'green' (reaches your dest) | 'orange'
 
   TripModel({
     required this.id,
@@ -41,6 +45,9 @@ class TripModel {
     this.createdSource,
     this.driver,
     this.pendingRequestsCount = 0,
+    this.distanceFromYouKm,
+    this.matchType,
+    this.matchQuality,
   });
 
   bool get isIndependentDriver => createdSource == 'independent_driver';
@@ -70,6 +77,11 @@ class TripModel {
           ? DriverInfo.fromJson(Map<String, dynamic>.from(json['driver'] as Map))
           : null,
       pendingRequestsCount: int.tryParse(json['pending_requests_count']?.toString() ?? '0') ?? 0,
+      distanceFromYouKm: json['distance_from_you_km'] == null
+          ? null
+          : double.tryParse(json['distance_from_you_km'].toString()),
+      matchType: json['match_type']?.toString(),
+      matchQuality: json['match_quality']?.toString(),
     );
   }
 
@@ -145,6 +157,8 @@ class DriverInfo {
   final String? phone;
   final String? whatsappNumber;
   final bool isVerified;
+  final double averageRating; // 0 = unrated
+  final int totalRatings;
 
   DriverInfo({
     required this.id,
@@ -153,6 +167,8 @@ class DriverInfo {
     this.phone,
     this.whatsappNumber,
     this.isVerified = false,
+    this.averageRating = 0,
+    this.totalRatings = 0,
   });
 
   /// For WhatsApp / contact – prefer WhatsApp number, fallback to phone
@@ -169,6 +185,8 @@ class DriverInfo {
       phone: json['phone']?.toString(),
       whatsappNumber: json['whatsapp_number']?.toString(),
       isVerified: json['isVerified'] == true,
+      averageRating: double.tryParse(json['average_rating']?.toString() ?? '0') ?? 0,
+      totalRatings: int.tryParse(json['total_ratings']?.toString() ?? '0') ?? 0,
     );
   }
 
