@@ -71,6 +71,16 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   const padLng = corridorKm / (111 * Math.max(0.1, Math.cos((fLat * Math.PI) / 180)));
   const maxRef = radius + (hasDest ? radius * DEST_SLACK : 0) || radius;
 
+  // Text fallback: ALSO match rides by from/to text so a ride is findable even
+  // if it has no coordinates yet (created via text, or before migration). This
+  // fixes "I created a ride but search can't find it" when searching by coords.
+  const normLoc = (s) => String(s || '').toLowerCase().replace(/[\s,.\-_:;/\\]+/g, '');
+  const fromText = (q.from != null ? String(q.from) : q.from_location != null ? String(q.from_location) : '').trim();
+  const toText = (q.to != null ? String(q.to) : q.to_location != null ? String(q.to_location) : '').trim();
+  const fromPat = `%${normLoc(fromText)}%`;
+  const toPat = `%${normLoc(toText)}%`;
+  const hasText = normLoc(fromText).length >= 2 && normLoc(toText).length >= 2;
+
   const parsePoly = (v) => {
     if (Array.isArray(v)) return v;
     if (typeof v === 'string') { try { return JSON.parse(v); } catch { return null; } }
@@ -121,9 +131,33 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   }
   const tripResults = await Promise.all(tripQueries);
 
-  // Merge unique rides; evaluate each as corridor (preferred) or endpoint match.
+  // (c) text match (from/to names) — guarantees findability for non-geo rides.
+  let textRows = [];
+  if (hasText) {
+    try {
+      const tr = await queryRead(
+        `SELECT ${_TRIP_COLS}, ${_DRIVER_COLS}, ${TRIP_GEO_COLS}
+         FROM trips t LEFT JOIN users u ON t.driver_id = u.id ${RATING_SUB}
+         WHERE t.status = 'scheduled'
+           AND t.from_location_norm LIKE $2 AND t.to_location_norm LIKE $3
+           AND t.departure_time >= ($1::date)::timestamp
+           AND t.departure_time <  ($1::date)::timestamp + interval '1 day'
+           AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
+           AND t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')
+         LIMIT ${CAND_LIMIT}`,
+        [dateStr, fromPat, toPat]
+      );
+      textRows = tr.rows;
+    } catch (e) {
+      if (e.code !== '42703' && e.code !== '42P01') logger.warn('Text trips query failed:', e.message);
+    }
+  }
+
+  // Merge unique rides; evaluate each as corridor (preferred) / endpoint / text.
   const tripById = new Map();
   for (const rs of tripResults) for (const row of rs.rows) if (!tripById.has(row.id)) tripById.set(row.id, row);
+  const textIds = new Set();
+  for (const row of textRows) { textIds.add(row.id); if (!tripById.has(row.id)) tripById.set(row.id, row); }
 
   const scored = [];
   for (const t of tripById.values()) {
@@ -144,19 +178,34 @@ async function proximitySearch(req, res, q, fLat, fLng) {
       }
     }
 
-    // Endpoint fallback: ride origin within radius (+ destination within slack).
-    if (!matchType) {
+    // Endpoint: ride origin within radius (+ destination within slack).
+    if (!matchType && t.from_lat != null && t.from_lng != null) {
       const oDist = olaMaps.haversineKm(fLat, fLng, Number(t.from_lat), Number(t.from_lng));
-      if (!Number.isFinite(oDist) || oDist > radius) continue;
-      let dDist = null;
-      if (hasDest && t.to_lat != null && t.to_lng != null) {
-        dDist = olaMaps.haversineKm(tLat, tLng, Number(t.to_lat), Number(t.to_lng));
-        if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) continue; // wrong direction
-        exactDest = dDist <= 3;
+      if (Number.isFinite(oDist) && oDist <= radius) {
+        let dDist = null;
+        let ok = true;
+        if (hasDest && t.to_lat != null && t.to_lng != null) {
+          dDist = olaMaps.haversineKm(tLat, tLng, Number(t.to_lat), Number(t.to_lng));
+          if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) ok = false; // wrong direction
+          else exactDest = dDist <= 3;
+        }
+        if (ok) {
+          matchType = 'endpoint';
+          geoDist = oDist + (dDist != null ? dDist : 0);
+          displayDist = oDist;
+        }
       }
-      matchType = 'endpoint';
-      geoDist = oDist + (dDist != null ? dDist : 0);
-      displayDist = oDist;
+    }
+
+    // Text fallback: name matched but no usable geo → still show it (findability).
+    if (!matchType) {
+      if (textIds.has(t.id)) {
+        matchType = 'text';
+        geoDist = maxRef; // ranks below geo matches but stays visible
+        displayDist = null;
+      } else {
+        continue; // geo candidate that didn't qualify and didn't text-match
+      }
     }
 
     const distNorm = Math.min(1, geoDist / maxRef);
@@ -191,9 +240,9 @@ async function proximitySearch(req, res, q, fLat, fLng) {
     vehicle_model_id: t.vehicle_model_id ?? null,
     stops: t.stops,
     status: t.status,
-    distance_from_you_km: Math.round(displayDist * 10) / 10,
-    match_type: matchType, // 'corridor' (along route) | 'endpoint'
-    match_quality: exactDest ? 'green' : 'orange', // green = goes to your destination
+    distance_from_you_km: displayDist != null ? Math.round(displayDist * 10) / 10 : null,
+    match_type: matchType, // 'corridor' | 'endpoint' | 'text'
+    match_quality: matchType === 'text' ? null : (exactDest ? 'green' : 'orange'),
     driver: {
       id: t.driver_id,
       name: t.driver_name,
@@ -245,13 +294,35 @@ async function proximitySearch(req, res, q, fLat, fLng) {
       ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Corridor union query failed:', e.message); return { rows: [] }; })
     );
   }
+  // Union text fallback (findability for non-geo union rides).
+  let unionTextRows = [];
+  if (hasText) {
+    try {
+      const utr = await queryRead(
+        `SELECT ${UNION_COLS} ${UNION_JOIN}
+         WHERE s.status = 'scheduled'
+           AND s.from_location_norm LIKE $2 AND s.to_location_norm LIKE $3
+           AND s.departure_time >= ($1::date)::timestamp
+           AND s.departure_time <  ($1::date)::timestamp + interval '1 day'
+           AND s.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')
+         LIMIT ${CAND_LIMIT}`,
+        [dateStr, fromPat, toPat]
+      );
+      unionTextRows = utr.rows;
+    } catch (e) {
+      if (e.code !== '42703' && e.code !== '42P01') logger.warn('Text union query failed:', e.message);
+    }
+  }
+
   const unionResults = await Promise.all(unionQueries);
   const unionById = new Map();
   for (const rs of unionResults) for (const row of rs.rows) if (!unionById.has(row.id)) unionById.set(row.id, row);
+  const unionTextIds = new Set();
+  for (const row of unionTextRows) { unionTextIds.add(row.id); if (!unionById.has(row.id)) unionById.set(row.id, row); }
 
   const unionScored = [];
   for (const s of unionById.values()) {
-    let matchType = null, geoDist = Infinity, displayDist = Infinity, exactDest = false;
+    let matchType = null, geoDist = Infinity, displayDist = null, exactDest = false;
     if (hasDest) {
       const poly = parsePoly(s.route_polyline);
       if (poly && poly.length >= 2) {
@@ -262,15 +333,21 @@ async function proximitySearch(req, res, q, fLat, fLng) {
         }
       }
     }
-    if (!matchType) {
+    if (!matchType && s.from_lat != null && s.from_lng != null) {
       const oDist = olaMaps.haversineKm(fLat, fLng, Number(s.from_lat), Number(s.from_lng));
-      if (!Number.isFinite(oDist) || oDist > radius) continue;
-      if (hasDest && s.to_lat != null && s.to_lng != null) {
-        const dDist = olaMaps.haversineKm(tLat, tLng, Number(s.to_lat), Number(s.to_lng));
-        if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) continue;
-        exactDest = dDist <= 3;
+      if (Number.isFinite(oDist) && oDist <= radius) {
+        let ok = true;
+        if (hasDest && s.to_lat != null && s.to_lng != null) {
+          const dDist = olaMaps.haversineKm(tLat, tLng, Number(s.to_lat), Number(s.to_lng));
+          if (Number.isFinite(dDist) && dDist > radius * DEST_SLACK) ok = false;
+          else exactDest = dDist <= 3;
+        }
+        if (ok) { matchType = 'endpoint'; geoDist = oDist; displayDist = oDist; }
       }
-      matchType = 'endpoint'; geoDist = oDist; displayDist = oDist;
+    }
+    if (!matchType) {
+      if (unionTextIds.has(s.id)) { matchType = 'text'; geoDist = maxRef; displayDist = null; }
+      else continue;
     }
     unionScored.push({ s, displayDist, geoDist, matchType, exactDest });
   }
@@ -289,9 +366,9 @@ async function proximitySearch(req, res, q, fLat, fLng) {
     union_name: s.union_name,
     union_driver_id: s.union_driver_id,
     union_id: s.union_id,
-    distance_from_you_km: Math.round(displayDist * 10) / 10,
+    distance_from_you_km: displayDist != null ? Math.round(displayDist * 10) / 10 : null,
     match_type: matchType,
-    match_quality: exactDest ? 'green' : 'orange',
+    match_quality: matchType === 'text' ? null : (exactDest ? 'green' : 'orange'),
   }));
 
   return ApiResponse.success(
@@ -797,6 +874,28 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
     places.push({ description: s, lat: null, lng: null });
   }
 
+  // Rank: exact → starts-with → word-starts → contains; then SHORTEST/simplest
+  // name first (so "Dehradun" beats "Dehradun Railway Station, Paltan Bazar…").
+  // As the query gets more specific, the matching simple name rises to the top.
+  const rankScore = (desc) => {
+    const d = desc.toLowerCase();
+    if (d === qLower) return 0;
+    if (d.startsWith(qLower)) return 1;
+    if (d.split(/[\s,]+/).some((w) => w.startsWith(qLower))) return 2;
+    return 3;
+  };
+  places.sort((a, b) => {
+    const ra = rankScore(a.description);
+    const rb = rankScore(b.description);
+    if (ra !== rb) return ra - rb;
+    // simpler = fewer commas, then shorter overall
+    const ca = (a.description.match(/,/g) || []).length;
+    const cb = (b.description.match(/,/g) || []).length;
+    if (ca !== cb) return ca - cb;
+    if (a.description.length !== b.description.length) return a.description.length - b.description.length;
+    return a.description.localeCompare(b.description);
+  });
+
   ApiResponse.success(
     { suggestions, places: places.slice(0, 15) },
     'Location suggestions'
@@ -833,6 +932,24 @@ const estimateRoute = asyncHandler(async (req, res) => {
   ).send(res);
 });
 
+/**
+ * Reverse geocode: GPS coordinates → human-readable place name.
+ * GET /api/trips/reverse-geocode?lat=&lng=
+ * Used by the app's "use my current location" feature to label the pickup.
+ */
+const reverseGeocode = asyncHandler(async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  if (!olaMaps.isValidLatLng(lat, lng)) {
+    throw ApiError.badRequest('Valid lat and lng are required.');
+  }
+  const name = await olaMaps.reverseGeocode(lat, lng);
+  ApiResponse.success(
+    { name: name || null, lat, lng },
+    'Reverse geocode'
+  ).send(res);
+});
+
 module.exports = {
   searchTrips,
   getTripBookedSeats,
@@ -840,4 +957,5 @@ module.exports = {
   saveRecentRoute,
   getLocationSuggestions,
   estimateRoute,
+  reverseGeocode,
 };

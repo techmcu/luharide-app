@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/trip_service.dart';
+import '../services/location_service.dart';
 import '../models/picked_location.dart';
 
 class LocationPickerScreen extends StatefulWidget {
@@ -24,10 +25,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
   Timer? _debounce;
+  final _locationService = LocationService();
   List<PickedLocation> _apiPlaces = [];
   List<String> _recentLocations = [];
   bool _isLoading = false;
   bool _hasFetched = false;
+  bool _gettingLocation = false;
 
   static const _kBlue = Color(0xFF2563EB);
   static const _recentKey = 'luha_recent_locations';
@@ -148,6 +151,25 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     Navigator.pop(context, p);
   }
 
+  /// GPS → reverse-geocoded place name → return as the picked location.
+  Future<void> _useCurrentLocation() async {
+    if (_gettingLocation) return;
+    setState(() => _gettingLocation = true);
+    final res = await _locationService.getCurrentLocation();
+    if (!mounted) return;
+    if (!res.ok) {
+      setState(() => _gettingLocation = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(res.error ?? 'Could not get your location.')),
+      );
+      return;
+    }
+    final place = await widget.tripService.reverseGeocode(res.lat!, res.lng!);
+    if (!mounted) return;
+    setState(() => _gettingLocation = false);
+    _selectPicked(place);
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = _controller.text.trim();
@@ -215,6 +237,27 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.symmetric(vertical: 4),
       children: [
+        // Use my current location (GPS)
+        ListTile(
+          leading: CircleAvatar(
+            radius: 18,
+            backgroundColor: _kBlue.withValues(alpha: 0.10),
+            child: _gettingLocation
+                ? const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: _kBlue),
+                  )
+                : const Icon(Icons.my_location_rounded, color: _kBlue, size: 20),
+          ),
+          title: Text(
+            _gettingLocation ? 'Getting your location…' : 'Use my current location',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: _kBlue),
+          ),
+          subtitle: Text('Auto-fill from GPS', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          onTap: _gettingLocation ? null : _useCurrentLocation,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        Divider(height: 16, indent: 16, endIndent: 16, color: Colors.grey[100]),
         if (_recentLocations.isNotEmpty) ...[
           _SectionHeader(
             icon: Icons.history_rounded,

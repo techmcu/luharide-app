@@ -33,7 +33,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   DateTime _selectedDate = DateTime.now();
   TimeOfDay _selectedTime = TimeOfDay.now();
-  double? _estimatedDurationHours;
+  double? _estimatedDurationHours; // auto-calculated from route distance
+  double? _estimatedDistanceKm;
+  bool _estimating = false;
 
   List<PickedLocation> _fromSuggestions = [];
   List<PickedLocation> _toSuggestions = [];
@@ -133,6 +135,28 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     if (mounted) setState(() => _toSuggestions = suggestions);
   }
 
+  /// Auto-calculate distance + travel time once both endpoints have coordinates.
+  /// No manual time entry — the driver just picks From & To.
+  Future<void> _recalcEstimate() async {
+    if (_fromLat == null || _fromLng == null || _toLat == null || _toLng == null) {
+      return;
+    }
+    setState(() => _estimating = true);
+    final est = await _tripService.estimateRoute(
+      fromLat: _fromLat!, fromLng: _fromLng!, toLat: _toLat!, toLng: _toLng!,
+    );
+    if (!mounted) return;
+    setState(() {
+      _estimating = false;
+      if (est != null && est['durationMin'] != null) {
+        _estimatedDistanceKm = (est['distanceKm'] as num?)?.toDouble();
+        final hrs = (est['durationMin'] as int) / 60.0;
+        // Backend accepts 1–12 h; round to 1 decimal.
+        _estimatedDurationHours = double.parse(hrs.clamp(1.0, 12.0).toStringAsFixed(1));
+      }
+    });
+  }
+
   Future<void> _createTrip() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -159,7 +183,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       if (mounted) {
         AppFeedback.show(
           context,
-          'Please select estimated travel time',
+          'Pick From & To from the suggestions so travel time can be auto-calculated',
           kind: AppFeedbackKind.warning,
         );
       }
@@ -242,6 +266,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               onSelected: (p) {
                 _fromLat = p.lat;
                 _fromLng = p.lng;
+                _recalcEstimate();
               },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                 return TextFormField(
@@ -282,6 +307,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               onSelected: (p) {
                 _toLat = p.lat;
                 _toLng = p.lng;
+                _recalcEstimate();
               },
               fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
                 return TextFormField(
@@ -349,33 +375,12 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Estimated Travel Time (required)
-            DropdownButtonFormField<double>(
-              value: _estimatedDurationHours,
-              decoration: InputDecoration(
-                labelText: 'Estimated travel time *',
-                prefixIcon: const Icon(Icons.timer_outlined, color: Colors.green),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              items: const [
-                DropdownMenuItem(value: 1.0, child: Text('1 hour')),
-                DropdownMenuItem(value: 1.5, child: Text('1.5 hours')),
-                DropdownMenuItem(value: 2.0, child: Text('2 hours')),
-                DropdownMenuItem(value: 2.5, child: Text('2.5 hours')),
-                DropdownMenuItem(value: 3.0, child: Text('3 hours')),
-                DropdownMenuItem(value: 3.5, child: Text('3.5 hours')),
-                DropdownMenuItem(value: 4.0, child: Text('4 hours')),
-                DropdownMenuItem(value: 5.0, child: Text('5 hours')),
-                DropdownMenuItem(value: 6.0, child: Text('6 hours')),
-                DropdownMenuItem(value: 7.0, child: Text('7 hours')),
-                DropdownMenuItem(value: 8.0, child: Text('8 hours')),
-                DropdownMenuItem(value: 10.0, child: Text('10 hours')),
-                DropdownMenuItem(value: 12.0, child: Text('12 hours')),
-              ],
-              onChanged: (v) => setState(() => _estimatedDurationHours = v),
-              validator: (v) => v == null ? 'Please select travel time' : null,
+            // Estimated distance & travel time — AUTO-calculated from the route.
+            // No manual entry: the driver just picks From & To from suggestions.
+            _EstimateCard(
+              estimating: _estimating,
+              distanceKm: _estimatedDistanceKm,
+              durationHours: _estimatedDurationHours,
             ),
             const SizedBox(height: 16),
 
@@ -515,6 +520,74 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Auto-calculated route estimate card (distance + travel time). Read-only —
+/// the driver never types travel time; it comes from the route distance.
+class _EstimateCard extends StatelessWidget {
+  const _EstimateCard({
+    required this.estimating,
+    required this.distanceKm,
+    required this.durationHours,
+  });
+  final bool estimating;
+  final double? distanceKm;
+  final double? durationHours;
+
+  String get _durationLabel {
+    final h = durationHours;
+    if (h == null) return '—';
+    final hours = h.floor();
+    final mins = ((h - hours) * 60).round();
+    if (hours <= 0) return '${mins}m';
+    return mins == 0 ? '${hours}h' : '${hours}h ${mins}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasData = distanceKm != null && durationHours != null;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFBBF7D0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.route_rounded, color: Colors.green, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: estimating
+                ? const Text('Calculating distance & time…',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600))
+                : hasData
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Estimated travel',
+                              style: TextStyle(fontSize: 12, color: Colors.black54)),
+                          const SizedBox(height: 2),
+                          Text(
+                            '≈ ${distanceKm!.toStringAsFixed(distanceKm! < 10 ? 1 : 0)} km  ·  $_durationLabel',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF166534)),
+                          ),
+                        ],
+                      )
+                    : const Text(
+                        'Pick From & To to auto-calculate distance and time',
+                        style: TextStyle(fontSize: 13.5, color: Colors.black54),
+                      ),
+          ),
+          if (estimating)
+            const SizedBox(
+                width: 18, height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.green)),
+        ],
       ),
     );
   }

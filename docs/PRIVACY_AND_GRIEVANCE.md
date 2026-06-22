@@ -25,6 +25,16 @@ We aim to **acknowledge genuine queries** within a **reasonable time** and route
 
 ---
 
+## Location & Maps (Ola Maps by Krutrim)
+
+- **What:** LuhaRide uses **Ola Maps (operated by Krutrim)** for place search/autocomplete, geocoding (place name → coordinates), and road **distance/time** used to suggest fair fares and match nearby rides.
+- **What is sent:** the **text you type** while searching, and/or the **coordinates of the place you select**. If you tap **"Use my current location"**, your **device GPS coordinates** are sent to obtain a place name.
+- **Permission:** Device location (precise/approximate) is requested **only** when you tap "Use my current location". It is **foreground-only** — we do **not** track you in the background. You can deny it and still type locations manually.
+- **No sale:** location data is used to provide the service, **not sold** for marketing.
+- See Ola Maps' policy at **maps.olakrutrim.com**.
+
+---
+
 ## User trust (short)
 
 We treat rider and driver data with **care proportional to a transport marketplace**: limited collection, secured storage, and **clear channels** (email above) if something looks wrong.

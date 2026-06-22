@@ -32,6 +32,7 @@ const {
   saveRecentRoute,
   getLocationSuggestions,
   estimateRoute,
+  reverseGeocode,
 } = require('./trip/tripSearchController');
 
 const {
@@ -766,6 +767,7 @@ module.exports = {
   getRecentRoutes,
   saveRecentRoute,
   estimateRoute,
+  reverseGeocode,
   startTrip,
   completeTrip,
   cancelTrip,

@@ -8,6 +8,7 @@ const {
   getMyTrips,
   getLocationSuggestions,
   estimateRoute,
+  reverseGeocode,
   getTripBookings,
   getTripBookedSeats,
   getRecentRoutes,
@@ -44,6 +45,7 @@ const createTripSchema = Joi.object({
 router.get('/search', searchLimiter, redisCache(30), searchTrips);
 router.get('/locations', redisCache(300), getLocationSuggestions);
 router.get('/estimate', searchLimiter, redisCache(300), estimateRoute);
+router.get('/reverse-geocode', searchLimiter, redisCache(300), reverseGeocode);
 // IMPORTANT: Specific routes MUST be before /:id (else "my-trips" matches as :id)
 router.get('/my-trips', authenticate, authorize('driver'), getMyTrips);
 router.get('/recent-routes', authenticate, getRecentRoutes);

@@ -217,8 +217,12 @@ async function autocomplete(input) {
     const predictions = Array.isArray(res.data.predictions) ? res.data.predictions : [];
     const out = predictions.map((p) => {
       const loc = p.geometry?.location || {};
+      // Prefer the short main name (e.g. "Bigsi") over the long full address
+      // ("Bigsi 1323, post office naugaon, p249171, ...") for a clean suggestion.
+      const shortName = p.structured_formatting?.main_text || p.description || '';
       return {
-        description: p.description || p.structured_formatting?.main_text || '',
+        description: shortName,
+        fullText: p.description || shortName,
         placeId: p.place_id || null,
         lat: Number.isFinite(loc.lat) ? loc.lat : null,
         lng: Number.isFinite(loc.lng) ? loc.lng : null,

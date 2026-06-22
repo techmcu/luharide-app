@@ -26,6 +26,7 @@ class ApiConstants {
   static const String myTrips = '/trips/my-trips';
   static const String locationSuggestions = '/trips/locations';
   static const String routeEstimate = '/trips/estimate';
+  static const String reverseGeocode = '/trips/reverse-geocode';
   static const String tripDetails = '/trips';
   static const String tripSeats = '/trips/{id}/seats';
   

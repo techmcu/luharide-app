@@ -592,6 +592,26 @@ class TripService {
     }
   }
 
+  /// Reverse geocode GPS coordinates → place name (for "use my current location").
+  /// Returns a PickedLocation with coords always set; name may be a fallback.
+  Future<PickedLocation> reverseGeocode(double lat, double lng) async {
+    try {
+      final response = await _apiService.get(
+        ApiConstants.reverseGeocode,
+        queryParameters: {'lat': lat, 'lng': lng},
+      );
+      final data = response.data['data'];
+      final name = (data is Map ? data['name'] : null)?.toString();
+      return PickedLocation(
+        name: (name != null && name.trim().isNotEmpty) ? name : 'My location',
+        lat: lat,
+        lng: lng,
+      );
+    } catch (e) {
+      return PickedLocation(name: 'My location', lat: lat, lng: lng);
+    }
+  }
+
   /// Road distance + duration estimate between two coordinates.
   /// Returns {distanceKm, durationMin} or null on failure. Fare is intentionally
   /// NOT returned (drivers shouldn't see a suggested price).
