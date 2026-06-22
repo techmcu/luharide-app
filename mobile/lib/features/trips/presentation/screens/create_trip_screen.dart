@@ -122,12 +122,24 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     );
     if (result == null) return;
     controller.text = result.name;
+
+    // Ensure we have coordinates. If the user picked a name-only entry (recent/
+    // popular), resolve them by looking the name up so distance/time still works.
+    double? lat = result.lat, lng = result.lng;
+    if (lat == null || lng == null) {
+      final matches = await _tripService.getLocationPlaces(result.name);
+      final withCoords = matches.where((p) => p.hasCoords).toList();
+      if (withCoords.isNotEmpty) {
+        lat = withCoords.first.lat;
+        lng = withCoords.first.lng;
+      }
+    }
     if (isFrom) {
-      _fromLat = result.lat;
-      _fromLng = result.lng;
+      _fromLat = lat;
+      _fromLng = lng;
     } else {
-      _toLat = result.lat;
-      _toLng = result.lng;
+      _toLat = lat;
+      _toLng = lng;
     }
     setState(() {});
     _recalcEstimate();
@@ -207,17 +219,12 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       return;
     }
 
+    // Last-chance auto-calc (e.g. estimate hadn't returned yet), then proceed
+    // with a safe default so ride creation is never blocked on the estimate.
     if (_estimatedDurationHours == null) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        AppFeedback.show(
-          context,
-          'Pick From & To from the suggestions so travel time can be auto-calculated',
-          kind: AppFeedbackKind.warning,
-        );
-      }
-      return;
+      await _recalcEstimate();
     }
+    final double durationHours = _estimatedDurationHours ?? 2.0;
 
     final departureTime = DateTime(
       _selectedDate.year,
@@ -234,7 +241,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       departureTime: departureTime,
       farePerSeat: double.parse(_fareController.text),
       vehicleNumber: _vehicleNumberController.text.trim(),
-      estimatedDurationHours: _estimatedDurationHours!,
+      estimatedDurationHours: durationHours,
       totalSeats: totalSeats,
       requireApproval: _requireApproval,
       luggageAllowancePerPassenger: _luggageController.text.trim().isEmpty
