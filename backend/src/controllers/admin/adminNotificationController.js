@@ -4,6 +4,7 @@ const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const { emitNotificationToUser } = require('../../socket/realtimeEmitter');
+const { sendPushToMultipleUsers } = require('../../utils/pushNotification');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -67,8 +68,26 @@ const sendBulkNotification = asyncHandler(async (req, res) => {
   const params = roleFilter ? [title, body, roleFilter] : [title, body];
   const result = await pool.query(insertSql, params);
 
+  // Socket emit per user (instant for those online); skip per-user push — we
+  // send ONE batched multicast below so delivery is fast & parallel (no more
+  // "some users get it late" from a sequential one-by-one loop).
   for (const row of result.rows) {
-    try { emitNotificationToUser(row.user_id, { ...row, type: 'admin_broadcast', title, body, is_read: false }); } catch (_) {}
+    try {
+      emitNotificationToUser(
+        row.user_id,
+        { ...row, type: 'admin_broadcast', title, body, is_read: false },
+        { skipPush: true }
+      );
+    } catch (_) {}
+  }
+
+  // Batched FCM push to ALL targeted users (high-priority multicast, 500/batch).
+  // Reliable delivery to every device with a token; stale tokens auto-pruned.
+  try {
+    const userIds = result.rows.map((r) => r.user_id);
+    await sendPushToMultipleUsers(userIds, title, body, { type: 'admin_broadcast' });
+  } catch (e) {
+    logger.warn('Broadcast push failed:', e.message);
   }
 
   await pool.query(

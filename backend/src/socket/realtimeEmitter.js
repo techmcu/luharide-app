@@ -26,7 +26,7 @@ function emitTripUpdated(tripId, extra = {}) {
  * @param {string} userId
  * @param {object} notification - shape similar to API row (id, type, title, body, data, is_read, created_at)
  */
-function emitNotificationToUser(userId, notification) {
+function emitNotificationToUser(userId, notification, opts = {}) {
   if (!userId) return;
 
   const io = getIo();
@@ -42,7 +42,9 @@ function emitNotificationToUser(userId, notification) {
     }
   }
 
-  if (!userOnline && notification && notification.title) {
+  // skipPush: caller will send a single BATCHED push (e.g. admin broadcast) so
+  // we don't also fire a slow per-user push here.
+  if (!opts.skipPush && !userOnline && notification && notification.title) {
     sendPushToUser(userId, notification.title, notification.body || '').catch(() => {});
   }
 }
