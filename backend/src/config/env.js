@@ -48,6 +48,9 @@ const config = {
     biasLat: parseFloat(getEnv('OLA_MAPS_BIAS_LAT', '30.0668')) || 30.0668,
     biasLng: parseFloat(getEnv('OLA_MAPS_BIAS_LNG', '79.0193')) || 79.0193,
     biasRadiusM: parseInt(getEnv('OLA_MAPS_BIAS_RADIUS_M', '200000'), 10) || 200000,
+    // Appended to geocode queries so plain names resolve within our region
+    // (e.g. "Dehradun Clock Tower" → Uttarakhand, not a same-named Bangalore spot).
+    regionHint: getEnv('OLA_MAPS_REGION_HINT', 'Uttarakhand, India'),
   },
   // Distance-based fare ceiling for SHARED rides (per seat, INR).
   // Calibrated to real Uttarakhand shared fares (Purola↔Dehradun ≈145km ≈ ₹450).

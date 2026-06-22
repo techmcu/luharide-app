@@ -23,7 +23,7 @@ const axios = require('axios');
 const { config } = require('../config/env');
 const logger = require('../config/logger');
 
-const { apiKey, baseUrl, timeoutMs, biasLat, biasLng, biasRadiusM } = config.olaMaps;
+const { apiKey, baseUrl, timeoutMs, biasLat, biasLng, biasRadiusM, regionHint } = config.olaMaps;
 
 // ---- HTTP client -----------------------------------------------------------
 const http = axios.create({
@@ -260,13 +260,21 @@ async function geocode(address) {
   const a = String(address || '').trim();
   if (!isEnabled() || a.length < 2) return null;
 
-  const key = `geo:${a.toLowerCase()}`;
+  // Append region hint so a plain name resolves locally (avoids e.g. a Bangalore
+  // place for "Dehradun Clock Tower"). Skip if the address already names the region.
+  const aLower = a.toLowerCase();
+  const hintLower = (regionHint || '').toLowerCase();
+  const query = (regionHint && !aLower.includes('uttarakhand') && !aLower.includes(hintLower))
+    ? `${a}, ${regionHint}`
+    : a;
+
+  const key = `geo:${query.toLowerCase()}`;
   const cached = cacheGet(key);
   if (cached !== undefined) return cached;
 
   try {
     const res = await http.get('/places/v1/geocode', {
-      params: { address: a, api_key: apiKey },
+      params: { address: query, api_key: apiKey, bounds: '31.45,77.55|28.70,81.05' },
     });
     const results = res.data?.geocodingResults || res.data?.results || [];
     const first = Array.isArray(results) ? results[0] : null;
