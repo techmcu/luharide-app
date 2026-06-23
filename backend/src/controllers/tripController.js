@@ -24,6 +24,30 @@ function requireUuid(id) {
   if (!id || !UUID_RE.test(id)) throw ApiError.badRequest('Invalid trip ID');
 }
 
+const MIN_ADVANCE_MINUTES = 30;
+/**
+ * Pure, unit-testable departure-time rule for a new ride: must be a valid date,
+ * not in the past, and at least 30 minutes ahead. Returns an error message
+ * string, or null when valid. [now] is injectable so tests are deterministic.
+ *
+ * NOTE: comparison is purely on epoch instants — the client sends UTC
+ * (`departureTime.toUtc().toIso8601String()`), so a genuine future ride (any
+ * timezone) is never flagged "past". A live "past" on a future ride almost
+ * always means a STALE deployed backend / old APK, not this logic.
+ */
+function departureTimeError(departureDate, now = Date.now()) {
+  if (!(departureDate instanceof Date) || Number.isNaN(departureDate.getTime())) {
+    return 'Invalid departure_time. Use ISO 8601 format (e.g. with Z for UTC).';
+  }
+  if (departureDate.getTime() < now) {
+    return 'Departure time cannot be in the past';
+  }
+  if (departureDate.getTime() - now < MIN_ADVANCE_MINUTES * 60 * 1000) {
+    return `Ride departure must be at least ${MIN_ADVANCE_MINUTES} minutes from now.`;
+  }
+  return null;
+}
+
 // ── Sub-controllers ─────────────────────────────────────────────────────────
 const {
   searchTrips,
@@ -145,19 +169,8 @@ const createTrip = asyncHandler(async (req, res) => {
   } catch (_) {}
 
   const departureDate = new Date(departure_time);
-  if (Number.isNaN(departureDate.getTime())) {
-    throw ApiError.badRequest('Invalid departure_time. Use ISO 8601 format (e.g. with Z for UTC).');
-  }
-  if (departureDate.getTime() < Date.now()) {
-    throw ApiError.badRequest('Departure time cannot be in the past');
-  }
-  const MIN_ADVANCE_MINUTES = 30;
-  const minAdvanceMs = MIN_ADVANCE_MINUTES * 60 * 1000;
-  if (departureDate.getTime() - Date.now() < minAdvanceMs) {
-    throw ApiError.badRequest(
-      `Ride departure must be at least ${MIN_ADVANCE_MINUTES} minutes from now.`
-    );
-  }
+  const depErr = departureTimeError(departureDate);
+  if (depErr) throw ApiError.badRequest(depErr);
   const MIN_DURATION_HOURS = 1;
   const MAX_DURATION_HOURS = 12;
   const DEFAULT_DURATION_HOURS = 2;
@@ -791,5 +804,6 @@ module.exports = {
   cancelTrip,
   deleteTrip,
   lockSeats,
-  unlockSeats
+  unlockSeats,
+  departureTimeError
 };
