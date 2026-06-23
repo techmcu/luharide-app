@@ -86,3 +86,9 @@ full-test-results.json
 gen-report.js
 LuhaRide_Testing_Report.md
 backend/reset-all-data.md
+
+# Credential / secret-bearing files — NEVER commit (untracked from git; rotate any exposed secrets)
+ADMIN_CREDENTIALS.md
+CORRECT_LOGIN_CREDENTIALS.md
+backend/env_full_copy_paste.txt
+backend/env_with_admin_email.txt
