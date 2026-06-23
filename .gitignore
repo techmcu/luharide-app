@@ -78,3 +78,11 @@ webapp/
 # Claude Code local knowledge (stays local, never pushed)
 .claude/
 CODEBASE_MAP.md
+
+# Local QA / testing scripts — contain TEST CREDENTIALS (passwords). Testing only — NEVER commit.
+full-test.js
+full-test-v2.js
+full-test-results.json
+gen-report.js
+LuhaRide_Testing_Report.md
+backend/reset-all-data.md

@@ -93,7 +93,7 @@ function mergeTitleRow(rowNum, text, fontSize, height) {
 }
 
 mergeTitleRow(1, 'LuhaRide - Complete Testing SOP', 18, 36);
-mergeTitleRow(2, 'Version 3.3 | Updated: 2026-06-23 | 346 Test Cases | Prepared by: LuhaRide QA Team', 11, 22);
+mergeTitleRow(2, 'Version 3.4 | Updated: 2026-06-23 | 344 Test Cases | Prepared by: LuhaRide QA Team', 11, 22);
 ws.addRow([]);
 
 const headerValues = ['Test ID', 'Module', 'Category', 'Feature', 'Test Scenario', 'Steps to Execute', 'Expected Result', 'Priority', 'Status', 'Automation', 'Tester Notes'];
