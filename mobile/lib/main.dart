@@ -47,22 +47,40 @@ void main() async {
     return true;
   };
 
-  if (!kIsWeb) {
-    await Firebase.initializeApp();
-    await PushNotificationService.instance.initialize();
-  }
+  // EnvConfig is needed before ApiService is built — fast (reads compile-time
+  // defines), safe to await.
   await EnvConfig.init();
 
-  InAppUpdateService.instance.checkForUpdate();
-  NetworkStatusService.instance.startMonitoring();
+  // Firebase core is needed by auth (Google) + FCM. It's quick; wrap so a
+  // failure never blocks app startup.
+  if (!kIsWeb) {
+    try {
+      await Firebase.initializeApp();
+    } catch (e) {
+      debugPrint('Firebase init failed (continuing): $e');
+    }
+  }
+
+  NetworkStatusService.instance.startMonitoring(); // event-driven, cheap
 
   // Single instance for app lifecycle (stable, no recreate on rebuild)
   final apiService = ApiService();
   final authService = AuthService(apiService);
 
+  // Paint the UI FIRST — no black screen. The heavy / non-critical work below
+  // (FCM permission + channels, Play update check) used to block the first
+  // frame for ~1s. Now it runs AFTER the first frame, so the app opens instantly
+  // and the notification-permission dialog appears over a visible screen.
   runApp(LuhaRideApp(
     authService: authService,
   ));
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!kIsWeb) {
+      PushNotificationService.instance.initialize();
+    }
+    InAppUpdateService.instance.checkForUpdate();
+  });
 }
 
 class LuhaRideApp extends StatelessWidget {
