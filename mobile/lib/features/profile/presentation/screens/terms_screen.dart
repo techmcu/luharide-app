@@ -101,7 +101,11 @@ final List<({String title, String body})> _termsEn = [
   (
     title: '8. Data & privacy',
     body:
-        'We process limited personal data to run the Service (e.g. name, phone, ride history). We do not sell '
+        'We process limited personal data to run the Service (e.g. name, phone, ride history). '
+        'Location: with your permission we access your device location (approximate and/or precise) in the '
+        'foreground only — when you tap "Use my current location" — to auto-fill your pickup point and show '
+        'nearby rides. We do NOT track your location in the background, and the app works fully without it. '
+        'You can deny or revoke location permission anytime in your device settings. We do not sell '
         'your personal data. A separate privacy notice may apply; use the Service only if you agree to '
         'reasonable processing for operations and support. '
         'Support & grievances: write to ${BrandConfig.grievContactEmail}. '
