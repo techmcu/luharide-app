@@ -123,7 +123,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
         ],
       ),
-      body: Form(
+      body: SafeArea(
+        child: Form(
         key: _formKey,
         child: ListView(
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -294,6 +295,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

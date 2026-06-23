@@ -237,7 +237,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       _selectedTime.minute,
     );
 
-    const int totalSeats = 10;
+    // NOTE: total seats are NOT set here — the backend uses the driver's VERIFIED
+    // vehicle capacity (so seat count always matches the real vehicle). We don't
+    // send a misleading hardcoded value.
     final result = await _tripService.createTrip(
       fromLocation: fromLocation,
       toLocation: toLocation,
@@ -245,7 +247,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       farePerSeat: double.parse(_fareController.text),
       vehicleNumber: _vehicleNumberController.text.trim(),
       estimatedDurationHours: durationHours,
-      totalSeats: totalSeats,
       requireApproval: _requireApproval,
       luggageAllowancePerPassenger: _luggageController.text.trim().isEmpty
           ? null
@@ -285,7 +286,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
       ),
-      body: Form(
+      body: SafeArea(
+        child: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -498,6 +500,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

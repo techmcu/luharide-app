@@ -374,7 +374,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
           ),
         ],
       ),
-      body: _isLoading
+      body: SafeArea(child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _trip == null
               ? Center(
@@ -395,7 +395,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
                     ],
                   ),
                 )
-              : _buildTripDetails(),
+              : _buildTripDetails()),
     );
   }
 
