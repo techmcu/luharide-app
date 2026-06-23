@@ -99,8 +99,12 @@ async function proximitySearch(req, res, q, fLat, fLng) {
     ) rr ON rr.rated_user_id = t.driver_id`;
   const TRIP_GEO_COLS = `t.from_lat, t.from_lng, t.to_lat, t.to_lng, t.route_polyline,
       COALESCE(rr.avg_rating, 0) AS driver_rating, COALESCE(rr.cnt, 0) AS driver_rating_count`;
-  const TRIP_TIME_WHERE = `t.departure_time >= ($5::date)::timestamp
-      AND t.departure_time <  ($5::date)::timestamp + interval '1 day'
+  // Match by the IST (Asia/Kolkata) calendar day the user picked. departure_time
+  // is stored in UTC; an IST day D spans UTC [D 00:00 − 5:30, D+1 00:00 − 5:30),
+  // so we shift the day window back by 330 min. Without this, early-morning IST
+  // rides (00:00–05:30) fell into the previous UTC day and showed on the wrong date.
+  const TRIP_TIME_WHERE = `t.departure_time >= ($5::date)::timestamp - interval '330 minutes'
+      AND t.departure_time <  ($5::date)::timestamp + interval '1 day' - interval '330 minutes'
       AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
       AND t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
 
@@ -146,8 +150,8 @@ async function proximitySearch(req, res, q, fLat, fLng) {
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id ${RATING_SUB}
          WHERE t.status = 'scheduled'
            AND t.from_location_norm LIKE $2 AND t.to_location_norm LIKE $3
-           AND t.departure_time >= ($1::date)::timestamp
-           AND t.departure_time <  ($1::date)::timestamp + interval '1 day'
+           AND t.departure_time >= ($1::date)::timestamp - interval '330 minutes'
+           AND t.departure_time <  ($1::date)::timestamp + interval '1 day' - interval '330 minutes'
            AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
            AND t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')
          LIMIT ${CAND_LIMIT}`,
@@ -270,8 +274,9 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   const UNION_JOIN = `FROM union_schedules s
       JOIN union_drivers d ON d.id = s.union_driver_id
       JOIN unions u ON u.id = s.union_id`;
-  const UNION_TIME_WHERE = `s.departure_time >= ($5::date)::timestamp
-      AND s.departure_time <  ($5::date)::timestamp + interval '1 day'
+  // IST calendar-day match (see TRIP_TIME_WHERE note) — shift UTC window by 330 min.
+  const UNION_TIME_WHERE = `s.departure_time >= ($5::date)::timestamp - interval '330 minutes'
+      AND s.departure_time <  ($5::date)::timestamp + interval '1 day' - interval '330 minutes'
       AND s.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
 
   const unionQueries = [
@@ -308,8 +313,8 @@ async function proximitySearch(req, res, q, fLat, fLng) {
         `SELECT ${UNION_COLS} ${UNION_JOIN}
          WHERE s.status = 'scheduled'
            AND s.from_location_norm LIKE $2 AND s.to_location_norm LIKE $3
-           AND s.departure_time >= ($1::date)::timestamp
-           AND s.departure_time <  ($1::date)::timestamp + interval '1 day'
+           AND s.departure_time >= ($1::date)::timestamp - interval '330 minutes'
+           AND s.departure_time <  ($1::date)::timestamp + interval '1 day' - interval '330 minutes'
            AND s.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')
          LIMIT ${CAND_LIMIT}`,
         [dateStr, fromPat, toPat]

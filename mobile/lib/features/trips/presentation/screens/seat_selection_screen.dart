@@ -415,6 +415,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     }
     final phoneMissing = _userPhoneMissing;
 
+    // Responsive seat size: fit the WIDEST row within the screen so seats never
+    // overflow / get cut off on small phones (and don't look huge on tablets).
+    // Each seat slot = dim + 16 (horizontal padding). Outer padding = 32.
+    final maxCols = layout.cols.clamp(1, 6);
+    final seatDim = ((MediaQuery.of(context).size.width - 32) / maxCols - 16)
+        .clamp(38.0, 60.0);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.t('seat.select.title')),
@@ -630,9 +637,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                                     final key = '$rowIndex-$colIndex';
                                     final seatIndex = indexByPos[key];
                                     if (seatIndex == null || seatIndex >= totalSeats) {
-                                      return const SizedBox(width: 60, height: 70);
+                                      return SizedBox(width: seatDim + 16, height: seatDim + 22);
                                     }
-                                    return _buildSeat(seatIndex);
+                                    return _buildSeat(seatIndex, seatDim);
                                   }),
                                 ),
                               );
@@ -756,7 +763,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     );
   }
 
-  Widget _buildSeat(int seatNumber) {
+  Widget _buildSeat(int seatNumber, double dim) {
     final isDriver = _driverSeatIndices.contains(seatNumber);
     final isBooked = _seatStatus[seatNumber];
     final isSelected = _selectedSeats.contains(seatNumber);
@@ -768,8 +775,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       child: GestureDetector(
         onTap: () => _toggleSeat(seatNumber),
         child: Container(
-          width: 60,
-          height: 70,
+          width: dim,
+          height: dim + 12,
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(8),
@@ -783,7 +790,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             children: [
               Icon(
                 icon,
-                size: 30,
+                size: dim * 0.5,
                 color: isDriver
                     ? Colors.orange[800]
                     : isBooked
