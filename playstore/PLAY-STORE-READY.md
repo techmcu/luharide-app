@@ -207,9 +207,10 @@ LuhaRide का पहला रिलीज़!
 
 ### Personal Information
 - Does the app collect personal data? **Yes**
-  - Phone number (for OTP login)
+  - Phone number (for ride coordination / driver–passenger contact)
   - Name, email, profile photo
   - Government IDs (Aadhaar, DL, RC) for driver/union verification
+  - Approximate & precise location — optional, foreground only, for pickup auto-fill & nearby rides
 - Does the app share personal data with third parties? **Yes** (service providers only — SMS, email, hosting)
 
 ### Ads
@@ -233,6 +234,7 @@ LuhaRide का पहला रिलीज़!
 | Email | Yes | No | Account |
 | Photos | Yes (profile, documents) | No | Account, Verification |
 | Government ID (Aadhaar, DL) | Yes | No | Identity verification |
+| **Location (approximate + precise)** | **Yes — optional** | **No** | **App functionality (auto-fill pickup + show nearby rides). Foreground only, only on "Use my current location". No background tracking. Real-time driver location during an active trip is shared only with that trip's confirmed passengers.** |
 | App interactions | Yes | No | Analytics |
 | Crash logs | Yes | No | App diagnostics |
 | Device ID | Yes | No | Analytics, Security |

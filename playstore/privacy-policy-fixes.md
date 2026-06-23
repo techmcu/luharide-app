@@ -12,15 +12,18 @@ Audited: 2026-05-10
 
 **Fix — add to "Location Services" section:**
 > **Real-Time Tracking:** When a driver starts a trip, LuhaRide collects and transmits the driver's GPS location continuously to provide real-time trip tracking for passengers. This location data is shared only with passengers who have a confirmed booking on that specific trip. Location tracking stops automatically when the trip is completed or cancelled. Drivers can see that tracking is active via the app interface.
+>
+> **On-demand current location (Passengers & Drivers):** When you tap "Use my current location", LuhaRide accesses your device location (approximate and/or precise) **in the foreground only** to auto-fill your pickup point and show nearby rides. This is optional — you can deny or revoke the permission anytime and continue using the app by typing locations manually. We do not track this location in the background.
 
-**Why critical:** Google Play requires explicit disclosure of background/continuous location access. Failure = rejection or suspension.
+**Why critical:** Google Play requires explicit disclosure of any location access (foreground or background). Failure = rejection or suspension.
 
-### 2. Password Reference — App Uses OTP
-**Issue:** The policy says "You will be asked to confirm with your password" for account deletion, and mentions "Password hashing (bcrypt)." But LuhaRide uses OTP-based authentication, not passwords.
+### 2. Auth description — keep it accurate to the REAL app
+**Reality (verified in code):** Login = **email + password** OR **Google Sign-In**. Signup = **email + OTP verification + password**. Forgot-password = **email OTP** reset. Account deletion = **confirm with password**. There is **NO phone-number login/OTP**.
 
-**Fix:**
-- Change "confirm with your password" → "confirm with an OTP sent to your registered phone number"
-- Change "Password hashing (bcrypt) for account security" → "OTP-based authentication for account security"
+**Fix (make the policy match this — do NOT claim "OTP-only / no passwords"):**
+- Keep "confirm with your password" for account deletion (this is correct).
+- Keep "Password hashing (bcrypt)" — passwords ARE used and hashed.
+- Where the policy mentions OTP, clarify it is **email OTP for signup & password reset** (not phone OTP).
 
 ---
 
@@ -61,8 +64,8 @@ Minor — current "Last updated: 18 April 2026" is acceptable for Play Store.
 
 | # | Issue | Severity | Play Store Impact |
 |---|-------|----------|-------------------|
-| 1 | Real-time location tracking not disclosed | CRITICAL | Can cause rejection |
-| 2 | Password references (app uses OTP) | CRITICAL | Inconsistency = trust issue |
+| 1 | Location not disclosed (real-time driver tracking + on-demand "use my current location" / Ola) | CRITICAL | Can cause rejection |
+| 2 | Auth description must match reality (email+password + email-OTP signup + Google; NO phone-OTP) | CRITICAL | Inconsistency = trust issue |
 | 3 | No Grievance Officer named | MEDIUM | Indian law requirement |
 | 4 | DPDP Act 2023 references | MEDIUM | Legal compliance |
 | 5 | No governing law clause | LOW | Best practice |
