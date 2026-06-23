@@ -114,6 +114,21 @@ class VehicleCatalog {
     ],
   );
 
+  // —— 6-seater: [2,2,2] captain MPV (e.g. Maruti XL6) ——
+  static const _layout6 = SeatLayoutConfig(
+    rows: 3,
+    cols: 2,
+    rowCols: [2, 2, 2],
+    seats: [
+      SeatPosition(id: 'F1', row: 0, col: 0, type: 'front'),
+      SeatPosition(id: 'D1', row: 0, col: 1, type: 'driver'),
+      SeatPosition(id: 'M1', row: 1, col: 0, type: 'middle'),
+      SeatPosition(id: 'M2', row: 1, col: 1, type: 'middle'),
+      SeatPosition(id: 'R1', row: 2, col: 0, type: 'rear'),
+      SeatPosition(id: 'R2', row: 2, col: 1, type: 'rear'),
+    ],
+  );
+
   // —— 7-seater: [2,3,2] like Ertiga/Innova ——
   static const _layout7 = SeatLayoutConfig(
     rows: 3,
@@ -224,6 +239,8 @@ class VehicleCatalog {
         return _layout4;
       case 5:
         return _layout5;
+      case 6:
+        return _layout6;
       case 7:
         return _layout7;
       case 8:
@@ -403,7 +420,7 @@ class VehicleCatalog {
         VehicleModelConfig(id: 'maruti_sx4', name: 'SX4', bodyType: 'Sedan', capacity: 5, layout: _layout5),
         VehicleModelConfig(id: 'maruti_ertiga', name: 'Ertiga', bodyType: 'MPV', capacity: 7, layout: _layout7),
         VehicleModelConfig(id: 'maruti_ertiga_tour', name: 'Ertiga Tour', bodyType: 'MPV', capacity: 7, layout: _layout7),
-        VehicleModelConfig(id: 'maruti_xl6', name: 'XL6', bodyType: 'MPV', capacity: 7, layout: _layout7),
+        VehicleModelConfig(id: 'maruti_xl6', name: 'XL6', bodyType: 'MPV', capacity: 6, layout: _layout6),
         VehicleModelConfig(id: 'maruti_invicto', name: 'Invicto', bodyType: 'MPV', capacity: 7, layout: _layout7),
         VehicleModelConfig(id: 'maruti_eeco', name: 'Eeco', bodyType: 'Van', capacity: 7, layout: _layout7),
         VehicleModelConfig(id: 'maruti_eeco_8', name: 'Eeco (8-seater)', bodyType: 'Van', capacity: 8, layout: _layout8),
@@ -481,14 +498,7 @@ class VehicleCatalog {
       id: 'force',
       name: 'Force',
       models: [
-        const VehicleModelConfig(id: 'force_gurkha', name: 'Gurkha', bodyType: 'SUV', capacity: 7, layout: _layout7),
-        const VehicleModelConfig(
-          id: 'force_gurkha_9',
-          name: 'Gurkha 9-Seater',
-          bodyType: 'SUV',
-          capacity: 9,
-          layout: _layout9Sumo,
-        ),
+        const VehicleModelConfig(id: 'force_gurkha', name: 'Gurkha', bodyType: 'SUV', capacity: 5, layout: _layout5),
         const VehicleModelConfig(
           id: 'force_trax',
           name: 'Trax',
