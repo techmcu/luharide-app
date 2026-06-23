@@ -16,7 +16,9 @@ const {
   startTrip,
   completeTrip,
   cancelTrip,
-  deleteTrip
+  deleteTrip,
+  lockSeats,
+  unlockSeats
 } = require('../controllers/tripController');
 const { authenticate, authorize, optionalAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
@@ -41,6 +43,15 @@ const createTripSchema = Joi.object({
   to_lng: Joi.number().min(-180).max(180).optional()
 });
 
+// Driver seat-lock (reserve own unbooked seats). seat 1 = driver, rejected in controller.
+const seatLockSchema = Joi.object({
+  seat_numbers: Joi.array().items(Joi.number().integer().min(1)).min(1).max(32).required(),
+  note: Joi.string().allow('').max(80).trim().optional()
+});
+const unlockSeatSchema = Joi.object({
+  seat_numbers: Joi.array().items(Joi.number().integer().min(1)).min(1).max(32).required()
+});
+
 // Public routes
 router.get('/search', searchLimiter, redisCache(30), searchTrips);
 router.get('/locations', redisCache(300), getLocationSuggestions);
@@ -57,6 +68,10 @@ router.get('/:id', searchLimiter, optionalAuth, getTripDetails);
 router.put('/:id/start', authenticate, authorize('driver'), stateChangeLimiter, startTrip);
 router.put('/:id/complete', authenticate, authorize('driver'), stateChangeLimiter, completeTrip);
 router.put('/:id/cancel', authenticate, authorize('driver'), stateChangeLimiter, cancelTrip);
+
+// Driver reserves/releases their own unbooked seats (e.g. hold a seat for a relative).
+router.post('/:id/lock-seats', authenticate, authorize('driver'), writeLimiter, validate(seatLockSchema), lockSeats);
+router.post('/:id/unlock-seats', authenticate, authorize('driver'), writeLimiter, validate(unlockSeatSchema), unlockSeats);
 
 // Protected routes (Driver only - Individual drivers can create their own trips)
 // Union admins will have separate endpoints to create trips for their drivers

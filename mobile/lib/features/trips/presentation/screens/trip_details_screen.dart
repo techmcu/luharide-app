@@ -93,7 +93,12 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
         _isLoading = false;
         if (result['success'] == true && result['trip'] != null) {
           _trip = result['trip'];
-          _bookedSeats = List<int>.from(result['booked_seats'] ?? []);
+          // Driver-reserved (locked) seats are unbookable — fold them into the
+          // booked set so passengers see them greyed out and can't select them.
+          _bookedSeats = <int>{
+            ...List<int>.from(result['booked_seats'] ?? []),
+            ...List<int>.from(result['locked_seats'] ?? []),
+          }.toList();
           _pendingSeats = List<int>.from(result['pending_seats'] ?? []);
           _userBookingStatus = result['user_booking_status'] as String?;
           final cp = result['co_passengers'];

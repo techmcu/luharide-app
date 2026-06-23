@@ -200,16 +200,19 @@ class TripService {
       final data = response.data['data'] ?? {};
       final List<dynamic> bookedJson = data['booked'] ?? [];
       final List<dynamic> pendingJson = data['pending'] ?? [];
+      final List<dynamic> lockedJson = data['locked'] ?? [];
 
       // Robust parsing - JSON may return num (int/double)
       int toInt(dynamic e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0;
       final bookedList = bookedJson.map(toInt).where((n) => n > 0).toList();
       final pendingList = pendingJson.map(toInt).where((n) => n > 0).toList();
+      final lockedList = lockedJson.map(toInt).where((n) => n > 0).toList();
 
       return {
         'success': true,
         'booked': bookedList,
         'pending': pendingList,
+        'locked': lockedList,
         'total_seats': (data['total_seats'] is num) ? (data['total_seats'] as num).toInt() : 7,
         'available_seats': (data['available_seats'] is num) ? (data['available_seats'] as num).toInt() : null,
       };
@@ -219,13 +222,68 @@ class TripService {
         'message': dioResponseMessage(e) ?? 'Failed to load seats',
         'booked': <int>[],
         'pending': <int>[],
+        'locked': <int>[],
       };
     } catch (e) {
       return {
         'success': false,
         'booked': <int>[],
         'pending': <int>[],
+        'locked': <int>[],
       };
+    }
+  }
+
+  /// Driver reserves (locks) their own unbooked seats so no passenger can book
+  /// them — e.g. holding a seat for a relative. [note] is an optional label.
+  /// Returns the full set of locked seats on success.
+  Future<Map<String, dynamic>> lockSeats(
+    String tripId,
+    List<int> seatNumbers, {
+    String? note,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '${ApiConstants.tripDetails}/$tripId/lock-seats',
+        data: {
+          'seat_numbers': seatNumbers,
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        },
+      );
+      return {
+        'success': true,
+        'message': response.data['message'] ?? 'Seat reserved',
+        'locked': _parseSeatList(response.data['data']?['locked_seats']),
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': dioResponseMessage(e) ?? 'Could not reserve seat',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
+    }
+  }
+
+  /// Driver releases previously-reserved seats so passengers can book them again.
+  Future<Map<String, dynamic>> unlockSeats(String tripId, List<int> seatNumbers) async {
+    try {
+      final response = await _apiService.post(
+        '${ApiConstants.tripDetails}/$tripId/unlock-seats',
+        data: {'seat_numbers': seatNumbers},
+      );
+      return {
+        'success': true,
+        'message': response.data['message'] ?? 'Seat released',
+        'locked': _parseSeatList(response.data['data']?['locked_seats']),
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': dioResponseMessage(e) ?? 'Could not release seat',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'An error occurred'};
     }
   }
 
@@ -258,6 +316,7 @@ class TripService {
         'trip': trip,
         'booked_seats': _parseSeatList(data['booked_seats']),
         'pending_seats': _parseSeatList(data['pending_seats']),
+        'locked_seats': _parseSeatList(data['locked_seats']),
         'user_booking_status': data['user_booking_status'],
         'co_passengers': _parseCoPassengers(data['co_passengers']),
       };

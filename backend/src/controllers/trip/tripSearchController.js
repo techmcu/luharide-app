@@ -6,6 +6,7 @@ const logger = require('../../config/logger');
 const retentionConfig = require('../../config/retentionConfig');
 const toTitleCase = require('../../utils/titleCase');
 const olaMaps = require('../../services/olaMapsService');
+const { getLockedSeatNumbers } = require('./seatLockController');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function requireUuid(id) {
@@ -671,10 +672,20 @@ const getTripBookedSeats = asyncHandler(async (req, res) => {
     }
   }
 
+  // Driver-reserved (locked) seats are unbookable too — surface them so the seat
+  // map greys them out. Best-effort: missing table (pre-migration) → no locks.
+  let locked = [];
+  try {
+    locked = await getLockedSeatNumbers(pool, tripId);
+  } catch (e) {
+    logger.warn('Booked seats: locked fetch failed:', e.code, e.message);
+  }
+  const lockedSet = new Set(locked);
+
   const bookedSet = new Set(booked);
   bookedSet.add(1); // Seat 1 = driver (reserved, not bookable)
   const pendingSet = new Set(pending);
-  const allTakenSet = new Set([...bookedSet, ...pending]);
+  const allTakenSet = new Set([...bookedSet, ...pending, ...lockedSet]);
   const totalSeats = tripCheck.rows[0].total_seats;
   const availableCount = Math.max(0, totalSeats - allTakenSet.size);
 
@@ -682,6 +693,7 @@ const getTripBookedSeats = asyncHandler(async (req, res) => {
     {
       booked: [...bookedSet].sort((a, b) => a - b),
       pending: [...pendingSet].sort((a, b) => a - b),
+      locked: [...lockedSet].sort((a, b) => a - b),
       total_seats: totalSeats,
       available_seats: Math.max(0, availableCount),
     },

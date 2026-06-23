@@ -196,6 +196,28 @@ const createBooking = asyncHandler(async (req, res) => {
       }
     }
 
+    // Driver-reserved (locked) seats block booking just like a taken seat. Same
+    // transaction (trip row already locked above) keeps this race-safe vs a
+    // concurrent lock. Missing table (pre-migration) → no locks, never errors.
+    try {
+      const lockRes = await client.query(
+        'SELECT seat_number FROM trip_seat_locks WHERE trip_id = $1',
+        [trip_id]
+      );
+      const lockedSet = new Set(
+        lockRes.rows.map(r => (typeof r.seat_number === 'number' ? r.seat_number : parseInt(r.seat_number, 10)))
+      );
+      for (const seat of uniqueSeats) {
+        if (lockedSet.has(seat)) {
+          await client.query('ROLLBACK');
+          throw ApiError.badRequest(`Seat ${seat} is reserved by the driver and is not available.`);
+        }
+      }
+    } catch (e) {
+      if (e.statusCode) throw e; // our own ROLLBACK + badRequest
+      if (e.code !== '42P01') throw e; // unexpected DB error
+    }
+
     const totalAmount = uniqueSeats.length * farePerSeat;
     const bookingStatus = requireApproval ? 'pending' : 'confirmed';
 

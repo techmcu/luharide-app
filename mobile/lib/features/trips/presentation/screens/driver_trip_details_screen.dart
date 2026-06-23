@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/trip_model.dart';
+import '../../../../models/seat_layout.dart';
+import '../../../../models/vehicle_catalog.dart';
 import '../../../../services/trip_service.dart';
 import '../../../../services/review_service.dart';
 import '../../../../utils/launch_whatsapp.dart';
@@ -29,6 +31,16 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
   String? _bookingsError;
   bool _loadingBookings = false;
 
+  // Seat map (logical seat numbers: 1 = driver, 2..N bookable).
+  SeatLayoutConfig? _layout;
+  Set<int> _driverSeatIndices = {};
+  List<int> _logicalSeatNumber = [];
+  int _effectiveTotalSeats = 0;
+  Set<int> _bookedSeatNums = {};   // confirmed
+  Set<int> _pendingSeatNums = {};  // awaiting approval
+  Set<int> _lockedSeatNums = {};   // reserved by this driver
+  bool _seatActionBusy = false;
+
   @override
   void initState() {
     super.initState();
@@ -37,21 +49,124 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
 
   Future<void> _loadTripDetails() async {
     setState(() => _isLoading = true);
-    
+
     final result = await _tripService.getTripDetails(widget.tripId);
-    
+
     if (result['success'] && result['trip'] != null) {
       _trip = result['trip'];
     } else if (widget.initialTrip != null) {
       // Fallback: use trip from My Rides list when API fails ( avoids "Trip not found" )
       _trip = widget.initialTrip;
     }
-    
+
+    if (_trip != null) {
+      _initLayout();
+      await _loadSeatStatus();
+    }
+
     // Always load bookings - needed for Accept/Reject buttons
     await _loadBookings();
-    
+
     if (!mounted) return;
     setState(() => _isLoading = false);
+  }
+
+  /// Build the same top-view layout + logical seat numbering the passenger sees,
+  /// so a locked seat number always lines up across both screens (no conflict).
+  void _initLayout() {
+    final trip = _trip!;
+    final model = trip.vehicleModelId != null
+        ? VehicleCatalog.findModelById(trip.vehicleModelId!)
+        : null;
+    _layout = model?.layout ?? VehicleCatalog.layoutForCapacity(trip.totalSeats.clamp(1, 32));
+    _effectiveTotalSeats = (model?.layout.seats.length ?? trip.totalSeats).clamp(1, 32);
+    _driverSeatIndices = _layout!.seats
+        .asMap()
+        .entries
+        .where((e) => e.value.type == 'driver')
+        .map((e) => e.key)
+        .toSet();
+    _logicalSeatNumber = List.filled(_effectiveTotalSeats, 0);
+    var next = 2;
+    for (var i = 0; i < _effectiveTotalSeats; i++) {
+      _logicalSeatNumber[i] = _driverSeatIndices.contains(i) ? 1 : next++;
+    }
+  }
+
+  Future<void> _loadSeatStatus() async {
+    final res = await _tripService.getTripBookedSeats(widget.tripId);
+    if (!mounted) return;
+    if (res['success'] == true) {
+      Set<int> toSet(dynamic v) => Set<int>.from(
+          (v as List? ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0).where((n) => n > 0));
+      setState(() {
+        _bookedSeatNums = toSet(res['booked'])..remove(1); // seat 1 = driver, not a passenger seat
+        _pendingSeatNums = toSet(res['pending']);
+        _lockedSeatNums = toSet(res['locked']);
+      });
+    }
+  }
+
+  Future<void> _toggleSeatLock(int seatNum) async {
+    if (_seatActionBusy) return;
+    if (_lockedSeatNums.contains(seatNum)) {
+      await _runSeatAction(() => _tripService.unlockSeats(widget.tripId, [seatNum]));
+      return;
+    }
+    // Confirm reserve (with optional note for the relative's name).
+    final controller = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Reserve seat $seatNum?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('No passenger will be able to book this seat until you release it.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLength: 80,
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)',
+                hintText: 'e.g. for my brother',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple),
+            child: const Text('Reserve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _runSeatAction(
+        () => _tripService.lockSeats(widget.tripId, [seatNum], note: controller.text));
+  }
+
+  Future<void> _runSeatAction(Future<Map<String, dynamic>> Function() action) async {
+    setState(() => _seatActionBusy = true);
+    final result = await action();
+    if (!mounted) return;
+    setState(() => _seatActionBusy = false);
+    AppFeedback.show(
+      context,
+      result['message']?.toString() ?? (result['success'] == true ? 'Done' : 'Failed'),
+      kind: result['success'] == true ? AppFeedbackKind.success : AppFeedbackKind.error,
+    );
+    // Refresh seat map + counts after any change.
+    await _loadSeatStatus();
+    final t = await _tripService.getTripDetails(widget.tripId);
+    if (mounted && t['success'] == true && t['trip'] != null) {
+      setState(() => _trip = t['trip']);
+    }
   }
 
   Future<void> _loadBookings() async {
@@ -535,70 +650,138 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
   }
 
   Widget _buildSeatLayout() {
-    final totalSeats = _trip!.totalSeats;
-    final seatsPerRow = totalSeats <= 7 ? 2 : 3;
-    final rows = (totalSeats / seatsPerRow).ceil();
+    final layout = _layout;
+    if (layout == null) {
+      return const Padding(
+        padding: EdgeInsets.all(8),
+        child: Text('Seat layout unavailable.', style: TextStyle(color: Colors.grey)),
+      );
+    }
+    final totalSeats = _effectiveTotalSeats;
+    final Map<String, int> indexByPos = {};
+    for (var i = 0; i < layout.seats.length; i++) {
+      final s = layout.seats[i];
+      indexByPos['${s.row}-${s.col}'] = i;
+    }
 
     return Column(
       children: [
-        // Driver seat
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(8),
+        // Hint
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.deepPurple[50],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.lock_outline, size: 18, color: Colors.deepPurple[400]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tap a free seat to reserve it (e.g. for a relative). Tap again to release.',
+                  style: TextStyle(fontSize: 12, color: Colors.deepPurple[700]),
+                ),
               ),
-              child: const Icon(Icons.airline_seat_recline_extra, size: 24),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 16),
-        // Seats grid
-        ...List.generate(rows, (rowIndex) {
+        ...List.generate(layout.rows, (rowIndex) {
+          final colCount = layout.colsForRow(rowIndex);
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(seatsPerRow, (colIndex) {
-                final seatNumber = rowIndex * seatsPerRow + colIndex;
-                if (seatNumber >= totalSeats) {
-                  return const SizedBox(width: 50);
+              children: List.generate(colCount, (colIndex) {
+                final seatIndex = indexByPos['$rowIndex-$colIndex'];
+                if (seatIndex == null || seatIndex >= totalSeats) {
+                  return const SizedBox(width: 56, height: 64);
                 }
-                return _buildSeatIcon(seatNumber);
+                return _buildSeatIcon(seatIndex);
               }),
             ),
           );
         }),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 14,
+          runSpacing: 6,
+          children: [
+            _seatLegend(Colors.orange, 'Driver'),
+            _seatLegend(Colors.green, 'Booked'),
+            _seatLegend(Colors.orange[300]!, 'Pending'),
+            _seatLegend(Colors.deepPurple, 'Reserved'),
+            _seatLegend(Colors.blue[100]!, 'Free'),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildSeatIcon(int seatNumber) {
-    final seatNum = seatNumber + 1;
-    final isBooked = _bookings.any((b) => b.seatNumbers.contains(seatNum));
-    
+  Widget _seatLegend(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.event_seat, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _buildSeatIcon(int seatIndex) {
+    final isDriver = _driverSeatIndices.contains(seatIndex);
+    final seatNum = _logicalSeatNumber[seatIndex];
+    final isBooked = _bookedSeatNums.contains(seatNum);
+    final isPending = _pendingSeatNums.contains(seatNum);
+    final isLocked = _lockedSeatNums.contains(seatNum);
+
+    Color color;
+    if (isDriver) {
+      color = Colors.orange;
+    } else if (isBooked) {
+      color = Colors.green;
+    } else if (isPending) {
+      color = Colors.orange[300]!;
+    } else if (isLocked) {
+      color = Colors.deepPurple;
+    } else {
+      color = Colors.blue[100]!;
+    }
+
+    // Only free or reserved (by us) seats are tappable. Booked/pending/driver are not.
+    final canToggle = !isDriver && !isBooked && !isPending && !_seatActionBusy;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Column(
-        children: [
-          Icon(
-            Icons.event_seat,
-            size: 40,
-            color: isBooked ? Colors.green : Colors.grey[300],
+      child: GestureDetector(
+        onTap: canToggle ? () => _toggleSeatLock(seatNum) : null,
+        child: SizedBox(
+          width: 56,
+          child: Column(
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Icon(isDriver ? Icons.local_taxi : Icons.event_seat, size: 40, color: color),
+                  if (isLocked)
+                    const Icon(Icons.lock, size: 16, color: Colors.white),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                isDriver ? 'D' : '$seatNum',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: isDriver ? Colors.orange[900] : Colors.grey[700],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            '${seatNumber + 1}',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: isBooked ? Colors.green : Colors.grey,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

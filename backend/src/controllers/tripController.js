@@ -42,6 +42,12 @@ const {
   deleteTrip,
 } = require('./trip/tripLifecycleController');
 
+const {
+  lockSeats,
+  unlockSeats,
+  getLockedSeatNumbers,
+} = require('./trip/seatLockController');
+
 // ── Create trip (Driver only) ───────────────────────────────────────────────
 const createTrip = asyncHandler(async (req, res) => {
   const {
@@ -554,7 +560,18 @@ const getTripDetails = asyncHandler(async (req, res) => {
   const bookedSet = new Set(booked);
   bookedSet.add(1);
   const pendingSet = new Set(pending);
-  const allTakenSet = new Set([...bookedSet, ...pendingSet]);
+
+  // Driver-reserved (locked) seats: block booking like a taken seat. Best-effort
+  // — a missing table (pre-migration) yields [] so details never break.
+  let lockedSeats = [];
+  try {
+    lockedSeats = await getLockedSeatNumbers(pool, id);
+  } catch (e) {
+    logger.warn('Trip details: locked seats fetch failed:', e.code, e.message);
+  }
+  const lockedSet = new Set(lockedSeats);
+
+  const allTakenSet = new Set([...bookedSet, ...pendingSet, ...lockedSet]);
   const totalSeats = trip.total_seats ?? trip.total_capacity ?? 0;
   const availableSeats = Math.max(0, totalSeats - allTakenSet.size);
 
@@ -639,6 +656,7 @@ const getTripDetails = asyncHandler(async (req, res) => {
       },
       booked_seats: [...bookedSet].sort((a, b) => a - b),
       pending_seats: [...pendingSet].sort((a, b) => a - b),
+      locked_seats: [...lockedSet].sort((a, b) => a - b),
       user_booking_status: userBookingStatus,
       co_passengers: coPassengers,
     },
@@ -771,5 +789,7 @@ module.exports = {
   startTrip,
   completeTrip,
   cancelTrip,
-  deleteTrip
+  deleteTrip,
+  lockSeats,
+  unlockSeats
 };

@@ -154,7 +154,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     if (result['success'] == true) {
       final booked = Set<int>.from((result['booked'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0));
       final pending = Set<int>.from((result['pending'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0));
-      _applySeatData(booked, pending);
+      // Driver-reserved (locked) seats are unbookable — show them as booked (grey).
+      final locked = Set<int>.from((result['locked'] ?? []).map((e) => (e is num) ? e.toInt() : int.tryParse(e.toString()) ?? 0));
+      _applySeatData(booked.union(locked), pending);
     } else if (!hasInitialData) {
       _loadError = result['message']?.toString();
       final bookedCount = totalSeats - widget.trip.availableSeats.clamp(0, totalSeats);
@@ -585,30 +587,38 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           children: [
-                            // Driver seat indicator
+                            // Front-of-vehicle marker (orientation cue + subtle brand).
+                            // The actual driver seat is shown inside the grid below
+                            // (orange 'D'), so this stays small — no duplicate "Driver".
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(8),
+                                    color: Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.airline_seat_recline_extra, size: 30),
-                                      const SizedBox(width: 8),
+                                      Icon(Icons.airline_seat_recline_normal, size: 14, color: Colors.grey[600]),
+                                      const SizedBox(width: 4),
                                       Text(
-                                        loc.t('seat.select.legend.driver'),
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        'LuhaRide',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600,
+                                          letterSpacing: 0.3,
+                                          color: Colors.grey[600],
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             // Seats Grid - based on same SeatLayoutConfig as verification
                             ...List.generate(layout.rows, (rowIndex) {
                               final colCount = layout.colsForRow(rowIndex);
