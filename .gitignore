@@ -92,3 +92,7 @@ ADMIN_CREDENTIALS.md
 CORRECT_LOGIN_CREDENTIALS.md
 backend/env_full_copy_paste.txt
 backend/env_with_admin_email.txt
+PASSWORD_RESET_GUIDE.md
+backend/fix-password.md
+backend/reset-all-passwords.js
+backend/update-password.js
