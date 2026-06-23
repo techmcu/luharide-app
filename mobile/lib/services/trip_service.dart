@@ -256,6 +256,12 @@ class TripService {
         'locked': _parseSeatList(response.data['data']?['locked_seats']),
       };
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {
+          'success': false,
+          'message': 'Seat reserve is not available yet — please update the app / wait for the server update.',
+        };
+      }
       return {
         'success': false,
         'message': dioResponseMessage(e) ?? 'Could not reserve seat',
@@ -278,6 +284,12 @@ class TripService {
         'locked': _parseSeatList(response.data['data']?['locked_seats']),
       };
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {
+          'success': false,
+          'message': 'Seat reserve is not available yet — please update the app / wait for the server update.',
+        };
+      }
       return {
         'success': false,
         'message': dioResponseMessage(e) ?? 'Could not release seat',

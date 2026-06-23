@@ -145,14 +145,23 @@ const lockSeats = asyncHandler(async (req, res) => {
 
     // Insert all locks. ON CONFLICT guards against a race we already filtered.
     let inserted = 0;
-    for (const seat of seatNumbers) {
-      const ins = await client.query(
-        `INSERT INTO trip_seat_locks (trip_id, seat_number, note, created_by)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (trip_id, seat_number) DO NOTHING`,
-        [tripId, seat, note, driverId]
-      );
-      inserted += ins.rowCount;
+    try {
+      for (const seat of seatNumbers) {
+        const ins = await client.query(
+          `INSERT INTO trip_seat_locks (trip_id, seat_number, note, created_by)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (trip_id, seat_number) DO NOTHING`,
+          [tripId, seat, note, driverId]
+        );
+        inserted += ins.rowCount;
+      }
+    } catch (insErr) {
+      await client.query('ROLLBACK');
+      // Table not migrated yet (e.g. server mid-deploy) — clean message, not a 500.
+      if (insErr.code === '42P01') {
+        throw ApiError.serviceUnavailable('Seat reserve is being set up. Please try again in a little while.');
+      }
+      throw insErr;
     }
 
     // Keep available_seats consistent so search / details show the true count.
