@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/trip_service.dart';
@@ -34,7 +35,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Timer? _debounce;
   final _locationService = LocationService();
   List<PickedLocation> _apiPlaces = [];
-  List<String> _recentLocations = [];
+  // Recent searches now carry coordinates (not just the name) so tapping one runs
+  // the SAME proximity search as a fresh Ola pick — a name-only recent used to
+  // silently fall back to text search and miss real coordinate-based rides.
+  List<PickedLocation> _recentLocations = [];
   bool _isLoading = false;
   bool _hasFetched = false;
   bool _gettingLocation = false;
@@ -45,9 +49,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   static const _recentKey = 'luha_recent_locations';
   static const _maxRecent = 5;
 
-  // Hardcoded town list removed — suggestions now come only from real Ola Maps
-  // places (with coordinates) + the user's recent searches.
-  static const _popularLocations = <String>[];
 
   @override
   void initState() {
@@ -87,27 +88,62 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     super.dispose();
   }
 
+  /// Decode stored entries. New entries are JSON ({name,secondary,lat,lng});
+  /// old entries were plain name strings — handled gracefully (name-only).
+  List<PickedLocation> _decodeRecent(List<String> raw) {
+    final out = <PickedLocation>[];
+    for (final s in raw) {
+      if (s.trim().isEmpty) continue;
+      try {
+        final d = jsonDecode(s);
+        if (d is Map<String, dynamic>) {
+          out.add(PickedLocation.fromJson(d));
+          continue;
+        }
+      } catch (_) {/* legacy plain string */}
+      out.add(PickedLocation.nameOnly(s));
+    }
+    return out;
+  }
+
+  Future<void> _persistRecent(List<PickedLocation> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _recentKey,
+      items.map((e) => jsonEncode(e.toJson())).toList(),
+    );
+  }
+
   Future<void> _loadRecentLocations() async {
     final prefs = await SharedPreferences.getInstance();
-    final recent = prefs.getStringList(_recentKey) ?? [];
+    final recent = _decodeRecent(prefs.getStringList(_recentKey) ?? []);
     if (mounted) setState(() => _recentLocations = recent);
   }
 
-  Future<void> _saveRecentLocation(String location) async {
+  /// Save the full picked location (WITH coordinates) so a later tap on this
+  /// recent runs proximity search, not a coordinate-less text search.
+  Future<void> _saveRecentLocation(PickedLocation location) async {
+    if (location.name.trim().isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
-    final recent = prefs.getStringList(_recentKey) ?? [];
-    recent.removeWhere((l) => l.toLowerCase() == location.toLowerCase());
-    recent.insert(0, location);
-    if (recent.length > _maxRecent) recent.removeRange(_maxRecent, recent.length);
-    await prefs.setStringList(_recentKey, recent);
+    final items = _decodeRecent(prefs.getStringList(_recentKey) ?? []);
+    // If the same name already exists WITH coords but the new one has none,
+    // keep the richer (coord-bearing) version so we never downgrade.
+    final existingIdx = items.indexWhere((l) => l.name.toLowerCase() == location.name.toLowerCase());
+    PickedLocation toSave = location;
+    if (existingIdx != -1) {
+      final old = items[existingIdx];
+      if (!location.hasCoords && old.hasCoords) toSave = old;
+      items.removeAt(existingIdx);
+    }
+    items.insert(0, toSave);
+    if (items.length > _maxRecent) items.removeRange(_maxRecent, items.length);
+    await _persistRecent(items);
   }
 
-  Future<void> _removeRecentLocation(String location) async {
-    final prefs = await SharedPreferences.getInstance();
-    final recent = prefs.getStringList(_recentKey) ?? [];
-    recent.removeWhere((l) => l.toLowerCase() == location.toLowerCase());
-    await prefs.setStringList(_recentKey, recent);
-    if (mounted) setState(() => _recentLocations = recent);
+  Future<void> _removeRecentLocation(String name) async {
+    _recentLocations.removeWhere((l) => l.name.toLowerCase() == name.toLowerCase());
+    await _persistRecent(_recentLocations);
+    if (mounted) setState(() {});
   }
 
   Future<void> _clearAllRecent() async {
@@ -125,26 +161,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       return;
     }
     _debounce = Timer(const Duration(milliseconds: 300), _fetchSuggestions);
-  }
-
-  List<String> _rankLocations(List<String> locations, String query) {
-    final q = query.toLowerCase();
-    final filtered = locations.where((l) => l.toLowerCase().contains(q)).toList();
-    filtered.sort((a, b) {
-      final al = a.toLowerCase();
-      final bl = b.toLowerCase();
-      final aExact = al == q;
-      final bExact = bl == q;
-      if (aExact != bExact) return aExact ? -1 : 1;
-      final aStarts = al.startsWith(q);
-      final bStarts = bl.startsWith(q);
-      if (aStarts != bStarts) return aStarts ? -1 : 1;
-      final aWord = al.split(RegExp(r'\s+')).any((w) => w.startsWith(q));
-      final bWord = bl.split(RegExp(r'\s+')).any((w) => w.startsWith(q));
-      if (aWord != bWord) return aWord ? -1 : 1;
-      return al.compareTo(bl);
-    });
-    return filtered;
   }
 
   Future<void> _fetchSuggestions() async {
@@ -166,7 +182,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   /// Returns the chosen place (name + optional coordinates) to the caller.
   void _selectPicked(PickedLocation p) {
-    _saveRecentLocation(p.name);
+    _saveRecentLocation(p);
     Navigator.pop(context, p);
   }
 
@@ -294,12 +310,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             ),
           ),
           ..._recentLocations.map((loc) => _LocationTile(
-                location: loc,
+                location: loc.name,
+                subtitle: loc.secondary.isNotEmpty ? loc.secondary : null,
                 icon: Icons.history_rounded,
                 iconBgColor: Colors.grey.withValues(alpha: 0.08),
                 iconColor: Colors.grey[500]!,
-                onTap: () => _selectPicked(PickedLocation.nameOnly(loc)),
-                onRemove: () => _removeRecentLocation(loc),
+                onTap: () => _selectPicked(loc),
+                onRemove: () => _removeRecentLocation(loc.name),
               )),
           Divider(height: 24, indent: 16, endIndent: 16, color: Colors.grey[100]),
         ],
@@ -321,14 +338,20 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     if (_hasFetched) {
       displayList = _apiPlaces;
     } else {
-      var names = _rankLocations(
-        [..._recentLocations, ..._popularLocations],
-        query,
-      );
-      // deduplicate, then wrap as name-only (no coords until the API resolves)
+      // While the Ola API loads, show instant matches from recent searches.
+      // These now carry coordinates, so selecting one searches correctly.
+      final matches =
+          _recentLocations.where((l) => l.name.toLowerCase().contains(qLower)).toList();
+      matches.sort((a, b) {
+        final al = a.name.toLowerCase();
+        final bl = b.name.toLowerCase();
+        final aStarts = al.startsWith(qLower);
+        final bStarts = bl.startsWith(qLower);
+        if (aStarts != bStarts) return aStarts ? -1 : 1;
+        return al.compareTo(bl);
+      });
       final seen = <String>{};
-      names = names.where((l) => seen.add(l.toLowerCase())).toList();
-      displayList = names.map(PickedLocation.nameOnly).toList();
+      displayList = matches.where((l) => seen.add(l.name.toLowerCase())).toList();
     }
 
     if (displayList.isEmpty && !_isLoading) {

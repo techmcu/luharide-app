@@ -30,6 +30,14 @@ class PickedLocation {
   /// A name-only location (no coordinates) — for the legacy text path.
   factory PickedLocation.nameOnly(String name) => PickedLocation(name: name);
 
+  /// Serialize for local storage (recent searches). Mirrors [fromJson].
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'secondary': secondary,
+        'lat': lat,
+        'lng': lng,
+      };
+
   @override
   String toString() => name;
 }

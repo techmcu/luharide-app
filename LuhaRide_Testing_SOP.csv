@@ -1,6 +1,6 @@
 ,,,,LuhaRide — Testing SOP,,,,,,
 ,,,,Standard Operating Procedure for Feature Testing,,,,,,
-,,,,Version: 3.1 | Last Updated: 2026-06-23 — + Ola Maps & Location + Driver Seat Reserve/Lock,,,,,,
+,,,,Version: 3.2 | Last Updated: 2026-06-23 — + Recent-search coordinates fix (proximity from cache),,,,,,
 ,,,,Prepared by: LuhaRide QA Team,,,,,,
 ,,,,,,,,,,
 Test ID,Module,Category,Feature,Test Scenario,Steps,Expected Result,Priority,Status,Automation,Tester Notes
@@ -113,6 +113,7 @@ P-071,Passenger,Maps,Location Permission Denied,Graceful handling when GPS denie
 P-072,Passenger,Maps,Route Estimate,Distance + duration between points,"1. Pick From + To with coordinates 2. Proceed","Backend returns road distance + duration. Used for fare ceiling (no suggested price shown).",Medium,,✅ API (full-test-v2.js ML04),
 P-073,Passenger,Maps,Proximity Search Radius,"Short trip tight, long trip capped","1. Search a short route (~20km) with coordinates 2. Search a long route (~250km)","Short trip matches only nearby rides (tight radius); long trip widens but caps at 50km. No 'tolerance bigger than trip'.",High,,✅ API (full-test-v2.js ML05),
 P-074,Passenger,Maps,Cross-State Destination,Destination outside Uttarakhand bounds,"1. Create/search a ride Uttarakhand → Delhi (dest outside bias bounds) 2. Geocode destination","Destination still resolves correctly (not forced inside Uttarakhand). EDGE: verify bias bounds don't drop valid cross-state drops.",Medium,,❌ Manual only (API edge),
+P-075,Passenger,Maps,Recent Search Keeps Coordinates,Tapping a cached recent finds rides,"1. Search a place via Ola list (coords attach) 2. Go back; open From field 3. Tap the same name under 'Recent Searches' 4. Search","Same rides appear as a fresh Ola pick — recent now carries lat/lng, so it runs proximity search (NOT coordinate-less text search). Regression fix.",High,,✅ CI (picked_location_test.dart — coords round-trip),
 ,,,,,,,,,,
 ,,,,PART B — INDEPENDENT DRIVER FEATURES,,,,,,
 ,,,,,,,,,,
@@ -472,5 +473,5 @@ SEC-011,Common,Security,Rating Context — Deleted Booking,Booking deleted by re
 SEC-012,Common,Security,No Base64 Photo in Notification,Photo not stored in notification data,"1. Check notification data JSON in DB for rate_ride type","data has target_name + seat_numbers. No target_photo (prevents 5MB bloat).",High,,❌ Manual only (DB check),
 ,,,,,,,,,,
 ,,,,END OF TEST CASES,,,,,,
-,,,,Total: 346 Test Cases | 7 Parts | 57 Categories,,,,,,
-,,,,Automated (CI/API): 111 | Manual only: 235,,,,,,
+,,,,Total: 347 Test Cases | 7 Parts | 57 Categories,,,,,,
+,,,,Automated (CI/API): 112 | Manual only: 235,,,,,,
