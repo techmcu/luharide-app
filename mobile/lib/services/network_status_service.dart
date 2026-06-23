@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'package:flutter/widgets.dart';
-import 'api_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
-/// Tracks connectivity by pinging the backend.
+/// Tracks connectivity the way Ola/Uber/WhatsApp do — **event-driven, zero polling**.
 ///
-/// Design notes (why it behaves the way it does):
-/// - A SINGLE failed ping does NOT flip the app offline. We require
-///   [_failuresBeforeOffline] consecutive failures so a momentary blip
-///   (e.g. the network waking up when the app is resumed) doesn't flash
-///   the red banner.
-/// - On app resume ([AppLifecycleState.resumed]) we immediately re-check
-///   with a few quick retries, so the user never has to tap "Retry" manually.
-/// - Any successful ping instantly marks online and resets the failure count.
+/// We NEVER ping the server on a timer. Online/offline is derived from:
+///  1. OS connectivity events ([Connectivity.onConnectivityChanged]) — the device
+///     itself pushes wifi/mobile/none changes. No request, no battery drain.
+///  2. Real request outcomes (reactive) — [ApiService] calls [markOnline] on any
+///     successful response and [markOffline] on a true network error
+///     (connection/timeout). So "device has wifi but server unreachable" is still
+///     caught — the moment a real call fails, not 15s later by a wasted health ping.
+///
+/// Net effect: 1 user or 1 crore, the server gets **no** background connectivity
+/// traffic. This scales infinitely.
 class NetworkStatusService extends ChangeNotifier with WidgetsBindingObserver {
   NetworkStatusService._();
   static final NetworkStatusService instance = NetworkStatusService._();
@@ -19,33 +21,37 @@ class NetworkStatusService extends ChangeNotifier with WidgetsBindingObserver {
   bool _isOnline = true;
   bool get isOnline => _isOnline;
 
-  Timer? _timer;
-  bool _checking = false;
-  int _consecutiveFailures = 0;
+  StreamSubscription<List<ConnectivityResult>>? _sub;
   bool _observerRegistered = false;
 
-  /// Number of back-to-back failed pings before we show "offline".
-  /// 1 was too trigger-happy (every transient blip flashed the banner).
-  static const int _failuresBeforeOffline = 2;
-
   void startMonitoring() {
-    _timer?.cancel();
-    // Auto re-check when the app comes back to foreground. Guarded so plain
-    // unit tests (no WidgetsBinding) don't crash.
+    // Re-check when the app returns to foreground (network may have changed
+    // while backgrounded). Guarded so plain unit tests (no binding) don't crash.
     if (!_observerRegistered) {
       try {
         WidgetsBinding.instance.addObserver(this);
         _observerRegistered = true;
-      } catch (_) {
-        // Binding not initialized (e.g. unit test) — periodic timer still works.
-      }
+      } catch (_) {/* no binding in unit test */}
     }
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) => check());
+
+    // Subscribe to OS connectivity events. Guarded: in unit tests the plugin
+    // channel isn't available — we simply skip the subscription, no crash.
+    try {
+      _sub?.cancel().catchError((_) {});
+      _sub = Connectivity().onConnectivityChanged.listen(
+        _onConnectivityChanged,
+        onError: (_) {/* ignore plugin errors — reactive path still covers us */},
+      );
+      // Seed the current state once (also guarded).
+      Connectivity().checkConnectivity().then(_onConnectivityChanged).catchError((_) {});
+    } catch (_) {/* plugin unavailable (unit test) */}
   }
 
   void stopMonitoring() {
-    _timer?.cancel();
-    _timer = null;
+    try {
+      _sub?.cancel().catchError((_) {});
+    } catch (_) {}
+    _sub = null;
     if (_observerRegistered) {
       try {
         WidgetsBinding.instance.removeObserver(this);
@@ -57,60 +63,36 @@ class NetworkStatusService extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // App reopened — give the network a moment to wake, then auto-recover.
       forceRecheck();
     }
   }
 
-  /// Periodic / passive check. Debounced: only flips offline after repeated fails.
-  Future<void> check() async {
-    if (_checking) return;
-    _checking = true;
-    try {
-      _applyResult(await _ping());
-    } finally {
-      _checking = false;
-    }
+  bool _hasNetwork(List<ConnectivityResult> results) {
+    if (results.isEmpty) return false;
+    return results.any((r) => r != ConnectivityResult.none);
   }
 
-  /// Optimistic re-check used by manual "Retry" and on app resume.
-  /// Tries a few times with a short delay before giving up, so a network
-  /// that is still waking up gets a fair chance — no manual retry needed.
-  Future<void> forceRecheck() async {
-    if (_checking) return;
-    _checking = true;
-    try {
-      for (var attempt = 0; attempt < 3; attempt++) {
-        if (await _ping()) {
-          _applyResult(true);
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 800));
-      }
-      _applyResult(false);
-    } finally {
-      _checking = false;
-    }
-  }
-
-  Future<bool> _ping() async {
-    try {
-      await ApiService().get('/health');
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  void _applyResult(bool ok) {
-    if (ok) {
-      _consecutiveFailures = 0;
-      _setOnline(true);
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    if (_hasNetwork(results)) {
+      // Device has a network. Optimistically online — if the SERVER is actually
+      // down, the next real API call will flip us back via [markOffline].
+      markOnline();
     } else {
-      _consecutiveFailures++;
-      if (_consecutiveFailures >= _failuresBeforeOffline) {
-        _setOnline(false);
-      }
+      // No interface at all — definitively offline.
+      markOffline();
+    }
+  }
+
+  /// Manual "Retry" / app-resume. Re-reads OS connectivity only — **no server
+  /// ping**. If the device has a network we go online; a still-down server is
+  /// caught reactively by the next real request.
+  Future<void> forceRecheck() async {
+    try {
+      final results = await Connectivity().checkConnectivity();
+      _onConnectivityChanged(results);
+    } catch (_) {
+      // Plugin unavailable — assume online; reactive path will correct.
+      markOnline();
     }
   }
 
@@ -121,10 +103,9 @@ class NetworkStatusService extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
+  /// Called by [ApiService] on a real network failure (connection/timeout).
   void markOffline() => _setOnline(false);
 
-  void markOnline() {
-    _consecutiveFailures = 0;
-    _setOnline(true);
-  }
+  /// Called by [ApiService] on any successful response, and on connectivity-up.
+  void markOnline() => _setOnline(true);
 }

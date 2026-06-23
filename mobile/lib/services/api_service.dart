@@ -10,6 +10,7 @@ import '../core/utils/api_error_messages.dart';
 import 'dio_adapter_config.dart'
     if (dart.library.html) 'dio_adapter_config_web.dart';
 import 'realtime_socket_service.dart';
+import 'network_status_service.dart';
 
 /// Builds the **full request URL** so we never rely on Dio `baseUrl` + path merging
 /// (which can drop `/api` or behave differently per platform).
@@ -100,6 +101,8 @@ class ApiService {
           return handler.next(options);
         },
         onResponse: (response, handler) {
+          // Reactive connectivity: a real response means the server is reachable.
+          NetworkStatusService.instance.markOnline();
           if (kDebugMode) {
             // ignore: avoid_print
             print('🟢 RESPONSE[${response.statusCode}] => ${response.requestOptions.uri}');
@@ -162,6 +165,9 @@ class ApiService {
               error.type == DioExceptionType.sendTimeout ||
               error.type == DioExceptionType.receiveTimeout ||
               error.type == DioExceptionType.connectionError) {
+            // Reactive connectivity: a true network failure = we're offline.
+            // (HTTP errors like 4xx/5xx are NOT here — server is reachable then.)
+            NetworkStatusService.instance.markOffline();
             final friendly = DioException(
               requestOptions: error.requestOptions,
               type: error.type,
