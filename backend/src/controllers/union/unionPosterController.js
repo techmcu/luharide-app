@@ -3,6 +3,7 @@ const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
+const { IST_TODAY_START } = require('../../utils/istDay');
 const PDFDocument = require('pdfkit');
 
 const DAILY_POSTER_LIMIT = 3;
@@ -11,7 +12,7 @@ async function _checkPosterDailyLimit(unionId) {
   const countRes = await pool.query(
     `SELECT COUNT(*)::int AS cnt FROM union_daily_actions
      WHERE union_id = $1 AND action_type = 'poster'
-       AND created_at >= CURRENT_DATE`,
+       AND created_at >= ${IST_TODAY_START}`,
     [unionId]
   );
   if (countRes.rows[0].cnt >= DAILY_POSTER_LIMIT) {

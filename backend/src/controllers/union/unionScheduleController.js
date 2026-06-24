@@ -6,6 +6,7 @@ const logger = require('../../config/logger');
 const toTitleCase = require('../../utils/titleCase');
 const { sendPushToMultipleUsers } = require('../../utils/pushNotification');
 const olaMaps = require('../../services/olaMapsService');
+const { IST_TODAY_START } = require('../../utils/istDay');
 
 const DAILY_SCHEDULE_LIMIT = 3;            // publishes (button clicks) per union per day
 const MAX_SCHEDULES_PER_PUBLISH = 50;      // rides (drivers) per single publish
@@ -131,7 +132,7 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
     const countRes = await client.query(
       `SELECT COUNT(*)::int AS cnt FROM union_daily_actions
        WHERE union_id = $1 AND action_type = 'bulk_schedule'
-         AND created_at >= CURRENT_DATE`,
+         AND created_at >= ${IST_TODAY_START}`,
       [unionId]
     );
     todayCount = countRes.rows[0].cnt;
