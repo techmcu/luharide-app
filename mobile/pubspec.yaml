@@ -68,6 +68,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/luharide_launcher_master.png
 
 # Native launch splash — removes the brief black flash on (first) cold start by
 # drawing a branded white screen with the logo until Flutter's first frame.

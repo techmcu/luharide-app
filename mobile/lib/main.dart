@@ -129,9 +129,30 @@ class LuhaRideApp extends StatelessWidget {
                 builder: (context) {
                   if (authProvider.status == AuthStatus.initial ||
                       !langProvider.isInitialized) {
-                    return const Scaffold(
+                    return Scaffold(
+                      backgroundColor: Colors.white,
                       body: Center(
-                        child: CircularProgressIndicator(),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Brand logo while the app initializes. errorBuilder
+                            // keeps it crash-proof if the asset ever fails to load.
+                            Image.asset(
+                              'assets/branding/luharide_launcher_master.png',
+                              width: 120,
+                              height: 120,
+                              filterQuality: FilterQuality.medium,
+                              errorBuilder: (_, __, ___) =>
+                                  const SizedBox(width: 120, height: 120),
+                            ),
+                            const SizedBox(height: 24),
+                            const SizedBox(
+                              width: 26,
+                              height: 26,
+                              child: CircularProgressIndicator(strokeWidth: 2.6),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   }
