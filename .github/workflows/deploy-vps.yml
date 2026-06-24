@@ -6,6 +6,11 @@ on:
     types: [completed]
   workflow_dispatch:
 
+# Never run two staging deploys at once; let an in-progress one finish.
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
 jobs:
   deploy-staging:
     name: Build & Deploy to staging
@@ -18,13 +23,37 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2
+
+      # Only rebuild the (expensive) Flutter web bundle when mobile actually
+      # changed. A manual run (workflow_dispatch) always rebuilds. Backend is
+      # always synced below regardless — only the web build is gated.
+      - name: Detect changed areas
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
+          else
+            changed="$(git diff --name-only HEAD~1 HEAD || true)"
+            echo "Changed files:"; echo "$changed"
+            if echo "$changed" | grep -q '^mobile/'; then
+              echo "mobile=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "mobile=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
 
       - name: Setup Flutter
+        if: steps.changes.outputs.mobile == 'true'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
+          cache: true
 
       - name: Build staging web
+        if: steps.changes.outputs.mobile == 'true'
         working-directory: mobile
         run: |
           flutter pub get
@@ -40,7 +69,10 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
 
+      # Gated to match the build step above: when mobile didn't change there is
+      # no fresh bundle to upload, so we keep the existing one already on the VPS.
       - name: Upload web build to staging
+        if: steps.changes.outputs.mobile == 'true'
         env:
           VPS_IP: ${{ secrets.VPS_IP }}
         run: |

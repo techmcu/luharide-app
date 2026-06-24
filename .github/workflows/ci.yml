@@ -9,7 +9,34 @@ permissions:
   contents: read
   pull-requests: read
 
+# Cancel superseded runs on the same ref so rapid pushes don't stack up minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Detect which areas changed so we only run the heavy jobs that are needed.
+  # A docs-only commit runs just this tiny job + the (cheap) secret scan.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+            mobile:
+              - 'mobile/**'
+              - 'shared/**'
+              - '.github/workflows/ci.yml'
+
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
@@ -28,6 +55,8 @@ jobs:
 
   backend-tests:
     name: Backend tests (jest)
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -51,6 +80,8 @@ jobs:
 
   mobile-tests:
     name: Mobile tests (flutter)
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -63,6 +94,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
+          cache: true
 
       - name: Pub get
         run: flutter pub get
@@ -72,4 +104,3 @@ jobs:
 
       - name: Test
         run: flutter test
-
