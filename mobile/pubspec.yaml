@@ -64,9 +64,26 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.1
   flutter_launcher_icons: ^0.14.3
+  flutter_native_splash: ^2.4.1
 
 flutter:
   uses-material-design: true
+
+# Native launch splash — removes the brief black flash on (first) cold start by
+# drawing a branded white screen with the logo until Flutter's first frame.
+# Covers light + dark mode and the Android 12+ SplashScreen API.
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: assets/branding/luharide_launcher_master.png
+  color_dark: "#FFFFFF"
+  image_dark: assets/branding/luharide_launcher_master.png
+  android_12:
+    color: "#FFFFFF"
+    image: assets/branding/luharide_launcher_master.png
+    color_dark: "#FFFFFF"
+    image_dark: assets/branding/luharide_launcher_master.png
+  android: true
+  ios: true
 
 flutter_launcher_icons:
   android: true
