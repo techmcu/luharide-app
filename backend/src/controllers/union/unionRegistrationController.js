@@ -5,6 +5,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const { enqueueBuildPdf, enqueueCopyPdf } = require('../../jobs/kycQueue');
 const { sanitizeKycUploadUrl: sanitizeDocumentUrl } = require('../../utils/sanitizeKycUploadUrl');
+const userCache = require('../../utils/userCache');
 const {
   demoteUnionAdminsOrphanedByReject,
   unlinkUnionAdminsForRejectedUnion,
@@ -41,6 +42,7 @@ const getMyUnion = asyncHandler(async (req, res) => {
       `UPDATE users SET role = 'union_admin' WHERE id = $1 AND role <> 'union_admin'`,
       [userId]
     );
+    userCache.invalidate(userId); // fresh role visible immediately (no 60s "Access denied")
     logger.info(`Auto-fixed role to union_admin for user ${userId} (union ${union.id} is approved)`);
   }
 

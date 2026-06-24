@@ -17,8 +17,12 @@ jest.mock('../../jobs/kycQueue', () => ({
 jest.mock('../../utils/sanitizeKycUploadUrl', () => ({
   sanitizeKycUploadUrl: jest.fn((url) => url || null),
 }));
+jest.mock('../../utils/userCache', () => ({
+  get: jest.fn(() => null), set: jest.fn(), invalidate: jest.fn(), clear: jest.fn(),
+}));
 
 const { pool } = require('../../config/database');
+const userCache = require('../../utils/userCache');
 
 const { getMyUnion, registerUnion, updateUnionBranding, updateUnionDocuments } = require('./unionRegistrationController');
 const { approveUnionRequest, rejectUnionRequest, listUnions, approveUnion, rejectUnion } = require('./unionAdminController');
@@ -68,6 +72,16 @@ describe('getMyUnion', () => {
       ([sql]) => typeof sql === 'string' && sql.includes("role = 'union_admin'")
     );
     expect(roleUpdate).toBeTruthy();
+  });
+
+  it('invalidates the userCache after promoting the role (no stale "Access denied")', async () => {
+    const union = { id: 'union-1', status: 'approved' };
+    pool.query
+      .mockResolvedValueOnce({ rows: [union] }) // SELECT union
+      .mockResolvedValueOnce({ rows: [] });      // UPDATE role
+    getMyUnion({ user: { id: 'u-1', role: 'passenger' } }, mockRes(), jest.fn());
+    await flush();
+    expect(userCache.invalidate).toHaveBeenCalledWith('u-1');
   });
 });
 

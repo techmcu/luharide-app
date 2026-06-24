@@ -1,6 +1,7 @@
 const { pool } = require('../../config/database');
 const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
+const userCache = require('../../utils/userCache');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const {
@@ -66,15 +67,21 @@ const approveUnionRequest = asyncHandler(async (req, res) => {
       [id]
     );
 
-    await client.query(
+    const roleUpd = await client.query(
       `UPDATE users
        SET role = 'union_admin'
        WHERE id IN (SELECT user_id FROM union_admins WHERE union_id = $1)
-         AND role <> 'union_admin'`,
+         AND role <> 'union_admin'
+       RETURNING id`,
       [id]
     );
 
     await client.query('COMMIT');
+
+    // The just-promoted admin must see their new role IMMEDIATELY — drop the
+    // 60s userCache entry, else authorize('union_admin') reads the stale cached
+    // role and returns "Access denied" until the cache expires.
+    for (const u of roleUpd.rows) userCache.invalidate(u.id);
 
     logger.info(`Union approved from admin panel ${id} by user ${req.user.id}`);
 
@@ -179,13 +186,17 @@ const approveUnion = asyncHandler(async (req, res) => {
     [id]
   );
 
-  await pool.query(
+  const roleUpd = await pool.query(
     `UPDATE users
      SET role = 'union_admin'
      WHERE id IN (SELECT user_id FROM union_admins WHERE union_id = $1)
-       AND role <> 'union_admin'`,
+       AND role <> 'union_admin'
+     RETURNING id`,
     [id]
   );
+
+  // Fresh role visible immediately (see note above) — invalidate the cache.
+  for (const u of roleUpd.rows) userCache.invalidate(u.id);
 
   logger.info(`Union approved ${id} by platform admin ${req.user.id}`);
 

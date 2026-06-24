@@ -1,6 +1,7 @@
 const { pool } = require('../../config/database');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const userCache = require('../../utils/userCache');
 
 const adminEmail = process.env.ADMIN_EMAIL
   ? process.env.ADMIN_EMAIL.toLowerCase().trim()
@@ -28,9 +29,13 @@ async function demoteUnionAdminsOrphanedByReject(unionId, queryFn = pool) {
          INNER JOIN unions u2 ON u2.id = ua2.union_id
          WHERE ua2.user_id = u.id
            AND u2.status IN ('pending', 'approved')
-       )`,
+       )
+     RETURNING u.id`,
     [unionId]
   );
+  // Role just changed → drop cached entries so the new (demoted) role is seen
+  // immediately, not up to 60s later.
+  for (const u of r.rows) userCache.invalidate(u.id);
   if (r.rowCount > 0) {
     logger.info(
       `Demoted ${r.rowCount} user(s) from union_admin after union ${unionId} rejection`

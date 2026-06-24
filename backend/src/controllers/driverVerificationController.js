@@ -6,6 +6,7 @@ const logger = require('../config/logger');
 const { emitNotificationToUser } = require('../socket/realtimeEmitter');
 const { enqueueBuildPdf } = require('../jobs/kycQueue');
 const { sanitizeKycUploadUrl: sanitizeDocUrl } = require('../utils/sanitizeKycUploadUrl');
+const userCache = require('../utils/userCache');
 
 /** Preserve order; drop empty. */
 function orderedSanitizedDocUrls(urlList) {
@@ -381,6 +382,11 @@ const approveRequest = asyncHandler(async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    // Newly-approved driver must see role 'driver' immediately — drop the 60s
+    // userCache entry, else driver-only routes return "Access denied" until it
+    // expires (same class of bug as the union approval).
+    userCache.invalidate(request.user_id);
 
     // Notify driver outside transaction (non-critical)
     try {
