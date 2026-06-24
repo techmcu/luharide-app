@@ -30,6 +30,57 @@ function geoBoundingBox(lat, lng, radiusKm) {
 }
 
 /**
+ * Rank location-autocomplete suggestions so the RIGHT same-named place wins.
+ * Pure (no I/O) → unit-testable. REGION-AGNOSTIC: works anywhere in India, not
+ * just Uttarakhand — there is no hardcoded centre or service-area penalty, so a
+ * Mumbai/Chennai/Kolkata user is never disadvantaged.
+ *
+ * Order of precedence:
+ *  1. Text relevance: exact → starts-with → word-starts → contains.
+ *  2. NEAREST to the reference point first (silent proximity — no km is shown;
+ *     the district/state label does the visible disambiguation). Distance is
+ *     measured from wherever the USER is, so the local same-named place wins in
+ *     ANY region.
+ *  3. Simplest / shortest name, then alphabetical.
+ *
+ * `near` is the best available reference: live GPS, else the already-picked
+ * "from" location (the app passes it as the picker bias). When there is NO
+ * reference at all, proximity is skipped entirely (no region is penalised) and
+ * results fall back to pure text relevance — neutral and correct everywhere.
+ * (The app's primary-market nudge still lives, softly, in the upstream Ola
+ * autocomplete config — not here, where it would over-bias one region.)
+ */
+function rankPlaces(places, { query, near } = {}) {
+  const qLower = String(query || '').toLowerCase();
+  const ref = (near && olaMaps.isValidLatLng(near.lat, near.lng)) ? near : null;
+  const hasCoords = (p) => p && p.lat != null && p.lng != null && olaMaps.isValidLatLng(p.lat, p.lng);
+  const textRank = (d) => {
+    const s = String(d || '').toLowerCase();
+    if (s === qLower) return 0;
+    if (s.startsWith(qLower)) return 1;
+    if (s.split(/[\s,]+/).some((w) => w.startsWith(qLower))) return 2;
+    return 3;
+  };
+  const distKm = (p) => ((ref && hasCoords(p)) ? olaMaps.haversineKm(ref.lat, ref.lng, p.lat, p.lng) : Infinity);
+
+  return [...places].sort((a, b) => {
+    const ra = textRank(a.description); const rb = textRank(b.description);
+    if (ra !== rb) return ra - rb;
+    // Proximity to the user's own reference — region-agnostic. No effect when
+    // there is no reference (both Infinity), so non-local users aren't penalised.
+    if (ref) {
+      const da = distKm(a); const db = distKm(b);
+      if (da !== db) return da - db;
+    }
+    const ca = (a.description.match(/,/g) || []).length;
+    const cb = (b.description.match(/,/g) || []).length;
+    if (ca !== cb) return ca - cb;
+    if (a.description.length !== b.description.length) return a.description.length - b.description.length;
+    return String(a.description).localeCompare(String(b.description));
+  });
+}
+
+/**
  * Proximity + rating search — used when the app sends origin coordinates.
  * Ranks rides by "nearness to you" combined with driver rating, so the closest
  * well-rated rides surface first (concentric-circle idea). Backward compatible:
@@ -899,30 +950,14 @@ const getLocationSuggestions = asyncHandler(async (req, res) => {
     places.push({ description: s, secondary: 'Uttarakhand', lat: null, lng: null });
   }
 
-  // Rank: exact → starts-with → word-starts → contains; then SHORTEST/simplest
-  // name first (so "Dehradun" beats "Dehradun Railway Station, Paltan Bazar…").
-  // As the query gets more specific, the matching simple name rises to the top.
-  const rankScore = (desc) => {
-    const d = desc.toLowerCase();
-    if (d === qLower) return 0;
-    if (d.startsWith(qLower)) return 1;
-    if (d.split(/[\s,]+/).some((w) => w.startsWith(qLower))) return 2;
-    return 3;
-  };
-  places.sort((a, b) => {
-    const ra = rankScore(a.description);
-    const rb = rankScore(b.description);
-    if (ra !== rb) return ra - rb;
-    // simpler = fewer commas, then shorter overall
-    const ca = (a.description.match(/,/g) || []).length;
-    const cb = (b.description.match(/,/g) || []).length;
-    if (ca !== cb) return ca - cb;
-    if (a.description.length !== b.description.length) return a.description.length - b.description.length;
-    return a.description.localeCompare(b.description);
-  });
+  // Rank by text relevance → in-area → NEAREST to the reference point (silent
+  // proximity) → simplest name. `near` falls back to the region center inside
+  // rankPlaces when the device location is off, so the right same-named place
+  // still wins. District/state label (secondary) does the visible disambiguation.
+  const rankedPlaces = rankPlaces(places, { query: qLower, near });
 
   ApiResponse.success(
-    { suggestions, places: places.slice(0, 15) },
+    { suggestions, places: rankedPlaces.slice(0, 15) },
     'Location suggestions'
   ).send(res);
 });
@@ -986,4 +1021,5 @@ module.exports = {
   // Exported for unit testing of pure search helpers (no behavior change).
   geoBoundingBox,
   requireUuid,
+  rankPlaces,
 };
