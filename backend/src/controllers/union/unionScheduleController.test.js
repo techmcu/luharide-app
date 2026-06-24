@@ -1,6 +1,6 @@
 /**
- * Union schedule creation — SOP U-010→012
- * DB is mocked — no real database connection.
+ * Union schedule creation (createUnionSchedulesBulk) + pure validation helpers.
+ * DB and external services are mocked — no real database, no network.
  *
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │ 🔒 RULE LOCKS — READ THIS IF CI FAILS HERE                                │
@@ -9,11 +9,13 @@
  * │ matlab tumne us STABLE rule ko galti se tod diya. Test ka NAAM batata hai  │
  * │ kya toota. Niche map se code ki jagah dekho aur wahi theek karo:           │
  * │                                                                           │
- * │  RULE 1  Ek publish mein kam se kam 1 driver        → controller L16-18   │
- * │  RULE 2  Ek publish mein zyada se zyada 50 driver   → controller L19-21   │
- * │  RULE 3  Din mein sirf 3 baar publish               → controller L39-50   │
- * │  RULE 4  Ek publish = sirf 1 ginti (1 ya 50 driver) → controller L84-88   │
- * │  RULE 5  Notification sirf din ki PEHLI publish pe   → controller L102-105 │
+ * │  RULE 1  Ek publish mein kam se kam 1 ride            → validateScheduleItems
+ * │  RULE 2  Ek publish mein zyada se zyada 50 ride       → validateScheduleItems
+ * │  RULE 3  Din mein sirf 3 baar publish (race-safe)     → createUnionSchedulesBulk txn
+ * │  RULE 4  Ek publish = sirf 1 ginti (1..50 ride)       → one daily-action INSERT
+ * │  RULE 5  Notification sirf din ki PEHLI publish pe     → if (todayCount === 0)
+ * │  RULE 6  Ride sirf FUTURE ki, past ki nahi            → isFutureDeparture
+ * │  RULE 7  Har ride ka apna route+time ho sakta hai     → normalizeScheduleItems(schedules[])
  * │                                                                           │
  * │ Yeh rules JAANBOOJHKAR locked hain. Inhe badalna ho to PEHLE Rahul se      │
  * │ confirm karo, phir test bhi saath update karo — warna CI rokega.          │
@@ -26,7 +28,7 @@ jest.mock('../../config/database', () => ({
 jest.mock('../../config/logger', () => ({
   info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(),
 }));
-jest.mock('../../utils/titleCase', () => jest.fn(s => s));
+jest.mock('../../utils/titleCase', () => jest.fn((s) => s));
 jest.mock('../../utils/pushNotification', () => ({
   sendPushToMultipleUsers: jest.fn().mockResolvedValue(),
 }));
@@ -39,226 +41,245 @@ jest.mock('../../services/olaMapsService', () => ({
 const { pool } = require('../../config/database');
 const olaMaps = require('../../services/olaMapsService');
 const { sendPushToMultipleUsers } = require('../../utils/pushNotification');
-const { createUnionSchedulesBulk } = require('./unionScheduleController');
+const {
+  createUnionSchedulesBulk,
+  normalizeScheduleItems,
+  isFutureDeparture,
+  validateScheduleItems,
+} = require('./unionScheduleController');
 
 function mockRes() {
   return { status: jest.fn().mockReturnThis(), json: jest.fn().mockReturnThis() };
 }
-const flush = () => new Promise(r => setImmediate(r));
+const flush = () => new Promise((r) => setImmediate(r));
+const settle = async () => { for (let i = 0; i < 6; i++) await flush(); };
 
 const ADMIN_ID  = 'a0000000-0000-0000-0000-000000000001';
 const UNION_ID  = 'c0000000-0000-0000-0000-000000000001';
 const DRIVER_ID = 'd0000000-0000-0000-0000-000000000001';
+const futureTime = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
+const pastTime   = () => new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+// ════════════════════════════════════════════════════════════════════════════
+//  PURE HELPERS — no DB, fast, every edge case
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('normalizeScheduleItems', () => {
+  test('RULE 7: NEW schedules[] shape — each ride keeps its own route + time', () => {
+    const items = normalizeScheduleItems({
+      schedules: [
+        { union_driver_id: 'd1', from_location: 'Dehradun', to_location: 'Purola', departure_time: 't1', from_lat: '30.3', from_lng: 78.0 },
+        { union_driver_id: 'd2', from_location: 'Purola', to_location: 'Dehradun', departure_time: 't2' },
+      ],
+    });
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ unionDriverId: 'd1', fromLocation: 'Dehradun', toLocation: 'Purola', departureTime: 't1', fromLat: 30.3, fromLng: 78.0 });
+    expect(items[1]).toMatchObject({ unionDriverId: 'd2', fromLocation: 'Purola', toLocation: 'Dehradun', departureTime: 't2' });
+  });
+
+  test('LEGACY union_driver_ids shape — one shared route+time fans out per driver', () => {
+    const items = normalizeScheduleItems({
+      union_driver_ids: ['d1', 'd2', 'd3'],
+      from_location: 'Dehradun', to_location: 'Purola', departure_time: 't',
+    });
+    expect(items).toHaveLength(3);
+    expect(items.every((it) => it.fromLocation === 'Dehradun' && it.toLocation === 'Purola' && it.departureTime === 't')).toBe(true);
+  });
+
+  test('empty / missing body → empty list (caller rejects)', () => {
+    expect(normalizeScheduleItems({})).toEqual([]);
+    expect(normalizeScheduleItems(undefined)).toEqual([]);
+    expect(normalizeScheduleItems({ union_driver_ids: [] })).toEqual([]);
+  });
+
+  test('coerces numeric-string coords, trims text, tolerates junk coords', () => {
+    const [it] = normalizeScheduleItems({
+      schedules: [{ union_driver_id: '  d1  ', from_location: ' A ', to_location: ' B ', from_lat: 'abc', to_lng: '' }],
+    });
+    expect(it.unionDriverId).toBe('d1');
+    expect(it.fromLocation).toBe('A');
+    expect(it.fromLat).toBeNull(); // 'abc' → null, never NaN
+    expect(it.toLng).toBeNull();
+  });
+});
+
+describe('isFutureDeparture', () => {
+  const now = Date.now();
+  test('future time → true', () => expect(isFutureDeparture(new Date(now + 3600_000).toISOString(), now)).toBe(true));
+  test('clearly past time → false', () => expect(isFutureDeparture(new Date(now - 3600_000).toISOString(), now)).toBe(false));
+  test('within 1-min skew grace → true', () => expect(isFutureDeparture(new Date(now - 30_000).toISOString(), now)).toBe(true));
+  test('null / empty → false', () => { expect(isFutureDeparture(null, now)).toBe(false); expect(isFutureDeparture('', now)).toBe(false); });
+  test('unparseable → false', () => expect(isFutureDeparture('not-a-date', now)).toBe(false));
+});
+
+describe('validateScheduleItems', () => {
+  const ok = (over = {}) => ({ unionDriverId: 'd1', fromLocation: 'A', toLocation: 'B', departureTime: futureTime(), ...over });
+
+  test('RULE 1: empty batch → 400', () => {
+    expect(() => validateScheduleItems([])).toThrow(expect.objectContaining({ statusCode: 400 }));
+  });
+  test('RULE 2: more than 50 rides → 400', () => {
+    const big = Array.from({ length: 51 }, (_, i) => ok({ unionDriverId: `d${i}` }));
+    expect(() => validateScheduleItems(big)).toThrow(expect.objectContaining({ statusCode: 400 }));
+  });
+  test('exactly 50 rides is allowed', () => {
+    const fifty = Array.from({ length: 50 }, (_, i) => ok({ unionDriverId: `d${i}` }));
+    expect(() => validateScheduleItems(fifty)).not.toThrow();
+  });
+  test('missing driver → 400', () => {
+    expect(() => validateScheduleItems([ok({ unionDriverId: '' })])).toThrow(expect.objectContaining({ statusCode: 400 }));
+  });
+  test('missing from/to → 400', () => {
+    expect(() => validateScheduleItems([ok({ toLocation: '' })])).toThrow(expect.objectContaining({ statusCode: 400 }));
+  });
+  test('RULE 6: a past departure time → 400', () => {
+    expect(() => validateScheduleItems([ok({ departureTime: pastTime() })])).toThrow(expect.objectContaining({ statusCode: 400 }));
+  });
+  test('returns DISTINCT driver ids (dedupes)', () => {
+    const ids = validateScheduleItems([ok({ unionDriverId: 'd1' }), ok({ unionDriverId: 'd1' }), ok({ unionDriverId: 'd2' })]);
+    expect(ids.sort()).toEqual(['d1', 'd2']);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+//  CONTROLLER — DB mocked by SQL content (order-independent)
+// ════════════════════════════════════════════════════════════════════════════
 
 describe('createUnionSchedulesBulk', () => {
   let client;
 
-  beforeEach(() => {
-    jest.clearAllMocks();
-    client = { query: jest.fn(), release: jest.fn() };
-    pool.connect.mockResolvedValue(client);
-  });
-
-  it('RULE 1: ek publish mein kam se kam 1 driver zaroori (0 → reject)', async () => {
-    const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: [] },
-      user: { id: ADMIN_ID },
-    };
-    const next = jest.fn();
-    createUnionSchedulesBulk(req, mockRes(), next);
-    await flush();
-
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
-  });
-
-  it('RULE 2: ek publish mein 50 se zyada driver allowed nahi (>50 → reject)', async () => {
-    const ids = Array.from({ length: 51 }, (_, i) => `d000-${i}`);
-    const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: ids },
-      user: { id: ADMIN_ID },
-    };
-    const next = jest.fn();
-    createUnionSchedulesBulk(req, mockRes(), next);
-    await flush();
-
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
-  });
-
-  it('rejects when no approved union found', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [] }); // no union
-
-    const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: [DRIVER_ID] },
-      user: { id: ADMIN_ID },
-    };
-    const next = jest.fn();
-    createUnionSchedulesBulk(req, mockRes(), next);
-    await flush();
-
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
-  });
-
-  it('RULE 3: din mein 3 baar se zyada publish allowed nahi (4th → reject)', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ union_id: UNION_ID, union_name: 'Test', fcm_enabled: false }] })
-      .mockResolvedValueOnce({ rows: [{ cnt: 3 }] }); // daily limit hit
-
-    const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: [DRIVER_ID] },
-      user: { id: ADMIN_ID },
-    };
-    const next = jest.fn();
-    createUnionSchedulesBulk(req, mockRes(), next);
-    await flush();
-
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
-  });
-
-  it('rejects invalid driver IDs for this union', async () => {
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ union_id: UNION_ID, union_name: 'Test', fcm_enabled: false }] })
-      .mockResolvedValueOnce({ rows: [{ cnt: 0 }] })     // daily count
-      .mockResolvedValueOnce({ rows: [] });                // driver check — mismatch
-
-    const req = {
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: [DRIVER_ID] },
-      user: { id: ADMIN_ID },
-    };
-    const next = jest.fn();
-    createUnionSchedulesBulk(req, mockRes(), next);
-    await flush();
-
-    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
-  });
-
-  // ── Bulk creation success (the multi-driver / multi-ride-per-day path) ──────
-  function setupSuccess({ cnt = 1, driverIds = [DRIVER_ID] } = {}) {
-    // Main path: union lookup -> daily count -> driver check. Background geo
-    // UPDATEs reuse the same pool.query mock (default below).
-    pool.query
-      .mockResolvedValueOnce({ rows: [{ union_id: UNION_ID, union_name: 'Test', fcm_enabled: false }] })
-      .mockResolvedValueOnce({ rows: [{ cnt }] })
-      .mockResolvedValueOnce({ rows: driverIds.map(id => ({ id })) })
-      .mockResolvedValue({ rows: [] }); // background geo-persist UPDATEs (best-effort)
-    const created = driverIds.map((id, i) => ({ id: `s-${i}`, union_driver_id: id }));
-    client.query
-      .mockResolvedValueOnce({ rows: [] })        // BEGIN
-      .mockResolvedValueOnce({ rows: created })   // INSERT ... RETURNING *
-      .mockResolvedValueOnce({ rows: [] })        // daily action INSERT
-      .mockResolvedValueOnce({ rows: [] });       // COMMIT
-    return created;
-  }
-
-  it('creates rides for many drivers in one publish and responds 201', async () => {
-    const driverIds = Array.from({ length: 8 }, (_, i) => `d000-${i}`);
-    setupSuccess({ cnt: 0, driverIds }); // cnt 0 → first ride of day path too
-    const res = mockRes();
-    const next = jest.fn();
-    createUnionSchedulesBulk({
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: driverIds },
-      user: { id: ADMIN_ID },
-    }, res, next);
-    await flush();
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(201);
-    const payload = res.json.mock.calls[0][0];
-    expect(payload.data.count).toBe(8);
-    expect(payload.data.schedules).toHaveLength(8);
-  });
-
-  // ── REGRESSION (no side-effects): a slow/failing Ola Maps geocode/route must
-  //    NOT block or fail ride creation — it now runs in the background. ─────────
-  it('still responds 201 when the Ola Maps route lookup throws', async () => {
-    setupSuccess({ cnt: 1 });
-    olaMaps.getRouteDistance.mockRejectedValueOnce(new Error('ola maps timeout'));
-    olaMaps.geocode.mockRejectedValueOnce(new Error('ola maps down'));
-    const res = mockRes();
-    const next = jest.fn();
-    createUnionSchedulesBulk({
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: [DRIVER_ID] },
-      user: { id: ADMIN_ID },
-    }, res, next);
-    await flush();
-    await flush(); // let background geo enrichment settle (and swallow its error)
-
-    expect(next).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(201);
-    expect(res.json.mock.calls[0][0].data.count).toBe(1);
-  });
-
-  // ── REQUIREMENT LOCKS — these guard the stable union-ride rules. If a future
-  //    change breaks any of them, CI fails BEFORE it ships. ─────────────────────
-
-  // Routes pool.query / client.query by SQL content (order-independent), so the
-  // background FCM + geo queries resolve correctly no matter when they run.
-  function mockPoolBySql({ cnt = 0, fcmEnabled = true, globalEnabled = true, passengers = ['p1'] } = {}) {
+  // Routes pool.query (main + background + FCM) and client.query (txn) by SQL text.
+  function mockDb({ cnt = 0, fcmEnabled = false, validDrivers = [DRIVER_ID], created } = {}) {
     pool.query.mockImplementation((sql) => {
       const s = String(sql);
       if (s.includes('FROM union_admins')) {
         return Promise.resolve({ rows: [{ union_id: UNION_ID, union_name: 'Test', fcm_enabled: fcmEnabled }] });
       }
-      if (s.includes('union_daily_actions') && s.includes('COUNT')) {
-        return Promise.resolve({ rows: [{ cnt }] });
-      }
       if (s.includes('FROM union_drivers')) {
-        return Promise.resolve({ rows: [{ id: DRIVER_ID }] });
+        return Promise.resolve({ rows: validDrivers.map((id) => ({ id })) });
       }
-      if (s.includes('fcm_global_union_rides')) {
-        return Promise.resolve({ rows: [{ value: globalEnabled ? 'true' : 'false' }] });
-      }
-      if (s.includes("role = 'passenger'")) {
-        return Promise.resolve({ rows: passengers.map((id) => ({ id })) });
-      }
-      return Promise.resolve({ rows: [] }); // geo UPDATEs etc.
+      if (s.includes('fcm_global_union_rides')) return Promise.resolve({ rows: [{ value: 'true' }] });
+      if (s.includes("role = 'passenger'")) return Promise.resolve({ rows: [{ id: 'p1' }] });
+      return Promise.resolve({ rows: [] }); // background geo UPDATEs
     });
+    client = { query: jest.fn(), release: jest.fn() };
     client.query.mockImplementation((sql) => {
       const s = String(sql);
+      if (s.includes('union_daily_actions') && s.includes('COUNT')) return Promise.resolve({ rows: [{ cnt }] });
       if (s.includes('INSERT INTO union_schedules')) {
-        return Promise.resolve({ rows: [{ id: 's-1', union_driver_id: DRIVER_ID }] });
+        return Promise.resolve({ rows: created || [{ id: 's-1', union_driver_id: DRIVER_ID }] });
       }
-      return Promise.resolve({ rows: [] }); // BEGIN, daily-action INSERT, COMMIT
+      return Promise.resolve({ rows: [] }); // BEGIN, FOR UPDATE, daily-action INSERT, COMMIT, ROLLBACK
     });
+    pool.connect.mockResolvedValue(client);
   }
 
-  const settle = async () => { for (let i = 0; i < 6; i++) await flush(); };
+  const call = (body) => {
+    const res = mockRes();
+    const next = jest.fn();
+    createUnionSchedulesBulk({ body, user: { id: ADMIN_ID } }, res, next);
+    return { res, next };
+  };
 
-  // REQ 4: one publish == exactly ONE daily-action row, no matter the driver count.
-  it('RULE 4: ek publish = sirf 1 ginti, chahe 1 ya 50 driver ho', async () => {
-    const driverIds = Array.from({ length: 12 }, (_, i) => `d000-${i}`);
-    setupSuccess({ cnt: 0, driverIds });
-    createUnionSchedulesBulk({
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: driverIds },
-      user: { id: ADMIN_ID },
-    }, mockRes(), jest.fn());
+  beforeEach(() => jest.clearAllMocks());
+
+  test('RULE 1: empty driver batch → 400', async () => {
+    mockDb();
+    const { next } = call({ union_driver_ids: [] });
     await flush();
-
-    const dailyActionInserts = client.query.mock.calls
-      .filter(([sql]) => String(sql).includes('union_daily_actions'));
-    expect(dailyActionInserts).toHaveLength(1);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
   });
 
-  // REQ 5a: notification fires on the FIRST publish of the day (todayCount 0).
-  it('RULE 5: notification din ki PEHLI publish pe jaata hai', async () => {
-    mockPoolBySql({ cnt: 0 });
-    createUnionSchedulesBulk({
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: [DRIVER_ID] },
-      user: { id: ADMIN_ID },
-    }, mockRes(), jest.fn());
-    await settle();
+  test('RULE 2: more than 50 rides → 400', async () => {
+    mockDb();
+    const big = Array.from({ length: 51 }, (_, i) => ({ union_driver_id: `d${i}`, from_location: 'A', to_location: 'B', departure_time: futureTime() }));
+    const { next } = call({ schedules: big });
+    await flush();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
+  });
 
+  test('RULE 6: a past departure time → 400 (no DB write)', async () => {
+    mockDb();
+    const { next } = call({ schedules: [{ union_driver_id: DRIVER_ID, from_location: 'A', to_location: 'B', departure_time: pastTime() }] });
+    await flush();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
+    expect(pool.connect).not.toHaveBeenCalled();
+  });
+
+  test('no approved union for admin → 403', async () => {
+    mockDb({ validDrivers: [DRIVER_ID] });
+    pool.query.mockImplementationOnce(() => Promise.resolve({ rows: [] })); // union lookup empty
+    const { next } = call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
+    await flush();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 403 }));
+  });
+
+  test('a driver not belonging to the union → 400', async () => {
+    mockDb({ validDrivers: [] }); // ownership check returns nothing
+    const { next } = call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
+    await flush();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
+  });
+
+  test('RULE 3: 4th publish of the day → 400 (limit checked inside the txn)', async () => {
+    mockDb({ cnt: 3 });
+    const { next } = call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
+    await flush();
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 400 }));
+    // must roll the transaction back, never commit
+    const sqls = client.query.mock.calls.map(([s]) => String(s));
+    expect(sqls).toEqual(expect.arrayContaining([expect.stringContaining('ROLLBACK')]));
+    expect(sqls).not.toEqual(expect.arrayContaining([expect.stringContaining('COMMIT')]));
+  });
+
+  test('RULE 7: many drivers with DIFFERENT routes in ONE publish → 201, all created', async () => {
+    const drivers = ['d1', 'd2', 'd3'];
+    const created = drivers.map((d, i) => ({ id: `s-${i}`, union_driver_id: d }));
+    mockDb({ cnt: 0, validDrivers: drivers, created });
+    const { res, next } = call({
+      schedules: [
+        { union_driver_id: 'd1', from_location: 'Dehradun', to_location: 'Purola', departure_time: futureTime() },
+        { union_driver_id: 'd2', from_location: 'Purola', to_location: 'Dehradun', departure_time: futureTime() },
+        { union_driver_id: 'd3', from_location: 'Naugaon', to_location: 'Roorkee', departure_time: futureTime() },
+      ],
+    });
+    await flush();
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json.mock.calls[0][0].data.count).toBe(3);
+  });
+
+  test('RULE 4: one publish records EXACTLY ONE daily-action, even with many rides', async () => {
+    const drivers = Array.from({ length: 10 }, (_, i) => `d${i}`);
+    const created = drivers.map((d, i) => ({ id: `s-${i}`, union_driver_id: d }));
+    mockDb({ cnt: 0, validDrivers: drivers, created });
+    call({ schedules: drivers.map((d) => ({ union_driver_id: d, from_location: 'A', to_location: 'B', departure_time: futureTime() })) });
+    await flush();
+    const dailyInserts = client.query.mock.calls.filter(([s]) => String(s).includes('INSERT INTO union_daily_actions'));
+    expect(dailyInserts).toHaveLength(1);
+  });
+
+  test('RULE 5: notification fires on the FIRST publish of the day', async () => {
+    mockDb({ cnt: 0, fcmEnabled: true });
+    call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
+    await settle();
     expect(sendPushToMultipleUsers).toHaveBeenCalledTimes(1);
   });
 
-  // REQ 5b: NO notification on the 2nd/3rd publish of the same day (todayCount > 0).
-  it('RULE 5: notification doosri/teesri publish pe NAHI jaata', async () => {
-    mockPoolBySql({ cnt: 1 });
-    createUnionSchedulesBulk({
-      body: { from_location: 'Dehradun', to_location: 'Purola', departure_time: new Date().toISOString(), union_driver_ids: [DRIVER_ID] },
-      user: { id: ADMIN_ID },
-    }, mockRes(), jest.fn());
+  test('RULE 5: notification does NOT fire on later publishes of the same day', async () => {
+    mockDb({ cnt: 1, fcmEnabled: true });
+    call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
     await settle();
-
     expect(sendPushToMultipleUsers).not.toHaveBeenCalled();
+  });
+
+  test('REGRESSION: a failing Ola Maps lookup never blocks/breaks creation (still 201)', async () => {
+    mockDb({ cnt: 1 });
+    olaMaps.getRouteDistance.mockRejectedValueOnce(new Error('ola maps down'));
+    olaMaps.geocode.mockRejectedValueOnce(new Error('ola maps down'));
+    const { res, next } = call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
+    await settle();
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
   });
 });
