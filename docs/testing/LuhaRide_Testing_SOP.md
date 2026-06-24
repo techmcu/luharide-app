@@ -656,8 +656,9 @@
 > CI), so a tester/dev can see at a glance what is regression-protected and what still
 > needs an automated test. Update this table whenever a `*.test.js` file is added.
 >
-> **Current state:** **510 automated tests, 52 suites, all green** (`cd backend && npm test`).
-> Baseline before this pass was 482; +28 added for previously-untested pure logic.
+> **Current state:** **519 automated tests, 53 suites, all green** (`cd backend && npm test`).
+> Baseline before the geo/poster pass was 482; +28 added for poster/geo helpers, then
+> +9 for driver-verification re-upload/url helpers.
 
 ### W1: Modules WITH automated coverage (regression-protected)
 
@@ -673,6 +674,9 @@
 | Admin directory | `adminDirectoryController.test.js` | listing/search |
 | **Union poster helpers** | `unionHelpers.test.js` *(new)* | `cleanUnionName`, `cleanPosterHeader`, `cleanPosterCustomText` (120-char cap), `getPosterTheme`/`Colors` fallback, `ensurePlatformAdmin` guard |
 | API version rewrite | `apiVersionRewrite.test.js` | `/api/v1/*` → `/api/*` |
+| Ratings / reviews | `reviewService.test.js` | submit 1–5, comment cap, ownership (passenger↔driver), cancel-eligibility rules, duplicate guard, summary avg |
+| Fare ceiling (anti-overcharge) | `fareService.test.js` | `estimateFare` fair+max, min-fare floor, `validateFare` blocks above ceiling & reveals only max |
+| **Driver-verification gate helpers** | `driverVerificationController.reupload.test.js` *(new)* | `isDriverAllowedToReupload` (flag===true, deadline window, NaN-deadline = open-ended), `orderedSanitizedDocUrls` (order-preserve, drop blanks/invalid) |
 | Services layer | colocated `*.test.js` | all services have a test file |
 
 ### W2: Modules WITHOUT a dedicated automated test (gaps) — with backend test logic
@@ -682,9 +686,10 @@
 
 | Pri | Module | Why it matters | Backend test logic to add |
 |-----|--------|----------------|---------------------------|
-| 🔴 P0 | `reviewController.js` | Ratings drive driver trust + auto-complaint/ban thresholds | supertest: submit rating 1–5 → 200; rating out of range → 400; rate a booking not yours → 403; duplicate rating → blocked; verify `reviewService.submitRating` average recompute |
-| 🔴 P0 | `driverVerificationController.js` | Gatekeeps who can create trips | supertest: submit w/o docs → 400; submit valid → pending; approved driver creates trip → 201; rejected → 403 (covers N-001..N-007 as automated) |
-| 🔴 P0 | `routeController.js` | Fare ceiling / route estimate (anti-overcharge) | unit: assert fare-range guard rejects fare above ceiling; estimate returns distance/duration shape; invalid coords → 400 |
+| ✅ done | ~~`reviewController.js`~~ | Ratings drive driver trust + auto-complaint/ban thresholds | **Covered** at service layer by `reviewService.test.js` (range, ownership, cancel rules, duplicate, summary). Controller is a thin pass-through. |
+| ✅ done | ~~Fare ceiling~~ | Anti-overcharge guard | **Covered** by `fareService.test.js` (`validateFare` blocks above ceiling). NB: `routeController.js` is *route search/popular*, not fare logic. |
+| 🟡 P1 | `driverVerificationController.js` | Gatekeeps who can create trips | Pure gate helpers now unit-tested (`*.reupload.test.js`). **Still pending:** supertest for the submit flow — w/o docs → 400; valid → pending; duplicate phone/vehicle → 409; union-active blocks driver path (N-001..N-007) |
+| 🟢 P2 | `routeController.js` | Route search/popular listing | supertest: search by q/from/to builds correct filter; only active routes; popular-first ordering |
 | 🟡 P1 | `contactLogController.js` | Union contact analytics (whatsapp/phone clicks) | supertest: log click inserts row; bad `type` → 400; stats aggregation returns per-driver counts; non-union-admin → 403 (V-007..V-009) |
 | 🟡 P1 | `fcmTokenController.js` | Push delivery depends on token register/dedup | unit/supertest: register token upserts (no dup); invalid token → 400; delete on logout |
 | 🟡 P1 | `union/unionPosterController.js` | Poster PDF + 3/day limit (helpers now tested; controller not) | supertest: generate poster → application/pdf; 4th in a day → 400 Hindi msg; other union's schedule → 403 (V-001..V-006) |

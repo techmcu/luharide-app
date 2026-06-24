@@ -471,5 +471,8 @@ module.exports = {
   getMyStatus,
   getPendingRequests,
   approveRequest,
-  rejectRequest
+  rejectRequest,
+  // Exported additively for unit testing — pure helpers, no behavior change.
+  isDriverAllowedToReupload,
+  orderedSanitizedDocUrls,
 };
