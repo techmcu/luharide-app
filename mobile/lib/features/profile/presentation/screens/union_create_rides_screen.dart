@@ -19,6 +19,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
   bool _loading = true;
   String? _error;
+  bool _isSubmitting = false; // guards the Create button against double-taps
 
   List<dynamic> _drivers = const [];
   List<dynamic> _routes = const [];
@@ -234,6 +235,11 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   }
 
   Future<void> _createRides() async {
+    // Re-entrancy guard: ignore accidental repeat taps on "Create Ride" while a
+    // publish is already in flight. Without this, a double-tap would fire two
+    // publishes and burn two of the 3/day limit. The button is also disabled
+    // (see _isSubmitting in the button below) — this is the belt to that braces.
+    if (_isSubmitting) return;
     if (_selectedDriverIds.isEmpty) {
       AppFeedback.show(
         context,
@@ -242,12 +248,23 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
       );
       return;
     }
+    setState(() => _isSubmitting = true);
+    try {
+      await _doCreateRides();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
 
-    String? error;
-    final List<String> createdIds = [];
-
+  Future<void> _doCreateRides() async {
+    // Group selected drivers by (route + departure time). All drivers that
+    // share the same route+time go out in ONE bulk call = ONE publish = ONE
+    // daily-action. (Previously each driver was sent as its own call, so 4
+    // drivers burned 4 of the 3/day publishes — the very first ride failed with
+    // "3 se zyada nahi bana sakte".) Drivers on a different route/time form a
+    // separate group = a separate publish, which is correct.
+    final Map<String, Map<String, dynamic>> groups = {};
     for (final id in _selectedDriverIds) {
-      if (!mounted) return;
       final routeId = _driverRouteIds[id];
       final route = _routes
           .cast<Map<String, dynamic>>()
@@ -265,10 +282,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         return;
       }
 
-      final from = route['from_location']?.toString() ?? '';
-      final to   = route['to_location']?.toString() ?? '';
-      final dt   = _driverTimes[id] ?? _selectedDateTime;
-
+      final dt = _driverTimes[id] ?? _selectedDateTime;
       if (dt == null) {
         AppFeedback.show(
           context,
@@ -278,15 +292,35 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         return;
       }
 
+      final key = '$routeId|${dt.toIso8601String()}';
+      final group = groups.putIfAbsent(
+        key,
+        () => {'route': route, 'dt': dt, 'driverIds': <String>[]},
+      );
+      (group['driverIds'] as List<String>).add(id);
+    }
+
+    String? error;
+    final List<String> createdIds = [];
+    double? parseCoord(dynamic v) =>
+        v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
+
+    for (final group in groups.values) {
+      if (!mounted) return;
+      final route = group['route'] as Map<String, dynamic>;
+      final dt = group['dt'] as DateTime;
+      final driverIds = group['driverIds'] as List<String>;
+      final from = route['from_location']?.toString() ?? '';
+      final to   = route['to_location']?.toString() ?? '';
+
       // Reuse the exact coordinates saved on the route (no geocoding guess).
-      double? _d(dynamic v) => v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
       final res = await _service.createSchedulesBulk(
         fromLocation: from,
         toLocation: to,
         departureTime: dt,
-        unionDriverIds: [id],
-        fromLat: _d(route['from_lat']), fromLng: _d(route['from_lng']),
-        toLat: _d(route['to_lat']), toLng: _d(route['to_lng']),
+        unionDriverIds: driverIds,
+        fromLat: parseCoord(route['from_lat']), fromLng: parseCoord(route['from_lng']),
+        toLat: parseCoord(route['to_lat']), toLng: parseCoord(route['to_lng']),
       );
       if (res['success'] == true) {
         final schedules = res['schedules'] as List<dynamic>? ?? [];
@@ -756,20 +790,30 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
             width: double.infinity,
             height: 56,
             child: ElevatedButton.icon(
-              onPressed: _createRides,
+              // Disabled while a publish is in flight → no accidental double-submit.
+              onPressed: _isSubmitting ? null : _createRides,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.orange.withValues(alpha: 0.6),
+                disabledForegroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 2,
               ),
-              icon: const Icon(Icons.check_circle_rounded, size: 22),
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_circle_rounded, size: 22),
               label: Text(
-                _selectedDriverIds.isEmpty
-                    ? 'Select drivers above to create rides'
-                    : 'Create rides for ${_selectedDriverIds.length} driver${_selectedDriverIds.length > 1 ? 's' : ''}',
+                _isSubmitting
+                    ? 'Creating rides…'
+                    : _selectedDriverIds.isEmpty
+                        ? 'Select drivers above to create rides'
+                        : 'Create rides for ${_selectedDriverIds.length} driver${_selectedDriverIds.length > 1 ? 's' : ''}',
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 15),
               ),
