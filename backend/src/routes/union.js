@@ -61,15 +61,17 @@ const addUnionRouteSchema = Joi.object({
 });
 
 // One ride inside a batch publish (NEW shape) — each ride its own route + time.
+// Coords are optional AND nullable (the app sends `null` for legacy routes that
+// have no saved coordinates — geo is best-effort, resolved in the background).
 const scheduleItemSchema = Joi.object({
   union_driver_id: Joi.string().uuid().required(),
   from_location: Joi.string().min(2).max(100).required(),
   to_location: Joi.string().min(2).max(100).required(),
   departure_time: Joi.date().iso().required(),
-  from_lat: Joi.number().min(-90).max(90),
-  from_lng: Joi.number().min(-180).max(180),
-  to_lat: Joi.number().min(-90).max(90),
-  to_lng: Joi.number().min(-180).max(180),
+  from_lat: Joi.number().min(-90).max(90).allow(null),
+  from_lng: Joi.number().min(-180).max(180).allow(null),
+  to_lat: Joi.number().min(-90).max(90).allow(null),
+  to_lng: Joi.number().min(-180).max(180).allow(null),
 });
 
 // Accepts BOTH shapes (backward compatible): the NEW `schedules[]` batch (up to
@@ -81,10 +83,10 @@ const createSchedulesSchema = Joi.object({
   from_location: Joi.string().min(2).max(100),
   to_location: Joi.string().min(2).max(100),
   departure_time: Joi.date().iso(),
-  from_lat: Joi.number().min(-90).max(90),
-  from_lng: Joi.number().min(-180).max(180),
-  to_lat: Joi.number().min(-90).max(90),
-  to_lng: Joi.number().min(-180).max(180),
+  from_lat: Joi.number().min(-90).max(90).allow(null),
+  from_lng: Joi.number().min(-180).max(180).allow(null),
+  to_lat: Joi.number().min(-90).max(90).allow(null),
+  to_lng: Joi.number().min(-180).max(180).allow(null),
 })
   .or('schedules', 'union_driver_ids')
   .with('union_driver_ids', ['from_location', 'to_location', 'departure_time']);
@@ -286,3 +288,5 @@ router.get(
 );
 
 module.exports = router;
+// Exported for unit testing the request schema (no behavior change).
+module.exports.createSchedulesSchema = createSchedulesSchema;

@@ -4,6 +4,37 @@ const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const toTitleCase = require('../../utils/titleCase');
+const olaMaps = require('../../services/olaMapsService');
+
+/**
+ * Best-effort: fill a route's missing coords by geocoding its text, AFTER the
+ * response (never blocks route creation). Ensures every route ends up with
+ * lat/lng so union rides get coordinates for proximity (70/30) matching even
+ * when the admin typed the place instead of picking it from autocomplete.
+ */
+async function _enrichRouteGeo(routeId, fromText, toText, fromCoord, toCoord) {
+  try {
+    let f = fromCoord, t = toCoord;
+    if (!f || !t) {
+      const [g1, g2] = await Promise.all([
+        f ? null : olaMaps.geocode(fromText),
+        t ? null : olaMaps.geocode(toText),
+      ]);
+      if (!f && g1) f = { lat: g1.lat, lng: g1.lng };
+      if (!t && g2) t = { lat: g2.lat, lng: g2.lng };
+    }
+    if (!f && !t) return;
+    await pool.query(
+      `UPDATE union_routes
+          SET from_lat = COALESCE(from_lat, $2), from_lng = COALESCE(from_lng, $3),
+              to_lat   = COALESCE(to_lat,   $4), to_lng   = COALESCE(to_lng,   $5)
+        WHERE id = $1`,
+      [routeId, f?.lat ?? null, f?.lng ?? null, t?.lat ?? null, t?.lng ?? null]
+    );
+  } catch (e) {
+    if (e.code !== '42703') logger.warn('Union route geo enrich failed:', e.message);
+  }
+}
 
 const getUnionRoutes = asyncHandler(async (req, res) => {
   const resUnion = await pool.query(
@@ -96,6 +127,16 @@ const addUnionRoute = asyncHandler(async (req, res) => {
     { route },
     'Route added for union'
   ).send(res);
+
+  // Background: ensure the route has coords (geocode the text if the admin
+  // didn't pick from autocomplete) so rides built from it support proximity.
+  if (!haveFrom || !haveTo) {
+    _enrichRouteGeo(
+      route.id, from_location, to_location,
+      haveFrom ? { lat: fLat, lng: fLng } : null,
+      haveTo ? { lat: tLat, lng: tLng } : null,
+    );
+  }
 });
 
 const deleteUnionRoute = asyncHandler(async (req, res) => {
