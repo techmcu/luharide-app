@@ -30,6 +30,7 @@ const {
 const { authenticate, authorize } = require('../middleware/auth');
 const { validate } = require('../middleware/validation');
 const { cancelScheduleLimiter, unionPosterLimiter, writeLimiter, destructiveLimiter, bulkWriteLimiter } = require('../middleware/rateLimiter');
+const { idempotency } = require('../middleware/idempotency');
 
 // Validation schema for creating trip for driver
 const createTripForDriverSchema = Joi.object({
@@ -59,16 +60,34 @@ const addUnionRouteSchema = Joi.object({
   to_lng: Joi.number().min(-180).max(180).optional(),
 });
 
-const createSchedulesSchema = Joi.object({
+// One ride inside a batch publish (NEW shape) — each ride its own route + time.
+const scheduleItemSchema = Joi.object({
+  union_driver_id: Joi.string().uuid().required(),
   from_location: Joi.string().min(2).max(100).required(),
   to_location: Joi.string().min(2).max(100).required(),
   departure_time: Joi.date().iso().required(),
-  union_driver_ids: Joi.array().items(Joi.string().uuid()).min(1).required(),
-  from_lat: Joi.number().min(-90).max(90).optional(),
-  from_lng: Joi.number().min(-180).max(180).optional(),
-  to_lat: Joi.number().min(-90).max(90).optional(),
-  to_lng: Joi.number().min(-180).max(180).optional(),
+  from_lat: Joi.number().min(-90).max(90),
+  from_lng: Joi.number().min(-180).max(180),
+  to_lat: Joi.number().min(-90).max(90),
+  to_lng: Joi.number().min(-180).max(180),
 });
+
+// Accepts BOTH shapes (backward compatible): the NEW `schedules[]` batch (up to
+// 50 rides, each with its own route+time) OR the LEGACY single-route fields with
+// `union_driver_ids`. At least one shape required; legacy needs its companions.
+const createSchedulesSchema = Joi.object({
+  schedules: Joi.array().items(scheduleItemSchema).min(1).max(50),
+  union_driver_ids: Joi.array().items(Joi.string().uuid()).min(1),
+  from_location: Joi.string().min(2).max(100),
+  to_location: Joi.string().min(2).max(100),
+  departure_time: Joi.date().iso(),
+  from_lat: Joi.number().min(-90).max(90),
+  from_lng: Joi.number().min(-180).max(180),
+  to_lat: Joi.number().min(-90).max(90),
+  to_lng: Joi.number().min(-180).max(180),
+})
+  .or('schedules', 'union_driver_ids')
+  .with('union_driver_ids', ['from_location', 'to_location', 'departure_time']);
 
 const updateBrandingSchema = Joi.object({
   poster_header: Joi.string().max(200).allow('', null),
@@ -197,6 +216,7 @@ router.post(
   '/schedules/bulk',
   authenticate,
   authorize('union_admin'),
+  idempotency(), // replay a retried publish instead of creating duplicate rides
   bulkWriteLimiter,
   validate(createSchedulesSchema),
   createUnionSchedulesBulk

@@ -368,6 +368,41 @@ class UnionService {
     }
   }
 
+  /// Publish a whole batch of union rides in ONE request (= one publish = one
+  /// daily-action). Each item: { union_driver_id, from_location, to_location,
+  /// from_lat?, from_lng?, to_lat?, to_lng?, departure_time }.
+  ///
+  /// [idempotencyKey] (one per "Create Ride" press) is sent as the
+  /// `Idempotency-Key` header so a silent network retry (e.g. a 502 whose
+  /// response was lost) cannot create the rides twice — the server replays the
+  /// first result instead.
+  Future<Map<String, dynamic>> publishSchedules({
+    required List<Map<String, dynamic>> schedules,
+    required String idempotencyKey,
+  }) async {
+    try {
+      final response = await _api.post(
+        '/union/schedules/bulk',
+        data: {'schedules': schedules},
+        options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+      );
+      return {
+        'success': true,
+        'schedules': response.data['data']?['schedules'] ?? [],
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': dioResponseMessage(e) ?? 'Failed to create rides for drivers',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred',
+      };
+    }
+  }
+
   /// Get union schedules: scope = 'current' or 'recent'.
   Future<Map<String, dynamic>> getSchedules({String scope = 'current'}) async {
     try {

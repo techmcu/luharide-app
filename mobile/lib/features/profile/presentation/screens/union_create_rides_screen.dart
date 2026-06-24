@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
@@ -250,20 +252,29 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     }
     setState(() => _isSubmitting = true);
     try {
-      await _doCreateRides();
+      // One idempotency key per button-press. If the network silently retries
+      // (e.g. a 502 where the response was lost), the SAME key goes out, so the
+      // server creates the rides only once — no duplicate publish. Generated
+      // here (not inside _doCreateRides) so a retry reuses the same key.
+      final idempotencyKey =
+          '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(0x7FFFFFFF).toRadixString(16)}';
+      await _doCreateRides(idempotencyKey);
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  Future<void> _doCreateRides() async {
-    // Group selected drivers by (route + departure time). All drivers that
-    // share the same route+time go out in ONE bulk call = ONE publish = ONE
-    // daily-action. (Previously each driver was sent as its own call, so 4
-    // drivers burned 4 of the 3/day publishes — the very first ride failed with
-    // "3 se zyada nahi bana sakte".) Drivers on a different route/time form a
-    // separate group = a separate publish, which is correct.
-    final Map<String, Map<String, dynamic>> groups = {};
+  Future<void> _doCreateRides(String idempotencyKey) async {
+    // Build the WHOLE publish as ONE batch: every selected driver with its own
+    // route + future time. This goes out in a SINGLE request → the backend
+    // creates them all in one transaction and records exactly ONE daily-action,
+    // no matter how many drivers OR how many different routes. (Per-driver /
+    // per-route calls used to burn the 3/day limit — 4 drivers → "3 se zyada
+    // nahi" on the first ride.)
+    double? parseCoord(dynamic v) =>
+        v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
+
+    final List<Map<String, dynamic>> schedules = [];
     for (final id in _selectedDriverIds) {
       final routeId = _driverRouteIds[id];
       final route = _routes
@@ -292,49 +303,37 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         return;
       }
 
-      final key = '$routeId|${dt.toIso8601String()}';
-      final group = groups.putIfAbsent(
-        key,
-        () => {'route': route, 'dt': dt, 'driverIds': <String>[]},
-      );
-      (group['driverIds'] as List<String>).add(id);
-    }
-
-    String? error;
-    final List<String> createdIds = [];
-    double? parseCoord(dynamic v) =>
-        v == null ? null : (v is num ? v.toDouble() : double.tryParse(v.toString()));
-
-    for (final group in groups.values) {
-      if (!mounted) return;
-      final route = group['route'] as Map<String, dynamic>;
-      final dt = group['dt'] as DateTime;
-      final driverIds = group['driverIds'] as List<String>;
-      final from = route['from_location']?.toString() ?? '';
-      final to   = route['to_location']?.toString() ?? '';
-
-      // Reuse the exact coordinates saved on the route (no geocoding guess).
-      final res = await _service.createSchedulesBulk(
-        fromLocation: from,
-        toLocation: to,
-        departureTime: dt,
-        unionDriverIds: driverIds,
-        fromLat: parseCoord(route['from_lat']), fromLng: parseCoord(route['from_lng']),
-        toLat: parseCoord(route['to_lat']), toLng: parseCoord(route['to_lng']),
-      );
-      if (res['success'] == true) {
-        final schedules = res['schedules'] as List<dynamic>? ?? [];
-        for (final s in schedules) {
-          final sid = (s as Map<String, dynamic>)['id']?.toString();
-          if (sid != null) createdIds.add(sid);
-        }
-      } else {
-        error = res['message']?.toString() ?? 'Failed to create rides';
-        break;
-      }
+      schedules.add({
+        'union_driver_id': id,
+        'from_location': route['from_location']?.toString() ?? '',
+        'to_location': route['to_location']?.toString() ?? '',
+        'from_lat': parseCoord(route['from_lat']),
+        'from_lng': parseCoord(route['from_lng']),
+        'to_lat': parseCoord(route['to_lat']),
+        'to_lng': parseCoord(route['to_lng']),
+        'departure_time': dt.toIso8601String(),
+      });
     }
 
     if (!mounted) return;
+
+    final res = await _service.publishSchedules(
+      schedules: schedules,
+      idempotencyKey: idempotencyKey,
+    );
+
+    if (!mounted) return;
+
+    String? error;
+    final List<String> createdIds = [];
+    if (res['success'] == true) {
+      for (final s in (res['schedules'] as List<dynamic>? ?? [])) {
+        final sid = (s as Map<String, dynamic>)['id']?.toString();
+        if (sid != null) createdIds.add(sid);
+      }
+    } else {
+      error = res['message']?.toString() ?? 'Failed to create rides';
+    }
 
     if (error == null) {
       _selectedDriverIds.clear();
