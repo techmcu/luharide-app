@@ -61,30 +61,6 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
   const fromTrimmed = toTitleCase(from_location);
   const toTrimmed   = toTitleCase(to_location);
 
-  // Coordinates: PREFER the exact coords the admin picked at route creation
-  // (sent from the app) — accurate, no ambiguity. Only geocode the text as a
-  // fallback for legacy routes that have no coords. Done ONCE, before the txn.
-  let fromCoord = null, toCoord = null, routeInfo = null;
-  const validCoord = (la, ln) =>
-    olaMaps.isValidLatLng(typeof la === 'number' ? la : parseFloat(la), typeof ln === 'number' ? ln : parseFloat(ln));
-  if (validCoord(from_lat, from_lng)) fromCoord = { lat: parseFloat(from_lat), lng: parseFloat(from_lng) };
-  if (validCoord(to_lat, to_lng)) toCoord = { lat: parseFloat(to_lat), lng: parseFloat(to_lng) };
-  try {
-    if (!fromCoord || !toCoord) {
-      const [g1, g2] = await Promise.all([
-        fromCoord ? null : olaMaps.geocode(fromTrimmed),
-        toCoord ? null : olaMaps.geocode(toTrimmed),
-      ]);
-      if (!fromCoord && g1) fromCoord = { lat: g1.lat, lng: g1.lng };
-      if (!toCoord && g2) toCoord = { lat: g2.lat, lng: g2.lng };
-    }
-    if (fromCoord && toCoord) {
-      routeInfo = await olaMaps.getRouteDistance(fromCoord, toCoord);
-    }
-  } catch (e) {
-    logger.warn('Union schedule: coord resolve failed:', e.message);
-  }
-
   const client = await pool.connect();
   let created = [];
   try {
@@ -123,9 +99,55 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
     `Union schedules created for union ${unionId} by admin ${req.user.id} count=${created.length}`
   );
 
-  // Persist coordinates + cached route metrics on all created rows (best-effort,
-  // outside the txn). Skipped silently if geo columns don't exist yet.
-  if (fromCoord && toCoord && created.length > 0) {
+  // FCM: only on first creation of the day (fire-and-forget, never awaited)
+  if (todayCount === 0) {
+    _sendUnionRideFcm(unionId, unionName, fcmEnabled);
+  }
+
+  // Respond IMMEDIATELY after the DB commit. Ride creation must never wait on —
+  // or fail because of — the external Ola Maps geocode/route lookup. A slow or
+  // failing map API used to time out the whole request and make rides appear to
+  // "not create"; geo is now enriched in the background below.
+  ApiResponse.created(
+    { schedules: created, count: created.length },
+    'Rides created for selected drivers'
+  ).send(res);
+
+  // Background best-effort: resolve coords + persist route metrics. Not awaited,
+  // never touches `res`, fully self-contained error handling.
+  _enrichSchedulesWithGeo(created, { from_lat, from_lng, to_lat, to_lng, fromTrimmed, toTrimmed });
+});
+
+/**
+ * Best-effort geo enrichment for freshly-created union schedules. Runs AFTER the
+ * response is sent so the external Ola Maps calls never block or break ride
+ * creation. Prefers coords the admin already picked (sent from the app); only
+ * geocodes the text as a fallback. Persists silently — skipped if geo columns
+ * don't exist yet (error code 42703).
+ */
+async function _enrichSchedulesWithGeo(created, input) {
+  if (!Array.isArray(created) || created.length === 0) return;
+  const { from_lat, from_lng, to_lat, to_lng, fromTrimmed, toTrimmed } = input;
+  try {
+    let fromCoord = null, toCoord = null;
+    const validCoord = (la, ln) =>
+      olaMaps.isValidLatLng(typeof la === 'number' ? la : parseFloat(la), typeof ln === 'number' ? ln : parseFloat(ln));
+    if (validCoord(from_lat, from_lng)) fromCoord = { lat: parseFloat(from_lat), lng: parseFloat(from_lng) };
+    if (validCoord(to_lat, to_lng)) toCoord = { lat: parseFloat(to_lat), lng: parseFloat(to_lng) };
+
+    if (!fromCoord || !toCoord) {
+      const [g1, g2] = await Promise.all([
+        fromCoord ? null : olaMaps.geocode(fromTrimmed),
+        toCoord ? null : olaMaps.geocode(toTrimmed),
+      ]);
+      if (!fromCoord && g1) fromCoord = { lat: g1.lat, lng: g1.lng };
+      if (!toCoord && g2) toCoord = { lat: g2.lat, lng: g2.lng };
+    }
+    if (!fromCoord || !toCoord) return;
+
+    const routeInfo = await olaMaps.getRouteDistance(fromCoord, toCoord);
+    const ids = created.map((r) => r.id);
+
     try {
       await pool.query(
         `UPDATE union_schedules
@@ -134,8 +156,7 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
           WHERE id = ANY($7::uuid[])`,
         [
           fromCoord.lat, fromCoord.lng, toCoord.lat, toCoord.lng,
-          routeInfo?.distanceKm ?? null, routeInfo?.durationMin ?? null,
-          created.map((r) => r.id),
+          routeInfo?.distanceKm ?? null, routeInfo?.durationMin ?? null, ids,
         ]
       );
     } catch (e) {
@@ -152,24 +173,16 @@ const createUnionSchedulesBulk = asyncHandler(async (req, res) => {
                  route_min_lat = $2, route_max_lat = $3,
                  route_min_lng = $4, route_max_lng = $5
            WHERE id = ANY($6::uuid[])`,
-          [JSON.stringify(routeInfo.points), bb.minLat, bb.maxLat, bb.minLng, bb.maxLng, created.map((r) => r.id)]
+          [JSON.stringify(routeInfo.points), bb.minLat, bb.maxLat, bb.minLng, bb.maxLng, ids]
         );
       } catch (e) {
         if (e.code !== '42703') logger.warn('Union schedule: polyline persist failed:', e.message);
       }
     }
+  } catch (e) {
+    logger.warn('Union schedule: geo enrich failed:', e.message);
   }
-
-  // FCM: only on first creation of the day
-  if (todayCount === 0) {
-    _sendUnionRideFcm(unionId, unionName, fcmEnabled);
-  }
-
-  ApiResponse.created(
-    { schedules: created, count: created.length },
-    'Rides created for selected drivers'
-  ).send(res);
-});
+}
 
 async function _sendUnionRideFcm(unionId, unionName, unionFcmEnabled) {
   try {
