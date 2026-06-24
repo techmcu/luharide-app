@@ -9,6 +9,13 @@ permissions:
   contents: read
   pull-requests: read
 
+# Cancel a previous in-progress run on the SAME ref when a newer commit is
+# pushed — saves wasted minutes on rapid pushes. The newest run still runs
+# every job/test in full; the flow is unchanged.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   secret-scan:
     name: Secret scan (gitleaks)
@@ -63,6 +70,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
+          cache: true   # cache the Flutter SDK to cut setup minutes (no test/flow change)
 
       - name: Pub get
         run: flutter pub get
