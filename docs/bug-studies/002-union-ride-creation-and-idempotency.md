@@ -134,7 +134,7 @@ Tap "Create Ride"
 [Layer 1] Button disable + spinner    ← user double-tap ruka (UI)        ✅ done
    │
    ▼
-[Layer 2] Idempotency Key (Redis)     ← network retry / 502 duplicate    🔜 implementing
+[Layer 2] Idempotency Key (Redis)     ← network retry / 502 duplicate    ✅ done
    │
    ▼
 [Layer 3] DB lock (FOR UPDATE)        ← race → limit safe                ✅ done
@@ -153,7 +153,10 @@ jawab. (Stripe, Google Pay, AWS sab `Idempotency-Key` header use karte hain.)
 me lagta hai. Redis **`SETNX`** (set-if-not-exists, atomic) se token "claim", **TTL** se
 24h baad auto-delete, Redis down ho to **graceful degradation** (system chalta rahe).
 
-**Status:** 🔜 Design final, implement ho raha hai.
+**Status:** ✅ Done — reusable Redis-based idempotency middleware (Stripe-style:
+atomic `SETNX` claim, 24h TTL, graceful degradation if Redis down) on
+`POST /union/schedules/bulk`; mobile sends one `Idempotency-Key` per button press
+(reused on a 502 auto-retry). +7 middleware tests.
 
 ---
 
