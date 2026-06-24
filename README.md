@@ -245,7 +245,9 @@ npm run test:integration
 **📊 Overall Progress:** 15% Complete  
 **📅 Estimated MVP Launch:** June 2026 (16 weeks)
 
-**For detailed roadmap, see [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md)**
+**For detailed roadmap, see [docs/architecture/DEVELOPMENT_ROADMAP.md](docs/architecture/DEVELOPMENT_ROADMAP.md)**
+
+**📚 All documentation is organized under [`docs/`](docs/README.md) — see the index for the full map.**
 
 ## 🤝 Contributing
 

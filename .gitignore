@@ -88,6 +88,7 @@ LuhaRide_Testing_Report.md
 backend/reset-all-data.md
 
 # Credential / secret-bearing files — NEVER commit (untracked from git; rotate any exposed secrets)
+# (patterns match by basename at any depth, so they hold after the docs/ reorg)
 ADMIN_CREDENTIALS.md
 CORRECT_LOGIN_CREDENTIALS.md
 backend/env_full_copy_paste.txt
@@ -96,3 +97,6 @@ PASSWORD_RESET_GUIDE.md
 backend/fix-password.md
 backend/reset-all-passwords.js
 backend/update-password.js
+
+# Private docs folder — holds credential .md files moved out of root. NEVER commit.
+docs/_private/
