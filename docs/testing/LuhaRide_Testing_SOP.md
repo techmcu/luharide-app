@@ -649,6 +649,61 @@
 | V-014 | Cancel union schedule (after 1h) | DELETE /unions/schedules/:id after 1 hour | 400, "Use cancel instead" | P1 |
 | V-015 | API version rewrite (/api/v1 → /api) | GET /api/v1/trips/search | 200, transparently rewritten to /api/trips/search | P0 |
 
+## Part W: Backend Automated-Test Coverage Map & Gaps
+
+> **Why this part exists:** Parts A–V are mostly *manual/integration* scenarios. This
+> part tracks which backend logic has **automated Jest tests** (run on every push by
+> CI), so a tester/dev can see at a glance what is regression-protected and what still
+> needs an automated test. Update this table whenever a `*.test.js` file is added.
+>
+> **Current state:** **510 automated tests, 52 suites, all green** (`cd backend && npm test`).
+> Baseline before this pass was 482; +28 added for previously-untested pure logic.
+
+### W1: Modules WITH automated coverage (regression-protected)
+
+| Module | Test file(s) | What's locked down |
+|--------|-------------|--------------------|
+| Auth / signup / login | `simpleAuthController.test.js` | signup 201/409/400, login 200/401/403, lockout, password change, forgot-password |
+| Booking lifecycle | `bookingController.test.js` + `.cancel` `.edge` `.respond` | book, accept/reject, cancel rules, seat math, edge inputs |
+| Trip create/lifecycle | `tripController.test.js` `.lifecycle` `.createTrip.date` `.cancel` | create, auto start/complete, cancel, date handling |
+| Trip search | `tripController.search.test.js` + `tripSearchColumns.test.js` | search filters, explicit column selection |
+| **Trip search geo helpers** | `tripSearchController.geo.test.js` *(new)* | `geoBoundingBox` math (lat/lng span, cos correction, pole clamp), `requireUuid` guard |
+| KYC admin / documents | `kycAdminController*.test.js`, `kycDocuments*.test.js` | approve/reject, reverify-once-per-day, doc collect/stream |
+| Notifications | `notificationController.test.js` | list, mark read, localization keys |
+| Admin directory | `adminDirectoryController.test.js` | listing/search |
+| **Union poster helpers** | `unionHelpers.test.js` *(new)* | `cleanUnionName`, `cleanPosterHeader`, `cleanPosterCustomText` (120-char cap), `getPosterTheme`/`Colors` fallback, `ensurePlatformAdmin` guard |
+| API version rewrite | `apiVersionRewrite.test.js` | `/api/v1/*` → `/api/*` |
+| Services layer | colocated `*.test.js` | all services have a test file |
+
+### W2: Modules WITHOUT a dedicated automated test (gaps) — with backend test logic
+
+> Priority = how important an automated test is. Many are partially exercised via
+> integration scripts (`scripts/testing/full-test-v2.js`) but lack fast unit coverage.
+
+| Pri | Module | Why it matters | Backend test logic to add |
+|-----|--------|----------------|---------------------------|
+| 🔴 P0 | `reviewController.js` | Ratings drive driver trust + auto-complaint/ban thresholds | supertest: submit rating 1–5 → 200; rating out of range → 400; rate a booking not yours → 403; duplicate rating → blocked; verify `reviewService.submitRating` average recompute |
+| 🔴 P0 | `driverVerificationController.js` | Gatekeeps who can create trips | supertest: submit w/o docs → 400; submit valid → pending; approved driver creates trip → 201; rejected → 403 (covers N-001..N-007 as automated) |
+| 🔴 P0 | `routeController.js` | Fare ceiling / route estimate (anti-overcharge) | unit: assert fare-range guard rejects fare above ceiling; estimate returns distance/duration shape; invalid coords → 400 |
+| 🟡 P1 | `contactLogController.js` | Union contact analytics (whatsapp/phone clicks) | supertest: log click inserts row; bad `type` → 400; stats aggregation returns per-driver counts; non-union-admin → 403 (V-007..V-009) |
+| 🟡 P1 | `fcmTokenController.js` | Push delivery depends on token register/dedup | unit/supertest: register token upserts (no dup); invalid token → 400; delete on logout |
+| 🟡 P1 | `union/unionPosterController.js` | Poster PDF + 3/day limit (helpers now tested; controller not) | supertest: generate poster → application/pdf; 4th in a day → 400 Hindi msg; other union's schedule → 403 (V-001..V-006) |
+| 🟡 P1 | `admin/complaintController.js` | Complaint submit/resolve flow | supertest: submit → 201 open; subject>200/body>2000 → 400; admin resolve → resolved + notify; non-admin list → 403 (T-001..T-012) |
+| 🟡 P1 | `admin/adminUserController.js` / `adminStatsController.js` | Admin ban/unban + daily stats | supertest: ban sets restriction + notify; unban lifts; stats endpoint shape; non-admin → 403 |
+| 🟢 P2 | `routeController` / `union/unionRouteController` | Route CRUD | supertest CRUD happy-path + ownership checks |
+| 🟢 P2 | `middleware/rateLimiter.js` | Rate-limit fallback when Redis down | unit: mock Redis failure → limiter falls back to in-memory, never throws (M-008) |
+| 🟢 P2 | `middleware/corsLuha.js` / `requestContext.js` | CORS allow-list + request-id | unit: allowed origin passes, disallowed blocked; requestContext attaches `req.id` |
+
+### W3: Rule — keep stable code safe when adding tests
+
+1. **Run baseline first:** `npm test` and note the green count (currently 510).
+2. **Only add, never rewrite** existing passing tests unless the behavior intentionally changed.
+3. To unit-test an internal helper, **export it additively** (e.g. `geoBoundingBox` was added to
+   `tripSearchController` exports with no behavior change) — never alter the function body.
+4. Prefer **pure-function unit tests** (no DB) — fast, deterministic, no flakes.
+5. For DB-touching controllers, use **supertest against the monolith app** with a test DB; never point tests at production/staging (they share the prod DB — see CLAUDE.md).
+6. **Re-run the full suite** after adding; the new total must be `old + new`, with zero previously-passing tests now failing.
+
 ---
 
 # Testing Types Guide — Priority Order

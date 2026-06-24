@@ -983,4 +983,7 @@ module.exports = {
   getLocationSuggestions,
   estimateRoute,
   reverseGeocode,
+  // Exported for unit testing of pure search helpers (no behavior change).
+  geoBoundingBox,
+  requireUuid,
 };
