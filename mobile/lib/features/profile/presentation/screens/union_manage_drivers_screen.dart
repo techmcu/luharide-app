@@ -88,6 +88,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
           if (!context.mounted) return;
           if (result['success'] == true) {
             Navigator.pop(ctx);
+            if (!context.mounted) return;
             AppFeedback.show(
               context,
               'Driver added successfully',
@@ -96,6 +97,7 @@ class _UnionManageDriversScreenState extends State<UnionManageDriversScreen> {
             );
             _load();
           } else {
+            if (!context.mounted) return;
             AppFeedback.show(
               context,
               result['message']?.toString() ?? 'Failed to add driver',

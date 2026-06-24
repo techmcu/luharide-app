@@ -44,7 +44,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             tooltip: loc.t('notifications.mark_all_tooltip'),
             onPressed: () async {
               final ok = await _notificationService.markAllAsRead();
-              if (!mounted) return;
+              if (!context.mounted) return;
               if (ok) {
                 AppFeedback.show(
                   context,

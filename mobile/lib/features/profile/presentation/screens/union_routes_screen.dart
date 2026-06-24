@@ -80,6 +80,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
           if (!context.mounted) return;
           if (res['success'] == true) {
             Navigator.pop(ctx);
+            if (!context.mounted) return;
             AppFeedback.show(
               context,
               'Route saved',
@@ -88,6 +89,7 @@ class _UnionRoutesScreenState extends State<UnionRoutesScreen> {
             );
             _load();
           } else {
+            if (!context.mounted) return;
             AppFeedback.show(
               context,
               res['message']?.toString() ?? 'Failed to add route',
