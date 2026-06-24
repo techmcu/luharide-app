@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../../../../core/brand_config.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../services/union_service.dart';
 
@@ -307,11 +310,61 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
 
       if (createdIds.isNotEmpty && mounted) {
         AppFeedback.show(context, '${createdIds.length} rides created successfully', kind: AppFeedbackKind.success);
+        final shouldShare = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Share Poster?'),
+            content: const Text('Rides saved! Share the poster with drivers or WhatsApp groups?'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not Now')),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(ctx, true),
+                icon: const Icon(Icons.share, size: 18),
+                label: const Text('Share'),
+              ),
+            ],
+          ),
+        );
+        if (shouldShare == true && mounted) {
+          final snack = AppFeedback.showLoading(context, 'Generating poster...');
+          await _downloadCombinedPoster(createdIds);
+          snack.close();
+        }
       }
     } else {
       AppFeedback.show(
         context,
         error,
+        kind: AppFeedbackKind.error,
+      );
+    }
+  }
+
+  Future<void> _downloadCombinedPoster(List<String> ids) async {
+    if (!mounted) return;
+    final res = await _service.getCombinedPosterBytes(ids);
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final bytes  = (res['bytes'] as List<int>? ?? <int>[]);
+      if (bytes.isEmpty) {
+        AppFeedback.show(
+          context,
+          'Poster could not be generated',
+          kind: AppFeedbackKind.error,
+        );
+        return;
+      }
+      await Share.shareXFiles(
+        [XFile.fromData(Uint8List.fromList(bytes),
+            name: 'luharide-daily-schedule.pdf',
+            mimeType: 'application/pdf')],
+        text: 'Daily taxi schedule — ${BrandConfig.appName} · ${BrandConfig.parentBrand}',
+      );
+    } else {
+      AppFeedback.show(
+        context,
+        res['message']?.toString() ?? 'Failed to generate poster',
         kind: AppFeedbackKind.error,
       );
     }
@@ -858,12 +911,41 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
   Widget _buildViewTab(ThemeData theme) {
     final totalUpcoming = _currentSchedules.length;
 
+    // Collect IDs for combined poster
+    final upcomingIds = _currentSchedules
+        .map((s) => (s as Map<String, dynamic>)['id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+
     return RefreshIndicator(
       color: _orange,
       onRefresh: _loadAll,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
+          // ── Download full poster button ───────────────────────────────────
+          if (upcomingIds.isNotEmpty) ...[
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                onPressed: () => _downloadCombinedPoster(upcomingIds),
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 20),
+                label: Text(
+                  'Download Full Daily Poster  (${upcomingIds.length} rides)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           // ── Upcoming rides section ────────────────────────────────────────
           _sectionHeader(
             icon: Icons.upcoming_rounded,

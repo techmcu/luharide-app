@@ -485,5 +485,56 @@ class UnionService {
     }
   }
 
+  /// Download a combined PDF poster for multiple schedules (all on one page, grouped by route).
+  Future<Map<String, dynamic>> getCombinedPosterBytes(List<String> ids) async {
+    if (ids.isEmpty) return {'success': false, 'message': 'No schedules provided'};
+    try {
+      final response = await _api.get(
+        '/union/schedules/poster-combined',
+        queryParameters: {'ids': ids.join(',')},
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data  = response.data;
+      final bytes = data is List<int>
+          ? data
+          : (data is List<dynamic> ? data.cast<int>() : <int>[]);
+      return {'success': true, 'bytes': bytes};
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': dioResponseMessage(e) ?? 'Failed to download poster',
+      };
+    } catch (_) {
+      return {'success': false, 'message': 'An unexpected error occurred'};
+    }
+  }
+
+  /// Download poster PDF bytes for a given schedule (for sharing/downloading).
+  Future<Map<String, dynamic>> getSchedulePosterBytes(String id) async {
+    try {
+      final response = await _api.get(
+        '/union/schedules/$id/poster',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final data = response.data;
+      final bytes = data is List<int>
+          ? data
+          : (data is List<dynamic> ? data.cast<int>() : <int>[]);
+      return {
+        'success': true,
+        'bytes': bytes,
+      };
+    } on DioException catch (e) {
+      return {
+        'success': false,
+        'message': dioResponseMessage(e) ?? 'Failed to download poster',
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred while downloading poster',
+      };
+    }
+  }
 }
 
