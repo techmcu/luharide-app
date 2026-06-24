@@ -9,6 +9,7 @@ Yeh folder real bugs ki **case studies** rakhta hai — jo LuhaRide me aaye, kai
 | #   | Title | Type | One-line |
 |-----|-------|------|----------|
 | 001 | [Fellow Travelers khaali dikh raha tha](./001-fellow-travelers-dynamic-type-crash.md) | Flutter / Dart runtime crash | Backend sahi data bhej raha tha, par app ek `dynamic` type error pe crash karke poora response gira deti thi |
+| 002 | [Union "Create Ride" ke 5 problems + idempotency](./002-union-ride-creation-and-idempotency.md) | Backend logic + system design | "3 se zyada nahi" error, poster icon gayab, ride kabhi banti kabhi nahi — 5 alag root cause; fix + duplicate-proof (idempotency / defense-in-depth) |
 
 ## Naya case study kaise add karein
 
