@@ -31,15 +31,16 @@ abstract final class AppFeedback {
   }
 
   static Duration _duration(AppFeedbackKind kind, {bool hasAction = false}) {
+    // Industry-standard snackbar timings (Android Toast: short ~2s, long ~3.5s).
     switch (kind) {
       case AppFeedbackKind.success:
-        return const Duration(seconds: 3);
+        return const Duration(seconds: 2);
       case AppFeedbackKind.warning:
-        return const Duration(seconds: 4);
-      case AppFeedbackKind.error:
-        return Duration(seconds: hasAction ? 6 : 5);
-      case AppFeedbackKind.info:
         return const Duration(seconds: 3);
+      case AppFeedbackKind.error:
+        return Duration(milliseconds: hasAction ? 4000 : 3500);
+      case AppFeedbackKind.info:
+        return const Duration(seconds: 2);
     }
   }
 
