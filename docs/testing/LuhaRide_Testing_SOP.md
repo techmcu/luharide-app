@@ -9,20 +9,20 @@
 
 | ID | Scenario | Steps | Expected | Priority |
 |----|----------|-------|----------|----------|
-| A-001 | Signup new user | POST /auth/signup with valid email/password/name | 201, user created | P0 |
-| A-002 | Duplicate email signup | POST /auth/signup with existing email | 409, blocked | P0 |
-| A-003 | Login correct credentials | POST /auth/login with correct email/password | 200, tokens returned | P0 |
-| A-004 | Login wrong password | POST /auth/login with wrong password | 401 | P0 |
-| A-005 | Login non-existent user | POST /auth/login with unknown email | 401 | P1 |
-| A-006 | Get profile with token | GET /auth/profile with valid JWT | 200, profile data | P0 |
-| A-007 | Get profile without token | GET /auth/profile without header | 401 | P0 |
-| A-008 | Get profile invalid token | GET /auth/profile with garbage token | 401 | P0 |
+| A-001 | Signup new user | POST /simple-auth/signup with valid email/password/name | 201, user created | P0 |
+| A-002 | Duplicate email signup | POST /simple-auth/signup with existing email | 409, blocked | P0 |
+| A-003 | Login correct credentials | POST /simple-auth/login with correct email/password | 200, tokens returned | P0 |
+| A-004 | Login wrong password | POST /simple-auth/login with wrong password | 401 | P0 |
+| A-005 | Login non-existent user | POST /simple-auth/login with unknown email | 401 | P1 |
+| A-006 | Get profile with token | GET /auth/me with valid JWT | 200, profile data | P0 |
+| A-007 | Get profile without token | GET /auth/me without header | 401 | P0 |
+| A-008 | Get profile invalid token | GET /auth/me with garbage token | 401 | P0 |
 | A-009 | Update profile | PUT /auth/profile with name, phone | 200 | P1 |
 | A-010 | Change password | POST /simple-auth/change-password | 200 | P1 |
-| A-011 | Login with new password | POST /auth/login with changed password | 200 | P1 |
-| A-012 | Forgot password OTP | POST /auth/forgot-password | 200 | P1 |
+| A-011 | Login with new password | POST /simple-auth/login with changed password | 200 | P1 |
+| A-012 | Forgot password OTP | POST /simple-auth/forgot-password | 200 | P1 |
 | A-013 | Logout | POST /auth/logout | 200 | P1 |
-| A-014 | Token refresh | POST /auth/refresh with refresh token | 200, new access token | P0 |
+| A-014 | Token refresh | POST /auth/refresh-token with refresh token | 200, new access token | P0 |
 | A-015 | Delete own account | DELETE /auth/account | 200 | P2 |
 | A-016 | Send OTP | POST /auth/send-otp with valid phone | 200, OTP sent | P0 |
 | A-017 | Verify OTP (login/register) | POST /auth/verify-otp with correct OTP | 200, tokens returned | P0 |
@@ -31,8 +31,8 @@
 | A-020 | Google Sign-In invalid token | POST /simple-auth/google with garbage token | 401 | P0 |
 | A-021 | Firebase Email Sign-In | POST /simple-auth/firebase-email with valid Firebase token | 200 | P1 |
 | A-022 | Expired JWT access | GET /auth/me with expired access token | 401 | P0 |
-| A-023 | Refresh with invalid token | POST /auth/refresh with garbage | 401 | P1 |
-| A-024 | Refresh with expired refresh token | POST /auth/refresh with expired token | 401 | P1 |
+| A-023 | Refresh with invalid token | POST /auth/refresh-token with garbage | 401 | P1 |
+| A-024 | Refresh with expired refresh token | POST /auth/refresh-token with expired token | 401 | P1 |
 
 ## Part B: Input Validation Tests
 
@@ -864,7 +864,7 @@
 | GET /trips/search | 40% | No | Most common action |
 | GET /trips/locations | 20% | No | Autocomplete on every keystroke |
 | GET /health | 10% | No | Monitoring/uptime checks |
-| POST /auth/login | 15% | No | Login traffic |
+| POST /simple-auth/login | 15% | No | Login traffic |
 | GET /bookings/my | 10% | Yes | Authenticated endpoint |
 | POST /bookings | 5% | Yes | Write operation stress |
 
