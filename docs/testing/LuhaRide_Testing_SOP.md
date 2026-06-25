@@ -365,11 +365,11 @@
 | K-007 | Admin cancel trip | POST /platform-admin/trips/:id/cancel | 200 | P0 |
 | K-008 | Revenue stats | GET /platform-admin/revenue | 200 | P1 |
 | K-009 | Daily stats | GET /platform-admin/daily-stats | 200 | P1 |
-| K-010 | Export CSV | GET /platform-admin/export | 200 | P2 |
+| K-010 | Export CSV | GET /platform-admin/export-csv | 200 | P2 |
 | K-011 | Complaints list | GET /platform-admin/complaints | 200 | P1 |
 | K-012 | Resolve complaint | POST /platform-admin/complaints/:id/resolve | 200 | P2 |
-| K-013 | Broadcast notification | POST /platform-admin/notifications/broadcast | 200 | P1 |
-| K-014 | FCM settings | GET /platform-admin/fcm-settings | 200 | P2 |
+| K-013 | Broadcast notification | POST /platform-admin/notifications/bulk | 200 | P1 |
+| K-014 | FCM settings | GET /platform-admin/union-fcm | 200 | P2 |
 | K-015 | Global FCM toggle | PATCH /platform-admin/union-fcm/global | 200 | P2 |
 | K-016 | Disable user | PATCH /platform-admin/users/:id/active (is_active=false) | 200 | P0 |
 | K-017 | Disabled login blocked | Login as disabled user | 401 | P0 |
@@ -422,7 +422,7 @@
 | M-001 | Public search (no auth) | GET /trips/search without token | 200 | P0 |
 | M-002 | Public locations (no auth) | GET /trips/locations without token | 200 | P0 |
 | M-003 | Health check | GET /health | 200, includes redis.memory and redis.keys | P0 |
-| M-004 | Auth service ping | GET /auth/ping | 200 | P1 |
+| M-004 | Auth service ping | GET /simple-auth/ping | 200 | P1 |
 | M-005 | Redis health in health endpoint | GET /health → check redis object | redis.up=true, redis.memory shows usage, redis.keys shows count | P1 |
 | M-006 | Redis maxmemory configured | redis-cli CONFIG GET maxmemory on VPS | Value > 0 (e.g. 100mb), policy = allkeys-lru | P0 |
 | M-007 | Redis auto-restart on crash | sudo systemctl show redis-server \| grep Restart | Restart=always, RestartSec=5 | P0 |
