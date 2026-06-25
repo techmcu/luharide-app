@@ -18,7 +18,7 @@
 | A-007 | Get profile without token | GET /auth/profile without header | 401 | P0 |
 | A-008 | Get profile invalid token | GET /auth/profile with garbage token | 401 | P0 |
 | A-009 | Update profile | PUT /auth/profile with name, phone | 200 | P1 |
-| A-010 | Change password | PUT /auth/change-password | 200 | P1 |
+| A-010 | Change password | POST /simple-auth/change-password | 200 | P1 |
 | A-011 | Login with new password | POST /auth/login with changed password | 200 | P1 |
 | A-012 | Forgot password OTP | POST /auth/forgot-password | 200 | P1 |
 | A-013 | Logout | POST /auth/logout | 200 | P1 |
@@ -99,12 +99,12 @@
 | E-003 | Location autocomplete | GET /trips/locations?q=Deh | 200 | P1 |
 | E-004 | View my bookings | GET /bookings/my | 200 | P0 |
 | E-005 | View notifications | GET /notifications | 200 | P1 |
-| E-006 | Mark all read | PUT /notifications/read-all | 200 | P2 |
+| E-006 | Mark all read | POST /notifications/read-all | 200 | P2 |
 | E-007 | Recent routes | GET /trips/recent-routes | 200 | P2 |
 | E-008 | Save recent route | POST /trips/recent-routes | 200 | P2 |
 | E-009 | View my reviews | GET /reviews/me | 200 | P1 |
-| E-010 | Submit complaint | POST /complaints | 201 | P2 |
-| E-011 | View complaints | GET /complaints/my | 200 | P2 |
+| E-010 | Submit complaint | POST /platform-admin/complaints/submit | 201 | P2 |
+| E-011 | View complaints | GET /platform-admin/complaints/mine | 200 | P2 |
 | E-012 | Save FCM token | POST /notifications/fcm-token | 200 | P1 |
 | E-013 | Delete FCM token | DELETE /notifications/fcm-token | 200 | P2 |
 | E-014 | Mark single notification read | POST /notifications/:id/read | 200 | P2 |
@@ -362,18 +362,18 @@
 | K-004 | User detail | GET /platform-admin/users/:id | 200 | P1 |
 | K-005 | Trips list | GET /platform-admin/trips | 200 | P0 |
 | K-006 | Trip detail | GET /platform-admin/trips/:id | 200 | P1 |
-| K-007 | Admin cancel trip | PUT /platform-admin/trips/:id/cancel | 200 | P0 |
+| K-007 | Admin cancel trip | POST /platform-admin/trips/:id/cancel | 200 | P0 |
 | K-008 | Revenue stats | GET /platform-admin/revenue | 200 | P1 |
 | K-009 | Daily stats | GET /platform-admin/daily-stats | 200 | P1 |
 | K-010 | Export CSV | GET /platform-admin/export | 200 | P2 |
 | K-011 | Complaints list | GET /platform-admin/complaints | 200 | P1 |
-| K-012 | Resolve complaint | PUT /platform-admin/complaints/:id/resolve | 200 | P2 |
+| K-012 | Resolve complaint | POST /platform-admin/complaints/:id/resolve | 200 | P2 |
 | K-013 | Broadcast notification | POST /platform-admin/notifications/broadcast | 200 | P1 |
 | K-014 | FCM settings | GET /platform-admin/fcm-settings | 200 | P2 |
-| K-015 | Global FCM toggle | PUT /platform-admin/fcm-toggle | 200 | P2 |
-| K-016 | Disable user | PUT /platform-admin/users/:id/disable | 200 | P0 |
+| K-015 | Global FCM toggle | PATCH /platform-admin/union-fcm/global | 200 | P2 |
+| K-016 | Disable user | PATCH /platform-admin/users/:id/active (is_active=false) | 200 | P0 |
 | K-017 | Disabled login blocked | Login as disabled user | 401 | P0 |
-| K-018 | Re-enable user | PUT /platform-admin/users/:id/enable | 200 | P1 |
+| K-018 | Re-enable user | PATCH /platform-admin/users/:id/active (is_active=true) | 200 | P1 |
 | K-019 | Broadcast history | GET /platform-admin/notifications/history | 200, list of past broadcasts | P1 |
 | K-020 | Broadcast dedup blocked | Send same title+body broadcast twice within 1 hour | 400, "duplicate notification" | P1 |
 | K-021 | App config GET | GET /platform-admin/config | 200 | P2 |
@@ -567,7 +567,7 @@
 | S-010 | Email/password signup | POST /simple-auth/signup with email/password/name | 201, user created | P0 |
 | S-011 | Duplicate email signup | POST /simple-auth/signup with existing email | 409/400, blocked | P0 |
 | S-012 | Email/password login | POST /simple-auth/login with correct credentials | 200, tokens returned | P0 |
-| S-013 | Password change | PUT /simple-auth/change-password with old + new password | 200, password changed | P1 |
+| S-013 | Password change | POST /simple-auth/change-password with old + new password | 200, password changed | P1 |
 | S-014 | Password reset via OTP | POST /simple-auth/forgot-password → receive OTP → verify | 200, password reset | P1 |
 | S-015 | Google Sign-In creates new user | POST /simple-auth/google with valid Google token (new email) | 200, user created with google_id | P0 |
 | S-016 | Google Sign-In existing user | POST /simple-auth/google with existing Google user | 200, login (no duplicate) | P1 |
