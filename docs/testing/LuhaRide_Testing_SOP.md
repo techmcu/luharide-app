@@ -80,8 +80,8 @@
 | D-001 | Passenger creates trip | POST /trips as passenger | 403 | P0 |
 | D-002 | Passenger admin dashboard | GET /platform-admin/dashboard as passenger | 403 | P0 |
 | D-003 | Driver admin users | GET /platform-admin/users as driver | 403 | P0 |
-| D-004 | Passenger union dashboard | GET /unions/dashboard as passenger | 403 | P1 |
-| D-005 | Driver union routes | GET /unions/routes as driver | 403 | P1 |
+| D-004 | Passenger union dashboard | GET /union/dashboard as passenger | 403 | P1 |
+| D-005 | Driver union routes | GET /union/routes as driver | 403 | P1 |
 | D-006 | Union admin complaints | GET /platform-admin/complaints as union_admin | 403 | P1 |
 | D-007 | Driver accesses passenger bookings | GET /bookings/my as driver (no bookings) | 200, empty (no cross-role data leak) | P1 |
 | D-008 | Passenger starts trip | PUT /trips/:id/start as passenger | 403 | P1 |
@@ -324,22 +324,22 @@
 
 | ID | Scenario | Steps | Expected | Priority |
 |----|----------|-------|----------|----------|
-| J-001 | Get union info | GET /unions/me | 200 | P0 |
-| J-002 | Union dashboard stats | GET /unions/dashboard | 200 | P0 |
-| J-003 | Add route | POST /unions/routes | 201 | P0 |
-| J-004 | View routes | GET /unions/routes | 200 | P1 |
-| J-005 | Add driver | POST /unions/drivers | 201 | P0 |
-| J-006 | View drivers | GET /unions/drivers | 200 | P1 |
-| J-007 | Bulk schedule (1st) | POST /unions/schedules/bulk | 201 | P0 |
-| J-008 | Bulk schedule (2nd) | POST /unions/schedules/bulk | 201 | P1 |
-| J-009 | Bulk schedule (3rd) | POST /unions/schedules/bulk | 201 | P1 |
-| J-010 | 4th bulk blocked (daily limit) | POST /unions/schedules/bulk 4th time | 400 | P0 |
-| J-011 | Cancel schedule (within 1h) | DELETE /unions/schedules/:id within 1 hour | 200 | P1 |
-| J-012 | Update branding | PUT /unions/branding | 200 | P2 |
-| J-013 | Log driver contact | POST /unions/contact-log | 200 | P2 |
-| J-014 | Contact stats | GET /unions/contact-stats | 200 | P2 |
-| J-015 | Delete route | DELETE /unions/routes/:id | 200 | P2 |
-| J-016 | Union directory | GET /unions/directory (admin) | 200 | P2 |
+| J-001 | Get union info | GET /union/me | 200 | P0 |
+| J-002 | Union dashboard stats | GET /union/dashboard | 200 | P0 |
+| J-003 | Add route | POST /union/routes | 201 | P0 |
+| J-004 | View routes | GET /union/routes | 200 | P1 |
+| J-005 | Add driver | POST /union/drivers | 201 | P0 |
+| J-006 | View drivers | GET /union/drivers | 200 | P1 |
+| J-007 | Bulk schedule (1st) | POST /union/schedules/bulk | 201 | P0 |
+| J-008 | Bulk schedule (2nd) | POST /union/schedules/bulk | 201 | P1 |
+| J-009 | Bulk schedule (3rd) | POST /union/schedules/bulk | 201 | P1 |
+| J-010 | 4th bulk blocked (daily limit) | POST /union/schedules/bulk 4th time | 400 | P0 |
+| J-011 | Cancel schedule (within 1h) | DELETE /union/schedules/:id within 1 hour | 200 | P1 |
+| J-012 | Update branding | PATCH /union/branding | 200 | P2 |
+| J-013 | Log driver contact | POST /union/contact-log | 200 | P2 |
+| J-014 | Contact stats | GET /union/contact-stats | 200 | P2 |
+| J-015 | Delete route | DELETE /union/routes/:id | 200 | P2 |
+| J-016 | Union admin list | GET /union/admin/unions (union_admin) | 200 | P2 |
 | J-017 | Register union | POST /union/register with name, documents | 201 | P0 |
 | J-018 | Register duplicate union | POST /union/register again | 400/409 | P1 |
 | J-019 | Update union documents | PATCH /union/me/documents | 200 | P1 |
@@ -639,14 +639,14 @@
 | V-004 | Poster limit resets next day | Hit limit today → next day generate poster | 200, allowed | P1 |
 | V-005 | Poster for other union's schedule | GET /union/schedules/:id/poster for schedule not in own union | 403/404 | P1 |
 | V-006 | Non-union-admin cannot generate poster | GET /union/schedules/:id/poster as passenger | 403 | P0 |
-| V-007 | Log WhatsApp contact click | POST /unions/contact-log type='whatsapp', driver_id | 200, contact_log row inserted | P1 |
-| V-008 | Log phone contact click | POST /unions/contact-log type='phone', driver_id | 200, contact_log row inserted | P1 |
-| V-009 | Contact stats for union admin | GET /unions/contact-stats | 200, aggregated click counts per driver | P1 |
+| V-007 | Log WhatsApp contact click | POST /union/contact-log type='whatsapp', driver_id | 200, contact_log row inserted | P1 |
+| V-008 | Log phone contact click | POST /union/contact-log type='phone', driver_id | 200, contact_log row inserted | P1 |
+| V-009 | Contact stats for union admin | GET /union/contact-stats | 200, aggregated click counts per driver | P1 |
 | V-010 | Contact logs cleaned (30 days) | Contact log > 30 days → nightly job | Log deleted | P2 |
-| V-011 | Bulk schedule creation | POST /unions/schedules/bulk with valid routes + times | 201, multiple schedules created | P0 |
+| V-011 | Bulk schedule creation | POST /union/schedules/bulk with valid routes + times | 201, multiple schedules created | P0 |
 | V-012 | Bulk schedule daily limit (3/day) | Create bulk schedules 3 times → 4th attempt | 400, daily limit | P0 |
-| V-013 | Cancel union schedule (within 1h) | DELETE /unions/schedules/:id within 1 hour of creation | 200, schedule + trips cancelled | P1 |
-| V-014 | Cancel union schedule (after 1h) | DELETE /unions/schedules/:id after 1 hour | 400, "Use cancel instead" | P1 |
+| V-013 | Cancel union schedule (within 1h) | DELETE /union/schedules/:id within 1 hour of creation | 200, schedule + trips cancelled | P1 |
+| V-014 | Cancel union schedule (after 1h) | DELETE /union/schedules/:id after 1 hour | 400, "Use cancel instead" | P1 |
 | V-015 | API version rewrite (/api/v1 → /api) | GET /api/v1/trips/search | 200, transparently rewritten to /api/trips/search | P0 |
 
 ## Part W: Backend Automated-Test Coverage Map & Gaps
