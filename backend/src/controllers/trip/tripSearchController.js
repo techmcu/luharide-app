@@ -154,8 +154,12 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   // is stored in UTC; an IST day D spans UTC [D 00:00 − 5:30, D+1 00:00 − 5:30),
   // so we shift the day window back by 330 min. Without this, early-morning IST
   // rides (00:00–05:30) fell into the previous UTC day and showed on the wrong date.
-  const TRIP_TIME_WHERE = `t.departure_time >= ($5::date)::timestamp - interval '330 minutes'
-      AND t.departure_time <  ($5::date)::timestamp + interval '1 day' - interval '330 minutes'
+  // Built as a function of the date param index ($p) so the endpoint query (date = $5)
+  // and the corridor query (date = $1) can SHARE this exact logic without passing any
+  // unused parameters — an unused bind param makes Postgres throw "could not determine
+  // data type of parameter $N" and the whole query fails.
+  const tripTimeWhere = (p) => `t.departure_time >= ($${p}::date)::timestamp - interval '330 minutes'
+      AND t.departure_time <  ($${p}::date)::timestamp + interval '1 day' - interval '330 minutes'
       AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
       AND t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
 
@@ -167,7 +171,7 @@ async function proximitySearch(req, res, q, fLat, fLng) {
        FROM trips t LEFT JOIN users u ON t.driver_id = u.id ${RATING_SUB}
        WHERE t.status = 'scheduled'
          AND t.from_lat BETWEEN $1 AND $2 AND t.from_lng BETWEEN $3 AND $4
-         AND ${TRIP_TIME_WHERE}
+         AND ${tripTimeWhere(5)}
        LIMIT ${CAND_LIMIT}`,
       [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr]
     ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Endpoint trips query failed:', e.message); return { rows: [] }; }),
@@ -179,14 +183,13 @@ async function proximitySearch(req, res, q, fLat, fLng) {
         `SELECT ${_TRIP_COLS}, ${_DRIVER_COLS}, ${TRIP_GEO_COLS}
          FROM trips t LEFT JOIN users u ON t.driver_id = u.id ${RATING_SUB}
          WHERE t.status = 'scheduled' AND t.route_polyline IS NOT NULL
-           AND (t.route_min_lat - $6) <= $7 AND (t.route_max_lat + $6) >= $7
-           AND (t.route_min_lng - $8) <= $9 AND (t.route_max_lng + $8) >= $9
-           AND (t.route_min_lat - $6) <= $10 AND (t.route_max_lat + $6) >= $10
-           AND (t.route_min_lng - $8) <= $11 AND (t.route_max_lng + $8) >= $11
-           AND ${TRIP_TIME_WHERE}
+           AND (t.route_min_lat - $2) <= $3 AND (t.route_max_lat + $2) >= $3
+           AND (t.route_min_lng - $4) <= $5 AND (t.route_max_lng + $4) >= $5
+           AND (t.route_min_lat - $2) <= $6 AND (t.route_max_lat + $2) >= $6
+           AND (t.route_min_lng - $4) <= $7 AND (t.route_max_lng + $4) >= $7
+           AND ${tripTimeWhere(1)}
          LIMIT ${CAND_LIMIT}`,
-        [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr,
-         padLat, fLat, padLng, fLng, tLat, tLng]
+        [dateStr, padLat, fLat, padLng, fLng, tLat, tLng]
       ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Corridor trips query failed:', e.message); return { rows: [] }; })
     );
   }
@@ -331,8 +334,12 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   // (timestamptz vs timestamptz) — absolute-instant, correct under ANY DB session timezone. Using
   // `NOW() AT TIME ZONE 'UTC'` here would be coerced via session TZ and (on an IST session) let
   // already-departed union rides leak into search results.
-  const UNION_TIME_WHERE = `s.departure_time >= ($5::date)::timestamp - interval '330 minutes'
-      AND s.departure_time <  ($5::date)::timestamp + interval '1 day' - interval '330 minutes'
+  // Function of the date param index ($p) — same reason as tripTimeWhere: lets the
+  // endpoint query (date = $5) and corridor query (date = $1) reuse one clause with no
+  // unused bind params. union_schedules.departure_time is TIMESTAMPTZ → compare the
+  // "still in the future" guard against plain NOW() (absolute instant, any session TZ).
+  const unionTimeWhere = (p) => `s.departure_time >= ($${p}::date)::timestamp - interval '330 minutes'
+      AND s.departure_time <  ($${p}::date)::timestamp + interval '1 day' - interval '330 minutes'
       AND s.departure_time > NOW() - (${graceMin} * INTERVAL '1 minute')`;
 
   const unionQueries = [
@@ -340,7 +347,7 @@ async function proximitySearch(req, res, q, fLat, fLng) {
       `SELECT ${UNION_COLS} ${UNION_JOIN}
        WHERE s.status = 'scheduled'
          AND s.from_lat BETWEEN $1 AND $2 AND s.from_lng BETWEEN $3 AND $4
-         AND ${UNION_TIME_WHERE}
+         AND ${unionTimeWhere(5)}
        LIMIT ${CAND_LIMIT}`,
       [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr]
     ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Endpoint union query failed:', e.message); return { rows: [] }; }),
@@ -350,14 +357,13 @@ async function proximitySearch(req, res, q, fLat, fLng) {
       queryRead(
         `SELECT ${UNION_COLS} ${UNION_JOIN}
          WHERE s.status = 'scheduled' AND s.route_polyline IS NOT NULL
-           AND (s.route_min_lat - $6) <= $7 AND (s.route_max_lat + $6) >= $7
-           AND (s.route_min_lng - $8) <= $9 AND (s.route_max_lng + $8) >= $9
-           AND (s.route_min_lat - $6) <= $10 AND (s.route_max_lat + $6) >= $10
-           AND (s.route_min_lng - $8) <= $11 AND (s.route_max_lng + $8) >= $11
-           AND ${UNION_TIME_WHERE}
+           AND (s.route_min_lat - $2) <= $3 AND (s.route_max_lat + $2) >= $3
+           AND (s.route_min_lng - $4) <= $5 AND (s.route_max_lng + $4) >= $5
+           AND (s.route_min_lat - $2) <= $6 AND (s.route_max_lat + $2) >= $6
+           AND (s.route_min_lng - $4) <= $7 AND (s.route_max_lng + $4) >= $7
+           AND ${unionTimeWhere(1)}
          LIMIT ${CAND_LIMIT}`,
-        [bb.latMin, bb.latMax, bb.lngMin, bb.lngMax, dateStr,
-         padLat, fLat, padLng, fLng, tLat, tLng]
+        [dateStr, padLat, fLat, padLng, fLng, tLat, tLng]
       ).catch((e) => { if (e.code !== '42703' && e.code !== '42P01') logger.warn('Corridor union query failed:', e.message); return { rows: [] }; })
     );
   }
