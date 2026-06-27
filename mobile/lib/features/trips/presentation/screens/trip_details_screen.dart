@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../../core/utils/compact_number.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/localization/app_localizations.dart';
 import '../../../../providers/app_language_provider.dart';
@@ -776,7 +777,7 @@ class _DriverRatingRowState extends State<_DriverRatingRow> {
                   children: [
                     Icon(Icons.star, color: Colors.amber[700], size: 18),
                     const SizedBox(width: 6),
-                    Text('$avgStr ($total)',
+                    Text('$avgStr (${compactCount(total)})',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,

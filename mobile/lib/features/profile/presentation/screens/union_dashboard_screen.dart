@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../core/constants/input_limits.dart';
+import '../../../../core/utils/compact_number.dart';
 import '../../../../services/union_service.dart';
 import '../../../../utils/phone_call_helper.dart';
 import 'union_create_rides_screen.dart';
@@ -425,7 +426,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         Expanded(
           child: _buildStatCard(
             label: 'Upcoming',
-            value: scheduledRides.toString(),
+            value: compactCount(scheduledRides),
             icon: Icons.schedule_rounded,
             color: const Color(0xFF1E88E5),
             bgColor: const Color(0xFFE3F2FD),
@@ -435,7 +436,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         Expanded(
           child: _buildStatCard(
             label: 'Today\'s Rides',
-            value: ridesToday.toString(),
+            value: compactCount(ridesToday),
             icon: Icons.today_rounded,
             color: const Color(0xFFFF6B00),
             bgColor: const Color(0xFFFFF3E0),
@@ -445,7 +446,7 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
         Expanded(
           child: _buildStatCard(
             label: 'Drivers',
-            value: totalDrivers.toString(),
+            value: compactCount(totalDrivers),
             icon: Icons.people_alt_rounded,
             color: const Color(0xFF8E24AA),
             bgColor: const Color(0xFFF3E5F5),
@@ -617,22 +618,27 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       style: const TextStyle(color: Colors.white60, fontSize: 11),
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.phone_rounded, size: 14, color: Colors.greenAccent),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$calls',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(width: 14),
-                        const Icon(Icons.chat_rounded, size: 14, color: Color(0xFF25D366)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$wa',
-                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.phone_rounded, size: 14, color: Colors.greenAccent),
+                          const SizedBox(width: 4),
+                          Text(
+                            compactCount(calls),
+                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 14),
+                          const Icon(Icons.chat_rounded, size: 14, color: Color(0xFF25D366)),
+                          const SizedBox(width: 4),
+                          Text(
+                            compactCount(wa),
+                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -652,22 +658,27 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                       style: TextStyle(color: Colors.white60, fontSize: 11),
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.phone_rounded, size: 14, color: Colors.greenAccent),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$grandCalls',
-                          style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(width: 14),
-                        const Icon(Icons.chat_rounded, size: 14, color: Color(0xFF25D366)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$grandWa',
-                          style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.phone_rounded, size: 14, color: Colors.greenAccent),
+                          const SizedBox(width: 4),
+                          Text(
+                            compactCount(grandCalls),
+                            style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 14),
+                          const Icon(Icons.chat_rounded, size: 14, color: Color(0xFF25D366)),
+                          const SizedBox(width: 4),
+                          Text(
+                            compactCount(grandWa),
+                            style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -726,12 +737,16 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
             child: Icon(icon, color: color, size: 22),
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -1015,6 +1030,8 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   children: [
                     Text(
                       name.isNotEmpty ? name : 'Driver',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                     if (vehicleNumber.isNotEmpty)
@@ -1024,9 +1041,13 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                           children: [
                             const Icon(Icons.directions_car_rounded, size: 13, color: Colors.grey),
                             const SizedBox(width: 4),
-                            Text(
-                              vehicleNumber,
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                            Flexible(
+                              child: Text(
+                                vehicleNumber,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              ),
                             ),
                           ],
                         ),
@@ -1038,9 +1059,13 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                           children: [
                             const Icon(Icons.phone_rounded, size: 13, color: Colors.grey),
                             const SizedBox(width: 4),
-                            Text(
-                              phone,
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                            Flexible(
+                              child: Text(
+                                phone,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              ),
                             ),
                           ],
                         ),
@@ -1090,28 +1115,41 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                   color: totalContacts > 0 ? _advancedColor : Colors.grey.shade400,
                 ),
                 const SizedBox(width: 6),
-                Icon(Icons.phone_rounded, size: 13, color: Colors.green.shade600),
-                const SizedBox(width: 3),
-                Text(
-                  '$driverCalls',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: driverCalls > 0 ? Colors.green.shade700 : Colors.grey.shade500,
+                // Count cluster: Expanded fills the gap (replaces Spacer) and FittedBox
+                // shrinks it before it can ever overflow — any screen width, any count size.
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.phone_rounded, size: 13, color: Colors.green.shade600),
+                        const SizedBox(width: 3),
+                        Text(
+                          compactCount(driverCalls),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: driverCalls > 0 ? Colors.green.shade700 : Colors.grey.shade500,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Icon(Icons.chat_rounded, size: 13, color: Color(0xFF25D366)),
+                        const SizedBox(width: 3),
+                        Text(
+                          compactCount(driverWa),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: driverWa > 0 ? const Color(0xFF25D366) : Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 14),
-                const Icon(Icons.chat_rounded, size: 13, color: Color(0xFF25D366)),
-                const SizedBox(width: 3),
-                Text(
-                  '$driverWa',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: driverWa > 0 ? const Color(0xFF25D366) : Colors.grey.shade500,
-                  ),
-                ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -1119,7 +1157,8 @@ class _UnionDashboardScreenState extends State<UnionDashboardScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Total: $totalContacts',
+                    'Total: ${compactCount(totalContacts)}',
+                    maxLines: 1,
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,

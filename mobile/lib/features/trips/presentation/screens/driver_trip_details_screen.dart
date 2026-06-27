@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/compact_number.dart';
 import '../../../../core/feedback/app_feedback.dart';
 import '../../../../models/trip_model.dart';
 import '../../../../models/seat_layout.dart';
@@ -999,7 +1000,7 @@ class _PassengerRatingRow extends StatelessWidget {
                   children: [
                     Icon(Icons.star, color: Colors.amber[700], size: 16),
                     const SizedBox(width: 4),
-                    Text('$avgStr ($total)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber[900])),
+                    Text('$avgStr (${compactCount(total)})', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber[900])),
                   ],
                 ),
               )
