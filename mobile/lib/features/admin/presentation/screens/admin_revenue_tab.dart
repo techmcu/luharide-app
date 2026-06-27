@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/compact_number.dart';
 import '../../../../services/platform_admin_service.dart';
 
 class AdminRevenueTab extends StatefulWidget {
@@ -85,11 +86,11 @@ class _AdminRevenueTabState extends State<AdminRevenueTab> {
 
     return Row(
       children: [
-        Expanded(child: _summaryCard('Revenue', '₹${revenue.toStringAsFixed(0)}', Icons.currency_rupee, Colors.green)),
+        Expanded(child: _summaryCard('Revenue', compactCurrency(revenue), Icons.currency_rupee, Colors.green)),
         const SizedBox(width: 10),
-        Expanded(child: _summaryCard('Bookings', '$bookings', Icons.bookmark, Colors.blue)),
+        Expanded(child: _summaryCard('Bookings', compactCount(bookings), Icons.bookmark, Colors.blue)),
         const SizedBox(width: 10),
-        Expanded(child: _summaryCard('Avg/Trip', '₹${avg.toStringAsFixed(0)}', Icons.analytics, Colors.orange)),
+        Expanded(child: _summaryCard('Avg/Trip', compactCurrency(avg), Icons.analytics, Colors.orange)),
       ],
     );
   }
@@ -104,7 +105,10 @@ class _AdminRevenueTabState extends State<AdminRevenueTab> {
           children: [
             Icon(icon, color: color, size: 24),
             const SizedBox(height: 8),
-            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(value, maxLines: 1, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            ),
             const SizedBox(height: 4),
             Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54)),
           ],
@@ -127,7 +131,7 @@ class _AdminRevenueTabState extends State<AdminRevenueTab> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.route, size: 20, color: Colors.blueGrey),
           title: Text('$from → $to', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-          trailing: Text('$count trips • ₹${rev.toStringAsFixed(0)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          trailing: Text('${compactCount(count)} trips • ${compactCurrency(rev)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
         );
       }).toList(),
     );
@@ -146,7 +150,7 @@ class _AdminRevenueTabState extends State<AdminRevenueTab> {
           contentPadding: EdgeInsets.zero,
           leading: const CircleAvatar(radius: 16, child: Icon(Icons.person, size: 18)),
           title: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-          trailing: Text('$trips trips • ★${rating.toStringAsFixed(1)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          trailing: Text('${compactCount(trips)} trips • ★${rating.toStringAsFixed(1)}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
         );
       }).toList(),
     );

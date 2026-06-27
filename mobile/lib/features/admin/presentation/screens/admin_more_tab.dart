@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/utils/compact_number.dart';
 import '../../../../services/platform_admin_service.dart';
 import '../../../../services/admin_service.dart';
 import 'simple_kyc_preview_screen.dart';
@@ -424,7 +425,7 @@ class _NotificationsSectionState extends State<_NotificationsSection> with Autom
             const SizedBox(height: 4),
             Text(body, style: const TextStyle(fontSize: 12, color: Colors.black54), maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 6),
-            Text('Sent to $count users • ${_formatDate(created)}', style: const TextStyle(fontSize: 11, color: Colors.black38)),
+            Text('Sent to ${compactCount(count)} users • ${_formatDate(created)}', style: const TextStyle(fontSize: 11, color: Colors.black38)),
           ],
         ),
       ),
@@ -791,7 +792,7 @@ class _ComplaintsSectionState extends State<_ComplaintsSection> with AutomaticKe
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('$_total complaints', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+              Text('${compactCount(_total)} complaints', style: const TextStyle(fontSize: 13, color: Colors.black54)),
               Row(children: [
                 IconButton(icon: const Icon(Icons.chevron_left), onPressed: _page > 1 ? () { _page--; _load(); } : null),
                 Text('Page $_page', style: const TextStyle(fontSize: 13)),
@@ -1038,7 +1039,7 @@ class _KycSectionState extends State<_KycSection> with AutomaticKeepAliveClientM
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.deepOrange.shade50, borderRadius: BorderRadius.circular(12)),
-                child: Text('${_driverRequests.length}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade700)),
+                child: Text(compactCount(_driverRequests.length), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade700)),
               ),
               const SizedBox(width: 8),
               IconButton(icon: const Icon(Icons.refresh, size: 20), onPressed: _load),
@@ -1059,7 +1060,7 @@ class _KycSectionState extends State<_KycSection> with AutomaticKeepAliveClientM
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(12)),
-                child: Text('${_unionRequests.length}', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade700)),
+                child: Text(compactCount(_unionRequests.length), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade700)),
               ),
             ],
           ),

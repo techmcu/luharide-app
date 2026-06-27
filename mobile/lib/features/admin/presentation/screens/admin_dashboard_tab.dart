@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../core/feedback/app_feedback.dart';
+import '../../../../core/utils/compact_number.dart';
 import '../../../../services/platform_admin_service.dart';
 import '../../../home/presentation/screens/union_admin_home_screen.dart';
 
@@ -170,7 +171,11 @@ class _AdminDashboardTabState extends State<AdminDashboardTab> {
                   children: [
                     Icon(item.icon, color: item.color, size: 24),
                     const SizedBox(height: 8),
-                    Text('${item.value}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: item.color)),
+                    // compactCount + scaleDown: even a 7-8 digit count stays inside the card.
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(compactCount(item.value), maxLines: 1, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: item.color)),
+                    ),
                     const SizedBox(height: 4),
                     Text(item.label, style: const TextStyle(fontSize: 11, color: Colors.black54), textAlign: TextAlign.center),
                   ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/compact_number.dart';
 import '../../../../services/platform_admin_service.dart';
 import 'platform_user_detail_screen.dart';
 
@@ -81,7 +82,7 @@ class _AdminUsersTabState extends State<AdminUsersTab> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('$_total users', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                Text('${compactCount(_total)} users', style: const TextStyle(fontSize: 13, color: Colors.black54)),
                 Row(
                   children: [
                     IconButton(

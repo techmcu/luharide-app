@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/compact_number.dart';
 import '../../../../services/platform_admin_service.dart';
 import 'platform_trip_detail_screen.dart';
 
@@ -77,7 +78,7 @@ class _AdminTripsTabState extends State<AdminTripsTab> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('$_total trips', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+                Text('${compactCount(_total)} trips', style: const TextStyle(fontSize: 13, color: Colors.black54)),
                 Row(
                   children: [
                     IconButton(
