@@ -291,12 +291,12 @@ const createBooking = asyncHandler(async (req, res) => {
         logger.warn('Booking confirmed notification failed:', e.message);
       }
 
-      // Rate reminder: arrival_time + 2h (single notification per booking)
+      // Rate reminder: estimated arrival (= ride completion time) + 4h (single notification per booking)
       try {
         const arrivalTime = trip.arrival_time || new Date(new Date(trip.departure_time).getTime() + 2 * 60 * 60 * 1000).toISOString();
         await pool.query(
           `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-           VALUES ($1, $2, $3, $4::timestamp + INTERVAL '2 hours')
+           VALUES ($1, $2, $3, $4::timestamp + INTERVAL '4 hours')
            ON CONFLICT (booking_id) DO NOTHING`,
           [booking.id, passengerId, trip.driver_id, arrivalTime]
         );
@@ -534,7 +534,7 @@ const respondToBooking = asyncHandler(async (req, res) => {
       const arrivalTime = booking.arrival_time || new Date(new Date(booking.departure_time).getTime() + 2 * 60 * 60 * 1000).toISOString();
       await pool.query(
         `INSERT INTO pending_rate_notifications (booking_id, passenger_id, driver_id, send_after)
-         VALUES ($1, $2, $3, $4::timestamp + INTERVAL '2 hours')
+         VALUES ($1, $2, $3, $4::timestamp + INTERVAL '4 hours')
          ON CONFLICT (booking_id) DO NOTHING`,
         [bookingId, booking.passenger_id, booking.driver_id, arrivalTime]
       );

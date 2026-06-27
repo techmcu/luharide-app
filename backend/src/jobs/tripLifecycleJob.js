@@ -140,6 +140,28 @@ async function run() {
       if (finishResult.rowCount > 0) {
         logger.info(`[TripLifecycle] Auto-finished ${finishResult.rowCount} trip(s)`);
       }
+
+      // ── Union schedules: auto-complete after the estimated journey time ──
+      // union_schedules has no arrival_time; completion = departure + route_duration_min
+      // (the estimated travel time computed from the route when the union admin published).
+      // Fallback 2h when duration is unknown (geo not yet enriched). departure_time is
+      // TIMESTAMPTZ → compare against plain NOW() (absolute instant, any session TZ). Silent
+      // transition — gives the ride a real 'completed' status and keeps it out of search.
+      try {
+        const unionDone = await client.query(
+          `UPDATE union_schedules SET status = 'completed'
+           WHERE status = 'scheduled'
+             AND departure_time + make_interval(mins => COALESCE(route_duration_min, 120)::int) <= NOW()
+           RETURNING id`
+        );
+        if (unionDone.rowCount > 0) {
+          logger.info(`[TripLifecycle] Auto-completed ${unionDone.rowCount} union schedule(s)`);
+        }
+      } catch (e) {
+        if (e.code !== '42P01' && e.code !== '42703') {
+          logger.warn('[TripLifecycle] union schedule auto-complete failed:', e.message);
+        }
+      }
     });
   } catch (err) {
     if (err.code === '42P01') return;

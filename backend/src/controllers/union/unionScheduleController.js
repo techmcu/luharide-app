@@ -13,6 +13,28 @@ const MAX_SCHEDULES_PER_PUBLISH = 50;      // rides (drivers) per single publish
 const PAST_GRACE_MS = 60 * 1000;           // tolerate 1 min clock skew / submit latency
 
 /**
+ * Normalize an incoming departure time to a true UTC instant (ISO-8601 string).
+ *
+ * THE TIME BUG: `union_schedules.departure_time` is TIMESTAMPTZ. The app's date/time
+ * picker yields a NAKED local datetime (`"2026-06-27T10:00:00.000"` — no zone). If that
+ * is handed to Postgres as-is, a UTC DB session reads it as 10:00 UTC = 15:30 IST, so the
+ * passenger search showed 15:30 for a ride the union set for 10:00. We fix it at the door:
+ * a naked value is IST wall-clock → attach +05:30; an explicit-zone value (Z or ±hh:mm,
+ * sent by newer builds) is already an instant → respect it. Returns null if unparseable.
+ *
+ * Doing this server-side means EVERY installed app build is corrected immediately — no APK
+ * update required. Pure (no I/O) → unit-testable.
+ */
+function departureToInstantISO(value) {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  const hasZone = /[zZ]$/.test(s) || /[+-]\d{2}:?\d{2}$/.test(s);
+  const d = new Date(hasZone ? s : `${s}+05:30`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/**
  * Normalize the request body into a flat list of schedule items. ONE publish can
  * carry up to 50 rides, each with its OWN route + time (drivers going different
  * places in one click). Supports two body shapes:
@@ -37,7 +59,7 @@ function normalizeScheduleItems(body = {}) {
       toLocation: str(s.to_location),
       fromLat: num(s.from_lat), fromLng: num(s.from_lng),
       toLat: num(s.to_lat), toLng: num(s.to_lng),
-      departureTime: s.departure_time ?? null,
+      departureTime: departureToInstantISO(s.departure_time),
     }));
   }
 
@@ -48,7 +70,7 @@ function normalizeScheduleItems(body = {}) {
     toLocation: str(body.to_location),
     fromLat: num(body.from_lat), fromLng: num(body.from_lng),
     toLat: num(body.to_lat), toLng: num(body.to_lng),
-    departureTime: body.departure_time ?? null,
+    departureTime: departureToInstantISO(body.departure_time),
   }));
 }
 
@@ -337,7 +359,8 @@ const getUnionSchedules = asyncHandler(async (req, res) => {
     `
     SELECT
       CASE
-        WHEN s.status = 'scheduled' AND s.departure_time <= NOW()
+        WHEN s.status = 'scheduled'
+             AND s.departure_time + make_interval(mins => COALESCE(s.route_duration_min, 120)::int) <= NOW()
           THEN 'completed'
         ELSE s.status
       END AS status,
@@ -360,10 +383,10 @@ const getUnionSchedules = asyncHandler(async (req, res) => {
     FROM union_schedules s
     JOIN union_drivers d ON d.id = s.union_driver_id
     WHERE s.union_id = $1
-      AND s.departure_time >= CURRENT_DATE::timestamp
-      AND s.departure_time < (CURRENT_DATE::timestamp + INTERVAL '10 days')
+      AND s.departure_time >= NOW() - INTERVAL '30 days'
       AND s.status IN ('scheduled','completed')
-    ORDER BY s.departure_time ASC
+    ORDER BY s.departure_time DESC
+    LIMIT 200
     `,
     [unionId]
   );
@@ -443,6 +466,7 @@ module.exports = {
   cancelUnionSchedule,
   // Exported additively for unit testing — pure helpers, no behavior change.
   normalizeScheduleItems,
+  departureToInstantISO,
   isFutureDeparture,
   validateScheduleItems,
   DAILY_SCHEDULE_LIMIT,

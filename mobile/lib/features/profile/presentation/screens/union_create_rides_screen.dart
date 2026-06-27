@@ -311,7 +311,10 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
         'from_lng': parseCoord(route['from_lng']),
         'to_lat': parseCoord(route['to_lat']),
         'to_lng': parseCoord(route['to_lng']),
-        'departure_time': dt.toIso8601String(),
+        // Send a true UTC instant (…Z), same as the independent-driver create flow
+        // (trip_service.dart). The backend also defends against naked local times from
+        // older builds, but new builds are now explicit.
+        'departure_time': dt.toUtc().toIso8601String(),
       });
     }
 
@@ -495,10 +498,14 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     );
   }
 
-  String _fmtDt(DateTime dt) =>
-      '${dt.day.toString().padLeft(2, '0')} '
-      '${_monthName(dt.month)} ${dt.year}  '
-      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  String _fmtDt(DateTime dt) {
+    // 12-hour clock with AM/PM — the union must read back the exact time it picked.
+    final h12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+    final ampm = dt.hour < 12 ? 'AM' : 'PM';
+    return '${dt.day.toString().padLeft(2, '0')} '
+        '${_monthName(dt.month)} ${dt.year}  '
+        '${h12.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} $ampm';
+  }
 
   String _monthName(int m) => const [
         '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -1094,33 +1101,47 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     final scheduleId = s['id']?.toString() ?? '';
     final isCancelling = scheduleId.isNotEmpty && _cancelLoadingIds.contains(scheduleId);
 
+    // departure_time is a true UTC instant (…Z) from the API → convert to local so the
+    // union sees the exact wall-clock time it picked. (Older rows may arrive zone-less;
+    // attach Z then toLocal, matching the passenger search card's parsing.)
     DateTime? dt;
     final dtRaw = s['departure_time'];
-    if (dtRaw != null) dt = DateTime.tryParse(dtRaw.toString());
+    if (dtRaw != null) {
+      final raw = dtRaw.toString().trim();
+      if (raw.isNotEmpty) {
+        final withZ = (raw.endsWith('Z') || raw.contains('+')) ? raw : '${raw}Z';
+        dt = DateTime.tryParse(withZ)?.toLocal();
+      }
+    }
 
     final dateStr = dt != null
         ? _fmtDt(dt)
         : '—';
 
-    // Status color
+    // Status label for the union's own dashboard. The backend flips a ride to 'completed'
+    // once its estimated journey time is over; everything still upcoming shows 'ACTIVE'.
     Color statusColor;
     Color statusBg;
     IconData statusIcon;
+    String statusLabel;
     switch (status) {
       case 'cancelled':
         statusColor = Colors.red.shade700;
         statusBg    = Colors.red.shade50;
         statusIcon  = Icons.cancel_rounded;
+        statusLabel = 'CANCELLED';
         break;
       case 'completed':
         statusColor = const Color(0xFF3949AB);
         statusBg    = const Color(0xFFE8EAF6);
         statusIcon  = Icons.check_circle_rounded;
+        statusLabel = 'COMPLETED';
         break;
       default:
         statusColor = const Color(0xFF2E7D32);
         statusBg    = const Color(0xFFE8F5E9);
         statusIcon  = Icons.schedule_rounded;
+        statusLabel = 'ACTIVE';
     }
 
     return Container(
@@ -1198,7 +1219,7 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
                       Icon(statusIcon, size: 12, color: statusColor),
                       const SizedBox(width: 4),
                       Text(
-                        status.isEmpty ? 'ACTIVE' : status.toUpperCase(),
+                        statusLabel,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,

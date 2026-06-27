@@ -44,6 +44,7 @@ const { sendPushToMultipleUsers } = require('../../utils/pushNotification');
 const {
   createUnionSchedulesBulk,
   normalizeScheduleItems,
+  departureToInstantISO,
   isFutureDeparture,
   validateScheduleItems,
 } = require('./unionScheduleController');
@@ -68,22 +69,22 @@ describe('normalizeScheduleItems', () => {
   test('RULE 7: NEW schedules[] shape — each ride keeps its own route + time', () => {
     const items = normalizeScheduleItems({
       schedules: [
-        { union_driver_id: 'd1', from_location: 'Dehradun', to_location: 'Purola', departure_time: 't1', from_lat: '30.3', from_lng: 78.0 },
-        { union_driver_id: 'd2', from_location: 'Purola', to_location: 'Dehradun', departure_time: 't2' },
+        { union_driver_id: 'd1', from_location: 'Dehradun', to_location: 'Purola', departure_time: '2030-01-01T05:00:00.000Z', from_lat: '30.3', from_lng: 78.0 },
+        { union_driver_id: 'd2', from_location: 'Purola', to_location: 'Dehradun', departure_time: '2030-01-01T06:00:00.000Z' },
       ],
     });
     expect(items).toHaveLength(2);
-    expect(items[0]).toMatchObject({ unionDriverId: 'd1', fromLocation: 'Dehradun', toLocation: 'Purola', departureTime: 't1', fromLat: 30.3, fromLng: 78.0 });
-    expect(items[1]).toMatchObject({ unionDriverId: 'd2', fromLocation: 'Purola', toLocation: 'Dehradun', departureTime: 't2' });
+    expect(items[0]).toMatchObject({ unionDriverId: 'd1', fromLocation: 'Dehradun', toLocation: 'Purola', departureTime: '2030-01-01T05:00:00.000Z', fromLat: 30.3, fromLng: 78.0 });
+    expect(items[1]).toMatchObject({ unionDriverId: 'd2', fromLocation: 'Purola', toLocation: 'Dehradun', departureTime: '2030-01-01T06:00:00.000Z' });
   });
 
   test('LEGACY union_driver_ids shape — one shared route+time fans out per driver', () => {
     const items = normalizeScheduleItems({
       union_driver_ids: ['d1', 'd2', 'd3'],
-      from_location: 'Dehradun', to_location: 'Purola', departure_time: 't',
+      from_location: 'Dehradun', to_location: 'Purola', departure_time: '2030-01-01T05:00:00.000Z',
     });
     expect(items).toHaveLength(3);
-    expect(items.every((it) => it.fromLocation === 'Dehradun' && it.toLocation === 'Purola' && it.departureTime === 't')).toBe(true);
+    expect(items.every((it) => it.fromLocation === 'Dehradun' && it.toLocation === 'Purola' && it.departureTime === '2030-01-01T05:00:00.000Z')).toBe(true);
   });
 
   test('empty / missing body → empty list (caller rejects)', () => {
@@ -100,6 +101,27 @@ describe('normalizeScheduleItems', () => {
     expect(it.fromLocation).toBe('A');
     expect(it.fromLat).toBeNull(); // 'abc' → null, never NaN
     expect(it.toLng).toBeNull();
+  });
+});
+
+describe('departureToInstantISO (THE TIME BUG fix)', () => {
+  test('naked local datetime is read as IST wall-clock (+05:30 attached)', () => {
+    // 10:00 IST == 04:30 UTC — the union picks 10:00, the world stores 04:30Z.
+    expect(departureToInstantISO('2030-06-27T10:00:00.000')).toBe('2030-06-27T04:30:00.000Z');
+    expect(departureToInstantISO('2030-06-27T10:00:00')).toBe('2030-06-27T04:30:00.000Z');
+  });
+  test('explicit Z instant is respected as-is', () => {
+    expect(departureToInstantISO('2030-06-27T04:30:00.000Z')).toBe('2030-06-27T04:30:00.000Z');
+  });
+  test('explicit +05:30 offset is respected (same instant as naked IST)', () => {
+    expect(departureToInstantISO('2030-06-27T10:00:00+05:30')).toBe('2030-06-27T04:30:00.000Z');
+  });
+  test('null / empty / unparseable → null', () => {
+    expect(departureToInstantISO(null)).toBeNull();
+    expect(departureToInstantISO(undefined)).toBeNull();
+    expect(departureToInstantISO('')).toBeNull();
+    expect(departureToInstantISO('   ')).toBeNull();
+    expect(departureToInstantISO('not-a-date')).toBeNull();
   });
 });
 

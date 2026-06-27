@@ -326,9 +326,14 @@ async function proximitySearch(req, res, q, fLat, fLng) {
       JOIN union_drivers d ON d.id = s.union_driver_id
       JOIN unions u ON u.id = s.union_id`;
   // IST calendar-day match (see TRIP_TIME_WHERE note) — shift UTC window by 330 min.
+  // NOTE: union_schedules.departure_time is TIMESTAMPTZ (unlike trips.departure_time which is
+  // TIMESTAMP/UTC). For the "still in the future" guard we therefore compare against plain NOW()
+  // (timestamptz vs timestamptz) — absolute-instant, correct under ANY DB session timezone. Using
+  // `NOW() AT TIME ZONE 'UTC'` here would be coerced via session TZ and (on an IST session) let
+  // already-departed union rides leak into search results.
   const UNION_TIME_WHERE = `s.departure_time >= ($5::date)::timestamp - interval '330 minutes'
       AND s.departure_time <  ($5::date)::timestamp + interval '1 day' - interval '330 minutes'
-      AND s.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
+      AND s.departure_time > NOW() - (${graceMin} * INTERVAL '1 minute')`;
 
   const unionQueries = [
     queryRead(
@@ -495,8 +500,12 @@ const searchTrips = asyncHandler(async (req, res) => {
   // graceMin: show trips up to N minutes past departure (0 = only future trips)
   // Keep departure_time bare (no AT TIME ZONE wrap) so B-tree index can be used
   const graceMin = retentionConfig.tripSearchGraceMinutesAfterDeparture;
+  // trips.departure_time is TIMESTAMP (UTC wall-clock) → compare against UTC wall-clock.
   const depStillVisible = `t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
-  const unionDepStillVisible = `s.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
+  // union_schedules.departure_time is TIMESTAMPTZ → compare against plain NOW() (absolute instant),
+  // correct under any DB session timezone. (Was `NOW() AT TIME ZONE 'UTC'`, which leaked past union
+  // rides into search on an IST session.)
+  const unionDepStillVisible = `s.departure_time > NOW() - (${graceMin} * INTERVAL '1 minute')`;
 
   // Normalize: lowercase; strip spaces, commas, dots, dashes, slashes so search matches more typos
   const normLoc = (s) => s.toLowerCase().replace(/[\s,.\-_:;/\\]+/g, '');

@@ -19,8 +19,8 @@ module.exports = {
   tripAutoCompleteAfterDepartureHours: intEnv('TRIP_AUTO_COMPLETE_AFTER_DEPARTURE_HOURS', 1, 0, 48),
 
   // --- Union schedules ---
-  unionScheduleRetentionDays: intEnv('UNION_SCHEDULE_RETENTION_DAYS', 15, 1, 90),
-  unionScheduleMaxPerUnion: intEnv('UNION_SCHEDULE_MAX_PER_UNION', 100, 10, 500),
+  unionScheduleRetentionDays: intEnv('UNION_SCHEDULE_RETENTION_DAYS', 30, 1, 90),
+  unionScheduleMaxPerUnion: intEnv('UNION_SCHEDULE_MAX_PER_UNION', 200, 10, 500),
 
   // --- Notifications (user) ---
   notificationReadRetentionHours: intEnv('NOTIFICATION_READ_RETENTION_HOURS', 48, 6, 720),

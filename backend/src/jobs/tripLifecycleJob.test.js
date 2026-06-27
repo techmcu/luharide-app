@@ -49,7 +49,9 @@ describe('tripLifecycleJob.run', () => {
           // notify driver (trip auto-started)
           .mockResolvedValueOnce({ rows: [{ id: 'n2', user_id: 'd1' }] })
           // auto-finish: UPDATE trips in_progress → completed
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+          // union schedules auto-complete
+          .mockResolvedValue({ rows: [], rowCount: 0 }),
       };
       await fn(client);
     });
@@ -84,7 +86,8 @@ describe('tripLifecycleJob.run', () => {
       const client = {
         query: jest.fn()
           .mockResolvedValueOnce({ rows: [], rowCount: 0 })   // auto-start: none
-          .mockResolvedValueOnce({ rows: [], rowCount: 0 }),   // auto-finish: none
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })   // auto-finish: none
+          .mockResolvedValue({ rows: [], rowCount: 0 }),       // union schedules: none
       };
       await fn(client);
     });
@@ -92,5 +95,26 @@ describe('tripLifecycleJob.run', () => {
     await run();
 
     expect(emitTripUpdated).not.toHaveBeenCalled();
+  });
+
+  it('auto-completes union schedules past their journey time', async () => {
+    let captured;
+    withPgAdvisoryTryLock.mockImplementation(async (_p, _ns, _key, fn) => {
+      const client = {
+        query: jest.fn()
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })            // auto-start: none
+          .mockResolvedValueOnce({ rows: [], rowCount: 0 })            // auto-finish: none
+          .mockResolvedValueOnce({ rows: [{ id: 'us1' }], rowCount: 1 }), // union complete
+      };
+      captured = client;
+      await fn(client);
+    });
+
+    await run();
+
+    const unionCall = captured.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('union_schedules')
+    );
+    expect(unionCall).toBeTruthy();
   });
 });
