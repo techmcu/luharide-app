@@ -93,3 +93,37 @@ describe('rankPlaces — coordless entries', () => {
     expect(rankPlaces([], { query: 'x', near: PUROLA })).toEqual([]);
   });
 });
+
+describe('rankPlaces — nearest same-name wins regardless of word position', () => {
+  test('a FAR "starts-with" match never outranks a NEARER "contains" match', () => {
+    // The original bug: "Naugaon Waiting Hall" (name starts with the query but is
+    // far) beat "Manduwala Chowk Naugaon" (nearer, query is a later word). For
+    // setting From/To the user wants their CLOSEST same-named place on top.
+    const farStartsWith = { description: 'Naugaon Waiting Hall', secondary: 'Delhi area', lat: 28.61, lng: 77.21 }; // ~250 km
+    const nearContains = { description: 'Manduwala Chowk Naugaon', secondary: 'Uttarkashi', lat: 30.85, lng: 78.12 }; // ~5 km
+    const ranked = rankPlaces([farStartsWith, nearContains], { query: 'naugaon', near: PUROLA });
+    expect(ranked[0].secondary).toBe('Uttarkashi'); // nearest first
+  });
+
+  test('among many same-named places, order is strictly nearest → farthest', () => {
+    const near = { description: 'Naugaon', secondary: 'near', lat: 30.85, lng: 78.12 };   // ~5 km
+    const mid = { description: 'Naugaon', secondary: 'mid', lat: 30.31, lng: 78.03 };     // ~65 km (Dehradun)
+    const far = { description: 'Naugaon', secondary: 'far', lat: 28.61, lng: 77.21 };      // ~250 km (Delhi)
+    const ranked = rankPlaces([far, mid, near], { query: 'naugaon', near: PUROLA });
+    expect(ranked.map((p) => p.secondary)).toEqual(['near', 'mid', 'far']);
+  });
+
+  test('a coordless same-name entry sinks BELOW a far coord-backed one', () => {
+    const coordless = { description: 'Naugaon Barkot Road', secondary: 'uk-nocoord', lat: null, lng: null };
+    const farCoord = { description: 'Naugaon City', secondary: 'far-coord', lat: 28.61, lng: 77.21 };
+    const ranked = rankPlaces([coordless, farCoord], { query: 'naugaon', near: PUROLA });
+    expect(ranked[0].secondary).toBe('far-coord'); // coord-backed beats coordless even if far
+  });
+
+  test('exact name still beats any nearer non-exact match', () => {
+    const exactFar = { description: 'Noida', secondary: 'exact', lat: 28.57, lng: 77.32 };
+    const nearPartial = { description: 'Greater Noida West', secondary: 'partial-near', lat: 30.85, lng: 78.12 };
+    const ranked = rankPlaces([nearPartial, exactFar], { query: 'noida', near: PUROLA });
+    expect(ranked[0].secondary).toBe('exact'); // exact name wins over a nearer partial
+  });
+});

@@ -35,13 +35,17 @@ function geoBoundingBox(lat, lng, radiusKm) {
  * just Uttarakhand — there is no hardcoded centre or service-area penalty, so a
  * Mumbai/Chennai/Kolkata user is never disadvantaged.
  *
- * Order of precedence:
- *  1. Text relevance: exact → starts-with → word-starts → contains.
- *  2. NEAREST to the reference point first (silent proximity — no km is shown;
- *     the district/state label does the visible disambiguation). Distance is
- *     measured from wherever the USER is, so the local same-named place wins in
- *     ANY region.
- *  3. Simplest / shortest name, then alphabetical.
+ * Order of precedence (when a user / "from" reference point is known):
+ *  1. Exact name match first.
+ *  2. Among EVERY place that contains the typed name: NEAREST first — the closer
+ *     the place, the higher it ranks. So a far place whose name merely starts
+ *     with the query never outranks a closer same-named place (the original
+ *     "starts-with beats nearer" bug). Silent proximity — no km shown; the
+ *     district/state label does the visible disambiguation.
+ *  3. Coordless entries sink (we can't prove how near they are).
+ *  4. Simplest / shortest name, then alphabetical.
+ * With NO reference, fall back to pure text relevance (exact → starts-with →
+ * word-starts → contains) so non-local users aren't penalised.
  *
  * `near` is the best available reference: live GPS, else the already-picked
  * "from" location (the app passes it as the picker bias). When there is NO
@@ -54,6 +58,7 @@ function rankPlaces(places, { query, near } = {}) {
   const qLower = String(query || '').toLowerCase();
   const ref = (near && olaMaps.isValidLatLng(near.lat, near.lng)) ? near : null;
   const hasCoords = (p) => p && p.lat != null && p.lng != null && olaMaps.isValidLatLng(p.lat, p.lng);
+  // Fine-grained text rank — used only for the NO-reference fallback (unchanged).
   const textRank = (d) => {
     const s = String(d || '').toLowerCase();
     if (s === qLower) return 0;
@@ -61,17 +66,36 @@ function rankPlaces(places, { query, near } = {}) {
     if (s.split(/[\s,]+/).some((w) => w.startsWith(qLower))) return 2;
     return 3;
   };
+  // Coarse match tier for proximity ranking: an exact name beats everything, but
+  // ALL places that merely contain the typed name share ONE tier — so among them
+  // the NEAREST wins. (A "Naugaon Waiting Hall" must not outrank a closer
+  // "Manduwala Chowk Naugaon" just because its name starts with the query.)
+  const matchTier = (d) => {
+    const s = String(d || '').toLowerCase();
+    if (s === qLower) return 0;       // exact name
+    if (s.includes(qLower)) return 1; // contains the typed name anywhere
+    return 2;                         // no real match
+  };
   const distKm = (p) => ((ref && hasCoords(p)) ? olaMaps.haversineKm(ref.lat, ref.lng, p.lat, p.lng) : Infinity);
 
   return [...places].sort((a, b) => {
-    const ra = textRank(a.description); const rb = textRank(b.description);
-    if (ra !== rb) return ra - rb;
-    // Proximity to the user's own reference — region-agnostic. No effect when
-    // there is no reference (both Infinity), so non-local users aren't penalised.
     if (ref) {
+      // 1) exact name first, then any name-match, then non-matches
+      const ta = matchTier(a.description); const tb = matchTier(b.description);
+      if (ta !== tb) return ta - tb;
+      // 2) coordless entries sink — we can't prove how near they are
+      const ha = hasCoords(a) ? 0 : 1; const hb = hasCoords(b) ? 0 : 1;
+      if (ha !== hb) return ha - hb;
+      // 3) NEAREST first — the closer the place, the higher it ranks (the fix:
+      //    distance leads among name-matches, so the user's local place wins)
       const da = distKm(a); const db = distKm(b);
       if (da !== db) return da - db;
+    } else {
+      // No reference point → pure text relevance (region-agnostic, no penalty).
+      const ra = textRank(a.description); const rb = textRank(b.description);
+      if (ra !== rb) return ra - rb;
     }
+    // Tiebreaks: simplest/cleanest name (the town over a POI), then short, then alpha.
     const ca = (a.description.match(/,/g) || []).length;
     const cb = (b.description.match(/,/g) || []).length;
     if (ca !== cb) return ca - cb;
@@ -827,43 +851,6 @@ const saveRecentRoute = asyncHandler(async (req, res) => {
   );
   ApiResponse.success({ saved: true }, 'Route saved').send(res);
 });
-
-const UTTARAKHAND_LOCATIONS = [
-  // District HQs
-  'Dehradun', 'Haridwar', 'Rishikesh', 'Mussoorie', 'Nainital', 'Almora',
-  'Haldwani', 'Roorkee', 'Rudrapur', 'Kashipur', 'Pithoragarh', 'Chamoli',
-  'Uttarkashi', 'Tehri Garhwal', 'Tehri', 'Pauri Garhwal', 'Pauri',
-  'Bageshwar', 'Champawat', 'Udham Singh Nagar',
-  // Major towns & CDBlocks
-  'Purola', 'Mori', 'Barkot', 'Naugaon', 'Dunda', 'Chinyalisaur',
-  'Rajgarhi', 'Jaunpur', 'Tyuni',
-  'Chakrata', 'Kalsi', 'Vikasnagar', 'Sahaspur', 'Raipur', 'Doiwala',
-  'Herbertpur', 'Laksar', 'Bhagwanpur', 'Narsan', 'Bahadrabad',
-  'Roorkee', 'Jhabrera', 'Landhaura',
-  'Kotdwar', 'Lansdowne', 'Dugadda', 'Yamkeshwar', 'Pokhra', 'Bironkhal',
-  'Ekeshwar', 'Rikhnikhal', 'Satpuli',
-  'Devprayag', 'Narendranagar', 'Pratapnagar', 'Jakhnidhar', 'Ghansali',
-  'Chamba', 'Dhanaulti', 'New Tehri',
-  'Joshimath', 'Gopeshwar', 'Karnaprayag', 'Tharali', 'Gairsain',
-  'Dewal', 'Narayanbagar', 'Pokhari',
-  'Rudraprayag', 'Ukhimath', 'Augustmuni', 'Jakholi',
-  'Srinagar Garhwal', 'Srinagar',
-  'Kedarnath', 'Badrinath', 'Gangotri', 'Yamunotri',
-  'Auli', 'Chopta', 'Tungnath', 'Hemkund Sahib',
-  'Ranikhet', 'Dwarahat', 'Bhikiyasain', 'Chaukhutia', 'Someshwar',
-  'Hawalbagh', 'Takula', 'Lamgara', 'Sult', 'Dhari',
-  'Bhowali', 'Bhimtal', 'Ramgarh', 'Mukteshwar', 'Betalghat', 'Okhalkanda',
-  'Haldwani', 'Lalkuan', 'Ramnagar', 'Dhari',
-  'Khatima', 'Sitarganj', 'Bazpur', 'Gadarpur', 'Jaspur',
-  'Tanakpur', 'Banbasa', 'Lohaghat', 'Pati', 'Barakot',
-  'Berinag', 'Gangolihat', 'Dharchula', 'Munsiyari', 'Kapkot',
-  'Kanda', 'Garur',
-  'Haridwar', 'Manglaur', 'Piran Kaliyar',
-  'Kathgodam', 'Pantnagar', 'Kichha', 'Kelakhera',
-  'Rishikesh', 'Muni Ki Reti', 'Tapovan',
-  'Dehradun Clock Tower', 'Rajpur Road', 'ISBT Dehradun',
-  'Jolly Grant Airport', 'Pantnagar Airport',
-];
 
 /**
  * Get location suggestions
