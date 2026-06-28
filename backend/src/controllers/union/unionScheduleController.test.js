@@ -116,6 +116,18 @@ describe('departureToInstantISO (THE TIME BUG fix)', () => {
   test('explicit +05:30 offset is respected (same instant as naked IST)', () => {
     expect(departureToInstantISO('2030-06-27T10:00:00+05:30')).toBe('2030-06-27T04:30:00.000Z');
   });
+  // REGRESSION (the "same-day future ride shows as past, only on prod" bug): the
+  // validate middleware's Joi.date().iso() turns the app's ISO string into a JS Date,
+  // and node-postgres returns TIMESTAMPTZ as a Date. A Date is already a true instant
+  // and must pass through UNCHANGED — NOT be String()'d and re-parsed as naked IST
+  // (which shifted it -5:30 on a UTC server). CI runs in UTC, so this guards it.
+  test('a JS Date object passes through as the SAME instant (no -5:30 shift)', () => {
+    expect(departureToInstantISO(new Date('2030-06-27T04:30:00.000Z'))).toBe('2030-06-27T04:30:00.000Z');
+    expect(departureToInstantISO(new Date('2030-06-27T16:02:00.000Z'))).toBe('2030-06-27T16:02:00.000Z');
+  });
+  test('an invalid Date object → null', () => {
+    expect(departureToInstantISO(new Date('not-a-date'))).toBeNull();
+  });
   test('null / empty / unparseable → null', () => {
     expect(departureToInstantISO(null)).toBeNull();
     expect(departureToInstantISO(undefined)).toBeNull();

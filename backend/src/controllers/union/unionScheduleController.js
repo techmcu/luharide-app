@@ -27,6 +27,16 @@ const PAST_GRACE_MS = 60 * 1000;           // tolerate 1 min clock skew / submit
  */
 function departureToInstantISO(value) {
   if (value === null || value === undefined) return null;
+  // CRITICAL: `Joi.date().iso()` in the validate middleware ALREADY converts the
+  // app's ISO string into a JS Date (and node-postgres returns TIMESTAMPTZ columns
+  // as Dates too). A Date is an unambiguous instant — stringifying it and re-parsing
+  // as a naked IST wall-clock CORRUPTS it by -5:30 on a UTC server (the prod box):
+  // `String(date)` becomes "... GMT+0000 (Coordinated Universal Time)", which has no
+  // ISO zone, so the +05:30 branch fired and shifted a same-day future ride into the
+  // "past". So pass real Dates straight through; only naked STRINGS get the IST rule.
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
   const s = String(value).trim();
   if (!s) return null;
   const hasZone = /[zZ]$/.test(s) || /[+-]\d{2}:?\d{2}$/.test(s);
