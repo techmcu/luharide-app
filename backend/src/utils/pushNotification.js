@@ -90,7 +90,13 @@ async function sendPushToMultipleUsers(userIds, title, body, data = {}) {
     'SELECT DISTINCT token FROM fcm_tokens WHERE user_id = ANY($1::uuid[])',
     [userIds]
   );
-  if (result.rows.length === 0) return;
+  if (result.rows.length === 0) {
+    // Common silent failure: recipients exist but none have a registered device
+    // token (e.g. brand-new accounts before the token-registration fix). Log it so
+    // "the notification never arrived" is diagnosable instead of vanishing.
+    logger.info({ msg: 'FCM multicast skip: no tokens for any recipient', recipients: userIds.length });
+    return;
+  }
 
   const tokens = result.rows.map((r) => r.token);
   const staleTokens = [];

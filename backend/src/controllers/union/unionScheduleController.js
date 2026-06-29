@@ -5,6 +5,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const toTitleCase = require('../../utils/titleCase');
 const { sendPushToMultipleUsers } = require('../../utils/pushNotification');
+const { unionRideText } = require('../../utils/notificationText');
 const olaMaps = require('../../services/olaMapsService');
 const { IST_TODAY_START } = require('../../utils/istDay');
 
@@ -309,37 +310,69 @@ async function _persistRouteGeo(item, ids) {
 
 async function _sendUnionRideFcm(unionId, unionName, unionFcmEnabled) {
   try {
-    if (!unionFcmEnabled) return;
+    // Every skip is logged so "the notification never went out" is debuggable from
+    // prod logs instead of failing silently (the old behaviour).
+    if (!unionFcmEnabled) {
+      logger.info({ msg: 'FCM union broadcast skipped: union fcm_enabled=false', unionId });
+      return;
+    }
 
     const globalRes = await pool.query(
       `SELECT value FROM settings WHERE key = 'fcm_global_union_rides'`
     );
     const globalEnabled = (globalRes.rows[0]?.value ?? 'true') === 'true';
-    if (!globalEnabled) return;
+    if (!globalEnabled) {
+      logger.info({ msg: 'FCM union broadcast skipped: global setting off', unionId });
+      return;
+    }
 
-    const passRes = await pool.query(
-      `SELECT id FROM users WHERE role = 'passenger' AND is_active = true`
-    );
-    const passengerIds = passRes.rows.map(r => r.id);
-    if (passengerIds.length === 0) return;
+    // Pull each active passenger WITH their language so every reader gets one clean
+    // message in their own language (en or hi) — never both jammed together.
+    // Fallback: if preferred_language isn't migrated yet (staging deploys before
+    // prod runs migrate, shared DB), select id only so the broadcast STILL goes out
+    // in the default language instead of failing entirely.
+    let passRows;
+    try {
+      const r = await pool.query(
+        `SELECT id, preferred_language FROM users WHERE role = 'passenger' AND is_active = true`
+      );
+      passRows = r.rows;
+    } catch (e) {
+      if (e.code !== '42703') throw e;
+      const r = await pool.query(
+        `SELECT id FROM users WHERE role = 'passenger' AND is_active = true`
+      );
+      passRows = r.rows;
+    }
+    if (passRows.length === 0) {
+      logger.info({ msg: 'FCM union broadcast skipped: no active passengers', unionId });
+      return;
+    }
 
-    const msgs = [
-      { title: `🚖 ${unionName} — नई राइडें आ गईं!`, body: `इतवार को भी सफ़र रुकता नहीं! सीट पक्की करो, देर मत करो 😄` },
-      { title: `🚖 ${unionName} — हफ्ते की पहली सवारी!`, body: `नया हफ्ता, नई राइड! अभी बुक करो, सीटें उड़ जाएँगी 💪` },
-      { title: `🚖 ${unionName} — अपणी सवारी तैयार भई!`, body: `पहाड़ों का सफ़र, अपणी गाड़ी! जल्दी बुक करो 🏔️` },
-      { title: `🚖 ${unionName} — राइडें लाइव!`, body: `आधा हफ्ता निकल गया, सफ़र अभी बाकी है! बुक करो 🎯` },
-      { title: `🚖 ${unionName} — गाड़ियाँ तैयार!`, body: `भाई सीट पक्की कर लो, बाद में मत बोलना बताया नहीं! 😎` },
-      { title: `🚖 ${unionName} — वीकेंड की सवारी!`, body: `छुट्टी का मूड बनाओ, सफ़र पक्का करो! अभी देखो 🚀` },
-      { title: `🚖 ${unionName} — छुट्टी स्पेशल राइडें!`, body: `शनिवार है, निकल पड़ो! सीटें कम हैं, जल्दी करो 💺` },
-    ];
+    // Bucket recipients by language; default anything unknown to 'en'.
+    const byLang = new Map(); // 'en' | 'hi' -> [userId]
+    for (const row of passRows) {
+      const lang = row.preferred_language === 'hi' ? 'hi' : 'en';
+      if (!byLang.has(lang)) byLang.set(lang, []);
+      byLang.get(lang).push(row.id);
+    }
+
     const dayIndex = new Date().getDay();
-    const { title, body } = msgs[dayIndex];
-
-    await sendPushToMultipleUsers(passengerIds, title, body, {
-      type: 'union_ride_created',
-      union_id: unionId,
+    let totalSent = 0;
+    for (const [lang, ids] of byLang.entries()) {
+      const { title, body } = unionRideText(lang, dayIndex, unionName);
+      await sendPushToMultipleUsers(ids, title, body, {
+        type: 'union_ride_created',
+        union_id: unionId,
+      });
+      totalSent += ids.length;
+    }
+    logger.info({
+      msg: 'FCM union ride broadcast sent',
+      unionId,
+      passengers: totalSent,
+      byLang: Object.fromEntries([...byLang].map(([l, ids]) => [l, ids.length])),
     });
-    logger.info({ msg: 'FCM union ride broadcast sent', unionId, passengers: passengerIds.length });
   } catch (err) {
     logger.warn({ msg: 'FCM union ride broadcast failed', unionId, error: err.message });
   }

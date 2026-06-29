@@ -3,6 +3,8 @@ const logger = require('../config/logger');
 const rc = require('../config/retentionConfig');
 const { sendTelegramAlert, formatJobAlert } = require('../utils/telegramAlert');
 const { emitNotificationToUser, emitTripUpdated } = require('../socket/realtimeEmitter');
+const { notifText } = require('../utils/notificationText');
+const { getUserLang, getUserLangs, langOf } = require('../utils/userLanguage');
 const {
   withPgAdvisoryTryLock,
   JOB_NS,
@@ -47,30 +49,28 @@ async function run() {
           );
         }
 
+        const pLangs = await getUserLangs(client, pending.rows.map((r) => r.passenger_id));
         for (const row of pending.rows) {
           try {
+            const t = notifText('booking_auto_cancelled', langOf(pLangs, row.passenger_id));
             const n = await client.query(
               `INSERT INTO notifications (user_id, type, title, body, data)
-               VALUES ($1, 'booking_auto_cancelled',
-                 'Booking not confirmed',
-                 'The driver did not confirm your booking. The ride has started. Please try another ride.',
-                 $2::jsonb)
+               VALUES ($1, 'booking_auto_cancelled', $2, $3, $4::jsonb)
                RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-              [row.passenger_id, JSON.stringify({ booking_id: row.id, trip_id: trip.id })]
+              [row.passenger_id, t.title, t.body, JSON.stringify({ booking_id: row.id, trip_id: trip.id })]
             );
             if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
           } catch (_) {}
         }
 
         try {
+          const dLang = await getUserLang(client, trip.driver_id);
+          const t = notifText('trip_auto_started', dLang);
           const dn = await client.query(
             `INSERT INTO notifications (user_id, type, title, body, data)
-             VALUES ($1, 'trip_auto_started',
-               'Your ride has started · आपकी राइड शुरू हो गई',
-               'Your ride time has arrived and it has started automatically. Please begin your journey on time and stay in touch with your passengers for a safe trip. · आपकी राइड का समय हो गया है और यह अपने-आप शुरू हो गई है। कृपया समय पर यात्रा शुरू करें और यात्रियों से संपर्क में रहें।',
-               $2::jsonb)
+             VALUES ($1, 'trip_auto_started', $2, $3, $4::jsonb)
              RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-            [trip.driver_id, JSON.stringify({ trip_id: trip.id })]
+            [trip.driver_id, t.title, t.body, JSON.stringify({ trip_id: trip.id })]
           );
           if (dn.rows[0]) emitNotificationToUser(dn.rows[0].user_id, dn.rows[0]);
         } catch (_) {}
@@ -101,16 +101,15 @@ async function run() {
           [trip.id]
         );
 
+        const cLangs = await getUserLangs(client, completed.rows.map((r) => r.passenger_id));
         for (const row of completed.rows) {
           try {
+            const t = notifText('trip_completed', langOf(cLangs, row.passenger_id));
             const n = await client.query(
               `INSERT INTO notifications (user_id, type, title, body, data)
-               VALUES ($1, 'trip_completed',
-                 'Happy Journey!',
-                 'We hope you had a great travel experience with LuhaRide!',
-                 $2::jsonb)
+               VALUES ($1, 'trip_completed', $2, $3, $4::jsonb)
                RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-              [row.passenger_id, JSON.stringify({ booking_id: row.id, trip_id: trip.id })]
+              [row.passenger_id, t.title, t.body, JSON.stringify({ booking_id: row.id, trip_id: trip.id })]
             );
             if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
           } catch (_) {}

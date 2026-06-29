@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_service.dart';
 
@@ -116,17 +117,41 @@ class PushNotificationService {
   }
 
   Future<void> registerToken() async {
-    if (kIsWeb || _currentToken == null) return;
+    if (kIsWeb) return;
+    // BUGFIX: on a brand-new account the token fetch (in initialize) often hasn't
+    // finished when login fires registerToken — the old `_currentToken == null`
+    // guard then returned silently and the device never registered, so it got NO
+    // push notifications. Ensure init has run and lazily fetch the token here.
+    await initialize();
+    try {
+      _currentToken ??= await _messaging?.getToken();
+    } catch (e) {
+      debugPrint('FCM getToken failed: $e');
+      return;
+    }
+    if (_currentToken == null) return;
     await _registerTokenWithBackend(_currentToken!);
+  }
+
+  Future<String> _currentLanguage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('app_language') == 'hi' ? 'hi' : 'en';
+    } catch (_) {
+      return 'en';
+    }
   }
 
   Future<void> _registerTokenWithBackend(String token) async {
     try {
+      // Send the user's language with the token so server-side notifications
+      // render in one language (their choice), not English + Hindi jammed together.
       await ApiService().post(
         '/notifications/fcm-token',
         data: {
           'token': token,
           'platform': _detectPlatform(),
+          'language': await _currentLanguage(),
         },
       );
     } catch (e) {

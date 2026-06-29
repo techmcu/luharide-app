@@ -2,12 +2,26 @@ const { pool } = require('../config/database');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 
+/** Accept only languages the app actually supports; everything else → null (no-op). */
+function normalizeLanguage(value) {
+  return value === 'hi' || value === 'en' ? value : null;
+}
+
 const saveFcmToken = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const { token, platform } = req.body;
+  const { token, platform, language } = req.body;
 
   if (!token || typeof token !== 'string' || token.length < 10) {
     return res.status(400).json({ success: false, message: 'Invalid FCM token' });
+  }
+
+  // The app sends its current language alongside the token on every login, so the
+  // server can render notifications in the right language. Best-effort.
+  const lang = normalizeLanguage(language);
+  if (lang) {
+    try {
+      await pool.query('UPDATE users SET preferred_language = $1 WHERE id = $2', [lang, userId]);
+    } catch (_) { /* column may not exist pre-068; ignore */ }
   }
 
   await pool.query(
@@ -52,4 +66,20 @@ const deleteFcmToken = asyncHandler(async (req, res) => {
   ApiResponse.success(null, 'FCM token removed').send(res);
 });
 
-module.exports = { saveFcmToken, deleteFcmToken };
+/**
+ * Update only the user's notification language — used when the user toggles
+ * language in-app (no token involved). Web clients use this too. Idempotent.
+ */
+const setLanguage = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const lang = normalizeLanguage(req.body.language);
+  if (!lang) {
+    return res.status(400).json({ success: false, message: 'Invalid language' });
+  }
+  try {
+    await pool.query('UPDATE users SET preferred_language = $1 WHERE id = $2', [lang, userId]);
+  } catch (_) { /* column may not exist pre-068; ignore */ }
+  ApiResponse.success(null, 'Language preference saved').send(res);
+});
+
+module.exports = { saveFcmToken, deleteFcmToken, setLanguage };

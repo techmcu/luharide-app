@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/utils/api_error_messages.dart';
+import '../services/api_service.dart';
 
 /// Supported app languages.
 enum AppLanguageCode { en, hi }
@@ -38,7 +41,19 @@ class AppLanguageProvider with ChangeNotifier {
     setErrorMessageLocale(code == AppLanguageCode.hi ? 'hi' : 'en');
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, code == AppLanguageCode.hi ? 'hi' : 'en');
+    final value = code == AppLanguageCode.hi ? 'hi' : 'en';
+    await prefs.setString(_prefsKey, value);
+    unawaited(_syncLanguageToBackend(value));
+  }
+
+  /// Tell the server the new language so notifications come in this language.
+  /// Fire-and-forget: harmless 401 if not logged in yet (login re-syncs it).
+  Future<void> _syncLanguageToBackend(String value) async {
+    try {
+      await ApiService().post('/notifications/language', data: {'language': value});
+    } catch (_) {
+      // ignored — login flow re-sends the language with the FCM token
+    }
   }
 }
 

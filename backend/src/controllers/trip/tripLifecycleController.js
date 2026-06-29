@@ -4,6 +4,8 @@ const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../config/logger');
 const { emitNotificationToUser, emitTripUpdated } = require('../../socket/realtimeEmitter');
+const { notifText } = require('../../utils/notificationText');
+const { getUserLangs, langOf } = require('../../utils/userLanguage');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function requireUuid(id) {
@@ -87,17 +89,16 @@ const startTrip = asyncHandler(async (req, res) => {
     client.release();
   }
 
+  const cancelLangs = await getUserLangs(pool, cancelledBookings.map((r) => r.passenger_id));
   for (const row of cancelledBookings) {
     try {
       const dataJson = JSON.stringify({ booking_id: row.id, trip_id: tripId });
+      const t = notifText('booking_cancelled_ride_started', langOf(cancelLangs, row.passenger_id));
       const n = await pool.query(
         `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'booking_auto_cancelled',
-           'Booking not confirmed',
-           'Your booking was auto-cancelled because the driver started the ride without confirming your request.',
-           $2::jsonb)
+         VALUES ($1, 'booking_auto_cancelled', $2, $3, $4::jsonb)
          RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-        [row.passenger_id, dataJson]
+        [row.passenger_id, t.title, t.body, dataJson]
       );
       if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
     } catch (_) {}
@@ -189,16 +190,15 @@ const completeTrip = asyncHandler(async (req, res) => {
     client.release();
   }
 
+  const doneLangs = await getUserLangs(pool, completedBookings.rows.map((r) => r.passenger_id));
   for (const bk of completedBookings.rows) {
     try {
+      const t = notifText('trip_completed', langOf(doneLangs, bk.passenger_id));
       const n = await pool.query(
         `INSERT INTO notifications (user_id, type, title, body, data)
-         VALUES ($1, 'trip_completed',
-           'Happy Journey!',
-           'We hope you had a great travel experience with LuhaRide!',
-           $2::jsonb)
+         VALUES ($1, 'trip_completed', $2, $3, $4::jsonb)
          RETURNING id, user_id, type, title, body, data, created_at, is_read`,
-        [bk.passenger_id, JSON.stringify({ booking_id: bk.id, trip_id: tripId })]
+        [bk.passenger_id, t.title, t.body, JSON.stringify({ booking_id: bk.id, trip_id: tripId })]
       );
       if (n.rows[0]) emitNotificationToUser(n.rows[0].user_id, n.rows[0]);
     } catch (_) {}

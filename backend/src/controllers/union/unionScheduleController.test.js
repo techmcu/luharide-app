@@ -183,7 +183,7 @@ describe('createUnionSchedulesBulk', () => {
   let client;
 
   // Routes pool.query (main + background + FCM) and client.query (txn) by SQL text.
-  function mockDb({ cnt = 0, fcmEnabled = false, validDrivers = [DRIVER_ID], created } = {}) {
+  function mockDb({ cnt = 0, fcmEnabled = false, validDrivers = [DRIVER_ID], created, passengers = [{ id: 'p1' }], langColumnMissing = false } = {}) {
     pool.query.mockImplementation((sql) => {
       const s = String(sql);
       if (s.includes('FROM union_admins')) {
@@ -193,7 +193,14 @@ describe('createUnionSchedulesBulk', () => {
         return Promise.resolve({ rows: validDrivers.map((id) => ({ id })) });
       }
       if (s.includes('fcm_global_union_rides')) return Promise.resolve({ rows: [{ value: 'true' }] });
-      if (s.includes("role = 'passenger'")) return Promise.resolve({ rows: [{ id: 'p1' }] });
+      if (s.includes("role = 'passenger'")) {
+        // Simulate the preferred_language column not existing yet (un-migrated DB):
+        // the language-aware SELECT throws 42703; the id-only fallback succeeds.
+        if (langColumnMissing && s.includes('preferred_language')) {
+          return Promise.reject(Object.assign(new Error('column "preferred_language" does not exist'), { code: '42703' }));
+        }
+        return Promise.resolve({ rows: passengers });
+      }
       return Promise.resolve({ rows: [] }); // background geo UPDATEs
     });
     client = { query: jest.fn(), release: jest.fn() };
@@ -305,6 +312,45 @@ describe('createUnionSchedulesBulk', () => {
     call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
     await settle();
     expect(sendPushToMultipleUsers).not.toHaveBeenCalled();
+  });
+
+  test('broadcast splits by language: one send per language, never a bilingual message', async () => {
+    mockDb({
+      cnt: 0,
+      fcmEnabled: true,
+      passengers: [
+        { id: 'p1', preferred_language: 'en' },
+        { id: 'p2', preferred_language: 'hi' },
+        { id: 'p3', preferred_language: null }, // unknown → English bucket
+      ],
+    });
+    call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
+    await settle();
+
+    // One multicast per language bucket (en + hi) — not one jammed message to all.
+    expect(sendPushToMultipleUsers).toHaveBeenCalledTimes(2);
+    const calls = sendPushToMultipleUsers.mock.calls;
+    const enCall = calls.find(([ids]) => ids.includes('p1'));
+    const hiCall = calls.find(([ids]) => ids.includes('p2'));
+    expect(enCall[0].sort()).toEqual(['p1', 'p3']); // unknown language joins English
+    expect(hiCall[0]).toEqual(['p2']);
+    // Each message stays in a single script — no "·" bilingual jam.
+    for (const [, title, body] of calls) {
+      expect(title).not.toContain('·');
+      expect(body).not.toContain('·');
+    }
+    expect(/[ऀ-ॿ]/.test(hiCall[1] + hiCall[2])).toBe(true);  // Hindi bucket is Devanagari
+    expect(/[ऀ-ॿ]/.test(enCall[1] + enCall[2])).toBe(false); // English bucket has none
+  });
+
+  test('broadcast STILL goes out if preferred_language is not migrated yet (42703 fallback)', async () => {
+    // staging deploys before prod runs migrate (shared DB) — the column may be
+    // missing. The broadcast must fall back to id-only and still send, not vanish.
+    mockDb({ cnt: 0, fcmEnabled: true, langColumnMissing: true, passengers: [{ id: 'p1' }, { id: 'p2' }] });
+    call({ union_driver_ids: [DRIVER_ID], from_location: 'A', to_location: 'B', departure_time: futureTime() });
+    await settle();
+    expect(sendPushToMultipleUsers).toHaveBeenCalledTimes(1); // one default-language send
+    expect(sendPushToMultipleUsers.mock.calls[0][0].sort()).toEqual(['p1', 'p2']);
   });
 
   test('REGRESSION: a failing Ola Maps lookup never blocks/breaks creation (still 201)', async () => {
