@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LuhaRide — Delete Your Account</title>
+  <meta name="description" content="How to delete your LuhaRide account and what data is removed or retained. Request account deletion online or in the app." />
+  <link rel="icon" type="image/png" href="/brand-logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --text: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --blue: #2563eb;
+      --bg: #f6fafd;
+      --card: #ffffff;
+      --radius: 14px;
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+      font-feature-settings: "cv11", "ss01", "ss03";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      color: var(--text);
+      background: linear-gradient(165deg, #e8f4fc 0%, var(--bg) 45%, #fff 100%);
+      line-height: 1.65;
+      font-size: 15.5px;
+    }
+    .wrap {
+      max-width: 46rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+    .crumb {
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+    .crumb a { color: var(--blue); text-decoration: none; font-weight: 600; }
+    .crumb a:hover { text-decoration: underline; }
+    h1 {
+      font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      margin: 0 0 0.5rem;
+    }
+    .sub {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin: 0 0 1.5rem;
+    }
+    .lang-toggle {
+      display: inline-flex;
+      gap: 0.35rem;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px;
+      margin-bottom: 1.75rem;
+      box-shadow: var(--shadow);
+    }
+    .lang-toggle button {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .lang-toggle button:hover { background: #f1f5f9; }
+    .lang-toggle button.active {
+      background: var(--blue);
+      color: #fff;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.35rem 1.35rem;
+      margin-bottom: 1rem;
+      box-shadow: var(--shadow);
+    }
+    .card h2 {
+      font-family: "Plus Jakarta Sans", "Inter", sans-serif;
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin: 0 0 0.75rem;
+      color: #0b1324;
+    }
+    .card p {
+      margin: 0 0 0.75rem;
+      color: #334155;
+      font-size: 0.975rem;
+      letter-spacing: -0.005em;
+    }
+    .card p:last-child { margin-bottom: 0; }
+    .card ul, .card ol { margin: 0.5rem 0 0.5rem; padding-left: 1.3rem; }
+    .card li { margin-bottom: 0.5rem; color: #334155; }
+    .card li strong { color: #0b1324; }
+    a.mail { color: var(--blue); font-weight: 600; word-break: break-all; text-decoration: none; }
+    a.mail:hover { text-decoration: underline; }
+    .highlight {
+      background: #fef3c7;
+      border-left: 3px solid #f59e0b;
+      padding: 1rem 1.2rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      text-decoration: none;
+      padding: 0.7rem 1.4rem;
+      border-radius: 10px;
+      margin-top: 0.5rem;
+    }
+    .btn:hover { background: #1d4ed8; }
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="crumb"><a href="/">← LuhaRide home</a> · <a href="/privacy/">Privacy</a> · <a href="/terms/">Terms</a></p>
+    <h1>Delete Your Account</h1>
+    <p class="sub">LuhaRide · Operated by <strong>TECHMCU</strong> · Last updated: 29 June 2026</p>
+
+    <div class="lang-toggle" role="tablist" aria-label="Language">
+      <button type="button" class="active" data-lang="en" aria-selected="true">English</button>
+      <button type="button" data-lang="hi" aria-selected="false">हिन्दी</button>
+    </div>
+
+    <!-- English -->
+    <div id="del-en" class="del-block">
+      <div class="card">
+        <h2>About this page</h2>
+        <p>This page explains how to request deletion of your <strong>LuhaRide</strong> account (operated by <strong>TECHMCU</strong>) and the data associated with it. You can delete your account directly inside the app, or request deletion by email if you can no longer access the app.</p>
+      </div>
+
+      <div class="card">
+        <h2>Option 1 — Delete inside the app (fastest)</h2>
+        <ol>
+          <li>Open the <strong>LuhaRide</strong> app and log in.</li>
+          <li>Go to <strong>Profile</strong>.</li>
+          <li>Tap <strong>Help &amp; Support</strong>.</li>
+          <li>Tap <strong>Delete Account</strong> (placed under Help to prevent accidental deletion).</li>
+          <li>Confirm with your account <strong>password</strong>. Your account is then permanently deleted.</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>Option 2 — Request deletion by email</h2>
+        <p>If you cannot access the app, send us a deletion request from the email address linked to your account. We verify your identity and complete the deletion.</p>
+        <p><a class="btn" href="mailto:supportluharide@gmail.com?subject=Account%20Deletion%20Request%20-%20LuhaRide&body=Hello%20LuhaRide%20Team%2C%0A%0AI%20want%20to%20permanently%20delete%20my%20LuhaRide%20account%20and%20associated%20data.%0A%0ARegistered%20email%2Fphone%3A%20%0AName%20on%20account%3A%20%0A%0AThank%20you.">Request account deletion by email</a></p>
+        <p>Or email us directly at <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a> with the subject "Account Deletion Request". We acknowledge requests within 72 hours and complete verified deletions within 30 days.</p>
+      </div>
+
+      <div class="card">
+        <h2>What gets deleted</h2>
+        <ul>
+          <li>Your profile and personal information (name, email, phone, photo)</li>
+          <li>Trips you created as a driver</li>
+          <li>Your bookings as a passenger</li>
+          <li>Reviews you submitted</li>
+          <li>Verification documents you uploaded (Aadhaar, Driving Licence, RC)</li>
+          <li>Your login history and notifications</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>What is kept, and for how long</h2>
+        <ul>
+          <li><strong>Ratings given to you by other users</strong> — kept for platform data integrity.</li>
+          <li><strong>Anonymized transaction records</strong> — kept for legal compliance and analytics.</li>
+          <li><strong>Verification documents</strong> — retained up to <strong>90 days</strong> after deletion (unless a longer period is required by law) for legal compliance and fraud prevention, then permanently removed.</li>
+        </ul>
+        <div class="highlight">
+          Account deletion is permanent and cannot be undone. After deletion you will need to create a new account to use LuhaRide again.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Need help?</h2>
+        <p><strong>Email:</strong> <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
+        <p><strong>Operated by:</strong> TECHMCU · Chandeli, Purola, Uttarkashi, Uttarakhand, India</p>
+        <p>See our <a class="mail" href="/privacy/">Privacy Policy</a> for full details on data handling and retention.</p>
+      </div>
+    </div>
+
+    <!-- Hindi -->
+    <div id="del-hi" class="del-block hidden">
+      <div class="card">
+        <h2>इस पेज के बारे में</h2>
+        <p>यह पेज बताता है कि आप अपना <strong>LuhaRide</strong> खाता (संचालक <strong>TECHMCU</strong>) और उससे जुड़ा डेटा कैसे हटाने का अनुरोध कर सकते हैं। आप खाता सीधे ऐप के अंदर हटा सकते हैं, या अगर ऐप तक पहुँच नहीं है तो ईमेल से अनुरोध कर सकते हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>तरीका 1 — ऐप के अंदर हटाएँ (सबसे तेज़)</h2>
+        <ol>
+          <li><strong>LuhaRide</strong> ऐप खोलें और लॉगिन करें।</li>
+          <li><strong>Profile</strong> पर जाएँ।</li>
+          <li><strong>Help &amp; Support</strong> पर टैप करें।</li>
+          <li><strong>Delete Account</strong> पर टैप करें (गलती से डिलीट न हो इसलिए Help के अंदर रखा गया है)।</li>
+          <li>अपने खाते के <strong>पासवर्ड</strong> से पुष्टि करें। इसके बाद आपका खाता स्थायी रूप से हट जाता है।</li>
+        </ol>
+      </div>
+
+      <div class="card">
+        <h2>तरीका 2 — ईमेल से हटाने का अनुरोध</h2>
+        <p>अगर आप ऐप का उपयोग नहीं कर पा रहे हैं, तो अपने खाते से जुड़े ईमेल पते से हमें हटाने का अनुरोध भेजें। हम पहचान सत्यापित करके खाता हटा देते हैं।</p>
+        <p><a class="btn" href="mailto:supportluharide@gmail.com?subject=Account%20Deletion%20Request%20-%20LuhaRide&body=Hello%20LuhaRide%20Team%2C%0A%0AI%20want%20to%20permanently%20delete%20my%20LuhaRide%20account%20and%20associated%20data.%0A%0ARegistered%20email%2Fphone%3A%20%0AName%20on%20account%3A%20%0A%0AThank%20you.">ईमेल से खाता हटाने का अनुरोध करें</a></p>
+        <p>या सीधे <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a> पर "Account Deletion Request" विषय के साथ ईमेल करें। हम 72 घंटे में अनुरोध की पावती देते हैं और सत्यापित अनुरोध 30 दिनों में पूरा करते हैं।</p>
+      </div>
+
+      <div class="card">
+        <h2>क्या-क्या हटाया जाता है</h2>
+        <ul>
+          <li>आपकी प्रोफ़ाइल और व्यक्तिगत जानकारी (नाम, ईमेल, फ़ोन, फोटो)</li>
+          <li>ड्राइवर के रूप में बनाई गई यात्राएँ</li>
+          <li>यात्री के रूप में आपकी बुकिंग</li>
+          <li>आपके द्वारा दी गई समीक्षाएँ</li>
+          <li>अपलोड किए गए सत्यापन दस्तावेज़ (आधार, ड्राइविंग लाइसेंस, RC)</li>
+          <li>आपका लॉगिन इतिहास और सूचनाएँ</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>क्या रखा जाता है, और कितने समय तक</h2>
+        <ul>
+          <li><strong>दूसरे उपयोगकर्ताओं द्वारा आपको दी गई रेटिंग</strong> — प्लेटफ़ॉर्म डेटा अखंडता के लिए रखी जाती है।</li>
+          <li><strong>गुमनाम (anonymized) लेनदेन रिकॉर्ड</strong> — कानूनी अनुपालन और विश्लेषण के लिए रखे जाते हैं।</li>
+          <li><strong>सत्यापन दस्तावेज़</strong> — हटाने के बाद <strong>90 दिनों</strong> तक रखे जाते हैं (जब तक कानून अधिक समय की माँग न करे), फिर स्थायी रूप से हटा दिए जाते हैं।</li>
+        </ul>
+        <div class="highlight">
+          खाता हटाना स्थायी है और वापस नहीं किया जा सकता। हटाने के बाद LuhaRide दोबारा उपयोग करने के लिए नया खाता बनाना होगा।
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>मदद चाहिए?</h2>
+        <p><strong>ईमेल:</strong> <a class="mail" href="mailto:supportluharide@gmail.com">supportluharide@gmail.com</a></p>
+        <p><strong>संचालक:</strong> TECHMCU · चंदेली, पुरोला, उत्तरकाशी, उत्तराखंड, भारत</p>
+        <p>डेटा हैंडलिंग और रिटेंशन की पूरी जानकारी के लिए हमारी <a class="mail" href="/privacy/">गोपनीयता नीति</a> देखें।</p>
+      </div>
+    </div>
+
+    <footer>
+      Last updated: 29 June 2026 ·
+      <a class="mail" href="mailto:supportluharide@gmail.com">Contact</a> ·
+      <a class="mail" href="/privacy/">Privacy Policy</a> ·
+      <a class="mail" href="/terms/">Terms &amp; Conditions</a>
+    </footer>
+  </div>
+
+  <script>
+    (function () {
+      var buttons = document.querySelectorAll(".lang-toggle button");
+      var blocks = {
+        en: document.getElementById("del-en"),
+        hi: document.getElementById("del-hi")
+      };
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var lang = btn.getAttribute("data-lang");
+          buttons.forEach(function (b) {
+            var isActive = b === btn;
+            b.classList.toggle("active", isActive);
+            b.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
+          Object.keys(blocks).forEach(function (key) {
+            blocks[key].classList.toggle("hidden", key !== lang);
+          });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
