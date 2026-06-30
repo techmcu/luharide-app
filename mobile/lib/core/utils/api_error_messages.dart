@@ -66,8 +66,11 @@ String userMessageFromDio(DioException e) {
         'Secure connection failed (SSL). Please check your network or VPN.',
         'सुरक्षित कनेक्शन विफल (SSL)। कृपया नेटवर्क या VPN जाँचें।',
       );
-    case DioExceptionType.badResponse:
-    case DioExceptionType.unknown:
+    default:
+      // badResponse, unknown, and any future Dio exception types (e.g.
+      // transformTimeout added in newer dio) fall through to the HTTP
+      // status-code handling below. Using `default` keeps this switch
+      // exhaustive across dio versions so CI analyze never breaks on it.
       break;
   }
 
