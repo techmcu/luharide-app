@@ -205,6 +205,7 @@ class _TripCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final driver = trip.driver;
+    final isFull = trip.availableSeats <= 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -226,11 +227,30 @@ class _TripCard extends StatelessWidget {
               color: _kBlue.withValues(alpha: 0.08),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.directions_car_filled_rounded, size: 18, color: _kBlue),
-                SizedBox(width: 8),
-                Text('Independent driver • Book on app', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kBlue)),
+                const Icon(Icons.directions_car_filled_rounded, size: 18, color: _kBlue),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Independent driver • Book on app',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kBlue),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isFull)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _kRed,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'RIDE FULL',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -313,12 +333,14 @@ class _TripCard extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: onBook,
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: const Text('View Details & Book', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                onPressed: isFull ? null : onBook,
+                icon: Icon(isFull ? Icons.block_rounded : Icons.arrow_forward_rounded, size: 18),
+                label: Text(isFull ? 'Ride Full' : 'View Details & Book', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kBlue,
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[300],
+                  disabledForegroundColor: Colors.grey[600],
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   elevation: 0,

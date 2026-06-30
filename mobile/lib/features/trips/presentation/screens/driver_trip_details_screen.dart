@@ -802,6 +802,7 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               InkWell(
                 onTap: booking.passengerId.isNotEmpty
@@ -847,6 +848,8 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
                     children: [
                       Text(
                         booking.passengerName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -861,18 +864,26 @@ class _DriverTripDetailsScreenState extends State<DriverTripDetailsScreen> {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: isPending ? Colors.orange : Colors.green,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Seat${booking.seatNumbers.length > 1 ? "s" : ""} ${booking.seatNumbers.join(", ")}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+              const SizedBox(width: 8),
+              // Cap the badge width and let the seat numbers wrap to multiple
+              // lines — one passenger can book many seats (up to 50), which would
+              // otherwise push this off-screen and overflow the row.
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.42),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isPending ? Colors.orange : Colors.green,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    'Seat${booking.seatNumbers.length > 1 ? "s" : ""} ${booking.seatNumbers.join(", ")}',
+                    softWrap: true,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
               ),

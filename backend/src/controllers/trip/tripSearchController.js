@@ -182,9 +182,12 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   // and the corridor query (date = $1) can SHARE this exact logic without passing any
   // unused parameters — an unused bind param makes Postgres throw "could not determine
   // data type of parameter $N" and the whole query fails.
+  // NOTE: we intentionally do NOT filter out full rides (available_seats = 0).
+  // Full rides stay in results (marked "Ride Full" + non-bookable on the client)
+  // so the platform still looks active/credible; the client disables booking and
+  // the JS sort below pushes full rides to the bottom.
   const tripTimeWhere = (p) => `t.departure_time >= ($${p}::date)::timestamp - interval '330 minutes'
       AND t.departure_time <  ($${p}::date)::timestamp + interval '1 day' - interval '330 minutes'
-      AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
       AND t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')`;
 
   // ── Independent-driver trips: endpoint-proximity + corridor candidates ──
@@ -230,7 +233,6 @@ async function proximitySearch(req, res, q, fLat, fLng) {
            AND t.from_location_norm LIKE $2 AND t.to_location_norm LIKE $3
            AND t.departure_time >= ($1::date)::timestamp - interval '330 minutes'
            AND t.departure_time <  ($1::date)::timestamp + interval '1 day' - interval '330 minutes'
-           AND COALESCE(t.available_seats, t.total_capacity, 0) > 0
            AND t.departure_time > (NOW() AT TIME ZONE 'UTC') - (${graceMin} * INTERVAL '1 minute')
          LIMIT ${CAND_LIMIT}`,
         [dateStr, fromPat, toPat]
@@ -305,6 +307,11 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   }
 
   scored.sort((a, b) => {
+    // Bookable rides first; full rides (available_seats = 0) sink to the bottom
+    // but stay visible (marked "Ride Full" on the client).
+    const aFull = Number(a.t.available_seats ?? a.t.total_capacity ?? 0) <= 0;
+    const bFull = Number(b.t.available_seats ?? b.t.total_capacity ?? 0) <= 0;
+    if (aFull !== bFull) return aFull ? 1 : -1;
     if (a.score !== b.score) return a.score - b.score;
     const av = a.t.driver_verified === 'approved' ? 0 : 1;
     const bv = b.t.driver_verified === 'approved' ? 0 : 1;

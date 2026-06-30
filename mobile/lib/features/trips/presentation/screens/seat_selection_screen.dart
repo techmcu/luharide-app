@@ -539,6 +539,26 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             ),
           ),
 
+          // Cab Full banner — every seat is taken; booking isn't possible.
+          if (!_isLoadingSeats && _availableCount <= 0)
+            Container(
+              width: double.infinity,
+              color: Colors.red[50],
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(Icons.event_busy, color: Colors.red[700], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      loc.t('seat.select.cab_full'),
+                      style: TextStyle(color: Colors.red[800], fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Compact status strip — counts in one line + a single horizontally
           // scrollable legend line. Frees vertical space so the seat map fits
           // on small screens and large (12+ seat) vehicles.
@@ -697,17 +717,19 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          _selectedSeats.isEmpty
-                              ? loc.t('seat.select.prompt_select')
-                              : loc.tReplace('seat.select.seats_selected', {
-                                  'n': '${_selectedSeats.length}',
-                                }),
+                          _availableCount <= 0
+                              ? loc.t('seat.select.full_short')
+                              : _selectedSeats.isEmpty
+                                  ? loc.t('seat.select.prompt_select')
+                                  : loc.tReplace('seat.select.seats_selected', {
+                                      'n': '${_selectedSeats.length}',
+                                    }),
                           // Explicit dark color: the bar background is hardcoded
                           // white, so without this the text is invisible in dark theme.
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                            color: _availableCount <= 0 ? Colors.red[700] : Colors.black87,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,

@@ -924,6 +924,14 @@ class AppLocalizations {
       'en': 'Book now',
       'hi': 'अब बुक करें',
     },
+    'seat.select.cab_full': {
+      'en': 'Cab full — all seats are booked. Please contact the driver or pick another ride.',
+      'hi': 'कैब फुल — सभी सीटें बुक हो चुकी हैं। कृपया ड्राइवर से संपर्क करें या दूसरी राइड चुनें।',
+    },
+    'seat.select.full_short': {
+      'en': 'Cab Full',
+      'hi': 'कैब फुल',
+    },
     // Driver — my trips list
     'driver.trips.chip.all': {
       'en': 'All',
