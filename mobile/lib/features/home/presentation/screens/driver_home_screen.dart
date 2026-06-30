@@ -278,7 +278,9 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 ),
               ),
             ),
-            SizedBox(height: 24 + MediaQuery.viewPaddingOf(context).bottom),
+            // Bottom system-bar inset is applied globally (main.dart SafeArea), so
+            // a plain trailing gap is enough here — adding viewPadding would double it.
+            const SizedBox(height: 24),
           ],
         ),
       ),

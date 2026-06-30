@@ -152,12 +152,55 @@ class _TripDetailsScreenState extends State<TripDetailsScreen> {
   /// Book CTA, or info bar if the current user is the trip owner (same user id as driver).
   Widget? _tripDetailsBottomBar(AppLocalizations loc) {
     final t = _displayTrip;
-    if (t == null || t.availableSeats <= 0) return null;
+    if (t == null) return null;
     final uid = context.read<AuthProvider>().user?.id;
     if (t.isCreatedByUserId(uid)) {
       return _buildOwnRideBottomBar(loc);
     }
+    // Full cab: show a clear, non-clickable "Cab Full" bar (same wording as search
+    // + seat selection) so the user knows immediately and isn't sent to booking.
+    if (t.availableSeats <= 0) {
+      return _buildCabFullBar(loc);
+    }
     return _buildBookButton(loc);
+  }
+
+  Widget _buildCabFullBar(AppLocalizations loc) {
+    return SafeArea(
+      top: false,
+      minimum: EdgeInsets.zero,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.2),
+              blurRadius: 4,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: null,
+            icon: const Icon(Icons.block_rounded, size: 20),
+            label: Text(
+              loc.t('seat.select.full_short'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            style: ElevatedButton.styleFrom(
+              disabledBackgroundColor: Colors.grey[300],
+              disabledForegroundColor: Colors.grey[700],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildOwnRideBottomBar(AppLocalizations loc) {

@@ -45,9 +45,10 @@ abstract final class AppFeedback {
   }
 
   static EdgeInsets _margin(BuildContext context) {
-    final mq = MediaQuery.of(context);
-    final bottom = mq.padding.bottom + mq.viewPadding.bottom;
-    return EdgeInsets.fromLTRB(16, 0, 16, 12 + bottom);
+    // The bottom system-bar inset is applied globally (main.dart SafeArea), so the
+    // floating snackbar already sits above the gesture/3-button bar. A plain margin
+    // is enough — adding padding/viewPadding here would float it a nav-bar gap too high.
+    return const EdgeInsets.fromLTRB(16, 0, 16, 12);
   }
 
   /// Non-dismissible loading hint; call [ScaffoldFeatureController.close] when done.

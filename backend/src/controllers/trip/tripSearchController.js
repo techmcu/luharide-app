@@ -114,6 +114,75 @@ function rankPlaces(places, { query, near } = {}) {
  * Tie-break: KYC-verified driver → more ratings (experience) → earlier departure.
  * Radius auto-scales with route length (short trip → tight radius, long → wide).
  */
+
+/**
+ * True bookable-seat count per trip, computed from LIVE bookings + active seat
+ * locks — the SAME source of truth the seat-selection screen and the
+ * booked-seats endpoint use. The denormalised `trips.available_seats` column can
+ * drift out of sync (legacy rows where it is NULL, or a missed decrement), and a
+ * stale/NULL value made fully-booked rides still show a live "Book" button in
+ * search. We recompute here so search always agrees with seat selection: a full
+ * cab shows "Ride Full" and can never be booked.
+ *
+ *   available = total_capacity − 1 (driver seat) − distinct taken passenger seats
+ *   taken     = seats on confirmed/pending bookings ∪ active driver locks (seat ≥ 2)
+ *
+ * @param {Array<{id:string,total_capacity:number}>} rows  candidate trip rows
+ * @returns {Promise<Map<string, number>>}  trip id → true available seats.
+ *   Best-effort: returns an empty map on query failure so callers fall back to
+ *   the stored column (never throws, never blocks search).
+ */
+async function computeTrueAvailability(rows) {
+  const out = new Map();
+  const ids = [...new Set(rows.map(r => r && r.id).filter(Boolean))];
+  if (ids.length === 0) return out;
+
+  // Distinct passenger seats (≥ 2) taken by a live booking OR an active lock.
+  const takenSql = (withLocks) =>
+    `SELECT trip_id, COUNT(DISTINCT seat) AS taken FROM (
+       SELECT trip_id, unnest(seat_numbers) AS seat
+         FROM bookings
+        WHERE trip_id = ANY($1::uuid[]) AND status IN ('confirmed', 'pending')` +
+    (withLocks
+      ? `
+       UNION
+       SELECT trip_id, seat_number AS seat
+         FROM trip_seat_locks
+        WHERE trip_id = ANY($1::uuid[])`
+      : '') +
+    `
+     ) s
+     WHERE seat >= 2
+     GROUP BY trip_id`;
+
+  let takenRows;
+  try {
+    takenRows = (await queryRead(takenSql(true), [ids])).rows;
+  } catch (e) {
+    if (e.code === '42P01') {
+      // trip_seat_locks not migrated yet → count bookings only (still correct
+      // wherever the driver has not locked any seats).
+      try {
+        takenRows = (await queryRead(takenSql(false), [ids])).rows;
+      } catch (e2) {
+        logger.warn('Search availability recompute failed:', e2.message);
+        return out;
+      }
+    } else {
+      logger.warn('Search availability recompute failed:', e.message);
+      return out;
+    }
+  }
+
+  const takenById = new Map(takenRows.map(r => [r.trip_id, Number(r.taken) || 0]));
+  for (const r of rows) {
+    const cap = Number(r.total_capacity);
+    if (!Number.isFinite(cap) || cap <= 0) continue; // unknown capacity → keep column
+    out.set(r.id, Math.max(0, cap - 1 - (takenById.get(r.id) || 0)));
+  }
+  return out;
+}
+
 async function proximitySearch(req, res, q, fLat, fLng) {
   const dateStr = (q.date != null ? String(q.date) : '').trim().slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
@@ -248,6 +317,14 @@ async function proximitySearch(req, res, q, fLat, fLng) {
   for (const rs of tripResults) for (const row of rs.rows) if (!tripById.has(row.id)) tripById.set(row.id, row);
   const textIds = new Set();
   for (const row of textRows) { textIds.add(row.id); if (!tripById.has(row.id)) tripById.set(row.id, row); }
+
+  // Replace the (possibly stale/NULL) stored available_seats with the live truth
+  // so full rides are detected correctly: the sort sinks them and the client
+  // shows a non-bookable "Ride Full" card. Falls back to the column on failure.
+  const availTrue = await computeTrueAvailability([...tripById.values()]);
+  for (const t of tripById.values()) {
+    if (availTrue.has(t.id)) t.available_seats = availTrue.get(t.id);
+  }
 
   const scored = [];
   for (const t of tripById.values()) {
@@ -677,7 +754,17 @@ const searchTrips = asyncHandler(async (req, res) => {
   const result = _tripsSettled.status === 'fulfilled' ? _tripsSettled.value : { rows: [] };
   const unionResult = _unionSettled.status === 'fulfilled' ? _unionSettled.value : { rows: [] };
 
-  const trips = result.rows.map(trip => ({
+  // Recompute live availability so the stored column drifting high/NULL can't
+  // leak a full ride past the SQL `available_seats > 0` pre-filter. The text
+  // path hides full rides (no "Ride Full" card here), so drop any row the live
+  // count proves is full.
+  const textAvailTrue = await computeTrueAvailability(result.rows);
+  for (const trip of result.rows) {
+    if (textAvailTrue.has(trip.id)) trip.available_seats = textAvailTrue.get(trip.id);
+  }
+  const trips = result.rows
+    .filter(trip => (trip.available_seats ?? trip.total_capacity ?? 0) > 0)
+    .map(trip => ({
     id: trip.id,
     from_location: trip.from_location,
     to_location: trip.to_location,
@@ -1031,4 +1118,5 @@ module.exports = {
   geoBoundingBox,
   requireUuid,
   rankPlaces,
+  computeTrueAvailability,
 };

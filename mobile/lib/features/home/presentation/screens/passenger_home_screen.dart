@@ -545,7 +545,9 @@ class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
                 ),
               ),
 
-            SizedBox(height: 12 + MediaQuery.viewPaddingOf(context).bottom + MediaQuery.viewInsetsOf(context).bottom * 0.3),
+            // Bottom system-bar inset is applied globally (main.dart SafeArea); keep
+            // only the small keyboard-follow nudge here (viewPadding would double-pad).
+            SizedBox(height: 12 + MediaQuery.viewInsetsOf(context).bottom * 0.3),
           ],
         ),
       ),

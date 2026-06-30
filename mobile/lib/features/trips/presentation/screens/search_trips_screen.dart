@@ -247,7 +247,7 @@ class _TripCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
-                      'RIDE FULL',
+                      'CAB FULL',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5),
                     ),
                   ),
@@ -335,7 +335,7 @@ class _TripCard extends StatelessWidget {
               child: ElevatedButton.icon(
                 onPressed: isFull ? null : onBook,
                 icon: Icon(isFull ? Icons.block_rounded : Icons.arrow_forward_rounded, size: 18),
-                label: Text(isFull ? 'Ride Full' : 'View Details & Book', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                label: Text(isFull ? 'Cab Full' : 'View Details & Book', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _kBlue,
                   foregroundColor: Colors.white,

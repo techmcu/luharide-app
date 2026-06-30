@@ -122,7 +122,20 @@ class LuhaRideApp extends StatelessWidget {
             builder: (context, child) => Column(
               children: [
                 const OfflineBanner(),
-                Expanded(child: child!),
+                // Edge-to-edge (Android 15+, targetSdk 36) draws Flutter under the
+                // system navigation bar. Inset the bottom ONCE here so no screen's
+                // last control (logout, submit, book, back/cancel) is ever hidden
+                // behind the gesture/3-button bar — on every screen and phone size.
+                // Top is left to each AppBar; horizontal insets are untouched so no
+                // existing layout shifts.
+                Expanded(
+                  child: SafeArea(
+                    top: false,
+                    left: false,
+                    right: false,
+                    child: child!,
+                  ),
+                ),
               ],
             ),
             home: Builder(
