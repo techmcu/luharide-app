@@ -415,12 +415,11 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     }
     final phoneMissing = _userPhoneMissing;
 
-    // Responsive seat size: fit the WIDEST row within the screen so seats never
-    // overflow / get cut off on small phones (and don't look huge on tablets).
-    // Each seat slot = dim + 16 (horizontal padding). Outer padding = 32.
+    // Responsive seat size is bounded by the widest row's width here, then also
+    // fit to the available HEIGHT inside the LayoutBuilder below — so big
+    // vehicles show as many seats as possible on small screens (and the grid
+    // still scrolls when it can't all fit at the minimum size).
     final maxCols = layout.cols.clamp(1, 6);
-    final seatDim = ((MediaQuery.of(context).size.width - 32) / maxCols - 16)
-        .clamp(38.0, 60.0);
 
     return Scaffold(
       appBar: AppBar(
@@ -475,9 +474,13 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                   children: [
                     const Icon(Icons.trip_origin, color: Colors.green),
                     const SizedBox(width: 8),
-                    Text(
-                      widget.trip.fromLocation,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    Flexible(
+                      child: Text(
+                        widget.trip.fromLocation,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8),
@@ -489,6 +492,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       child: Text(
                         widget.trip.toLocation,
                         style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -534,49 +539,48 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             ),
           ),
 
-          // Seat count & Legend
+          // Compact status strip — counts in one line + a single horizontally
+          // scrollable legend line. Frees vertical space so the seat map fits
+          // on small screens and large (12+ seat) vehicles.
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
             child: Column(
               children: [
-                // Seat count summary
                 if (!_isLoadingSeats) ...[
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.blue[200]!),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _buildCountChip(loc.t('seat.select.summary.confirmed'), _bookedSeats.length, Colors.grey),
-                        _buildCountChip(loc.t('seat.select.summary.pending'), _pendingSeats.length, Colors.orange),
-                        _buildCountChip(loc.t('seat.select.summary.available'), _availableCount, Colors.green),
-                      ],
-                    ),
+                  Row(
+                    children: [
+                      _buildCountInline(loc.t('seat.select.summary.confirmed'), _bookedSeats.length, Colors.grey[700]!),
+                      _buildCountDivider(),
+                      _buildCountInline(loc.t('seat.select.summary.pending'), _pendingSeats.length, Colors.orange[800]!),
+                      _buildCountDivider(),
+                      _buildCountInline(loc.t('seat.select.summary.available'), _availableCount, Colors.green[700]!),
+                    ],
                   ),
-                  if (_loadError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      loc.t('seat.select.tap_refresh'),
-                      style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                  if (_loadError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        loc.t('seat.select.tap_refresh'),
+                        style: TextStyle(fontSize: 12, color: Colors.orange[700]),
+                      ),
                     ),
-                  ],
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
                 ],
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 16,
-                  runSpacing: 8,
-                  children: [
-                    _buildLegend(Colors.orange, Icons.local_taxi, loc.t('seat.select.legend.driver')),
-                    _buildLegend(Colors.blue[100]!, Icons.event_seat_outlined, loc.t('seat.select.legend.available')),
-                    _buildLegend(Colors.green, Icons.event_seat, loc.t('seat.select.legend.selected')),
-                    _buildLegend(Colors.grey, Icons.event_seat, loc.t('seat.select.legend.booked')),
-                    _buildLegend(Colors.orange[300]!, Icons.event_seat, loc.t('seat.select.legend.pending')),
-                  ],
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildLegend(Colors.orange, Icons.local_taxi, loc.t('seat.select.legend.driver')),
+                      const SizedBox(width: 14),
+                      _buildLegend(Colors.blue[100]!, Icons.event_seat_outlined, loc.t('seat.select.legend.available')),
+                      const SizedBox(width: 14),
+                      _buildLegend(Colors.green, Icons.event_seat, loc.t('seat.select.legend.selected')),
+                      const SizedBox(width: 14),
+                      _buildLegend(Colors.grey, Icons.event_seat, loc.t('seat.select.legend.booked')),
+                      const SizedBox(width: 14),
+                      _buildLegend(Colors.orange[300]!, Icons.event_seat, loc.t('seat.select.legend.pending')),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -586,7 +590,23 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           Expanded(
             child: _isLoadingSeats
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Auto-fit seat size to the available HEIGHT so large
+                      // vehicles show more seats at once on small screens.
+                      // Bounded by width; min 34 keeps seats tappable; the grid
+                      // still scrolls when it can't all fit at the minimum.
+                      final widthDim =
+                          (MediaQuery.of(context).size.width - 32) / maxCols - 16;
+                      final rowsCount = layout.rows < 1 ? 1 : layout.rows;
+                      // Per row ≈ seatDim + 12 (seat) + 16 (row gap); reserve
+                      // ~50 for the front marker and 32 for outer padding.
+                      final heightDim =
+                          (constraints.maxHeight - 82) / rowsCount - 28;
+                      final seatDim = [widthDim, heightDim]
+                          .reduce((a, b) => a < b ? a : b)
+                          .clamp(34.0, 60.0);
+                      return RefreshIndicator(
                     onRefresh: () => _loadSeatStatus(forceRefresh: true),
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
@@ -648,6 +668,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                         ),
                       ),
                     ),
+                      );
+                    },
                   ),
           ),
 
@@ -680,10 +702,15 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                               : loc.tReplace('seat.select.seats_selected', {
                                   'n': '${_selectedSeats.length}',
                                 }),
+                          // Explicit dark color: the bar background is hardcoded
+                          // white, so without this the text is invisible in dark theme.
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: Colors.black87,
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         if (_selectedSeats.isNotEmpty)
                           Text(
@@ -730,23 +757,37 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     );
   }
 
-  Widget _buildCountChip(String label, int count, Color color) {
-    return Column(
-      children: [
-        Text(
-          '$count',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
+  // One compact "Label N" count cell. Flexible + ellipsis so three of them
+  // never overflow, even with large system font or long translations.
+  Widget _buildCountInline(String label, int count, Color color) {
+    return Flexible(
+      child: Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+            ),
+            TextSpan(
+              text: '$count',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
-        ),
-      ],
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  Widget _buildCountDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text('|', style: TextStyle(color: Colors.grey[400])),
     );
   }
 

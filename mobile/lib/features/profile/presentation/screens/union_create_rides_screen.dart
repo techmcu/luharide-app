@@ -108,6 +108,12 @@ class _UnionCreateRidesScreenState extends State<UnionCreateRidesScreen>
     final pickedTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(initial),
+      // Force 12-hour AM/PM picker on every device, even when the phone's
+      // system clock is set to 24-hour format (common on many Androids).
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: child!,
+      ),
     );
     if (pickedTime == null) return;
 
